@@ -1,0 +1,44 @@
+"use client";
+import { useEffect, useState } from "react";
+import { fetchTokens } from "@/lib/queries";
+
+// fallback shown only if the live feed is briefly unreachable
+const FALLBACK = [
+  { t: "$BONK", p: 0 }, { t: "$WIF", p: 0 }, { t: "$POPCAT", p: 0 }, { t: "$PNUT", p: 0 }
+];
+
+export default function Ticker() {
+  const [items, setItems] = useState<{ t: string; p: number }[]>(FALLBACK);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const toks = await fetchTokens("trending");
+      if (!alive) return;
+      const mapped = (toks || [])
+        .filter((x: any) => x.symbol && x.change24h != null)
+        .slice(0, 16)
+        .map((x: any) => ({ t: "$" + String(x.symbol).toUpperCase().slice(0, 10), p: Number(x.change24h) }));
+      if (mapped.length) setItems(mapped);
+    };
+    load();
+    const iv = setInterval(load, 30000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+
+  const row = [...items, ...items];
+  return (
+    <div className="relative overflow-hidden border-y border-edge bg-panel/60 py-3">
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-void to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-void to-transparent" />
+      <div className="ticker-track flex w-max gap-10 font-mono text-sm">
+        {row.map((c, i) => (
+          <span key={i} className="flex items-center gap-2 text-dim">
+            <span className="text-white">{c.t}</span>
+            <span className={c.p >= 0 ? "text-toxic" : "text-hotpink"}>{c.p >= 0 ? "+" : ""}{c.p.toFixed(0)}%</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

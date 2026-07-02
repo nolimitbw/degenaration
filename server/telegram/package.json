@@ -1,0 +1,1 @@
+{ "name": "degenaration-telegram", "private": true, "scripts": { "start": "node bot.js" } }
