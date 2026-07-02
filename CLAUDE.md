@@ -11,14 +11,57 @@ Follow this loop for every non-trivial task. Do not skip steps.
 
 1. Understand — read the relevant files and this design system BEFORE writing code.
    Never invent a page from scratch when a pattern already exists.
-2. Plan — for anything beyond a one-line fix, use plan mode (shift+tab) and get the
-   user's approval on a short numbered plan before editing.
+2. Plan — for anything beyond a one-line fix, write a short numbered plan. You do
+   NOT need approval to proceed on backlog/roadmap work — make the reasonable call,
+   note it, and build. Only pause for the "When to interrupt the user" list below.
 3. Build — implement in small, coherent edits. Reuse existing components and tokens.
 4. Self-review — reread your own diff. Delete dead code, console.logs, TODOs, scraps.
 5. Verify — actually exercise it (`npm run build`, load the page) before claiming done.
 6. Report honestly — if the build fails or a step was skipped, say so plainly.
 
 A task is NOT done just because a file was written. See "Definition of done" below.
+
+## Autonomy contract (read this — the owner wants to be left alone)
+
+The owner does not want to babysit sessions or be asked to approve routine work.
+Default to acting, not asking. Work through the backlog top to bottom on your own.
+
+- Decide and proceed on anything reversible: which roadmap item is next, component
+  and file structure, copy, styling within the design system, refactors, test edits,
+  bug fixes. Make the sensible choice, log it in `docs/activity-log.md`, keep going.
+- Do NOT hand a decision back to the owner just because it is "non-trivial." Pick the
+  best option, state the assumption in one line, and continue. If you are between two
+  reasonable options, pick the one that is easier to reverse and move on.
+- Self-verify instead of asking the owner to check: `npm run build`, load the page,
+  run `server/test/run.js`. Report what you actually observed, not "please confirm."
+- Batch, don't ping. If you hit things that genuinely need the owner (see below),
+  collect them into ONE list at the end of your turn. Never interrupt mid-work with
+  a single question when you could keep making progress on other backlog items first.
+
+### When to interrupt the owner (the ONLY reasons to stop and ask)
+
+1. Secrets/credentials only they hold — Supabase service key, Privy app secret,
+   Helius key, host login, `PLATFORM_FEE_ACCOUNT`. Never invent or guess these.
+2. Going live with real money — flipping to mainnet with real funds, setting
+   `DELEGATED_SIGNING=on`, or anything that lets the engine move actual SOL.
+3. Irreversible or outward-facing actions — production deploy, `git push`, deleting
+   files you did not create, publishing, spending money.
+4. A real fork in the product direction that changes what gets built, not how.
+
+Everything else: just do it. Then report what you did and what (if anything) from
+the list above is now waiting on them.
+
+## Backlog (work top to bottom; keep this list updated as you finish items)
+
+Full detail in `FEATURES-ROADMAP.md`. Current priority order:
+
+1. Trenches feed + Explorer screener polish — biggest daily-use surfaces.
+2. Wallet Tracker (second copy source) with buy alerts.
+3. Holdings performance chart + shareable PnL card.
+4. Limit orders + snipe-on-launch wired into the engine.
+5. Account security (2FA, session manager), Telegram bot.
+6. Finish the 24/7 delegated-signing worker — CODE is done and tested; blocked only
+   on owner-held secrets + a host (see reason #1 above). Devnet-test before mainnet.
 
 ## Anti-patterns that created the current mess (never do these)
 
