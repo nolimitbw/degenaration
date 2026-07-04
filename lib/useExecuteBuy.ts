@@ -1,0 +1,57 @@
+"use client";
+import { useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSendTransaction } from "@privy-io/react-auth/solana";
+import { supabase } from "./supabase";
+import { getRpc, getNet } from "./net";
+import { executeBuy as extensionBuy } from "./execute";
+
+const SOL = "So11111111111111111111111111111111111111112";
+
+type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string };
+type Result = { ok: boolean; sig?: string; error?: string };
+
+/**
+ * Returns an executeBuy that signs with the user's Privy EMBEDDED wallet (the wallet
+ * Google/email sign-ups get), mirroring the proven SwapPanel loop. Falls back to a
+ * browser-extension wallet (Phantom/Solflare/Backpack) when no embedded wallet is present.
+ * Non-custodial throughout — the user's wallet signs every transaction.
+ */
+export function useExecuteBuy() {
+  const { authenticated, user } = usePrivy();
+  const { sendTransaction } = useSendTransaction();
+  const embeddedAddr = (user as any)?.wallet?.address as string | undefined;
+
+  return useCallback(async function executeBuy(args: BuyArgs): Promise<Result> {
+    // No embedded wallet -> use an extension wallet (existing path).
+    if (!authenticated || !embeddedAddr) return extensionBuy(args);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/swap", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: Math.floor(args.solAmount * 1e9), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net: getNet() })
+      }).then((r) => r.json());
+      if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
+
+      const web3 = await import("@solana/web3.js");
+      const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
+      const tx = web3.VersionedTransaction.deserialize(raw);
+      const connection = new web3.Connection(getRpc(), "confirmed");
+      const receipt: any = await sendTransaction({ transaction: tx, connection });
+      const sig = receipt?.signature ?? undefined;
+
+      if (session?.access_token) {
+        await fetch("/api/record-trade", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual" })
+        }).catch(() => {});
+      }
+      return { ok: true, sig };
+    } catch (e: any) {
+      return { ok: false, error: e.message || "signing cancelled" };
+    }
+  }, [authenticated, embeddedAddr, sendTransaction]);
+}

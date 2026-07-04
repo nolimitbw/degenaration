@@ -2,17 +2,25 @@
 import { useEffect, useState } from "react";
 import { fmtNum, fmtAge } from "@/lib/queries";
 import { getNet } from "@/lib/net";
-import { executeBuy } from "@/lib/execute";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSendTransaction } from "@privy-io/react-auth/solana";
+import { executeBuy as extensionBuy } from "@/lib/execute";
+import { supabase } from "@/lib/supabase";
+import { Connection, VersionedTransaction } from "@solana/web3.js";
+import { getRpc } from "@/lib/net";
 import { useToast } from "@/components/Toast";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const PRESETS = [0.1, 0.5, 1, 2];
 
 export default function TokenDrawer({ token, onClose }: { token: any | null; onClose: () => void }) {
+  const { authenticated, user } = usePrivy();
+  const { sendTransaction } = useSendTransaction();
+  const embeddedAddr = (user as any)?.wallet?.address as string | undefined;
   const toast = useToast();
   const [price, setPrice] = useState<any>(null);
   const [rug, setRug] = useState<any>(null);
-  const [conc, setConc] = useState<number | null>(null); // top-10 holder concentration %
+  const [conc, setConc] = useState<number | null>(null);
   const [amount, setAmount] = useState(0.5);
   const [slippage, setSlippage] = useState(3);
   const [sim, setSim] = useState<any>(null);
@@ -37,12 +45,34 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
     const r = await fetch(`/api/simulate?in=${SOL}&out=${token.address}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`).then((x) => x.json()).catch(() => null);
     setSim(r); setBusy(false);
   }
+
   async function doBuy() {
     setBusy(true);
-    const r = await executeBuy({ mint: token.address, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: token.symbol });
+    if (embeddedAddr && authenticated) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/swap", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+          body: JSON.stringify({ inputMint: SOL, outputMint: token.address, amount: Math.floor(amount * 1e9), userPublicKey: embeddedAddr, slippageBps: slippage * 100, net: getNet() })
+        }).then((r) => r.json());
+        if (res.error || !res.swapTransaction) { toast(res.error || "Could not build swap", "err"); setBusy(false); return; }
+        const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
+        const tx = VersionedTransaction.deserialize(raw);
+        const connection = new Connection(getRpc(), "confirmed");
+        const receipt: any = await sendTransaction({ transaction: tx, connection });
+        const sig = receipt?.signature ?? null;
+        if (sig) { toast("Trade sent — " + sig.slice(0, 8)); onClose(); }
+        else toast("Signing cancelled", "err");
+      } catch (e: any) {
+        toast(e.message || "Signing failed", "err");
+      }
+    } else {
+      const r = await extensionBuy({ mint: token.address, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: token.symbol });
+      if (r.ok) { toast("Trade sent — " + (r.sig?.slice(0, 8) ?? "")); onClose(); }
+      else toast(r.error || "Trade failed", "err");
+    }
     setBusy(false);
-    if (r.ok) { toast("Trade sent — " + (r.sig?.slice(0, 8) ?? "")); onClose(); }
-    else toast(r.error || "Trade failed", "err");
   }
 
   const socials = price?.socials ?? token.socials ?? [];
@@ -55,11 +85,11 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           <div className="flex items-center gap-3">
             {token.image ? <img src={token.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{token.symbol?.slice(0, 2)}</div>}
             <div>
-              <p className="flex items-center gap-1 font-mono font-bold">{token.symbol}{token.isPump && <span className="rounded bg-cyber/20 px-1 text-[9px] text-cyber">pump</span>}</p>
+              <p className="flex items-center gap-1 font-mono font-bold">{token.symbol}{(token.ageMs != null && token.ageMs < 3600000) && <span className="rounded bg-hotpink/20 px-1 text-[9px] text-hotpink">new</span>}</p>
               <p className="font-mono text-[11px] text-dim">{token.name} · {fmtAge(token.ageMs)}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-dim hover:text-white">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-white">✕</button>
         </div>
 
         {/* links */}
@@ -125,7 +155,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           </label>
           {sim && !sim.error && (
             <div className="mt-3 space-y-1 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[11px]">
-              <div className="flex justify-between"><span className="text-dim">Est. receive</span><span className="text-toxic">{(sim.outAmount/1e5).toLocaleString()} {token.symbol}</span></div>
+              <div className="flex justify-between"><span className="text-dim">Est. receive</span><span className="text-toxic">{price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (sim.outAmount/1e6).toLocaleString()} {token.symbol}</span></div>
               <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={sim.priceImpactPct>10?"text-hotpink":""}>{sim.priceImpactPct.toFixed(2)}%</span></div>
               <div className="flex justify-between"><span className="text-dim">Fee (2%)</span><span>{sim.feeSol.toFixed(4)} SOL</span></div>
             </div>

@@ -1,104 +1,17 @@
 "use client";
 import AppShell from "@/components/AppShell";
-import SwapPanel from "@/components/SwapPanel";
-import AutoTrade from "@/components/AutoTrade";
-import { useEffect, useState } from "react";
-import { getNet } from "@/lib/net";
-import { usePrivy } from "@privy-io/react-auth";
-import { getMyProfile, saveProfileLimits, fetchBalance } from "@/lib/queries";
-import { useToast } from "@/components/Toast";
+import dynamic from "next/dynamic";
+
+// Shell paints instantly; the Privy-dependent wallet hub loads as a separate client chunk.
+const WalletBody = dynamic(() => import("./WalletBody"), {
+  ssr: false,
+  loading: () => <p className="text-sm text-dim">Loading wallet…</p>
+});
 
 export default function Wallet() {
-  const { authenticated, user, login } = usePrivy();
-  const toast = useToast();
-  const address = (user as any)?.wallet?.address as string | undefined;
-
-  const [copied, setCopied] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [maxTrade, setMaxTrade] = useState(0.5);
-  const [dailyCap, setDailyCap] = useState(2);
-  const [savedLimits, setSavedLimits] = useState(false);
-  const [net, setNetState] = useState<"devnet" | "mainnet">("devnet");
-
-  useEffect(() => {
-    setNetState(getNet());
-    const on = (e: any) => setNetState(e.detail);
-    window.addEventListener("degen-net", on);
-    return () => window.removeEventListener("degen-net", on);
-  }, []);
-
-  useEffect(() => {
-    getMyProfile().then((p) => { if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); } });
-    if (address) fetchBalance(address, getNet()).then((b) => b && setBalance(b.sol));
-  }, [address, net]);
-
-  const copy = () => { if (!address) return; navigator.clipboard?.writeText(address); setCopied(true); toast("Address copied"); setTimeout(() => setCopied(false), 1500); };
-  async function saveLimits() {
-    const { error } = await saveProfileLimits({ max_trade_sol: maxTrade, daily_cap_sol: dailyCap, wallet_address: address });
-    if (error) { toast("Could not save — sign in first", "err"); return; }
-    setSavedLimits(true); toast("Trade limits saved"); setTimeout(() => setSavedLimits(false), 1500);
-  }
-
-  if (!authenticated || !address) {
-    return (
-      <AppShell>
-        <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
-          <h1 className="text-xl font-bold">Connect your wallet</h1>
-          <p className="mt-2 text-sm text-dim">Sign in to create your non-custodial Solana wallet or connect Phantom / Solflare / Backpack.</p>
-          <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110">Connect wallet</button>
-          <p className="mt-3 font-mono text-[11px] text-dim">Trade-only permission · spending caps · revocable · we never hold your keys</p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&bgcolor=07070b&color=a3ff12&data=${address}`;
-
   return (
     <AppShell>
-      <h1 className="text-2xl font-bold">Wallet</h1>
-      <p className="mt-1 text-sm text-dim">Fund your non-custodial wallet and set trade-only limits. We can trade within these caps — never withdraw.</p>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="gradient-border rounded-lg border border-edge p-5">
-          <h2 className="font-bold">Deposit SOL </h2>
-          <div className="mt-4 flex flex-col items-center gap-4">
-            <img src={qr} alt="deposit QR" className="rounded-md border border-edge bg-void" width={180} height={180} />
-            <div className="w-full">
-              <p className="font-mono text-[11px] uppercase text-dim">Your deposit address</p>
-              <div className="mt-1 flex items-center gap-2">
-                <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">{address}</code>
-                <button onClick={copy} className="rounded-md bg-toxic px-3 py-2 text-xs font-bold text-void">{copied ? "✓" : "Copy"}</button>
-              </div>
-            </div>
-            <p className="w-full rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-center font-mono text-[11px] text-hotpink">{net === "mainnet" ? "Send only mainnet SOL. Transfers are irreversible." : "Devnet — send only devnet SOL (test funds)."}</p>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="gradient-border rounded-lg border border-edge p-5">
-            <p className="text-xs uppercase text-dim">Balance</p>
-            <p className="mt-1 font-mono text-3xl font-bold">{balance != null ? balance.toFixed(3) : "…"} <span className="text-base text-dim">SOL</span></p>
-            <p className="mt-1 font-mono text-xs text-dim">{net}</p>
-          </div>
-          <div className="gradient-border rounded-lg border border-edge p-5">
-            <h2 className="font-bold">Trade permission</h2>
-            <p className="mt-1 text-xs text-dim">Hard limits on what the auto-trader can spend. Change or revoke anytime.</p>
-            <label className="mt-4 block">
-              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-white">{maxTrade} SOL</span></span>
-              <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-toxic" />
-            </label>
-            <label className="mt-4 block">
-              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Daily spend cap</span><span className="text-white">{dailyCap} SOL</span></span>
-              <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-toxic" />
-            </label>
-            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-void shadow-toxic transition hover:brightness-110">{savedLimits ? "✓ Saved" : "Save limits"}</button>
-            <button onClick={() => toast("Trade permission revoked")} className="mt-2 w-full rounded-md border border-hotpink/50 py-2.5 text-sm font-bold text-hotpink hover:bg-hotpink/10">Revoke trade permission</button>
-          </div>
-          <AutoTrade />
-          <SwapPanel />
-        </div>
-      </div>
+      <WalletBody />
     </AppShell>
   );
 }

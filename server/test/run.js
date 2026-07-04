@@ -90,6 +90,22 @@ test("ignores unchanged or reduced positions (sells)", () => {
   assert.deepStrictEqual(detectBuys({ MINTA: 100 }, { MINTA: 40 }), []);
 });
 
+console.log("discord call selection");
+const { pickNewCalls } = require("../engine/calls");
+test("picks a fresh, executable call", () => {
+  const out = pickNewCalls([{ id: "c1", mint: "M", group_id: "g1", executed_at: null }], new Set());
+  assert.deepStrictEqual(out.map((c) => c.id), ["c1"]);
+});
+test("ignores already-executed calls", () => {
+  assert.strictEqual(pickNewCalls([{ id: "c1", mint: "M", group_id: "g1", executed_at: "2026-01-01" }], new Set()).length, 0);
+});
+test("ignores calls already seen this run", () => {
+  assert.strictEqual(pickNewCalls([{ id: "c1", mint: "M", group_id: "g1", executed_at: null }], new Set(["c1"])).length, 0);
+});
+test("ignores calls missing mint or group", () => {
+  assert.strictEqual(pickNewCalls([{ id: "c1", mint: "M", group_id: null }, { id: "c2", group_id: "g1" }], new Set()).length, 0);
+});
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

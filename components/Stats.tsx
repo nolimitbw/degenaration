@@ -2,11 +2,12 @@
 import { motion, useInView, useMotionValue, animate } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
+// Honest product facts only — no fabricated traction/volume metrics on a money site.
 const STATS = [
-  { label: "Volume executed", prefix: "$", value: 4.2, suffix: "M+", decimals: 1 },
-  { label: "Calls copied", prefix: "", value: 31208, suffix: "", decimals: 0 },
-  { label: "Vetted call groups", prefix: "", value: 24, suffix: "", decimals: 0 },
-  { label: "Avg execution", prefix: "", value: 1.8, suffix: "s", decimals: 1 }
+  { label: "Flat fee — no subscription", prefix: "", value: 2, suffix: "%", decimals: 0 },
+  { label: "Non-custodial — your keys", prefix: "", value: 100, suffix: "%", decimals: 0 },
+  { label: "Avg trade execution", prefix: "<", value: 2, suffix: "s", decimals: 0 },
+  { label: "Automated copy engine", prefix: "", value: 24, suffix: "/7", decimals: 0 }
 ];
 
 function Counter({ value, decimals }: { value: number; decimals: number }) {

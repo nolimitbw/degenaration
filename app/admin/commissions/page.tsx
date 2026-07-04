@@ -1,5 +1,6 @@
 "use client";
 import AppShell from "@/components/AppShell";
+import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { getCommissionTotals, fetchBalance } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +52,7 @@ export default function Commissions() {
   }
 
   return (
+    <AdminGuard>
     <AppShell>
       <h1 className="text-2xl font-bold">Commissions & withdrawal</h1>
       <p className="mt-1 text-sm text-dim">Your 2% platform fee on every trade lands in the fee wallet. Withdraw anytime.</p>
@@ -93,5 +95,6 @@ export default function Commissions() {
         {status && <p className="mt-3 break-all font-mono text-[11px] text-dim">{status}</p>}
       </div>
     </AppShell>
+    </AdminGuard>
   );
 }

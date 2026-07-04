@@ -1,6 +1,7 @@
 "use client";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { fetchTokensFull, fmtNum, fmtAge } from "@/lib/queries";
 import TokenDrawer from "@/components/TokenDrawer";
@@ -29,6 +30,7 @@ function Pressure({ b, s }: { b: number; s: number }) {
 }
 
 export default function Trenches() {
+  const router = useRouter();
   const [tab, setTab] = useState<"new" | "trending">("new");
   const [sort, setSort] = useState<Sort>("hot");
   const [tokens, setTokens] = useState<any[]>([]);
@@ -90,15 +92,15 @@ export default function Trenches() {
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {loading && Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} />)}
         {!loading && rows.map((t) => (
-          <div key={t.address} className="group gradient-border flex flex-col rounded-lg border border-edge p-4 transition hover:shadow-toxic">
-            <button onClick={() => setDrawer(t)} className="flex w-full items-center gap-3 text-left">
-              {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{t.symbol?.slice(0,2)}</div>}
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.isPump && <span className="rounded bg-cyber/20 px-1 text-[9px] text-cyber">pump</span>}</p>
-                <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>
-              </div>
-              <span className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</span>
-            </button>
+            <div key={t.address} className="group gradient-border flex flex-col rounded-lg border border-edge p-4 transition hover:shadow-toxic">
+              <button onClick={() => setDrawer(t)} className="flex w-full items-center gap-3 text-left">
+                {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{t.symbol?.slice(0,2)}</div>}
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-hotpink/20 px-1 text-[9px] text-hotpink">new</span>}</p>
+                  <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>
+                </div>
+                <span className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</span>
+              </button>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
               <div><p className="text-dim">MC</p><p className="text-white">{fmtNum(t.marketCap)}</p></div>
               <div><p className="text-dim">Liq</p><p className="text-white">{fmtNum(t.liquidityUsd)}</p></div>
@@ -117,10 +119,12 @@ export default function Trenches() {
             <div className="mt-3 flex items-center gap-2">
               <div className="flex flex-1 gap-1">
                 {BUY_PRESETS.map((a) => (
-                  <button key={a} onClick={() => setDrawer(t)} className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-toxic hover:text-toxic">{a}</button>
+                  <button key={a} onClick={() => router.push(`/terminal?mint=${t.address}&amount=${a}`)}
+                    title={`Quick buy ${a} SOL`} aria-label={`Quick buy ${a} SOL of ${t.symbol ?? "token"}`}
+                    className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-toxic hover:text-toxic">{a}</button>
                 ))}
               </div>
-              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-white" title={x.type}>↗</a>)}
+              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-white" title={x.type} aria-label={x.type}>↗</a>)}
             </div>
             <Link href={`/terminal?mint=${t.address}`} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-void shadow-toxic transition hover:brightness-110">Quick trade →</Link>
           </div>

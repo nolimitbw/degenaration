@@ -28,7 +28,6 @@ export default function ExplorerPage() {
 
   const rows = useMemo(() => {
     let t = [...tokens];
-    if (cat === "pump") t = t.filter((x) => x.isPump);
     if (cat === "raydium") t = t.filter((x) => (x.dex || "").toLowerCase().includes("raydium"));
     if (q) { const s = q.toLowerCase(); t = t.filter((x) => x.symbol?.toLowerCase().includes(s) || x.name?.toLowerCase().includes(s) || x.address?.toLowerCase().includes(s)); }
     if (sort === "newest") t.sort((a, b) => (a.ageMs || 9e15) - (b.ageMs || 9e15));

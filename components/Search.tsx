@@ -20,7 +20,8 @@ export default function Search() {
   return (
     <div className="relative">
       <input value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => res.length && setOpen(true)}
-        placeholder="Search token / address…"
+        placeholder="Search token / address…" aria-label="Search token or address" type="search"
+
         className="w-44 rounded-md border border-edge bg-void px-3 py-1.5 font-mono text-xs outline-none focus:border-toxic sm:w-64" />
       {open && res.length > 0 && (
         <div className="absolute right-0 z-50 mt-1 max-h-80 w-72 overflow-auto rounded-md border border-edge bg-panel shadow-toxic">

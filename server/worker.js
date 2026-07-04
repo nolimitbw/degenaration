@@ -13,6 +13,7 @@ require("dotenv").config();
 const { getPrice } = require("./engine/prices");
 const { startLimitWatcher } = require("./engine/limits");
 const { startCopyWatcher } = require("./engine/copy");
+const { startCallWatcher } = require("./engine/calls");
 const signer = require("./engine/signer");
 const store = require("./engine/store");
 
@@ -46,4 +47,10 @@ startLimitWatcher({
 startCopyWatcher({
   loadTrackedWallets: store.loadTrackedWallets, loadSubscribers: store.loadSubscribers,
   getHoldings: store.getHoldings, signAndSend, recordCopy: store.recordCopy, onEvent: log("copy")
+});
+
+// Discord group calls -> mirror to each group's subscribers.
+startCallWatcher({
+  loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
+  markCallExecuted: store.markCallExecuted, signAndSend, recordCopy: store.recordCopy, onEvent: log("call")
 });

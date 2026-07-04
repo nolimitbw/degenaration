@@ -3,7 +3,12 @@ import AppShell from "@/components/AppShell";
 import { useEffect, useState } from "react";
 
 type View = "groups" | "calls" | "callers";
-const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`);
+const rank = (i: number) => {
+  if (i === 0) return <span className="text-gold font-bold">#1</span>;
+  if (i === 1) return <span className="text-dim font-bold">#2</span>;
+  if (i === 2) return <span className="text-dim font-bold">#3</span>;
+  return <span className="text-dim/60">#{i + 1}</span>;
+};
 
 export default function Alpha() {
   const [view, setView] = useState<View>("groups");
@@ -19,7 +24,7 @@ export default function Alpha() {
     <AppShell>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Alpha — ranked leaderboard</h1>
+          <h1 className="text-2xl font-bold">Alpha leaderboard</h1>
           <p className="mt-1 text-sm text-dim">Groups and callers ranked by real recorded on-chain performance.</p>
         </div>
         <div className="flex gap-2">{["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-toxic text-toxic":"border-edge text-dim hover:text-white"}`}>{t}</button>)}</div>
@@ -30,19 +35,18 @@ export default function Alpha() {
 
       {empty ? (
         <div className="mt-4 grid place-items-center rounded-lg border border-edge bg-panel/40 py-16 text-center">
-          <p className="text-4xl">📊</p>
-          <p className="mt-3 text-sm font-bold text-dim">No {view} ranked yet</p>
+          <p className="text-sm font-bold text-dim">No {view} ranked yet</p>
           <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Real data only — rankings populate automatically as approved Discord groups post calls and the engine records their on-chain results.</p>
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-edge">
           {view === "calls" ? (
             <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-panel font-mono text-[11px] uppercase text-dim"><tr>{["#","Caller","Group","Token","Called MC","Peak"].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
-              <tbody>{data!.calls.map((c, i) => (<tr key={c.id} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{medal(i)}</td><td className="px-4 py-3 font-bold">{c.caller ?? "—"}</td><td className="px-4 py-3 text-dim">{c.group_name ?? "—"}</td><td className="px-4 py-3">{c.symbol ?? c.mint.slice(0,6)}</td><td className="px-4 py-3 text-dim">{c.called_mcap ? "$"+Math.round(c.called_mcap).toLocaleString() : "—"}</td><td className="px-4 py-3 font-bold text-toxic">{c.peakX ? c.peakX.toFixed(1)+"x" : "—"}</td></tr>))}</tbody>
+              <tbody>{data!.calls.map((c, i) => (<tr key={c.id} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{rank(i)}</td><td className="px-4 py-3 font-bold">{c.caller ?? "—"}</td><td className="px-4 py-3 text-dim">{c.group_name ?? "—"}</td><td className="px-4 py-3">{c.symbol ?? c.mint.slice(0,6)}</td><td className="px-4 py-3 text-dim">{c.called_mcap ? "$"+Math.round(c.called_mcap).toLocaleString() : "—"}</td><td className="px-4 py-3 font-bold text-toxic">{c.peakX ? c.peakX.toFixed(1)+"x" : "—"}</td></tr>))}</tbody>
             </table>
           ) : (
             <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-panel font-mono text-[11px] uppercase text-dim"><tr>{["#","Name","Points","Avg","Hit rate","Calls","Best"].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
-              <tbody>{(list as any[]).map((g, i) => (<tr key={g.name} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3 text-lg">{medal(i)}</td><td className="px-4 py-3 font-bold">{g.name}</td><td className="px-4 py-3 text-cyber">{g.points.toFixed(0)}</td><td className="px-4 py-3 text-toxic">{g.avgX.toFixed(2)}x</td><td className="px-4 py-3">{g.hitRate.toFixed(0)}%</td><td className="px-4 py-3 text-dim">{g.calls}</td><td className="px-4 py-3 text-toxic">{g.bestX.toFixed(1)}x</td></tr>))}</tbody>
+              <tbody>{(list as any[]).map((g, i) => (<tr key={`${g.name}-${i}`} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{rank(i)}</td><td className="px-4 py-3 font-bold">{g.name}</td><td className="px-4 py-3 text-cyber">{g.points.toFixed(0)}</td><td className="px-4 py-3 text-toxic">{g.avgX.toFixed(2)}x</td><td className="px-4 py-3">{g.hitRate.toFixed(0)}%</td><td className="px-4 py-3 text-dim">{g.calls}</td><td className="px-4 py-3 text-toxic">{g.bestX.toFixed(1)}x</td></tr>))}</tbody>
             </table>
           )}
         </div>

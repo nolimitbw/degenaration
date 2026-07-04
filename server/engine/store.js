@@ -34,6 +34,11 @@ const loadTrackedWallets = async () => {
 const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`);
 const recordCopy = (evt) => sbInsert("trades", { mint: evt.mint, side: "buy", sol_amount: evt.size, kind: "copy", sig: evt.sig, wallet_address: evt.user });
 
+// ---- discord call execution ----
+const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50");
+const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
+const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`);
+
 // ---- on-chain holdings (for copy detection) ----
 async function getHoldings(address) {
   const res = await fetch(RPC, {
@@ -49,4 +54,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { loadOpenOrders, markFilled, markError, loadTrackedWallets, loadSubscribers, recordCopy, getHoldings };
+module.exports = { loadOpenOrders, markFilled, markError, loadTrackedWallets, loadSubscribers, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers };

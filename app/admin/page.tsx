@@ -1,35 +1,30 @@
 "use client";
 import AppShell from "@/components/AppShell";
+import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { getApplications, approveApplication, rejectApplication, type Application } from "@/lib/queries";
 
-// demo fallback shown until real applications exist in the DB
-const DEMO: Application[] = [
-  { id: "d1", server_name: "Alpha Trenches", invite_link: "discord.gg/alphatrenches", owner_handle: "trencher#0001", member_count: "12,400", pitch: "3-month tracked record, 68% win rate on-chain.", status: "pending", created_at: "" },
-  { id: "d2", server_name: "Rug Pullers United", invite_link: "discord.gg/rugpull", owner_handle: "sketchy#9999", member_count: "800", pitch: "trust me bro 100x every day", status: "pending", created_at: "" }
-];
-
 export default function Admin() {
-  const [apps, setApps] = useState<Application[]>(DEMO);
-  const [live, setLive] = useState(false);
+  const [apps, setApps] = useState<Application[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function load() {
-    const data = await getApplications();
-    if (data.length) { setApps(data); setLive(true); }
+    setApps(await getApplications());
+    setLoaded(true);
   }
   useEffect(() => { load(); }, []);
 
   async function approve(a: Application) {
     setBusy(a.id);
-    if (live) { await approveApplication(a); await load(); }
-    else setApps((x) => x.map((y) => (y.id === a.id ? { ...y, status: "approved" } : y)));
+    await approveApplication(a);
+    await load();
     setBusy(null);
   }
   async function reject(a: Application) {
     setBusy(a.id);
-    if (live) { await rejectApplication(a.id); await load(); }
-    else setApps((x) => x.map((y) => (y.id === a.id ? { ...y, status: "rejected" } : y)));
+    await rejectApplication(a.id);
+    await load();
     setBusy(null);
   }
 
@@ -37,11 +32,12 @@ export default function Admin() {
   const decided = apps.filter((a) => a.status !== "pending");
 
   return (
+    <AdminGuard>
     <AppShell>
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Admin · server approvals</h1>
-        <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${live ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>
-          {live ? "● live from DB" : "○ demo data"}
+        <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${loaded ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>
+          {loaded ? "● live from DB" : "○ loading…"}
         </span>
       </div>
       <p className="mt-1 text-sm text-dim">
@@ -97,5 +93,6 @@ export default function Admin() {
         </>
       )}
     </AppShell>
+    </AdminGuard>
   );
 }

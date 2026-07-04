@@ -9,12 +9,10 @@ export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 20, windowMs: 60_000 });
   if (limited) return limited;
 
-  // Require a signed-in user: the app sends the Supabase access token.
-  const authz = req.headers.get("authorization") || "";
-  if (!/^Bearer\s+.+/.test(authz)) {
-    return NextResponse.json({ error: "authentication required" }, { status: 401 });
-  }
-
+  // No auth gate here on purpose: this only builds an UNSIGNED swap tx for the caller's
+  // own pubkey, which they must sign with their own wallet. It moves no funds and leaks no
+  // data. Requiring a Supabase token here wrongly blocked Privy/Google users (who have an
+  // embedded wallet but no Supabase session) from trading. Rate limiting guards abuse.
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
   const { inputMint, outputMint, userPublicKey } = body ?? {};

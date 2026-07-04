@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         vol24h: vol.h24 != null ? Number(vol.h24) : null, vol1h: vol.h1 != null ? Number(vol.h1) : null, vol5m: vol.m5 != null ? Number(vol.m5) : null,
         change24h: chg.h24 != null ? Number(chg.h24) : null, change1h: chg.h1 != null ? Number(chg.h1) : null, change5m: chg.m5 != null ? Number(chg.m5) : null,
         buys1h: tx.buys ?? 0, sells1h: tx.sells ?? 0,
-        ageMs: created ? now - created : null, isPump: /pump$/i.test(address),
+        ageMs: created ? now - created : null,
         image: null as string | null, socials: [] as any[], dex: null as string | null, risks: [] as string[]
       };
     }).filter((t) => t.address);

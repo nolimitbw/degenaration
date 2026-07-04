@@ -28,7 +28,7 @@ export default function Hero() {
     return () => { alive = false; };
   }, []);
   return (
-    <section className="grid-bg relative overflow-hidden pb-24 pt-40">
+    <section className="grid-bg relative overflow-hidden pb-24 pt-24">
       {/* animated glow orbs */}
       <motion.div
         animate={{ x: [0, 40, 0], y: [0, -20, 0] }}

@@ -14,7 +14,7 @@ export default function Candles({ data }: { data: Candle[] }) {
         {data.map((d, i) => {
           const x = pad + i * cw + cw / 2;
           const up = d.c >= d.o;
-          const col = up ? "#a3ff12" : "#ff2d78";
+          const col = up ? "#22e07a" : "#ff4d5e";
           const bt = y(Math.max(d.o, d.c)), bb = y(Math.min(d.o, d.c));
           return (
             <g key={i}>

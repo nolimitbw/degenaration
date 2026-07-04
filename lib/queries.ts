@@ -37,6 +37,7 @@ export type Subscription = {
   group_id: string; size_sol: number; tp1: number; tp1_sell: number;
   tp2: number; tp2_sell: number; stop_loss: number; slippage_bps: number;
   daily_cap_sol: number; enabled: boolean;
+  user_pubkey?: string; wallet_id?: string;
 };
 
 export async function getMySubscriptions(): Promise<Subscription[]> {

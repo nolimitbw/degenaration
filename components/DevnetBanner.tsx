@@ -14,7 +14,7 @@ export default function RiskBanner() {
       {mainnet
         ? <span><b>LIVE MAINNET · real funds.</b> Trades are irreversible and high-risk. Not financial advice. You trade at your own risk.</span>
         : <span><b>DEVNET · test mode.</b> Using test SOL. Switch to Mainnet in the header to trade for real.</span>}
-      <button onClick={() => setShow(false)} className="ml-2 opacity-70 hover:opacity-100">✕</button>
+      <button onClick={() => setShow(false)} aria-label="Dismiss" className="ml-2 opacity-70 hover:opacity-100">✕</button>
     </div>
   );
 }

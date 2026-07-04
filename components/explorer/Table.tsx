@@ -16,7 +16,7 @@ export default function Table({ rows, loading, onPick }: { rows: Tok[]; loading:
           {loading && Array.from({ length: 10 }).map((_, i) => <Skel key={i} />)}
           {!loading && rows.map((t) => (
             <tr key={t.address} className="cursor-pointer border-t border-edge transition hover:bg-panel/40" onClick={() => onPick(t)}>
-              <td className="px-4 py-3"><div className="flex items-center gap-2">{t.image ? <img src={t.image} alt="" className="h-7 w-7 rounded-full" /> : <div className="h-7 w-7 rounded-full bg-edge" />}<div><p className="font-mono font-bold">{t.symbol}{t.isPump && <span className="ml-1 rounded bg-cyber/20 px-1 text-[9px] text-cyber">pump</span>}</p><p className="font-mono text-[10px] text-dim">{t.name?.slice(0,16)}</p></div></div></td>
+              <td className="px-4 py-3"><div className="flex items-center gap-2">{t.image ? <img src={t.image} alt="" className="h-7 w-7 rounded-full" /> : <div className="h-7 w-7 rounded-full bg-edge" />}<div><p className="font-mono font-bold">{t.symbol}</p><p className="font-mono text-[10px] text-dim">{t.name?.slice(0,16)}</p></div></div></td>
               <td className="px-4 py-3 font-mono">{t.priceUsd != null ? `$${t.priceUsd}` : "—"}</td>
               <td className="px-4 py-3 font-mono text-dim">{fmtAge(t.ageMs)}</td>
               <td className="px-4 py-3 font-mono">{fmtNum(t.marketCap)}</td>

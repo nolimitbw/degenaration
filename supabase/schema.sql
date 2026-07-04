@@ -123,16 +123,8 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ============================================================
--- Seed a few approved groups so the Calls page has data
--- ============================================================
-insert into public.approved_groups (name, members, win_rate, pnl_30d, tag)
-values
-  ('Alpha Trenches', '12.4k', 68, '+412%', '🔥 Hot streak'),
-  ('Solana Snipers', '8.1k', 61, '+188%', '⚡ Fast entries'),
-  ('Pump Scouts', '5.6k', 71, '+520%', '🎯 Selective'),
-  ('Degen Central', '31.2k', 57, '+240%', '📈 High volume')
-on conflict do nothing;
+-- No seed data: approved_groups is populated ONLY when the owner approves a real server
+-- application in the Admin panel. The Calls page shows an empty state until then.
 
 -- ============================================================
 -- Limit orders (client creates; server worker executes on trigger)

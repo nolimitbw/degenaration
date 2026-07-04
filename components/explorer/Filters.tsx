@@ -1,7 +1,7 @@
 "use client";
 import type { Cat, Sort, View } from "./types";
 
-const CATS: [Cat, string][] = [["all","All"],["pump","Pump.fun"],["raydium","Raydium"],["trending","Trending"]];
+const CATS: [Cat, string][] = [["all","All"],["raydium","Raydium"],["trending","Trending"]];
 const SORTS: [Sort, string][] = [["volume","Volume"],["newest","Newest"],["mcap","MCAP"],["change","Change"],["liquidity","Liquidity"]];
 
 export default function Filters({ cat, setCat, sort, setSort, view, setView, q, setQ }: {
