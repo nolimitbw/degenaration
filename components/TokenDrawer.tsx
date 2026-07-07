@@ -43,6 +43,13 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
     fetch(`/api/ohlcv?mint=${mint}&tf=hour`).then((r) => r.json()).then((d) => setCandles(d?.candles ?? [])).catch(() => {});
   }, [token]);
 
+  useEffect(() => {
+    if (!token) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [token, onClose]);
+
   if (!token) return null;
 
   async function doSim() {
@@ -116,10 +123,10 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
         <div className="mt-4">
           {price?.pairAddress ? (
             <iframe key={price.pairAddress} src={`https://dexscreener.com/${price.chainId || "solana"}/${price.pairAddress}?embed=1&theme=dark&trades=0&info=0`} className="h-64 w-full rounded-md border border-edge" title="chart" />
-          ) : candles.length ? (
+          ) : candles.length >= 2 ? (
             <Candles data={candles} />
           ) : (
-            <div className="grid h-64 place-items-center rounded-md border border-edge bg-void text-sm text-dim">Loading chart…</div>
+            <div className="grid h-64 place-items-center rounded-md border border-edge bg-void text-sm text-dim">No chart data yet — check back in a few minutes.</div>
           )}
         </div>
 
