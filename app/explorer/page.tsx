@@ -48,7 +48,7 @@ export default function ExplorerPage() {
           <h1 className="flex items-center gap-2 text-2xl font-bold">Explorer
             <span className="flex items-center gap-1 rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic"><span className={`h-1.5 w-1.5 rounded-full bg-toxic ${pulse ? "animate-ping" : ""}`} />LIVE</span>
           </h1>
-          <p className="mt-1 text-sm text-dim">Real Solana tokens, live on-chain. Auto-refreshes every 10s.</p>
+          <p className="mt-1 text-sm text-dim">Real Solana tokens, live on-chain — updating in real time.</p>
         </div>
       </div>
       <Filters cat={cat} setCat={setCat} sort={sort} setSort={setSort} view={view} setView={setView} q={q} setQ={setQ} />

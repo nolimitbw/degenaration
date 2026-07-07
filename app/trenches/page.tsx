@@ -9,6 +9,7 @@ import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 import { useToast } from "@/components/Toast";
 import TokenDrawer from "@/components/TokenDrawer";
 import QuickBuyEditor from "@/components/QuickBuyEditor";
+import FlashValue from "@/components/FlashValue";
 
 type Sort = "hot" | "new" | "volume" | "gainers";
 const DEFAULT_SLIPPAGE_BPS = 300; // 3% — matches the default slippage used elsewhere (drawer/terminal)
@@ -27,8 +28,10 @@ function Pressure({ b, s }: { b: number; s: number }) {
   const t = b + s || 1; const bp = (b / t) * 100;
   return (
     <div className="mt-1">
-      <div className="flex h-1.5 overflow-hidden rounded-full bg-hotpink/40"><div className="bg-toxic" style={{ width: `${bp}%` }} /></div>
-      <p className="mt-1 font-mono text-[10px] text-dim"><span className="text-toxic">{b}</span> buys · <span className="text-hotpink">{s}</span> sells</p>
+      <div className="flex h-1.5 overflow-hidden rounded-full bg-hotpink/40"><div className="bg-toxic transition-[width] duration-500" style={{ width: `${bp}%` }} /></div>
+      <p className="mt-1 font-mono text-[10px] text-dim">
+        <FlashValue value={b} className="text-toxic">{b} buys</FlashValue> · <FlashValue value={s} className="text-hotpink">{s} sells</FlashValue>
+      </p>
     </div>
   );
 }
@@ -95,7 +98,7 @@ export default function Trenches() {
               <span className={`h-1.5 w-1.5 rounded-full bg-toxic ${pulse ? "animate-ping" : ""}`} />LIVE
             </span>
           </h1>
-          <p className="mt-1 text-sm text-dim">Fresh Solana launches and trending tokens, straight from the chain. Auto-refreshes every 8s.</p>
+          <p className="mt-1 text-sm text-dim">Fresh Solana launches and trending tokens, straight from the chain — updating live.</p>
         </div>
         <div className="flex gap-4 font-mono text-xs">
           <div><p className="text-dim">Tracked</p><p className="text-toxic">{stats.count} tokens</p></div>
@@ -132,18 +135,18 @@ export default function Trenches() {
                   <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-hotpink/20 px-1 text-[9px] text-hotpink">new</span>}</p>
                   <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>
                 </div>
-                <span className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</span>
+                <FlashValue value={t.change24h} className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</FlashValue>
               </div>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
-              <div><p className="text-dim">MC</p><p className="text-gray-900">{fmtNum(t.marketCap)}</p></div>
-              <div><p className="text-dim">Liq</p><p className="text-gray-900">{fmtNum(t.liquidityUsd)}</p></div>
-              <div><p className="text-dim">1h Vol</p><p className="text-gray-900">{fmtNum(t.vol1h)}</p></div>
+              <div><p className="text-dim">MC</p><FlashValue value={t.marketCap} className="text-gray-900">{fmtNum(t.marketCap)}</FlashValue></div>
+              <div><p className="text-dim">Liq</p><FlashValue value={t.liquidityUsd} className="text-gray-900">{fmtNum(t.liquidityUsd)}</FlashValue></div>
+              <div><p className="text-dim">1h Vol</p><FlashValue value={t.vol1h} className="text-gray-900">{fmtNum(t.vol1h)}</FlashValue></div>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-1 font-mono text-[10px]">
               {([["5m", t.change5m], ["1h", t.change1h], ["24h", t.change24h]] as const).map(([l, v]) => (
                 <div key={l} className="rounded bg-void/60 px-1 py-0.5 text-center">
                   <span className="text-dim">{l} </span>
-                  <span className={(v ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}>{v != null ? `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%` : "—"}</span>
+                  <FlashValue value={v} className={(v ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}>{v != null ? `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%` : "—"}</FlashValue>
                 </div>
               ))}
             </div>

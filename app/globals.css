@@ -74,6 +74,19 @@ body {
   to { transform: translateX(-50%); }
 }
 
+/* live-ticker flash on value change (DexScreener/Binance style) */
+.flash-up, .flash-down { border-radius: 3px; }
+.flash-up { animation: flash-up 700ms ease-out; }
+.flash-down { animation: flash-down 700ms ease-out; }
+@keyframes flash-up {
+  0% { background-color: rgba(34, 224, 122, 0.4); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-down {
+  0% { background-color: rgba(255, 77, 94, 0.4); }
+  100% { background-color: transparent; }
+}
+
 ::selection { background: rgba(34, 224, 122, 0.85); color: #ffffff; }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
