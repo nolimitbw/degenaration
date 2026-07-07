@@ -14,9 +14,18 @@ export async function GET(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get("mode") === "new" ? "new_pools" : "trending_pools";
 
   try {
-    const gt = await fetch(`${GT}/${mode}?page=1`, { cache: "no-store", headers: { accept: "application/json" } }).then((r) => r.json());
+    const gt = await fetch(`${GT}/${mode}?page=1&include=base_token`, { cache: "no-store", headers: { accept: "application/json" } }).then((r) => r.json());
     const pools: any[] = gt?.data ?? [];
     const now = Date.now();
+
+    // GeckoTerminal sideloads token images/banners via ?include=base_token — index by the
+    // raw "solana_<address>" relationship id so tokens are always matched, even the
+    // brand-new pools DexScreener hasn't indexed an "info" profile for yet (see below).
+    const gtTokens = new Map<string, { image: string | null; banner: string | null }>();
+    for (const inc of gt?.included ?? []) {
+      if (inc?.type !== "token") continue;
+      gtTokens.set(inc.id, { image: inc.attributes?.image_url ?? null, banner: inc.attributes?.banner_image_url ?? null });
+    }
 
     const base = pools.map((p) => {
       const a = p.attributes ?? {};
@@ -26,6 +35,7 @@ export async function GET(req: NextRequest) {
       const vol = a.volume_usd ?? {}; const chg = a.price_change_percentage ?? {};
       const tx = (a.transactions ?? {}).h1 ?? (a.transactions ?? {}).h24 ?? {};
       const created = a.pool_created_at ? new Date(a.pool_created_at).getTime() : null;
+      const gtImg = gtTokens.get(rel);
       return {
         address, symbol, name: symbol,
         priceUsd: a.base_token_price_usd ? Number(Number(a.base_token_price_usd).toPrecision(6)) : null,
@@ -35,11 +45,16 @@ export async function GET(req: NextRequest) {
         change24h: chg.h24 != null ? Number(chg.h24) : null, change1h: chg.h1 != null ? Number(chg.h1) : null, change5m: chg.m5 != null ? Number(chg.m5) : null,
         buys1h: tx.buys ?? 0, sells1h: tx.sells ?? 0,
         ageMs: created ? now - created : null,
-        image: null as string | null, socials: [] as any[], dex: null as string | null, risks: [] as string[]
+        // GeckoTerminal-sourced fallback so brand-new pools still show an image before
+        // DexScreener has indexed an "info" profile for them (enriched further below).
+        image: gtImg?.image ?? null, bannerImage: gtImg?.banner ?? null,
+        socials: [] as any[], dex: null as string | null, risks: [] as string[]
       };
     }).filter((t) => t.address);
 
-    // enrich images + socials from DexScreener (batch)
+    // enrich images + socials from DexScreener (batch) — prefer DexScreener's curated
+    // image when present, but keep the GeckoTerminal fallback rather than overwriting
+    // it with null when DexScreener has a pair for this token with no "info" profile.
     const addrs = base.map((t) => t.address).slice(0, 30);
     if (addrs.length) {
       const ds = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${addrs.join(",")}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
@@ -49,7 +64,7 @@ export async function GET(req: NextRequest) {
         const cur = info.get(ad);
         if (!cur || (p.liquidity?.usd || 0) > (cur.liq || 0)) info.set(ad, { image: p.info?.imageUrl ?? null, socials: (p.info?.socials ?? []).map((x: any) => ({ type: x.type, url: x.url })), dex: p.dexId, liq: p.liquidity?.usd || 0 });
       }
-      for (const t of base) { const i = info.get(t.address); if (i) { t.image = i.image; t.socials = i.socials; t.dex = i.dex; } if ((t.liquidityUsd || 0) < 5000) t.risks.push("Low liquidity"); if ((t.ageMs ?? 1e12) < 3600_000) t.risks.push("Brand new"); }
+      for (const t of base) { const i = info.get(t.address); if (i) { t.image = i.image ?? t.image; t.socials = i.socials; t.dex = i.dex; } if ((t.liquidityUsd || 0) < 5000) t.risks.push("Low liquidity"); if ((t.ageMs ?? 1e12) < 3600_000) t.risks.push("Brand new"); }
     }
 
     const totalVol = base.reduce((s, t) => s + (t.vol24h || 0), 0);

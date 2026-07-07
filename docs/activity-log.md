@@ -766,3 +766,83 @@ Hero.tsx, lib/queries.ts, and globals.css:
   in the static markup, only assigned by JS), preload="none" in the static markup, all 4
   mocked group names still absent, mobile min-h-[22rem] regression confirmed gone.
 - Could NOT watch the TikTok itself (no video access); matched the extracted still frame.
+
+## Session: trenches quick-buy, editable presets, images, chart click (2026-07-07)
+
+Reported: quick-buy/preset buttons on /trenches don't work, no way to edit preset amounts,
+token pfp/banner images blank, clicking a coin doesn't pop the DexScreener chart like
+Trojan.com. Root-caused via an Explore agent first (exact file:line citations), then
+implemented, then ran an ultracode adversarial-review Workflow (5 dimensions x verify,
+16 candidate findings, all 16 independently re-verified — 7 confirmed real) since this
+touches real wallet-signed swaps.
+
+### Root causes found
+- Trenches' "quick buy" buttons only did `router.push("/terminal?...")` — no wallet call
+  anywhere; TokenDrawer's presets only `setAmount()`, still needing a separate "Buy" click.
+  True one-click buy didn't exist anywhere in the codebase.
+- `.gradient-border::before` (globals.css) — a full-card absolute-positioned decorative
+  overlay used on many pages, not just trenches — had no `pointer-events: none`, a likely
+  invisible click-blocker on every `.gradient-border` card (WalletBody, AutoTrade too).
+- Token images came *only* from DexScreener's `pair.info.imageUrl`, which is very often
+  absent for brand-new pools — exactly what /trenches surfaces. GeckoTerminal (the primary
+  data source) was never asked for image data as a fallback.
+- Only a narrow header strip opened the token drawer (not the whole card), and the chart
+  had no fallback when DexScreener had no indexed pair yet for a fresh token — permanently
+  stuck on "Loading chart..." (unlike /terminal, which already falls back to OHLCV candles).
+
+### Fixes
+- `app/globals.css`: `.gradient-border::before` gained `pointer-events: none`.
+- `app/api/tokens/route.ts`: GeckoTerminal fetch now requests `&include=base_token` and uses
+  the sideloaded `image_url`/`banner_image_url` as a fallback BEFORE the DexScreener
+  enrichment step; fixed that step's unconditional `t.image = i.image` (which could stomp a
+  good fallback with null) to `t.image = i.image ?? t.image`. Verified live: 14/20 "new" tab
+  tokens now have images (was near-zero for brand-new pools per the root cause).
+- New `lib/useQuickBuyPresets.ts` + `components/QuickBuyEditor.tsx`: per-user quick-buy SOL
+  presets stored in a new `profiles.quick_buy_amounts` column (schema.sql updated +
+  standalone `supabase/add-quick-buy-amounts.sql` migration for the live DB — owner needs to
+  run this once in the Supabase SQL editor, anon key can't ALTER TABLE). Editor is a modal
+  matching the existing TokenDrawer/TerminalBody preview-modal convention.
+- `app/trenches/page.tsx`: quick-buy buttons now call `useExecuteBuy()` directly and fire a
+  real signed swap on click (one-tap, Trojan-style — the wallet's own signing prompt is the
+  confirmation, matching what was explicitly asked for), with per-button busy state. Card
+  restructured to be fully clickable (role="button", not just the header strip) with a
+  `e.target !== e.currentTarget` guard on its onKeyDown so nested interactive elements
+  (quick-buy buttons, socials links, "Quick trade" link) keep their own native behavior
+  instead of the card swallowing their Enter/Space activation.
+- `components/TokenDrawer.tsx`: added a banner-image header strip, added an OHLCV/Candles
+  chart fallback (matching TerminalBody's existing pattern) for tokens DexScreener hasn't
+  indexed a pair for yet, switched to the shared editable presets.
+- `app/terminal/TerminalBody.tsx`: switched its own hardcoded AMOUNTS to the same shared
+  hook too, so all three surfaces (trenches/drawer/terminal) can no longer drift out of sync.
+
+### Adversarial review — 16 candidates, 7 confirmed real, all fixed
+- Cross-component preset sync gap: editing presets on the page didn't update the
+  already-mounted TokenDrawer instance (separate hook instance, mount-once effect). Fixed by
+  broadcasting a `window` CustomEvent on save, matching the existing `degen-net` pattern
+  (lib/net.ts) already used elsewhere in this codebase for exactly this class of problem.
+- Keyboard Enter/Space on a nested quick-buy button was bubbling to the card's onKeyDown and
+  being suppressed (drawer opened instead of buying) — confirmed via live browser
+  reproduction with trusted key events by one of the verify agents. Fixed with the
+  `e.target !== e.currentTarget` guard (a single centralized fix, cleaner than adding
+  stopPropagation to every nested wrapper individually).
+- Card's role="button" had no aria-label, so its accessible name was the entire concatenated
+  card text (every stat + all 4 preset labels) — added a proper `aria-label`.
+- QuickBuyEditor could open before the async profile fetch resolved and silently save
+  placeholder defaults over a user's real saved presets — added a resync effect while the
+  modal is open, plus a `loaded` gate disabling Save until the real profile data has loaded.
+- Duplicate preset values were used as raw React list keys — switched to index-based keys.
+- Flagged (not fixed, explicitly out of this pass's scope): `/explorer`'s Cards.tsx has the
+  same old unguarded click pattern trenches just fixed — spawned as a separate follow-up task.
+- Deliberately did NOT act on two findings: a "high" severity re-entrancy race that the
+  verify agent refuted with real event-loop/React-batching reasoning (added a synchronous
+  `useRef` guard anyway regardless of the refutation — near-zero cost, real money on the
+  line, worth the belt-and-suspenders); and a "hardcoded 3% slippage, no adjustability"
+  finding that was refuted as the deliberate, correct design tradeoff for a one-tap
+  Trojan-style buy (removing the confirmation/adjustment step is exactly what was asked for).
+
+### Verify
+- `npx tsc --noEmit` and `npm run build`: both clean, 0 new errors, all 45 routes build
+  (trenches grew 2.58kB -> 4.31kB, consistent with the new logic). Curl-verified live
+  /api/tokens output shows real image data now flowing through.
+- Not deployed — this is local/dev-server-verified only, same as every other change this
+  session. Nothing pushed or `vercel --prod`'d.

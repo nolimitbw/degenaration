@@ -8,9 +8,9 @@ import { useExecuteSell } from "@/lib/useExecuteSell";
 import { createLimitOrder } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getNet } from "@/lib/net";
+import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 
 const SOL = "So11111111111111111111111111111111111111112";
-const AMOUNTS = [0.1, 0.5, 1, 2];
 const SELL_PCTS = [25, 50, 75, 100];
 
 type Mode = "buy" | "sell" | "limit";
@@ -45,6 +45,7 @@ export default function TerminalBody() {
   const { user, authenticated, login } = usePrivy();
   const executeBuy = useExecuteBuy();
   const executeSell = useExecuteSell();
+  const { presets: AMOUNTS } = useQuickBuyPresets();
   const toast = useToast();
   const pubkey = (user as any)?.wallet?.address as string | undefined;
 

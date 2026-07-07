@@ -129,7 +129,7 @@ export async function rejectApplication(id: string) {
 
 // ---- profile (trade limits) ----
 
-export type Profile = { wallet_address: string | null; max_trade_sol: number; daily_cap_sol: number; risk_accepted: boolean };
+export type Profile = { wallet_address: string | null; max_trade_sol: number; daily_cap_sol: number; risk_accepted: boolean; quick_buy_amounts: number[] };
 
 export async function getMyProfile(): Promise<Profile | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -137,13 +137,13 @@ export async function getMyProfile(): Promise<Profile | null> {
   if (!uid) return null;
   const { data } = await supabase
     .from("profiles")
-    .select("wallet_address,max_trade_sol,daily_cap_sol,risk_accepted")
+    .select("wallet_address,max_trade_sol,daily_cap_sol,risk_accepted,quick_buy_amounts")
     .eq("id", uid)
     .maybeSingle();
   return (data as Profile) ?? null;
 }
 
-export async function saveProfileLimits(limits: { max_trade_sol: number; daily_cap_sol: number; wallet_address?: string }) {
+export async function saveProfileLimits(limits: Partial<{ max_trade_sol: number; daily_cap_sol: number; wallet_address: string; quick_buy_amounts: number[] }>) {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
   if (!uid) return { error: { message: "not signed in" } };

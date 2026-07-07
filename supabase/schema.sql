@@ -10,6 +10,7 @@ create table if not exists public.profiles (
   wallet_address text,
   max_trade_sol numeric not null default 0.5,
   daily_cap_sol numeric not null default 2,
+  quick_buy_amounts numeric[] not null default '{0.1,0.5,1,2}',
   risk_accepted boolean not null default false,
   is_admin boolean not null default false,
   created_at timestamptz not null default now()

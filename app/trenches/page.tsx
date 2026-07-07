@@ -1,13 +1,17 @@
 "use client";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { fetchTokensFull, fmtNum, fmtAge } from "@/lib/queries";
+import { useExecuteBuy } from "@/lib/useExecuteBuy";
+import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
+import { useToast } from "@/components/Toast";
 import TokenDrawer from "@/components/TokenDrawer";
+import QuickBuyEditor from "@/components/QuickBuyEditor";
 
 type Sort = "hot" | "new" | "volume" | "gainers";
-const BUY_PRESETS = [0.1, 0.5, 1, 2];
+const DEFAULT_SLIPPAGE_BPS = 300; // 3% — matches the default slippage used elsewhere (drawer/terminal)
 
 function Skeleton() {
   return (
@@ -30,7 +34,10 @@ function Pressure({ b, s }: { b: number; s: number }) {
 }
 
 export default function Trenches() {
-  const router = useRouter();
+  const { authenticated, login } = usePrivy();
+  const executeBuy = useExecuteBuy();
+  const { presets: BUY_PRESETS, loaded: presetsLoaded, save: saveBuyPresets } = useQuickBuyPresets();
+  const toast = useToast();
   const [tab, setTab] = useState<"new" | "trending">("new");
   const [sort, setSort] = useState<Sort>("hot");
   const [tokens, setTokens] = useState<any[]>([]);
@@ -38,6 +45,28 @@ export default function Trenches() {
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState(false);
   const [drawer, setDrawer] = useState<any | null>(null);
+  const [buyingKey, setBuyingKey] = useState<string | null>(null);
+  // synchronous re-entrancy guard — belt-and-suspenders alongside the (async) disabled
+  // state above, since this fires a real signed swap and refs mutate synchronously
+  const buyingRef = useRef(false);
+
+  // One-tap buy: clicking a preset amount signs and sends immediately (no extra
+  // confirmation screen — the wallet's own signing prompt is the confirmation).
+  async function quickBuy(t: any, amt: number) {
+    if (buyingRef.current) return;
+    if (!authenticated) { login(); return; }
+    buyingRef.current = true;
+    const key = `${t.address}:${amt}`;
+    setBuyingKey(key);
+    try {
+      const r = await executeBuy({ mint: t.address, solAmount: amt, slippageBps: DEFAULT_SLIPPAGE_BPS, priceUsd: t.priceUsd, symbol: t.symbol });
+      if (r.ok) toast(`Bought ${amt} SOL of ${t.symbol ?? "token"} — ${r.sig?.slice(0, 8) ?? ""}`);
+      else toast(r.error || "Buy failed", "err");
+    } finally {
+      buyingRef.current = false;
+      setBuyingKey(null);
+    }
+  }
 
   async function load() {
     const { tokens, stats } = await fetchTokensFull(tab);
@@ -86,21 +115,25 @@ export default function Trenches() {
             <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-cyber/20 text-cyber" : "text-dim hover:text-gray-900"}`}>{sopt.toUpperCase()}</button>
           ))}
         </div>
+        <QuickBuyEditor presets={BUY_PRESETS} loaded={presetsLoaded} onSave={saveBuyPresets} />
       </div>
 
       {/* grid */}
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {loading && Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} />)}
         {!loading && rows.map((t) => (
-            <div key={t.address} className="group gradient-border flex flex-col rounded-lg border border-edge p-4 transition hover:shadow-toxic">
-              <button onClick={() => setDrawer(t)} className="flex w-full items-center gap-3 text-left">
+            <div key={t.address} role="button" tabIndex={0} aria-label={`View ${t.symbol ?? "token"} details`}
+              onClick={() => setDrawer(t)}
+              onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDrawer(t); } }}
+              className="group gradient-border flex cursor-pointer flex-col rounded-lg border border-edge p-4 transition hover:shadow-toxic">
+              <div className="flex w-full items-center gap-3 text-left">
                 {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{t.symbol?.slice(0,2)}</div>}
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-hotpink/20 px-1 text-[9px] text-hotpink">new</span>}</p>
                   <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>
                 </div>
                 <span className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</span>
-              </button>
+              </div>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
               <div><p className="text-dim">MC</p><p className="text-gray-900">{fmtNum(t.marketCap)}</p></div>
               <div><p className="text-dim">Liq</p><p className="text-gray-900">{fmtNum(t.liquidityUsd)}</p></div>
@@ -116,17 +149,20 @@ export default function Trenches() {
             </div>
             <Pressure b={t.buys1h} s={t.sells1h} />
             {t.risks?.length ? <div className="mt-2 flex flex-wrap gap-1">{t.risks.map((r: string) => <span key={r} className="rounded border border-hotpink/40 px-1.5 py-0.5 font-mono text-[9px] text-hotpink">⚠ {r}</span>)}</div> : null}
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-1 gap-1">
-                {BUY_PRESETS.map((a) => (
-                  <button key={a} onClick={() => router.push(`/terminal?mint=${t.address}&amount=${a}`)}
-                    title={`Quick buy ${a} SOL`} aria-label={`Quick buy ${a} SOL of ${t.symbol ?? "token"}`}
-                    className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-toxic hover:text-toxic">{a}</button>
-                ))}
+                {BUY_PRESETS.map((a, i) => {
+                  const busy = buyingKey === `${t.address}:${a}`;
+                  return (
+                    <button key={i} onClick={() => quickBuy(t, a)} disabled={buyingKey != null}
+                      title={`Quick buy ${a} SOL`} aria-label={`Quick buy ${a} SOL of ${t.symbol ?? "token"}`}
+                      className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">{busy ? "…" : a}</button>
+                  );
+                })}
               </div>
               {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-gray-900" title={x.type} aria-label={x.type}>↗</a>)}
             </div>
-            <Link href={`/terminal?mint=${t.address}`} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Quick trade →</Link>
+            <Link href={`/terminal?mint=${t.address}`} onClick={(e) => e.stopPropagation()} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Quick trade →</Link>
           </div>
         ))}
         {!loading && !rows.length && (

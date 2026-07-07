@@ -9,25 +9,28 @@ import { supabase } from "@/lib/supabase";
 import { Connection, VersionedTransaction } from "@solana/web3.js";
 import { getRpc } from "@/lib/net";
 import { useToast } from "@/components/Toast";
+import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
+import Candles from "@/components/Candles";
 
 const SOL = "So11111111111111111111111111111111111111112";
-const PRESETS = [0.1, 0.5, 1, 2];
 
 export default function TokenDrawer({ token, onClose }: { token: any | null; onClose: () => void }) {
   const { authenticated, user } = usePrivy();
   const { sendTransaction } = useSendTransaction();
   const embeddedAddr = (user as any)?.wallet?.address as string | undefined;
   const toast = useToast();
+  const { presets: PRESETS } = useQuickBuyPresets();
   const [price, setPrice] = useState<any>(null);
   const [rug, setRug] = useState<any>(null);
   const [conc, setConc] = useState<number | null>(null);
+  const [candles, setCandles] = useState<any[]>([]);
   const [amount, setAmount] = useState(0.5);
   const [slippage, setSlippage] = useState(3);
   const [sim, setSim] = useState<any>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setSim(null); setPrice(null); setRug(null); setConc(null);
+    setSim(null); setPrice(null); setRug(null); setConc(null); setCandles([]);
     if (!token) return;
     const mint = token.address;
     fetch(`/api/price?mint=${mint}`).then((r) => r.json()).then(setPrice).catch(() => {});
@@ -36,6 +39,8 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
       const top = (d?.holders ?? []).slice(0, 10).reduce((s: number, h: any) => s + (h.pct || 0), 0);
       setConc(top || null);
     }).catch(() => {});
+    // fallback candles for brand-new pools DexScreener hasn't indexed a pair for yet
+    fetch(`/api/ohlcv?mint=${mint}&tf=hour`).then((r) => r.json()).then((d) => setCandles(d?.candles ?? [])).catch(() => {});
   }, [token]);
 
   if (!token) return null;
@@ -80,7 +85,13 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
 
   return (
     <div className="fixed inset-0 z-[90] flex justify-end bg-black/60" onClick={onClose}>
-      <div className="h-full w-full max-w-md overflow-auto border-l border-edge bg-panel p-5" onClick={(e) => e.stopPropagation()}>
+      <div className="h-full w-full max-w-md overflow-auto border-l border-edge bg-panel" onClick={(e) => e.stopPropagation()}>
+        {token.bannerImage && (
+          <div className="h-28 w-full overflow-hidden bg-void">
+            <img src={token.bannerImage} alt="" className="h-full w-full object-cover" />
+          </div>
+        )}
+        <div className="p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {token.image ? <img src={token.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{token.symbol?.slice(0, 2)}</div>}
@@ -101,10 +112,12 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           </div>
         )}
 
-        {/* chart */}
+        {/* chart — DexScreener embed once indexed, else GeckoTerminal candles for brand-new pools */}
         <div className="mt-4">
           {price?.pairAddress ? (
             <iframe key={price.pairAddress} src={`https://dexscreener.com/${price.chainId || "solana"}/${price.pairAddress}?embed=1&theme=dark&trades=0&info=0`} className="h-64 w-full rounded-md border border-edge" title="chart" />
+          ) : candles.length ? (
+            <Candles data={candles} />
           ) : (
             <div className="grid h-64 place-items-center rounded-md border border-edge bg-void text-sm text-dim">Loading chart…</div>
           )}
@@ -147,7 +160,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
             <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} className="mt-1 w-full rounded-md border border-edge bg-panel px-3 py-2 font-mono outline-none focus:border-toxic" />
           </label>
           <div className="mt-2 grid grid-cols-4 gap-1">
-            {PRESETS.map((a) => <button key={a} onClick={() => setAmount(a)} className="rounded border border-edge py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">{a}</button>)}
+            {PRESETS.map((a, i) => <button key={i} onClick={() => setAmount(a)} className="rounded border border-edge py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">{a}</button>)}
           </div>
           <label className="mt-3 block">
             <span className="font-mono text-[11px] uppercase text-dim">Max slippage %</span>
@@ -166,6 +179,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
             <button onClick={doBuy} disabled={busy} className="rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">Buy</button>
           </div>
           <p className="mt-2 text-center font-mono text-[10px] text-dim">Non-custodial · your wallet signs · 2% fee on-chain</p>
+        </div>
         </div>
       </div>
     </div>
