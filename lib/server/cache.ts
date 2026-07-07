@@ -19,7 +19,12 @@ export async function ttlFetch(url: string, ttlMs = 15_000, init?: RequestInit):
   if (pending) return pending;
 
   const p = fetch(url, { cache: "no-store", ...init })
-    .then((r) => r.json())
+    .then((r) => {
+      // A non-2xx (e.g. upstream rate-limit) can still have a parseable JSON body
+      // shaped nothing like the real payload — never cache that as if it were data.
+      if (!r.ok) throw new Error(`upstream ${r.status}`);
+      return r.json();
+    })
     .then((data) => {
       STORE.set(url, { at: Date.now(), data });
       if (STORE.size > MAX_ENTRIES) {
