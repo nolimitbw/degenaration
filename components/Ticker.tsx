@@ -28,14 +28,14 @@ export default function Ticker() {
 
   const row = [...items, ...items];
   return (
-    <div className="relative overflow-hidden border-y border-edge bg-panel/60 py-3">
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-void to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-void to-transparent" />
+    <div className="relative overflow-hidden border-y border-white/10 bg-white/[0.03] py-3 backdrop-blur-sm">
+      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-night to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-night to-transparent" />
       <div className="ticker-track flex w-max gap-10 font-mono text-sm">
         {row.map((c, i) => (
-          <span key={i} className="flex items-center gap-2 text-dim">
-            <span className="text-white">{c.t}</span>
-            <span className={c.p >= 0 ? "text-toxic" : "text-hotpink"}>{c.p >= 0 ? "+" : ""}{c.p.toFixed(0)}%</span>
+          <span key={i} className="flex items-center gap-2 text-haze">
+            <span className="text-starlight">{c.t}</span>
+            <span className={c.p >= 0 ? "text-cyber" : "text-down"}>{c.p >= 0 ? "+" : ""}{c.p.toFixed(0)}%</span>
           </span>
         ))}
       </div>

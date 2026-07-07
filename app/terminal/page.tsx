@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 import AppShell from "@/components/AppShell";
 import dynamic from "next/dynamic";
 
@@ -11,7 +12,9 @@ const TerminalBody = dynamic(() => import("./TerminalBody"), {
 export default function Terminal() {
   return (
     <AppShell>
-      <TerminalBody />
+      <Suspense fallback={<p className="text-sm text-dim">Loading terminal…</p>}>
+        <TerminalBody />
+      </Suspense>
     </AppShell>
   );
 }

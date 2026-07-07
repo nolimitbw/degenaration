@@ -77,7 +77,7 @@ export default function TrackerBody() {
           className="flex-1 min-w-[240px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
         <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (optional)"
           className="w-40 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic">+ Track</button>
+        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Track</button>
       </div>
 
       {!wallets.length && (
@@ -113,7 +113,7 @@ export default function TrackerBody() {
                       <span className="w-16 truncate font-bold">{p.symbol ?? p.mint.slice(0, 4)}</span>
                       <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
                       <span className="flex-1 text-right text-dim">{fmtUsd(p.valueUsd)}</span>
-                      <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-white" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}>↗</Link>
+                      <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-gray-900" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}>↗</Link>
                     </div>
                   ))}
                 </div>
@@ -126,11 +126,11 @@ export default function TrackerBody() {
               {copyFor === w.address ? (
                 <div className="mt-3 rounded-md border border-toxic/40 bg-void p-2">
                   <div className="flex items-center gap-2 font-mono text-[10px] text-dim">
-                    <label className="flex-1">size SOL<input type="number" step="0.1" value={copySize} onChange={(e) => setCopySize(+e.target.value)} className="mt-0.5 w-full rounded border border-edge bg-panel px-2 py-1 text-white outline-none focus:border-toxic" /></label>
-                    <label className="flex-1">daily cap<input type="number" step="0.5" value={copyCap} onChange={(e) => setCopyCap(+e.target.value)} className="mt-0.5 w-full rounded border border-edge bg-panel px-2 py-1 text-white outline-none focus:border-toxic" /></label>
+                    <label className="flex-1">size SOL<input type="number" step="0.1" value={copySize} onChange={(e) => setCopySize(+e.target.value)} className="mt-0.5 w-full rounded border border-edge bg-panel px-2 py-1 text-gray-900 outline-none focus:border-toxic" /></label>
+                    <label className="flex-1">daily cap<input type="number" step="0.5" value={copyCap} onChange={(e) => setCopyCap(+e.target.value)} className="mt-0.5 w-full rounded border border-edge bg-panel px-2 py-1 text-gray-900 outline-none focus:border-toxic" /></label>
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <button onClick={() => enableCopy(w.address, w.label)} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-void">Start copying</button>
+                    <button onClick={() => enableCopy(w.address, w.label)} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white">Start copying</button>
                     <button onClick={() => setCopyFor(null)} className="rounded border border-edge px-3 py-1.5 font-mono text-[11px] text-dim">cancel</button>
                   </div>
                 </div>

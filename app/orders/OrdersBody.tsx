@@ -75,7 +75,7 @@ export default function OrdersBody() {
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <h1 className="text-xl font-bold">Limit Orders</h1>
         <p className="mt-2 text-sm text-dim">Connect your wallet to create auto-buy orders that run 24/7.</p>
-        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic">Connect wallet</button>
+        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic">Connect wallet</button>
       </div>
     );
   }
@@ -103,7 +103,7 @@ export default function OrdersBody() {
         </select>
         <input type="number" step="any" value={target || ""} onChange={(e) => setTarget(+e.target.value)} placeholder="$ target" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
         <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} placeholder="SOL" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={create} className="col-span-full rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic">+ Create limit order</button>
+        <button onClick={create} className="col-span-full rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Create limit order</button>
       </div>
 
       <div className="mt-6 space-y-2">
@@ -119,7 +119,7 @@ export default function OrdersBody() {
               </div>
               <div className="flex items-center gap-2">
                 {ready && <span className="rounded-full bg-toxic/20 px-2 py-0.5 font-mono text-[10px] font-bold text-toxic">READY</span>}
-                <button onClick={() => runExec(o)} className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-void shadow-toxic transition hover:brightness-110">Execute</button>
+                <button onClick={() => runExec(o)} className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white shadow-toxic transition hover:brightness-110">Execute</button>
                 <button onClick={async () => { await cancelLimitOrder(o.id); refresh(); }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
               </div>
             </div>

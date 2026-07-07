@@ -36,7 +36,7 @@ export default function Watchlist() {
       <div className="mt-5 flex gap-2">
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Token mint address"
           className="flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic">+ Add</button>
+        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Add</button>
       </div>
 
       {!mints.length ? (

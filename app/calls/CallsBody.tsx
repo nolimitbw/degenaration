@@ -91,7 +91,7 @@ export default function CallsBody() {
               </div>
 
               <button onClick={() => setOpen(open === g.id ? null : g.id)}
-                className="mt-4 w-full rounded-md border border-edge py-2 font-mono text-xs text-dim transition hover:border-cyber hover:text-white">
+                className="mt-4 w-full rounded-md border border-edge py-2 font-mono text-xs text-dim transition hover:border-cyber hover:text-gray-900">
                 {open === g.id ? "▲ hide settings" : "▼ trade settings"}
               </button>
 
@@ -131,7 +131,7 @@ export default function CallsBody() {
                      rug-check on · mint-authority check · liquidity-lock check
                   </p>
                   <button onClick={() => persist(g.id, on)}
-                    className="col-span-2 rounded-md bg-toxic py-2.5 text-sm font-bold text-void shadow-toxic transition hover:brightness-110">
+                    className="col-span-2 rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110">
                     {saved === g.id ? "✓ Saved" : "Save settings"}
                   </button>
                 </div>

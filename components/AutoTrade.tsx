@@ -42,13 +42,13 @@ export default function AutoTrade() {
       </div>
       <p className="mt-1 text-xs text-dim">
         Let the engine run your limit orders and copy trades even while your device is off.
-        The delegated key is <b className="text-white">trade-only</b>, bound by your spend caps
-        above, and <b className="text-white">revocable anytime</b>. It can never withdraw.
+        The delegated key is <b className="text-gray-900">trade-only</b>, bound by your spend caps
+        above, and <b className="text-gray-900">revocable anytime</b>. It can never withdraw.
       </p>
       {delegated ? (
         <button onClick={disable} disabled={busy} className="mt-4 w-full rounded-md border border-hotpink/50 py-2.5 text-sm font-bold text-hotpink transition hover:bg-hotpink/10 disabled:opacity-50">{busy ? "…" : "Revoke auto-trading"}</button>
       ) : (
-        <button onClick={enable} disabled={busy} className="mt-4 w-full rounded-md bg-toxic py-2.5 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">{busy ? "…" : "Enable auto-trading"}</button>
+        <button onClick={enable} disabled={busy} className="mt-4 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">{busy ? "…" : "Enable auto-trading"}</button>
       )}
     </div>
   );

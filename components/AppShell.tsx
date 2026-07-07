@@ -59,7 +59,7 @@ function SolPrice() {
   return (
     <span className="flex items-center gap-1.5 font-mono text-[11px] text-dim">
       <span className="text-toxic">◎ SOL</span>
-      <span className="text-white">{px != null ? `$${px.toFixed(2)}` : "…"}</span>
+      <span className="text-gray-900">{px != null ? `$${px.toFixed(2)}` : "…"}</span>
     </span>
   );
 }
@@ -80,7 +80,7 @@ function ToolsMenu({ items, path }: { items: typeof TOOLS; path: string }) {
       <button
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-          active || open ? "text-toxic" : "text-dim hover:text-white"
+          active || open ? "text-toxic" : "text-dim hover:text-gray-900"
         }`}
       >
         Tools <span className={`text-[10px] transition ${open ? "rotate-180" : ""}`}>▾</span>
@@ -98,7 +98,7 @@ function ToolsMenu({ items, path }: { items: typeof TOOLS; path: string }) {
             >
               <span className={`mt-0.5 text-base ${path === i.href ? "text-toxic" : "text-dim"}`}>{i.icon}</span>
               <span className="min-w-0">
-                <span className={`block text-sm font-semibold ${path === i.href ? "text-toxic" : "text-white"}`}>{i.label}</span>
+                <span className={`block text-sm font-semibold ${path === i.href ? "text-toxic" : "text-gray-900"}`}>{i.label}</span>
                 <span className="block truncate text-[11px] text-dim">{i.desc}</span>
               </span>
             </Link>
@@ -115,7 +115,7 @@ function BottomLink({ href, label, icon, active }: { href: string; label: string
     <Link
       href={href}
       className={`flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium transition ${
-        active ? "text-toxic" : "text-dim hover:text-white"
+        active ? "text-toxic" : "text-dim hover:text-gray-900"
       }`}
     >
       <span>{icon}</span>
@@ -148,7 +148,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   key={n.href}
                   href={n.href}
                   className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                    active ? "text-toxic" : "text-dim hover:text-white"
+                    active ? "text-toxic" : "text-dim hover:text-gray-900"
                   }`}
                 >
                   {active && (
@@ -163,7 +163,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:block"><Search /></div>
             <NetworkToggle />
-            <Link href="/settings" className={`hidden rounded-md border border-edge px-2 py-1.5 text-sm sm:block ${path === "/settings" ? "text-toxic" : "text-dim hover:text-white"}`} aria-label="Settings">⚙</Link>
+            <Link href="/settings" className={`hidden rounded-md border border-edge px-2 py-1.5 text-sm sm:block ${path === "/settings" ? "text-toxic" : "text-dim hover:text-gray-900"}`} aria-label="Settings">⚙</Link>
             <WalletButton />
           </div>
         </div>
@@ -185,12 +185,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 const active = path === n.href;
                 return (
                   <Link key={n.href} href={n.href} onClick={() => setMobileOpen(false)}
-                    className={`rounded-md px-3 py-2.5 text-sm font-medium transition ${active ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-white"}`}>
+                    className={`rounded-md px-3 py-2.5 text-sm font-medium transition ${active ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-gray-900"}`}>
                     {n.label}
                   </Link>
                 );
               })}
-              <Link href="/settings" onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-2.5 text-sm font-medium ${path === "/settings" ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-white"}`}>Settings</Link>
+              <Link href="/settings" onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-2.5 text-sm font-medium ${path === "/settings" ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-gray-900"}`}>Settings</Link>
             </nav>
           </div>
         </div>

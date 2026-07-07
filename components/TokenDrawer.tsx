@@ -54,7 +54,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
         const res = await fetch("/api/swap", {
           method: "POST",
           headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
-          body: JSON.stringify({ inputMint: SOL, outputMint: token.address, amount: Math.floor(amount * 1e9), userPublicKey: embeddedAddr, slippageBps: slippage * 100, net: getNet() })
+          body: JSON.stringify({ inputMint: SOL, outputMint: token.address, amount: Math.floor(amount * 1e9), userPublicKey: embeddedAddr, slippageBps: slippage * 100, net: getNet(), mev: true })
         }).then((r) => r.json());
         if (res.error || !res.swapTransaction) { toast(res.error || "Could not build swap", "err"); setBusy(false); return; }
         const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
@@ -89,7 +89,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
               <p className="font-mono text-[11px] text-dim">{token.name} · {fmtAge(token.ageMs)}</p>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-white">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-gray-900">✕</button>
         </div>
 
         {/* links */}
@@ -112,10 +112,10 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
 
         {/* stats */}
         <div className="mt-4 grid grid-cols-3 gap-2 font-mono text-[11px]">
-          <div><p className="text-dim">Price</p><p className="text-white">{price?.priceUsd ? `$${price.priceUsd}` : fmtNum(token.priceUsd)}</p></div>
-          <div><p className="text-dim">MC / FDV</p><p className="text-white">{fmtNum(price?.fdv ?? token.marketCap)}</p></div>
-          <div><p className="text-dim">Liq</p><p className="text-white">{fmtNum(price?.liquidityUsd ?? token.liquidityUsd)}</p></div>
-          <div><p className="text-dim">24h Vol</p><p className="text-white">{fmtNum(price?.volume24h ?? token.vol24h)}</p></div>
+          <div><p className="text-dim">Price</p><p className="text-gray-900">{price?.priceUsd ? `$${price.priceUsd}` : fmtNum(token.priceUsd)}</p></div>
+          <div><p className="text-dim">MC / FDV</p><p className="text-gray-900">{fmtNum(price?.fdv ?? token.marketCap)}</p></div>
+          <div><p className="text-dim">Liq</p><p className="text-gray-900">{fmtNum(price?.liquidityUsd ?? token.liquidityUsd)}</p></div>
+          <div><p className="text-dim">24h Vol</p><p className="text-gray-900">{fmtNum(price?.volume24h ?? token.vol24h)}</p></div>
           <div><p className="text-dim">24h</p><p className={(price?.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}>{price?.change24h != null ? `${price.change24h >= 0 ? "+" : ""}${Number(price.change24h).toFixed(1)}%` : "—"}</p></div>
           <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{price?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{price?.sells24h ?? "—"}</span></p></div>
         </div>
@@ -136,7 +136,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           {rug?.ok && <p className="mt-1 font-mono text-[10px] text-dim">Mint & freeze checks clear, liquidity present. Always DYOR.</p>}
           <div className="mt-2 flex justify-between border-t border-edge pt-2 font-mono text-[10px]">
             <span className="text-dim">Top 10 holders</span>
-            <span className={conc != null && conc > 50 ? "text-hotpink" : "text-white"}>{conc != null ? `${conc.toFixed(1)}%` : "—"}</span>
+            <span className={conc != null && conc > 50 ? "text-hotpink" : "text-gray-900"}>{conc != null ? `${conc.toFixed(1)}%` : "—"}</span>
           </div>
         </div>
 
@@ -163,7 +163,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           {sim?.error && <p className="mt-2 font-mono text-[11px] text-hotpink">{sim.error}</p>}
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button onClick={doSim} disabled={busy} className="rounded-md border border-edge py-2.5 text-sm font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">{busy ? "…" : "Simulate"}</button>
-            <button onClick={doBuy} disabled={busy} className="rounded-md bg-toxic py-2.5 text-sm font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">Buy</button>
+            <button onClick={doBuy} disabled={busy} className="rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">Buy</button>
           </div>
           <p className="mt-2 text-center font-mono text-[10px] text-dim">Non-custodial · your wallet signs · 2% fee on-chain</p>
         </div>

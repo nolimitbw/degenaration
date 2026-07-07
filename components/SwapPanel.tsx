@@ -81,7 +81,7 @@ export default function SwapPanel() {
           className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
       </label>
       <button onClick={run} disabled={busy || amount <= 0}
-        className="mt-4 w-full rounded-md bg-toxic py-2.5 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+        className="mt-4 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
         {status === "quoting" ? "Building swap…" : status === "signing" ? "Sign in your wallet…" : authenticated ? "Swap & sign" : "Connect wallet"}
       </button>
       {status === "done" && (

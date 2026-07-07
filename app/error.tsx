@@ -13,10 +13,10 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
       <p className="font-mono text-2xl font-bold text-hotpink">Something went wrong</p>
       <p className="max-w-sm text-sm text-dim">This screen hit an error. Your funds are safe — the app is non-custodial. Try again.</p>
       <div className="mt-2 flex gap-3">
-        <button onClick={reset} className="rounded-md bg-toxic px-6 py-3 font-bold text-void shadow-toxic transition hover:brightness-110">
+        <button onClick={reset} className="rounded-md bg-toxic px-6 py-3 font-bold text-white shadow-toxic transition hover:brightness-110">
           Try again
         </button>
-        <Link href="/" className="rounded-md border border-edge bg-panel px-6 py-3 font-bold text-white transition hover:border-toxic">
+        <Link href="/" className="rounded-md border border-edge bg-panel px-6 py-3 font-bold text-gray-900 transition hover:border-toxic">
           Home
         </Link>
       </div>

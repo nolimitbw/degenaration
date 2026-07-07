@@ -15,7 +15,7 @@ export default function Cards({ rows, loading, onPick }: { rows: Tok[]; loading:
             <span className="font-mono text-sm font-bold"><Chg v={t.change24h} /></span>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]"><div><p className="text-dim">MC</p><p>{fmtNum(t.marketCap)}</p></div><div><p className="text-dim">Liq</p><p>{fmtNum(t.liquidityUsd)}</p></div><div><p className="text-dim">1h Vol</p><p>{fmtNum(t.vol1h)}</p></div></div>
-          <button className="mt-3 w-full rounded-md bg-toxic py-2 text-sm font-bold text-void shadow-toxic">Trade →</button>
+          <button className="mt-3 w-full rounded-md bg-toxic py-2 text-sm font-bold text-white shadow-toxic">Trade →</button>
         </div>
       ))}
     </div>

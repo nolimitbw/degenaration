@@ -9,6 +9,18 @@ export type Group = {
   tag: string | null;
 };
 
+// Demo rows seeded by an old schema migration — never actually approved as call
+// groups. RLS blocks the anon key from deleting them (correctly), so they're
+// filtered here until the owner runs supabase/cleanup-demo-groups.sql. Matched
+// by row id, not name — a name match would also hide a future real group that
+// happens to share one of these (fairly generic) display names.
+const UNVERIFIED_DEMO_GROUP_IDS = new Set([
+  "4184172f-fc9b-4812-b824-47b47803e98c", // "Alpha Trenches"
+  "d190319f-215e-418a-bf2b-379cf02027ad", // "Solana Snipers"
+  "63873a8c-a247-45cc-8b9a-ccf01a2d0437", // "Pump Scouts"
+  "2453d26f-107b-40ff-8771-3991e8869dc6"  // "Degen Central"
+]);
+
 /** Approved call groups for the public Calls page. Falls back to [] if DB not reachable. */
 export async function getApprovedGroups(): Promise<Group[]> {
   const { data, error } = await supabase
@@ -17,7 +29,7 @@ export async function getApprovedGroups(): Promise<Group[]> {
     .eq("active", true)
     .order("created_at", { ascending: true });
   if (error) return [];
-  return data ?? [];
+  return (data ?? []).filter((g) => !UNVERIFIED_DEMO_GROUP_IDS.has(g.id));
 }
 
 /** Submit a server-listing application from the /apply page. */

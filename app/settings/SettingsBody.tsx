@@ -93,7 +93,7 @@ export default function SettingsBody() {
           <div className="mt-3 flex gap-2">
             <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password"
               className="flex-1 rounded-md border border-edge bg-void px-3 py-2 text-sm outline-none focus:border-toxic" />
-            <button onClick={changePassword} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void">Update</button>
+            <button onClick={changePassword} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Update</button>
           </div>
         </section>
 
@@ -109,7 +109,7 @@ export default function SettingsBody() {
               <div className="mt-2 flex gap-2">
                 <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6}
                   className="w-32 rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic" />
-                <button onClick={verify2FA} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void">Verify</button>
+                <button onClick={verify2FA} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Verify</button>
               </div>
             </div>
           )}

@@ -89,7 +89,7 @@ export default function Commissions() {
             className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-toxic" />
         </label>
         <button onClick={withdraw} disabled={busy || !dest || amount <= 0}
-          className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+          className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
           {busy ? "Signing…" : "Withdraw to my wallet"}
         </button>
         {status && <p className="mt-3 break-all font-mono text-[11px] text-dim">{status}</p>}

@@ -37,7 +37,7 @@ export default function HoldingsBody() {
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <h1 className="text-xl font-bold">Your holdings</h1>
         <p className="mt-2 text-sm text-dim">Connect your wallet to see your real on-chain positions, live value and allocation.</p>
-        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic">Connect wallet</button>
+        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic">Connect wallet</button>
       </div>
     );
   }

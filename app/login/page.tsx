@@ -51,7 +51,7 @@ export default function Login() {
             I understand memecoin trading is extremely high risk and I can lose my entire balance.
           </label>
           <button onClick={handleEmail} disabled={!email || !agree}
-            className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+            className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
             Continue with email →
           </button>
           {msg && <p className="mt-4 text-center text-xs text-hotpink">{msg}</p>}

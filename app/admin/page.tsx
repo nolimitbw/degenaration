@@ -66,7 +66,7 @@ export default function Admin() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => approve(a)} disabled={busy === a.id}
-                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic disabled:opacity-50">
+                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic disabled:opacity-50">
                   {busy === a.id ? "…" : "Approve"}
                 </button>
                 <button onClick={() => reject(a)} disabled={busy === a.id}

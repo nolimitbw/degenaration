@@ -19,7 +19,7 @@ export function pickProvider(): Provider | null {
   return ws[0]?.provider ?? null;
 }
 
-type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string };
+type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
 type Result = { ok: boolean; sig?: string; error?: string };
 
 export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Result> {
@@ -34,7 +34,7 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     const res = await fetch("/api/swap", {
       method: "POST",
       headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
-      body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: Math.floor(args.solAmount * 1e9), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet() })
+      body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: Math.floor(args.solAmount * 1e9), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
     }).then((r) => r.json());
     if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
 

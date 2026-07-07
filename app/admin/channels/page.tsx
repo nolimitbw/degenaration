@@ -61,7 +61,7 @@ export default function AdminChannels() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => act(c.id, "approve")} disabled={busy === c.id}
-                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic disabled:opacity-50">{busy === c.id ? "…" : "Approve"}</button>
+                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic disabled:opacity-50">{busy === c.id ? "…" : "Approve"}</button>
                 <button onClick={() => act(c.id, "reject")} disabled={busy === c.id}
                   className="rounded-md border border-hotpink/60 px-4 py-2 text-sm font-bold text-hotpink hover:bg-hotpink/10 disabled:opacity-50">Reject</button>
               </div>

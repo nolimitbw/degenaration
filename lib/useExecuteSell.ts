@@ -7,7 +7,7 @@ import { getRpc, getNet } from "./net";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
-type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string };
+type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
 type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
 
 /**
@@ -39,7 +39,7 @@ export function useExecuteSell() {
       const res = await fetch("/api/swap", {
         method: "POST",
         headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
-        body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: Number(amount), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net })
+        body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: Number(amount), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net, mev: args.mev ?? true })
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
 

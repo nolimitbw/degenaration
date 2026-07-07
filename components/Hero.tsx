@@ -1,122 +1,113 @@
 "use client";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring } from "framer-motion";
 import { useEffect, useState } from "react";
 import { fetchTokens } from "@/lib/queries";
+import Magnetic from "@/components/Magnetic";
+import RevealText from "@/components/RevealText";
 
-const POS = [
-  { x: "8%", y: "20%", d: 0 }, { x: "82%", y: "16%", d: 0.4 },
-  { x: "88%", y: "58%", d: 0.8 }, { x: "5%", y: "62%", d: 1.2 }
-];
-const FALLBACK = [
-  { t: "$BONK", p: "live" }, { t: "$WIF", p: "live" }, { t: "$POPCAT", p: "live" }, { t: "$PNUT", p: "live" }
-];
+const FALLBACK = [{ t: "$BONK", p: "live" }, { t: "$WIF", p: "live" }];
 
 export default function Hero() {
-  const [floaters, setFloaters] = useState(FALLBACK.map((f, i) => ({ ...f, ...POS[i] })));
+  const [chips, setChips] = useState(FALLBACK);
+  // subtle parallax applied to the floating live-price chips
+  const px = useSpring(useMotionValue(0), { stiffness: 60, damping: 20 });
+  const py = useSpring(useMotionValue(0), { stiffness: 60, damping: 20 });
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const onMove = (e: MouseEvent) => {
+      px.set((e.clientX / window.innerWidth - 0.5) * 26);
+      py.set((e.clientY / window.innerHeight - 0.5) * 20);
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [px, py]);
   useEffect(() => {
     let alive = true;
     fetchTokens("trending").then((toks) => {
       if (!alive) return;
-      const top = (toks || []).filter((x: any) => x.symbol && x.change24h != null).slice(0, 4);
-      if (top.length === 4) setFloaters(top.map((x: any, i: number) => ({
+      const top = (toks || []).filter((x: any) => x.symbol && x.change24h != null).slice(0, 2);
+      if (top.length === 2) setChips(top.map((x: any) => ({
         t: "$" + String(x.symbol).toUpperCase().slice(0, 8),
-        p: `${x.change24h >= 0 ? "+" : ""}${Number(x.change24h).toFixed(0)}%`,
-        ...POS[i]
+        p: `${x.change24h >= 0 ? "+" : ""}${Number(x.change24h).toFixed(0)}%`
       })));
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
   return (
-    <section className="grid-bg relative overflow-hidden pb-24 pt-24">
-      {/* animated glow orbs */}
-      <motion.div
-        animate={{ x: [0, 40, 0], y: [0, -20, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute -top-32 left-1/2 h-96 w-[720px] -translate-x-1/2 rounded-full bg-cyber/20 blur-[140px]"
-      />
-      <motion.div
-        animate={{ x: [0, -30, 0], y: [0, 30, 0] }}
-        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute bottom-0 right-1/4 h-72 w-[480px] rounded-full bg-toxic/10 blur-[130px]"
-      />
-
-      {/* floating live-token cards (desktop) */}
-      {floaters.map((f) => (
+    <section id="top" className="relative mx-auto grid min-h-screen max-w-6xl grid-cols-1 items-center gap-10 px-5 pb-16 pt-32 lg:grid-cols-2 lg:pt-24">
+      {/* left: copy */}
+      <div className="relative z-10 text-center lg:text-left">
         <motion.div
-          key={f.t}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1, y: [0, -12, 0] }}
-          transition={{ opacity: { delay: 0.8 + f.d }, y: { duration: 4 + f.d, repeat: Infinity, ease: "easeInOut" } }}
-          style={{ left: f.x, top: f.y }}
-          className="pointer-events-none absolute hidden rounded-lg border border-edge bg-panel/80 px-4 py-2.5 backdrop-blur-sm lg:block"
-        >
-          <p className="font-mono text-sm font-bold">{f.t}</p>
-          <p className={`font-mono text-xs ${f.p.startsWith("-") ? "text-hotpink" : "text-toxic"}`}>{f.p}</p>
-        </motion.div>
-      ))}
-
-      <div className="relative mx-auto max-w-6xl px-5 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mx-auto mb-6 flex w-fit items-center gap-2 rounded-full border border-edge bg-panel px-4 py-1.5 font-mono text-xs"
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="glass-cosmic mx-auto mb-6 flex w-fit items-center gap-2 rounded-full px-4 py-1.5 font-mono text-xs lg:mx-0"
         >
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-toxic opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-toxic" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-grape opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-grape" />
           </span>
-          <span className="text-dim">Non-custodial · your keys, your coins</span>
+          <span className="text-haze">Non-custodial · your keys, your coins</span>
         </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mx-auto max-w-4xl text-5xl font-bold leading-[1.03] tracking-tight md:text-7xl"
-        >
-          The best alpha calls,{" "}
-          <span className="relative whitespace-nowrap">
-            <span className="gradient-text">traded for you.</span>
+        <h1 className="text-5xl font-bold leading-[1.02] tracking-tight md:text-7xl">
+          <RevealText text="The best alpha calls," delay={0.15} />
+          <br />
+          <span className="cosmic-text">
+            <RevealText text="traded for you." delay={0.5} />
           </span>
-        </motion.h1>
+        </h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-dim"
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
+          className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-haze lg:mx-0"
         >
-          Degenaration connects to vetted Discord alpha groups and executes their calls
-          from your own wallet in under two seconds — with the take-profit, stop-loss and
-          position sizing rules <span className="text-white">you</span> set. Automated,
-          audited, and non-custodial by design.
+          Degenaration copies vetted Discord alpha groups and fires their calls from
+          <span className="text-starlight"> your own wallet</span> in under two seconds — with the
+          take-profit, stop-loss and sizing rules you set. Automated and non-custodial by design.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.05 }}
+          className="mt-10 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
         >
-          <Link href="/onboarding" className="group rounded-md bg-toxic px-7 py-3.5 font-bold text-void shadow-toxic transition hover:scale-[1.03]">
-            Start trading <span className="inline-block transition group-hover:translate-x-1">→</span>
-          </Link>
-          <Link href="/trenches" className="rounded-md border border-edge bg-panel px-7 py-3.5 font-bold text-white transition hover:border-toxic">
-            Explore Trenches
-          </Link>
+          <Magnetic strength={0.5}>
+            <Link href="/onboarding" className="btn-cosmic group px-8 py-3.5 font-bold">
+              Start trading <span className="inline-block transition group-hover:translate-x-1">→</span>
+            </Link>
+          </Magnetic>
+          <Magnetic strength={0.3}>
+            <Link href="/trenches" className="btn-ghost px-8 py-3.5 font-bold">Explore Trenches</Link>
+          </Magnetic>
         </motion.div>
 
         <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="mt-6 font-mono text-xs text-dim"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.25 }}
+          className="mt-6 font-mono text-xs text-haze/80"
         >
           Free to join · 2% per trade · withdraw anytime — we can never touch your funds
         </motion.p>
       </div>
+
+      {/* right: negative space — the full-page launch video reads through here.
+          Live price chips float over it; no competing foreground mesh. */}
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1.2 }}
+        style={{ x: px, y: py }}
+        className="relative z-10 lg:min-h-[30rem]"
+      >
+        {chips.map((c, i) => (
+          <motion.div
+            key={c.t}
+            initial={{ opacity: 0 }} animate={{ opacity: 1, y: [0, -10, 0] }}
+            transition={{ opacity: { delay: 1 + i * 0.2 }, y: { duration: 7 + i * 1.5, repeat: Infinity, ease: "easeInOut" } }}
+            className={`glass-cosmic pointer-events-none absolute hidden rounded-xl px-3.5 py-2 sm:block ${i === 0 ? "left-[10%] top-10" : "bottom-16 right-[8%]"}`}
+          >
+            <p className="font-mono text-sm font-bold text-starlight">{c.t}</p>
+            <p className={`font-mono text-xs ${c.p.startsWith("-") ? "text-down" : "text-cyber"}`}>{c.p}</p>
+          </motion.div>
+        ))}
+      </motion.div>
     </section>
   );
 }

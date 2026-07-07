@@ -15,12 +15,13 @@ export async function POST(req: NextRequest) {
   // embedded wallet but no Supabase session) from trading. Rate limiting guards abuse.
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
-  const { inputMint, outputMint, userPublicKey } = body ?? {};
+  const { inputMint, outputMint, userPublicKey, mev } = body ?? {};
   if (!isMint(inputMint) || !isMint(outputMint)) return NextResponse.json({ error: "invalid mint(s)" }, { status: 400 });
   if (!isMint(userPublicKey)) return NextResponse.json({ error: "invalid userPublicKey" }, { status: 400 });
   const amount = validAmount(body.amount);
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(body.slippageBps);
+  const mevEnabled = mev !== false;
 
   const feeAccount = process.env.PLATFORM_FEE_ACCOUNT;
   const applyFee = !!feeAccount;
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     const swapBody: any = {
       quoteResponse: quote, userPublicKey, wrapAndUnwrapSol: true,
-      dynamicComputeUnitLimit: true, prioritizationFeeLamports: "auto"
+      dynamicComputeUnitLimit: mevEnabled, prioritizationFeeLamports: mevEnabled ? "auto" : undefined
     };
     if (applyFee) swapBody.feeAccount = feeAccount;
 

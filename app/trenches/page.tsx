@@ -78,12 +78,12 @@ export default function Trenches() {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-xs">
           {(["new", "trending"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1.5 font-bold transition ${tab === t ? "bg-toxic text-void" : "text-dim hover:text-white"}`}>{t.toUpperCase()}</button>
+            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1.5 font-bold transition ${tab === t ? "bg-toxic text-white" : "text-dim hover:text-gray-900"}`}>{t.toUpperCase()}</button>
           ))}
         </div>
         <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-xs">
           {(["hot", "new", "volume", "gainers"] as Sort[]).map((sopt) => (
-            <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-cyber/20 text-cyber" : "text-dim hover:text-white"}`}>{sopt.toUpperCase()}</button>
+            <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-cyber/20 text-cyber" : "text-dim hover:text-gray-900"}`}>{sopt.toUpperCase()}</button>
           ))}
         </div>
       </div>
@@ -102,9 +102,9 @@ export default function Trenches() {
                 <span className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</span>
               </button>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
-              <div><p className="text-dim">MC</p><p className="text-white">{fmtNum(t.marketCap)}</p></div>
-              <div><p className="text-dim">Liq</p><p className="text-white">{fmtNum(t.liquidityUsd)}</p></div>
-              <div><p className="text-dim">1h Vol</p><p className="text-white">{fmtNum(t.vol1h)}</p></div>
+              <div><p className="text-dim">MC</p><p className="text-gray-900">{fmtNum(t.marketCap)}</p></div>
+              <div><p className="text-dim">Liq</p><p className="text-gray-900">{fmtNum(t.liquidityUsd)}</p></div>
+              <div><p className="text-dim">1h Vol</p><p className="text-gray-900">{fmtNum(t.vol1h)}</p></div>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-1 font-mono text-[10px]">
               {([["5m", t.change5m], ["1h", t.change1h], ["24h", t.change24h]] as const).map(([l, v]) => (
@@ -124,9 +124,9 @@ export default function Trenches() {
                     className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-toxic hover:text-toxic">{a}</button>
                 ))}
               </div>
-              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-white" title={x.type} aria-label={x.type}>↗</a>)}
+              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-gray-900" title={x.type} aria-label={x.type}>↗</a>)}
             </div>
-            <Link href={`/terminal?mint=${t.address}`} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-void shadow-toxic transition hover:brightness-110">Quick trade →</Link>
+            <Link href={`/terminal?mint=${t.address}`} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Quick trade →</Link>
           </div>
         ))}
         {!loading && !rows.length && (

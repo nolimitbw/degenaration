@@ -108,16 +108,37 @@ export default function TerminalBody() {
 
   async function confirmTrade() {
     setExecuting(true);
-    if (preview?.side === "sell") {
-      const r = await executeSell({ mint, pct: sellPct / 100, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol });
-      setExecuting(false);
-      if (r.ok) { toast("Sell sent — " + (r.sig?.slice(0, 8) ?? "")); setPreviewOpen(false); setTimeout(loadBalance, 4000); }
-      else toast(r.error || "Sell failed", "err");
-    } else {
-      const r = await executeBuy({ mint, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol });
-      setExecuting(false);
-      if (r.ok) { toast("Buy sent — " + (r.sig?.slice(0, 8) ?? "")); setPreviewOpen(false); setTimeout(loadBalance, 4000); }
-      else toast(r.error || "Buy failed", "err");
+    const retries = autoRetry ? 3 : 1;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      if (preview?.side === "sell") {
+        const r = await executeSell({ mint, pct: sellPct / 100, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        setExecuting(false);
+        if (r.ok) {
+          toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
+          setPreviewOpen(false);
+          if (tp || sl) {
+            await fetch("/api/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mint, type: "limit", side: "buy", trigger: tp ? "above" : "below", target_usd: tp ? null : null, amount_sol: 0, user_pubkey: pubkey, net: getNet() }) }).catch(() => {});
+          }
+          setTimeout(loadBalance, 4000);
+          return;
+        }
+        if (attempt < retries) { toast(`Retry ${attempt}/${retries - 1}…`, "info"); continue; }
+        toast(r.error || "Sell failed", "err");
+      } else {
+        const r = await executeBuy({ mint, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        setExecuting(false);
+        if (r.ok) {
+          toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
+          setPreviewOpen(false);
+          if (tp || sl) {
+            await fetch("/api/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mint, type: "limit", side: "sell", trigger: tp ? "above" : "below", target_usd: 0, amount_sol: 0, user_pubkey: pubkey, net: getNet() }) }).catch(() => {});
+          }
+          setTimeout(loadBalance, 4000);
+          return;
+        }
+        if (attempt < retries) { toast(`Retry ${attempt}/${retries - 1}…`, "info"); continue; }
+        toast(r.error || "Buy failed", "err");
+      }
     }
   }
 
@@ -132,7 +153,7 @@ export default function TerminalBody() {
         <div className="flex gap-2">
           <input value={mint} onChange={(e) => setMint(e.target.value)} placeholder="Token mint address"
             className="w-72 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-          <button onClick={load} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic transition hover:brightness-110">Load</button>
+          <button onClick={load} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Load</button>
         </div>
       </div>
 
@@ -158,12 +179,12 @@ export default function TerminalBody() {
             <div className="mt-3 flex gap-1">
               {(["chart", "holders", "info"] as const).map((t) => (
                 <button key={t} onClick={() => setChartTab(t)}
-                  className={`rounded px-3 py-1.5 font-mono text-[11px] font-bold transition ${chartTab === t ? "bg-toxic text-void" : "border border-edge text-dim hover:text-white"}`}>{t.toUpperCase()}</button>
+                  className={`rounded px-3 py-1.5 font-mono text-[11px] font-bold transition ${chartTab === t ? "bg-toxic text-white" : "border border-edge text-dim hover:text-gray-900"}`}>{t.toUpperCase()}</button>
               ))}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-4">
-              <div><p className="text-dim">FDV</p><p className="text-white">{price?.fdv ? `$${Math.round(price.fdv / 1000).toLocaleString()}K` : "—"}</p></div>
-              <div><p className="text-dim">24h Vol</p><p className="text-white">{price?.volume24h ? `$${Math.round(price.volume24h / 1000).toLocaleString()}K` : "—"}</p></div>
+              <div><p className="text-dim">FDV</p><p className="text-gray-900">{price?.fdv ? `$${Math.round(price.fdv / 1000).toLocaleString()}K` : "—"}</p></div>
+              <div><p className="text-dim">24h Vol</p><p className="text-gray-900">{price?.volume24h ? `$${Math.round(price.volume24h / 1000).toLocaleString()}K` : "—"}</p></div>
               <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{price?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{price?.sells24h ?? "—"}</span></p></div>
               <div><p className="text-dim">Socials</p><p className="flex gap-2">{(price?.socials || []).slice(0, 3).map((x: any) => (<a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:underline">{x.type?.slice(0, 2)}</a>))}{!(price?.socials || []).length && <span className="text-dim">—</span>}</p></div>
             </div>
@@ -184,11 +205,11 @@ export default function TerminalBody() {
             )}
             {chartTab === "info" && (
               <div className="mt-3 space-y-2 rounded-md border border-edge bg-void p-4 font-mono text-xs">
-                <p className="text-dim">Name: <span className="text-white">{price?.name ?? "—"}</span></p>
-                <p className="text-dim">Symbol: <span className="text-white">{price?.symbol ?? "—"}</span></p>
-                <p className="text-dim">FDV: <span className="text-white">{price?.fdv ? "$" + Math.round(price.fdv).toLocaleString() : "—"}</span></p>
-                <p className="text-dim">Mint: <span className="break-all text-white">{mint}</span></p>
-                <p className="text-dim">Links: {(price?.websites || []).concat((price?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 text-cyber hover:underline">↗</a>))}{!(price?.websites || []).length && !(price?.socials || []).length && <span className="text-white">—</span>}</p>
+                <p className="text-dim">Name: <span className="text-gray-900">{price?.name ?? "—"}</span></p>
+                <p className="text-dim">Symbol: <span className="text-gray-900">{price?.symbol ?? "—"}</span></p>
+                <p className="text-dim">FDV: <span className="text-gray-900">{price?.fdv ? "$" + Math.round(price.fdv).toLocaleString() : "—"}</span></p>
+                <p className="text-dim">Mint: <span className="break-all text-gray-900">{mint}</span></p>
+                <p className="text-dim">Links: {(price?.websites || []).concat((price?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 text-cyber hover:underline">↗</a>))}{!(price?.websites || []).length && !(price?.socials || []).length && <span className="text-gray-900">—</span>}</p>
               </div>
             )}
           </div>
@@ -201,8 +222,8 @@ export default function TerminalBody() {
               <button key={m} onClick={() => setMode(m)}
                 className={`rounded py-2 font-bold uppercase transition ${
                   mode === m
-                    ? m === "sell" ? "bg-hotpink text-void" : "bg-toxic text-void"
-                    : "text-dim hover:text-white"
+                    ? m === "sell" ? "bg-hotpink text-white" : "bg-toxic text-white"
+                    : "text-dim hover:text-gray-900"
                 }`}>{m}</button>
             ))}
           </div>
@@ -211,7 +232,7 @@ export default function TerminalBody() {
           {authenticated && (
             <div className="mt-3 flex items-center justify-between rounded-md border border-edge bg-void px-3 py-2 font-mono text-[11px]">
               <span className="text-dim">Your balance</span>
-              <span className="text-white">{bal ? `${bal.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${price?.symbol ?? ""}` : "—"}</span>
+              <span className="text-gray-900">{bal ? `${bal.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${price?.symbol ?? ""}` : "—"}</span>
             </div>
           )}
 
@@ -222,7 +243,7 @@ export default function TerminalBody() {
                 <div className="mt-1 grid grid-cols-4 gap-1">
                   {SELL_PCTS.map((p) => (
                     <button key={p} onClick={() => setSellPct(p)}
-                      className={`rounded border py-2 font-mono text-xs font-bold transition ${sellPct === p ? "border-hotpink bg-hotpink/15 text-hotpink" : "border-edge text-dim hover:text-white"}`}>{p}%</button>
+                      className={`rounded border py-2 font-mono text-xs font-bold transition ${sellPct === p ? "border-hotpink bg-hotpink/15 text-hotpink" : "border-edge text-dim hover:text-gray-900"}`}>{p}%</button>
                   ))}
                 </div>
                 {bal && bal.uiAmount > 0 && (
@@ -292,17 +313,17 @@ export default function TerminalBody() {
 
           {mode === "limit" ? (
             <button onClick={createLimit} disabled={limitTarget <= 0 || amount <= 0}
-              className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+              className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
               Create limit order
             </button>
           ) : mode === "sell" ? (
             <button onClick={runSellPreview} disabled={previewLoading || !authenticated || !bal || bal.uiAmount <= 0}
-              className="mt-4 w-full rounded-md bg-hotpink py-3 font-bold text-void shadow-pink transition hover:brightness-110 disabled:opacity-50">
+              className="mt-4 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
               {!authenticated ? "Connect wallet to sell" : !bal || bal.uiAmount <= 0 ? "No balance to sell" : `Sell ${sellPct}%`}
             </button>
           ) : (
             <button onClick={runBuyPreview} disabled={previewLoading || amount <= 0}
-              className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+              className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
               {`Buy ${amount} SOL`}
             </button>
           )}
@@ -315,7 +336,7 @@ export default function TerminalBody() {
           <div className="w-full max-w-md rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{preview?.side === "sell" ? "Sell preview" : "Buy preview"}</h3>
-              <button onClick={() => setPreviewOpen(false)} aria-label="Close" className="text-dim hover:text-white">✕</button>
+              <button onClick={() => setPreviewOpen(false)} aria-label="Close" className="text-dim hover:text-gray-900">✕</button>
             </div>
             {previewLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-dim"><span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-toxic" /> Fetching quote…</div>
@@ -329,7 +350,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>2%</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
                 <button onClick={confirmTrade} disabled={executing}
-                  className="mt-2 w-full rounded-md bg-hotpink py-3 font-bold text-void shadow-pink transition hover:brightness-110 disabled:opacity-50">
+                  className="mt-2 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
                   {executing ? "Awaiting signature…" : "Confirm sell & sign"}
                 </button>
               </div>
@@ -343,7 +364,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
                 {preview.warn && <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-[11px] text-hotpink">⚠ {preview.warn}</p>}
                 <button onClick={confirmTrade} disabled={executing}
-                  className="mt-2 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+                  className="mt-2 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
                   {executing ? "Awaiting signature…" : "Confirm buy & sign"}
                 </button>
               </div>

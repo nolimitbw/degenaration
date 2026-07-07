@@ -56,7 +56,7 @@ export default function Alerts() {
           <option value="above">above</option><option value="below">below</option>
         </select>
         <input type="number" step="any" value={target || ""} onChange={e => setTarget(+e.target.value)} placeholder="$ price" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-void shadow-toxic">+ Alert</button>
+        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Alert</button>
       </div>
 
       <div className="mt-6 space-y-2">

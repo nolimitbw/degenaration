@@ -22,10 +22,10 @@ export default function NetworkToggle() {
         <div className="fixed inset-0 z-[95] grid place-items-center bg-black/70 p-4" onClick={() => setConfirm(false)}>
           <div className="w-full max-w-sm rounded-lg border border-hotpink/40 bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-hotpink">Switch to Mainnet?</h3>
-            <p className="mt-2 text-sm text-dim">Mainnet uses <b className="text-white">real SOL</b>. Trades cost real money and are irreversible. Only continue if you understand the risk and have tested on devnet first.</p>
+            <p className="mt-2 text-sm text-dim">Mainnet uses <b className="text-gray-900">real SOL</b>. Trades cost real money and are irreversible. Only continue if you understand the risk and have tested on devnet first.</p>
             <div className="mt-5 flex gap-2">
               <button onClick={() => setConfirm(false)} className="flex-1 rounded-md border border-edge py-2 text-sm font-bold text-dim">Cancel</button>
-              <button onClick={() => { setNet("mainnet"); setLocal("mainnet"); setConfirm(false); toast("Switched to mainnet — real funds", "err"); }} className="flex-1 rounded-md bg-hotpink py-2 text-sm font-bold text-void">I understand, switch</button>
+              <button onClick={() => { setNet("mainnet"); setLocal("mainnet"); setConfirm(false); toast("Switched to mainnet — real funds", "err"); }} className="flex-1 rounded-md bg-hotpink py-2 text-sm font-bold text-white">I understand, switch</button>
             </div>
           </div>
         </div>

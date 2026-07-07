@@ -42,7 +42,7 @@ export default function Onboarding() {
           {STEPS.map((s, i) => (
             <div key={s} className="flex flex-1 items-center gap-2">
               <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full font-mono text-xs ${
-                i < step ? "bg-toxic text-void" : i === step ? "border-2 border-toxic text-toxic" : "border border-edge text-dim"
+                i < step ? "bg-toxic text-white" : i === step ? "border-2 border-toxic text-toxic" : "border border-edge text-dim"
               }`}>{i < step ? "✓" : i + 1}</div>
               {i < STEPS.length - 1 && <div className={`h-px flex-1 ${i < step ? "bg-toxic" : "bg-edge"}`} />}
             </div>
@@ -54,7 +54,7 @@ export default function Onboarding() {
 
           {step === 0 && (
             <div className="mt-4 space-y-4 text-sm text-dim">
-              <p className="rounded-md border border-hotpink/40 bg-hotpink/5 p-4 leading-relaxed text-white/90">
+              <p className="rounded-md border border-hotpink/40 bg-hotpink/5 p-4 leading-relaxed text-gray-900/90">
                 Memecoin trading is extremely high risk. Prices can go to zero in seconds.
                 Only trade what you can afford to lose. Degenaration is self-directed software,
                 not financial advice, and never holds custody of your funds.
@@ -84,7 +84,7 @@ export default function Onboarding() {
             <div className="mt-4 space-y-3 text-sm text-dim">
               <p>Fund your wallet to start copying calls. On devnet you can use the free faucet.</p>
               <Link href="/wallet" className="block rounded-md border border-edge bg-void p-4 transition hover:border-toxic">
-                <span className="font-bold text-white">Open deposit screen →</span>
+                <span className="font-bold text-gray-900">Open deposit screen →</span>
                 <p className="mt-1 text-xs">Address, QR code, and devnet faucet link.</p>
               </Link>
             </div>
@@ -110,7 +110,7 @@ export default function Onboarding() {
               <p className="text-4xl">🚀</p>
               <p className="mt-3 font-bold text-toxic">You&apos;re set up.</p>
               <p className="mt-1 text-sm text-dim">Copying {picked.length || "your"} group(s). Head to your dashboard.</p>
-              <Link href="/dashboard" className="mt-5 inline-block rounded-md bg-toxic px-6 py-2.5 font-bold text-void shadow-toxic">
+              <Link href="/dashboard" className="mt-5 inline-block rounded-md bg-toxic px-6 py-2.5 font-bold text-white shadow-toxic">
                 Go to dashboard →
               </Link>
             </div>
@@ -118,7 +118,7 @@ export default function Onboarding() {
 
           {step < 4 && (
             <button onClick={next} disabled={!canNext || saving}
-              className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-void shadow-toxic transition hover:brightness-110 disabled:opacity-40">
+              className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-40">
               {saving ? "Saving…" : "Continue →"}
             </button>
           )}

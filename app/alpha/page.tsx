@@ -15,7 +15,10 @@ export default function Alpha() {
   const [tf, setTf] = useState("1d");
   const [data, setData] = useState<{ calls: any[]; groups: any[]; callers: any[] } | null>(null);
 
-  useEffect(() => { fetch("/api/calls").then((r) => r.json()).then(setData).catch(() => setData({ calls: [], groups: [], callers: [] })); }, []);
+  useEffect(() => {
+    const params = tf !== "1d" ? `?tf=${tf}` : "";
+    fetch(`/api/calls${params}`).then((r) => r.json()).then(setData).catch(() => setData({ calls: [], groups: [], callers: [] }));
+  }, [tf]);
 
   const list = view === "groups" ? data?.groups : view === "callers" ? data?.callers : data?.calls;
   const empty = !data || !list || list.length === 0;
@@ -27,10 +30,10 @@ export default function Alpha() {
           <h1 className="text-2xl font-bold">Alpha leaderboard</h1>
           <p className="mt-1 text-sm text-dim">Groups and callers ranked by real recorded on-chain performance.</p>
         </div>
-        <div className="flex gap-2">{["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-toxic text-toxic":"border-edge text-dim hover:text-white"}`}>{t}</button>)}</div>
+        <div className="flex gap-2">{["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-toxic text-toxic":"border-edge text-dim hover:text-gray-900"}`}>{t}</button>)}</div>
       </div>
       <div className="mt-6 flex gap-1 rounded-md border border-edge p-1 font-mono text-xs w-fit">
-        {(["groups","calls","callers"] as View[]).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded px-4 py-2 font-bold transition ${view===v?"bg-toxic text-void":"text-dim hover:text-white"}`}>{v.toUpperCase()}</button>)}
+        {(["groups","calls","callers"] as View[]).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded px-4 py-2 font-bold transition ${view===v?"bg-toxic text-white":"text-dim hover:text-gray-900"}`}>{v.toUpperCase()}</button>)}
       </div>
 
       {empty ? (

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { rateLimit } from "@/lib/server/guard";
 
-// GET /api/calls -> { calls, groups, callers } ranked by real recorded performance
+// GET /api/calls?tf=1h|1d|7d|30d -> { calls, groups, callers } ranked by real recorded performance
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
@@ -10,8 +10,14 @@ export async function GET(req: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
   const supa = createServerClient(url, key, { cookies: { getAll: () => [], setAll: () => {} } });
 
+  const tf = req.nextUrl.searchParams.get("tf") || "1d";
+  const now = Date.now();
+  const tfMs: Record<string, number> = { "1h": 3600000, "1d": 86400000, "7d": 604800000, "30d": 2592000000 };
+  const since = tfMs[tf] ? new Date(now - tfMs[tf]).toISOString() : new Date(now - 86400000).toISOString();
+
   const { data, error } = await supa.from("calls")
     .select("id,group_name,caller,mint,symbol,called_mcap,peak_mcap,called_at")
+    .gte("called_at", since)
     .order("called_at", { ascending: false }).limit(200);
   if (error) return NextResponse.json({ calls: [], groups: [], callers: [], note: "no calls table yet" });
 

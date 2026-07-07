@@ -7,7 +7,7 @@ export default function ScrollProgress() {
   return (
     <motion.div
       style={{ scaleX }}
-      className="fixed left-0 top-0 z-[60] h-0.5 w-full origin-left bg-gradient-to-r from-toxic via-cyber to-hotpink"
+      className="fixed left-0 top-0 z-[60] h-0.5 w-full origin-left bg-gradient-to-r from-grape via-magenta to-ember"
     />
   );
 }
