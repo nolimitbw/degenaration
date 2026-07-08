@@ -22,8 +22,21 @@ function pickNewCalls(calls, seen) {
  *  recordCopy(evt) / onEvent(evt)
  */
 function startCallWatcher(deps, pollMs = 8000) {
-  const { loadPendingCalls, loadGroupSubscribers, markCallExecuted, signAndSend, recordCopy = () => {}, onEvent = () => {} } = deps;
+  const { loadPendingCalls, loadGroupSubscribers, markCallExecuted, signAndSend, bumpGroupSpent = async () => {}, recordCopy = () => {}, onEvent = () => {} } = deps;
   const seen = new Set();
+
+  // Authoritative per-process daily spend, so the cap throttles even when a group posts
+  // several calls in one tick (before any DB roundtrip). Seeded from the persisted
+  // daily_spent on first sight; reset on a UTC-day rollover. Mirrors copy.js.
+  const spent = new Map(); // subId -> { day, amount }
+  const utcDay = () => new Date().toISOString().slice(0, 10);
+  function spentSoFar(s) {
+    const day = utcDay();
+    const rec = spent.get(s.id);
+    if (!rec) { spent.set(s.id, { day, amount: s.daily_spent || 0 }); return spent.get(s.id).amount; }
+    if (rec.day !== day) { rec.day = day; rec.amount = 0; }
+    return rec.amount;
+  }
 
   const tick = async () => {
     let calls = [];
@@ -44,10 +57,14 @@ function startCallWatcher(deps, pollMs = 8000) {
       try { subs = await loadGroupSubscribers(c.group_id); } catch { subs = []; }
       for (const s of subs) {
         if (!s.wallet_id) { onEvent({ type: "NO_WALLET", user: s.user_pubkey }); continue; }
-        if ((s.daily_spent || 0) + s.size_sol > s.daily_cap_sol) { onEvent({ type: "CAP", user: s.user_pubkey }); continue; }
+        if (spentSoFar(s) + s.size_sol > s.daily_cap_sol) { onEvent({ type: "CAP", user: s.user_pubkey }); continue; }
         try {
           const { tx } = await buyToken(c.mint, s.size_sol, s.user_pubkey, s.slippage_bps || 300);
           const sig = await signAndSend(tx, s.wallet_id); // walletId signs the tx built for user_pubkey
+          // Count the spend immediately (in-memory) so same-tick calls respect the cap,
+          // then persist the running total for the /tracker cap display.
+          const rec = spent.get(s.id); rec.amount += s.size_sol;
+          try { await bumpGroupSpent(s.id, rec.amount); } catch { /* non-fatal: in-memory cap still holds */ }
           await recordCopy({ mint: c.mint, user: s.user_pubkey, size: s.size_sol, sig });
           onEvent({ type: "CALL_BUY", group: c.group_id, mint: c.mint, user: s.user_pubkey, sig });
         } catch (e) {

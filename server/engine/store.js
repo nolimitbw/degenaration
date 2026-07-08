@@ -49,7 +49,9 @@ const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}
 // ---- discord call execution ----
 const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50");
 const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
-const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`);
+const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`);
+// Same writeback for group-call subscriptions so the daily cap actually throttles.
+const bumpGroupSpent = (id, totalSol) => sbPatch(`subscriptions?id=eq.${id}`, { daily_spent: totalSol });
 
 // ---- on-chain holdings (for copy detection) ----
 async function getHoldings(address) {
@@ -66,4 +68,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { loadOpenOrders, loadProfileCaps, markFilled, markError, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers };
+module.exports = { loadOpenOrders, loadProfileCaps, markFilled, markError, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, bumpGroupSpent };

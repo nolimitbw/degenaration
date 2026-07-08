@@ -53,5 +53,6 @@ startCopyWatcher({
 // Discord group calls -> mirror to each group's subscribers.
 startCallWatcher({
   loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
-  markCallExecuted: store.markCallExecuted, signAndSend, recordCopy: store.recordCopy, onEvent: log("call")
+  markCallExecuted: store.markCallExecuted, signAndSend, bumpGroupSpent: store.bumpGroupSpent,
+  recordCopy: store.recordCopy, onEvent: log("call")
 });
