@@ -5,7 +5,7 @@ const FAQ = [
   { q: "Is it custodial? Who holds my funds?", a: "You do. Your wallet is either an embedded wallet secured to your login or your own Phantom/Solflare. The platform receives only a trade-only, spend-capped, revocable permission — it can never withdraw your funds." },
   { q: "How does auto-trading work?", a: "You subscribe to vetted Discord call groups or tracked wallets and set your rules (position size, take-profit ladder, stop-loss, slippage, daily loss cap). When a call fires, the engine rug-checks the token, then executes the swap from your wallet within your limits." },
   { q: "What does it cost?", a: "Free to join. A flat 2% fee is taken on-chain on each trade in and out (including partials), only when you actually trade. No subscription." },
-  { q: "Is this live or testnet?", a: "The app is live on Solana devnet for safe testing. Do not deposit real funds yet — mainnet with real trading launches after a security review and legal sign-off." },
+  { q: "Is this live or testnet?", a: "Live on Solana mainnet with real funds. Trades are real and irreversible — only deposit what you can afford to lose and always DYOR." },
   { q: "How are call groups ranked?", a: "By real on-chain performance — total return, hit rate, median return and best call — not screenshots. See the Alpha leaderboard." },
   { q: "Is it safe?", a: "Non-custodial by design, with rug-checks (liquidity, mint/freeze authority, honeypot), rate-limited APIs, input validation, and no private keys stored anywhere. An independent security audit is planned before mainnet." }
 ];

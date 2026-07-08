@@ -5,6 +5,7 @@ import { useSendTransaction } from "@privy-io/react-auth/solana";
 import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
 import { executeBuy as extensionBuy } from "./execute";
+import { getSolanaAddress } from "./solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
@@ -20,7 +21,7 @@ type Result = { ok: boolean; sig?: string; error?: string };
 export function useExecuteBuy() {
   const { authenticated, user } = usePrivy();
   const { sendTransaction } = useSendTransaction();
-  const embeddedAddr = (user as any)?.wallet?.address as string | undefined;
+  const embeddedAddr = getSolanaAddress(user);
 
   return useCallback(async function executeBuy(args: BuyArgs): Promise<Result> {
     // No embedded wallet -> use an extension wallet (existing path).

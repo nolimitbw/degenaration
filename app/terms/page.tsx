@@ -11,7 +11,7 @@ export default function Terms() {
         <p><b className="text-gray-900">Non-custodial.</b> You retain sole control of your wallet and keys. The platform executes trades only within the trade-only permission and limits you grant, and can never withdraw your funds.</p>
         <p><b className="text-gray-900">Fees.</b> A 2% fee is applied on-chain to each trade. You are responsible for network fees and taxes in your jurisdiction.</p>
         <p><b className="text-gray-900">No warranty.</b> The service is provided "as is" without warranties. To the maximum extent permitted by law, Degenaration is not liable for any trading losses.</p>
-        <p>This is a preview on Solana devnet. A finalized ToS reviewed for your jurisdiction will be published before mainnet launch.</p>
+        <p>This service runs on Solana mainnet with real funds; all trades are final and irreversible. A finalized ToS reviewed for your jurisdiction will be published in due course.</p>
       </div>
     </main>
   );

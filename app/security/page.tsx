@@ -43,7 +43,7 @@ export default function Security() {
 
       <h2 className="mt-10 text-lg font-bold">Audit roadmap</h2>
       <div className="mt-4 rounded-lg border border-cyber/40 bg-cyber/5 p-5 text-sm text-dim">
-        <p><span className="rounded-full border border-cyber/50 px-2 py-0.5 font-mono text-[11px] text-cyber">PLANNED</span> An independent third-party security review of the trading engine and permission model is scheduled before mainnet launch. Until then the app runs on <b className="text-hotpink">Solana devnet</b> for safe testing — do not deposit real funds.</p>
+        <p><span className="rounded-full border border-cyber/50 px-2 py-0.5 font-mono text-[11px] text-cyber">PLANNED</span> An independent third-party security review of the trading engine and permission model is scheduled. The app runs on <b className="text-hotpink">Solana mainnet with real funds</b> — trades are irreversible, only deposit what you can afford to lose, and always DYOR.</p>
       </div>
 
       <p className="mt-8 font-mono text-[11px] text-dim">Rate-limited APIs · input validation · no private keys stored · RLS-protected database.</p>

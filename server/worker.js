@@ -40,13 +40,14 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
 console.log(`[worker] starting — signing ${SIGNING_READY ? "ENABLED" : "DISABLED (watch-only)"}`);
 
 startLimitWatcher({
-  loadOpenOrders: store.loadOpenOrders, getPrice, signAndSend,
+  loadOpenOrders: store.loadOpenOrders, loadProfileCaps: store.loadProfileCaps, getPrice, signAndSend,
   markFilled: store.markFilled, markError: store.markError, onEvent: log("limit")
 });
 
 startCopyWatcher({
   loadTrackedWallets: store.loadTrackedWallets, loadSubscribers: store.loadSubscribers,
-  getHoldings: store.getHoldings, signAndSend, recordCopy: store.recordCopy, onEvent: log("copy")
+  getHoldings: store.getHoldings, signAndSend, bumpDailySpent: store.bumpDailySpent,
+  recordCopy: store.recordCopy, onEvent: log("copy")
 });
 
 // Discord group calls -> mirror to each group's subscribers.

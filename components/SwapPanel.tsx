@@ -13,7 +13,7 @@ const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
 type Status = "idle" | "quoting" | "signing" | "done" | "error";
 
 /**
- * Live test swap — full non-custodial loop on devnet: fetch a real Jupiter swap tx from
+ * Live swap — full non-custodial loop on mainnet: fetch a real Jupiter swap tx from
  * /api/swap, then sign AND send it with the user's Privy embedded wallet. The platform
  * never holds keys — the user's wallet signs every transaction.
  */
@@ -24,14 +24,6 @@ export default function SwapPanel() {
   const [status, setStatus] = useState<Status>("idle");
   const [sig, setSig] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [net, setNetState] = useState<"devnet" | "mainnet">("devnet");
-
-  useEffect(() => {
-    setNetState(getNet());
-    const on = (e: any) => setNetState(e.detail);
-    window.addEventListener("degen-net", on);
-    return () => window.removeEventListener("degen-net", on);
-  }, []);
 
   const pubkey = getSolanaAddress(user);
 
@@ -71,7 +63,7 @@ export default function SwapPanel() {
     <div className="rounded-lg border border-edge bg-panel p-5">
       <div className="flex items-center gap-2">
         <h2 className="font-bold">Live swap</h2>
-        <span className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${net === "mainnet" ? "border-hotpink/50 text-hotpink" : "border-cyber/50 text-cyber"}`}>{net}</span>
+        <span className="rounded-full border border-hotpink/50 px-2 py-0.5 font-mono text-[11px] text-hotpink">mainnet</span>
       </div>
       <p className="mt-1 text-xs text-dim">
         Real Jupiter swap, signed and sent by your own wallet. Non-custodial end to end.
@@ -87,7 +79,7 @@ export default function SwapPanel() {
       </button>
       {status === "done" && (
         <p className="mt-3 break-all font-mono text-[11px] text-toxic">
-          ✓ Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}${net === "mainnet" ? "" : "?cluster=devnet"}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
+          ✓ Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
         </p>
       )}
       {status === "error" && <p className="mt-3 font-mono text-[11px] text-hotpink">{err}</p>}

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import Ticker2 from "./Ticker2";
 import Search from "./Search";
-import NetworkToggle from "./NetworkToggle";
 import { useIsAdmin } from "@/lib/admin";
 
 // Load the wallet button (and its heavy Privy bundle) only on the client, after paint.
@@ -162,7 +161,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:block"><Search /></div>
-            <NetworkToggle />
             <Link href="/settings" className={`hidden rounded-md border border-edge px-2 py-1.5 text-sm sm:block ${path === "/settings" ? "text-toxic" : "text-dim hover:text-gray-900"}`} aria-label="Settings">⚙</Link>
             <WalletButton />
           </div>

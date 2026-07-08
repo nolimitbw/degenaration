@@ -29,9 +29,23 @@ function detectBuys(prev, curr) {
  *  recordCopy(evt) / onEvent(evt)
  */
 function startCopyWatcher(deps, pollMs = 10000) {
-  const { loadTrackedWallets, loadSubscribers, getHoldings, signAndSend, recordCopy = () => {}, onEvent = () => {} } = deps;
+  const { loadTrackedWallets, loadSubscribers, getHoldings, signAndSend, bumpDailySpent = async () => {}, recordCopy = () => {}, onEvent = () => {} } = deps;
   const snapshots = new Map(); // walletAddress -> holdings map
   let primed = false;
+
+  // Authoritative per-process daily spend tracking, so the cap actually throttles even
+  // within a single 10s tick (before any DB roundtrip). Keyed by subscription id.
+  // On first sight we seed from the persisted daily_spent (restart-safe: worst case a user
+  // is blocked slightly early, never overspent). On a UTC-day rollover we reset to 0.
+  const spent = new Map(); // subId -> { day, amount }
+  const utcDay = () => new Date().toISOString().slice(0, 10);
+  function spentSoFar(s) {
+    const day = utcDay();
+    const rec = spent.get(s.id);
+    if (!rec) { spent.set(s.id, { day, amount: s.daily_spent || 0 }); return spent.get(s.id).amount; }
+    if (rec.day !== day) { rec.day = day; rec.amount = 0; } // new UTC day — reset
+    return rec.amount;
+  }
 
   const tick = async () => {
     let wallets = [];
@@ -52,10 +66,14 @@ function startCopyWatcher(deps, pollMs = 10000) {
         let subs = [];
         try { subs = await loadSubscribers(w.address); } catch { subs = []; }
         for (const s of subs) {
-          if ((s.daily_spent || 0) + s.size_sol > s.daily_cap_sol) { onEvent({ type: "CAP", user: s.user_pubkey }); continue; }
+          if (spentSoFar(s) + s.size_sol > s.daily_cap_sol) { onEvent({ type: "CAP", user: s.user_pubkey }); continue; }
           try {
             const { tx } = await buyToken(mint, s.size_sol, s.user_pubkey, s.slippage_bps || 300);
             const sig = await signAndSend(tx, s.wallet_id); // walletId signs; user_pubkey built the tx
+            // Count the spend immediately (in-memory) so same-tick copies respect the cap,
+            // then persist the running total for the UI.
+            const rec = spent.get(s.id); rec.amount += s.size_sol;
+            try { await bumpDailySpent(s.id, rec.amount); } catch { /* non-fatal: in-memory cap still holds */ }
             await recordCopy({ wallet: w.address, mint, user: s.user_pubkey, size: s.size_sol, sig });
             onEvent({ type: "COPY", wallet: w.address, mint, user: s.user_pubkey, sig });
           } catch (e) {

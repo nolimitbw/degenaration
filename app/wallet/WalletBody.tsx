@@ -22,19 +22,11 @@ export default function WalletBody() {
   const [maxTrade, setMaxTrade] = useState(0.5);
   const [dailyCap, setDailyCap] = useState(2);
   const [savedLimits, setSavedLimits] = useState(false);
-  const [net, setNetState] = useState<"devnet" | "mainnet">("devnet");
-
-  useEffect(() => {
-    setNetState(getNet());
-    const on = (e: any) => setNetState(e.detail);
-    window.addEventListener("degen-net", on);
-    return () => window.removeEventListener("degen-net", on);
-  }, []);
 
   useEffect(() => {
     getMyProfile().then((p) => { if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); } });
     if (address) fetchBalance(address, getNet()).then((b) => b && setBalance(b.sol));
-  }, [address, net]);
+  }, [address]);
 
   const copy = () => { if (!address) return; navigator.clipboard?.writeText(address); setCopied(true); toast("Address copied"); setTimeout(() => setCopied(false), 1500); };
   async function saveLimits() {
@@ -73,7 +65,7 @@ export default function WalletBody() {
                 <button onClick={copy} className="rounded-md bg-toxic px-3 py-2 text-xs font-bold text-white">{copied ? "✓" : "Copy"}</button>
               </div>
             </div>
-            <p className="w-full rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-center font-mono text-[11px] text-hotpink">{net === "mainnet" ? "Send only mainnet SOL. Transfers are irreversible." : "Devnet — send only devnet SOL (test funds)."}</p>
+            <p className="w-full rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-center font-mono text-[11px] text-hotpink">Send only mainnet SOL. Transfers are irreversible.</p>
           </div>
         </div>
 
@@ -81,7 +73,7 @@ export default function WalletBody() {
           <div className="gradient-border rounded-lg border border-edge p-5">
             <p className="text-xs uppercase text-dim">Balance</p>
             <p className="mt-1 font-mono text-3xl font-bold">{balance != null ? balance.toFixed(3) : "…"} <span className="text-base text-dim">SOL</span></p>
-            <p className="mt-1 font-mono text-xs text-dim">{net}</p>
+            <p className="mt-1 font-mono text-xs text-dim">mainnet</p>
           </div>
           <div className="gradient-border rounded-lg border border-edge p-5">
             <h2 className="font-bold">Trade permission</h2>

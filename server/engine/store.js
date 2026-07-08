@@ -30,6 +30,8 @@ async function sbInsert(table, body) {
 
 // ---- limit orders ----
 const loadOpenOrders = () => sbGet("limit_orders?status=eq.open&select=*");
+// Per-user trade caps (by Solana pubkey). Returns [{ max_trade_sol, daily_cap_sol }] or [].
+const loadProfileCaps = (pubkey) => sbGet(`profiles?wallet_address=eq.${pubkey}&select=max_trade_sol,daily_cap_sol`);
 const markFilled = (id, sig) => sbPatch(`limit_orders?id=eq.${id}`, { status: "filled", sig, filled_at: new Date().toISOString() });
 const markError = (id, msg) => sbPatch(`limit_orders?id=eq.${id}`, { last_error: String(msg).slice(0, 300) });
 
@@ -38,8 +40,11 @@ const loadTrackedWallets = async () => {
   const rows = await sbGet("copy_subscriptions?enabled=eq.true&select=leader_wallet");
   return [...new Set((rows || []).map((r) => r.leader_wallet))].map((address) => ({ address }));
 };
-const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss`);
+const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss`);
 const recordCopy = (evt) => sbInsert("trades", { mint: evt.mint, side: "buy", sol_amount: evt.size, kind: "copy", sig: evt.sig, wallet_address: evt.user });
+// Persist a subscription's accumulated daily spend (absolute SOL). The worker is the only
+// writer, so writing the running total is safe and keeps the /tracker cap display honest.
+const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}`, { daily_spent: totalSol });
 
 // ---- discord call execution ----
 const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50");
@@ -61,4 +66,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { loadOpenOrders, markFilled, markError, loadTrackedWallets, loadSubscribers, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers };
+module.exports = { loadOpenOrders, loadProfileCaps, markFilled, markError, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers };

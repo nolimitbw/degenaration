@@ -20,7 +20,7 @@ function evaluateLimit(order, price) {
  *  onEvent(evt)
  */
 function startLimitWatcher(deps, pollMs = 8000) {
-  const { loadOpenOrders, getPrice, signAndSend, markFilled, markError, onEvent = () => {} } = deps;
+  const { loadOpenOrders, loadProfileCaps = async () => [], getPrice, signAndSend, markFilled, markError, onEvent = () => {} } = deps;
   const inflight = new Set();
 
   const tick = async () => {
@@ -29,10 +29,19 @@ function startLimitWatcher(deps, pollMs = 8000) {
     // price once per unique mint
     const priceByMint = {};
     for (const mint of [...new Set(orders.map((o) => o.mint))]) priceByMint[mint] = await getPrice(mint);
+    // per-user max-per-trade cap, fetched once per pubkey per tick
+    const capByUser = {};
+    async function maxTrade(pubkey) {
+      if (!(pubkey in capByUser)) { const r = await loadProfileCaps(pubkey).catch(() => []); capByUser[pubkey] = r?.[0]?.max_trade_sol ?? null; }
+      return capByUser[pubkey];
+    }
 
     for (const o of orders) {
       const price = priceByMint[o.mint];
       if (!evaluateLimit(o, price) || inflight.has(o.id)) continue;
+      // Safety cap: never execute a single order larger than the user's configured max per trade.
+      const cap = await maxTrade(o.user_pubkey);
+      if (cap != null && o.amount_sol > cap) { await markError(o.id, `amount ${o.amount_sol} exceeds max-per-trade ${cap}`); onEvent({ type: "CAP", order: o, cap }); continue; }
       inflight.add(o.id);
       try {
         const { tx } = await buyToken(o.mint, o.amount_sol, o.user_pubkey, o.slippage_bps || 300);

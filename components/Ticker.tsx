@@ -2,13 +2,9 @@
 import { useEffect, useState } from "react";
 import { fetchTokens } from "@/lib/queries";
 
-// fallback shown only if the live feed is briefly unreachable
-const FALLBACK = [
-  { t: "$BONK", p: 0 }, { t: "$WIF", p: 0 }, { t: "$POPCAT", p: 0 }, { t: "$PNUT", p: 0 }
-];
-
 export default function Ticker() {
-  const [items, setItems] = useState<{ t: string; p: number }[]>(FALLBACK);
+  // Starts empty and stays hidden until the real trending feed responds — no fabricated rows.
+  const [items, setItems] = useState<{ t: string; p: number }[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -26,6 +22,7 @@ export default function Ticker() {
     return () => { alive = false; clearInterval(iv); };
   }, []);
 
+  if (!items.length) return null; // hidden until real trending data loads
   const row = [...items, ...items];
   return (
     <div className="relative overflow-hidden border-y border-white/10 bg-white/[0.03] py-3 backdrop-blur-sm">

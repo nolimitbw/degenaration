@@ -19,14 +19,16 @@ export default function Login() {
     }
   }, [authenticated, ready, router, redirecting]);
 
+  // Privy v2's login() opens the modal configured in Providers.tsx (Google + email + wallet).
+  // Passing a { provider } shape is invalid in v2, so both entry points open the same modal.
   function handleGoogle() {
-    login({ provider: "google" });
+    login();
   }
 
   function handleEmail() {
     if (!agree) { setMsg("Please accept the risk disclosure."); return; }
     setMsg(null);
-    login({ provider: "email" });
+    login();
   }
 
   return (

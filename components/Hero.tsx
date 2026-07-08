@@ -6,10 +6,9 @@ import { fetchTokens } from "@/lib/queries";
 import Magnetic from "@/components/Magnetic";
 import RevealText from "@/components/RevealText";
 
-const FALLBACK = [{ t: "$BONK", p: "live" }, { t: "$WIF", p: "live" }];
-
 export default function Hero() {
-  const [chips, setChips] = useState(FALLBACK);
+  // Floating price chips populate only from real trending data — nothing fabricated up front.
+  const [chips, setChips] = useState<{ t: string; p: string }[]>([]);
   // subtle parallax applied to the floating live-price chips
   const px = useSpring(useMotionValue(0), { stiffness: 60, damping: 20 });
   const py = useSpring(useMotionValue(0), { stiffness: 60, damping: 20 });

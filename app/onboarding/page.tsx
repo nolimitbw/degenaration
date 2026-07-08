@@ -82,10 +82,10 @@ export default function Onboarding() {
 
           {step === 2 && (
             <div className="mt-4 space-y-3 text-sm text-dim">
-              <p>Fund your wallet to start copying calls. On devnet you can use the free faucet.</p>
+              <p>Fund your wallet with mainnet SOL to start copying calls.</p>
               <Link href="/wallet" className="block rounded-md border border-edge bg-void p-4 transition hover:border-toxic">
                 <span className="font-bold text-gray-900">Open deposit screen →</span>
-                <p className="mt-1 text-xs">Address, QR code, and devnet faucet link.</p>
+                <p className="mt-1 text-xs">Your deposit address and QR code.</p>
               </Link>
             </div>
           )}
