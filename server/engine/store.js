@@ -12,7 +12,13 @@ function sbHeaders(extra) {
 }
 async function sbGet(path) {
   const r = await fetch(`${SB}/rest/v1/${path}`, { headers: sbHeaders() });
-  return r.json();
+  const body = await r.json().catch(() => null);
+  // PostgREST GETs return arrays; anything else is an error we must not pass downstream.
+  if (!r.ok || !Array.isArray(body)) {
+    console.error(`[sb] GET ${path.split("?")[0]} -> ${r.status}`, JSON.stringify(body));
+    return [];
+  }
+  return body;
 }
 async function sbPatch(path, body) {
   return fetch(`${SB}/rest/v1/${path}`, { method: "PATCH", headers: sbHeaders({ prefer: "return=minimal" }), body: JSON.stringify(body) });
