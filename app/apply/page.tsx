@@ -3,6 +3,11 @@ import AppShell from "@/components/AppShell";
 import { useState } from "react";
 import { submitApplication } from "@/lib/queries";
 
+// Bot invite link (verified). Override per-deploy with NEXT_PUBLIC_DISCORD_BOT_INVITE if the
+// canonical Discord app id ever changes. permissions=68608 = View Channels + Read History + Send.
+const BOT_INVITE = process.env.NEXT_PUBLIC_DISCORD_BOT_INVITE ||
+  "https://discord.com/oauth2/authorize?client_id=1521883553682559116&permissions=68608&scope=bot";
+
 export default function Apply() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,13 +36,20 @@ export default function Apply() {
         </p>
 
         {sent ? (
-          <div className="mt-8 rounded-lg border border-toxic/50 bg-panel p-8 text-center">
-            <p className="text-4xl">✓</p>
-            <h2 className="mt-3 text-lg font-bold text-toxic">Application received</h2>
-            <p className="mt-2 text-sm text-dim">
-              We review every server manually. You&apos;ll get a Discord DM with the bot
-              invite link if approved.
+          <div className="mt-8 rounded-lg border border-toxic/50 bg-panel p-8">
+            <p className="text-center text-4xl">✓</p>
+            <h2 className="mt-3 text-center text-lg font-bold text-toxic">Application received</h2>
+            <p className="mt-2 text-center text-sm text-dim">
+              We review every server manually. Once approved, add our bot and register your
+              calls channel:
             </p>
+            <ol className="mx-auto mt-5 max-w-md space-y-3 text-sm text-dim">
+              <li><b className="text-gray-900">1.</b> Add the Degenaration bot to your server (read-only — it only watches messages):
+                <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="mt-2 block rounded-md bg-toxic px-4 py-2 text-center font-bold text-white transition hover:brightness-110">Add bot to my server →</a>
+              </li>
+              <li><b className="text-gray-900">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code>. The bot confirms.</li>
+              <li><b className="text-gray-900">3.</b> We approve the channel — from then on every call auto-copies for your subscribers.</li>
+            </ol>
           </div>
         ) : (
           <form onSubmit={submit} className="mt-8 space-y-4 rounded-lg border border-edge bg-panel p-6">
