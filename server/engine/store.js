@@ -2,7 +2,8 @@
  * Data access for the engine — Supabase REST (service role) + Solana RPC, zero deps.
  * Requires SUPABASE_URL + SUPABASE_SERVICE_KEY (server-side only, never shipped to client).
  */
-const SB = process.env.SUPABASE_URL;
+// Normalize: accept the base URL even if pasted with a trailing slash or /rest/v1 suffix.
+const SB = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest\/v1$/, "");
 const KEY = process.env.SUPABASE_SERVICE_KEY;
 const RPC = process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
