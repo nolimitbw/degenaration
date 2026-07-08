@@ -8,13 +8,20 @@ const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const PLATFORM_FEE_BPS = 200; // 2%
 
+// Only charge the 2% platform fee when a destination account is actually configured.
+// Jupiter rejects a swap whose quote requests platformFeeBps but supplies no feeAccount,
+// so requesting the fee unconditionally would make EVERY worker trade fail when the env
+// var is unset. Mirror the frontend /api/swap behaviour: fee is all-or-nothing per env.
+const FEE_ACCOUNT = process.env.PLATFORM_FEE_ACCOUNT;
+const APPLY_FEE = !!FEE_ACCOUNT;
+
 async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) {
   const url = new URL(`${JUP}/quote`);
   url.searchParams.set("inputMint", inputMint);
   url.searchParams.set("outputMint", outputMint);
   url.searchParams.set("amount", String(amountLamports));
   url.searchParams.set("slippageBps", String(slippageBps));
-  url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+  if (APPLY_FEE) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
   const q = await fetch(url).then(r => r.json());
   if (q.error) throw new Error(`quote failed: ${q.error}`);
   return q;
@@ -22,17 +29,18 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
 
 /** Build unsigned swap tx — signed by the USER's delegated session key, never by us. */
 async function buildSwapTx({ quote, userPublicKey }) {
+  const swapBody = {
+    quoteResponse: quote,
+    userPublicKey,
+    wrapAndUnwrapSol: true,
+    dynamicComputeUnitLimit: true,
+    prioritizationFeeLamports: "auto"
+  };
+  if (APPLY_FEE) swapBody.feeAccount = FEE_ACCOUNT; // our 2% destination
   const res = await fetch(`${JUP}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      quoteResponse: quote,
-      userPublicKey,
-      feeAccount: process.env.PLATFORM_FEE_ACCOUNT, // our 2% destination
-      wrapAndUnwrapSol: true,
-      dynamicComputeUnitLimit: true,
-      prioritizationFeeLamports: "auto"
-    })
+    body: JSON.stringify(swapBody)
   }).then(r => r.json());
   if (res.error) throw new Error(`swap build failed: ${res.error}`);
   return res.swapTransaction; // base64 unsigned tx
