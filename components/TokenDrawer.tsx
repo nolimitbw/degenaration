@@ -10,13 +10,14 @@ import { Connection, VersionedTransaction } from "@solana/web3.js";
 import { getRpc } from "@/lib/net";
 import { useToast } from "@/components/Toast";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
 export default function TokenDrawer({ token, onClose }: { token: any | null; onClose: () => void }) {
   const { authenticated, user } = usePrivy();
   const { sendTransaction } = useSendTransaction();
-  const embeddedAddr = (user as any)?.wallet?.address as string | undefined;
+  const embeddedAddr = getSolanaAddress(user);
   const toast = useToast();
   const { presets: PRESETS } = useQuickBuyPresets();
   const [price, setPrice] = useState<any>(null);

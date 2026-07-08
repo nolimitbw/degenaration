@@ -5,6 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { getNet } from "@/lib/net";
 import { fetchPortfolio, fmtUsd, fmtAmt, getMyTrades, type Portfolio, type Trade } from "@/lib/queries";
 import PortfolioChart from "@/components/PortfolioChart";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 const ALLOC_COLORS = ["#22e07a", "#7ff0b8", "#f0b429", "#5ea9ff", "#ff4d5e", "#7d828c"];
 
@@ -13,7 +14,7 @@ export default function HoldingsBody() {
   const [pf, setPf] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState<Trade[]>([]);
-  const pubkey = (user as any)?.wallet?.address as string | undefined;
+  const pubkey = getSolanaAddress(user);
 
   const load = useCallback(async () => {
     if (!pubkey) { setLoading(false); return; }

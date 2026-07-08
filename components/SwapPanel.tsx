@@ -5,6 +5,7 @@ import { useSendTransaction } from "@privy-io/react-auth/solana";
 import { Connection, VersionedTransaction } from "@solana/web3.js";
 import { supabase } from "@/lib/supabase";
 import { getRpc, getNet } from "@/lib/net";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -32,7 +33,7 @@ export default function SwapPanel() {
     return () => window.removeEventListener("degen-net", on);
   }, []);
 
-  const pubkey = (user as any)?.wallet?.address as string | undefined;
+  const pubkey = getSolanaAddress(user);
 
   async function run() {
     if (!authenticated || !pubkey) { login(); return; }

@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import { getNet } from "@/lib/net";
 import { usePrivy } from "@privy-io/react-auth";
 import { getMyTrades, fetchBalance, type Trade } from "@/lib/queries";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 // The Privy-dependent portfolio body. Lazily loaded by app/dashboard/page.tsx so the
 // wallet SDK stays off the route's first-load JS and the shell paints instantly.
 export default function DashboardBody() {
   const { authenticated, user, login } = usePrivy();
-  const address = (user as any)?.wallet?.address as string | undefined;
+  const address = getSolanaAddress(user);
   const [balance, setBalance] = useState<number | null>(null);
   const [trades, setTrades] = useState<Trade[] | null>(null);
   const [feesPaid, setFeesPaid] = useState(0);

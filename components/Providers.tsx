@@ -9,7 +9,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       appId={appId}
       config={{
         appearance: { theme: "light", accentColor: "#22e07a" },
-        embeddedWallets: { createOnLogin: "users-without-wallets" },
+        embeddedWallets: { solana: { createOnLogin: "users-without-wallets" } },
         loginMethods: ["email", "google", "wallet"]
       }}
     >

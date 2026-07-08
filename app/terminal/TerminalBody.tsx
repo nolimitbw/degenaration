@@ -9,6 +9,7 @@ import { createLimitOrder } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getNet } from "@/lib/net";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const SELL_PCTS = [25, 50, 75, 100];
@@ -47,7 +48,7 @@ export default function TerminalBody() {
   const executeSell = useExecuteSell();
   const { presets: AMOUNTS } = useQuickBuyPresets();
   const toast = useToast();
-  const pubkey = (user as any)?.wallet?.address as string | undefined;
+  const pubkey = getSolanaAddress(user);
 
   const loadBalance = useCallback(async () => {
     if (!pubkey || !mint) { setBal(null); return; }
@@ -59,7 +60,7 @@ export default function TerminalBody() {
   async function createLimit() {
     if (!authenticated) { login(); return; }
     if (limitTarget <= 0 || amount <= 0) { toast("Enter a target price and amount", "err"); return; }
-    const walletId = (user as any)?.wallet?.id as string | undefined;
+    const walletId = getSolanaWalletId(user);
     if (!pubkey) { toast("No wallet found", "err"); return; }
     const { error } = await createLimitOrder({ mint, symbol: price?.symbol || mint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId });
     if (error) { toast(error.message || "Could not save order", "err"); return; }

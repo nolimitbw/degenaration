@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { getApprovedGroups, saveSubscription, type Group } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
 type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
 const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
@@ -20,8 +21,8 @@ export default function CallsBody() {
   const [saved, setSaved] = useState<string | null>(null);
   const toast = useToast();
 
-  const pubkey = (user as any)?.wallet?.address as string | undefined;
-  const walletId = (user as any)?.wallet?.id as string | undefined;
+  const pubkey = getSolanaAddress(user);
+  const walletId = getSolanaWalletId(user);
 
   async function persist(id: string, on: boolean) {
     if (!authenticated) { login(); return; }

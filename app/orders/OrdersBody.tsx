@@ -4,6 +4,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { fmtUsd, createLimitOrder, getMyLimitOrders, cancelLimitOrder, markOrderFilled, type DbLimitOrder } from "@/lib/queries";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { useToast } from "@/components/Toast";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
 const POLL_MS = 20000;
 
@@ -23,8 +24,8 @@ export default function OrdersBody() {
   const [slippage, setSlippage] = useState(3);
   const firing = useRef<Set<string>>(new Set());
 
-  const pubkey = (user as any)?.wallet?.address as string | undefined;
-  const walletId = (user as any)?.wallet?.id as string | undefined;
+  const pubkey = getSolanaAddress(user);
+  const walletId = getSolanaWalletId(user);
 
   const refresh = useCallback(async () => { if (authenticated) setOrders(await getMyLimitOrders()); }, [authenticated]);
   useEffect(() => { refresh(); }, [refresh]);

@@ -5,6 +5,7 @@ import { getNet } from "@/lib/net";
 import { usePrivy } from "@privy-io/react-auth";
 import { getMyProfile, saveProfileLimits, fetchBalance } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 // Heavy signing panels load after the deposit/balance UI paints.
 const SwapPanel = dynamic(() => import("@/components/SwapPanel"), { ssr: false, loading: () => <div className="h-40 animate-pulse rounded-lg border border-edge bg-panel/40" /> });
@@ -14,7 +15,7 @@ const AutoTrade = dynamic(() => import("@/components/AutoTrade"), { ssr: false, 
 export default function WalletBody() {
   const { authenticated, user, login } = usePrivy();
   const toast = useToast();
-  const address = (user as any)?.wallet?.address as string | undefined;
+  const address = getSolanaAddress(user);
 
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);

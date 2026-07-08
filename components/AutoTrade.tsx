@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { usePrivy, useDelegatedActions } from "@privy-io/react-auth";
 import { useToast } from "@/components/Toast";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 /**
  * 24/7 auto-trading opt-in. Grants Privy a DELEGATED session key for the user's embedded
@@ -14,7 +15,7 @@ export default function AutoTrade() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
-  const address = (user as any)?.wallet?.address as string | undefined;
+  const address = getSolanaAddress(user);
   const delegated = ((user as any)?.linkedAccounts || []).some(
     (a: any) => a.type === "wallet" && a.chainType === "solana" && a.delegated
   );

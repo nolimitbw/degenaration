@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { supabase } from "@/lib/supabase";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 
 // Account settings. Supabase sections (password/2FA) apply to email/password accounts;
 // the wallet card covers Privy (Google/email) users who sign in with an embedded wallet.
@@ -17,7 +18,7 @@ export default function SettingsBody() {
   const [code, setCode] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const walletAddr = (user as any)?.wallet?.address as string | undefined;
+  const walletAddr = getSolanaAddress(user);
   const privyEmail = (user as any)?.email?.address as string | undefined;
 
   useEffect(() => {

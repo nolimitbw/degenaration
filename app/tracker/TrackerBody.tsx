@@ -5,6 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { getNet } from "@/lib/net";
 import { fetchPortfolio, fetchBalance, fmtUsd, getMyCopySubs, saveCopySub, removeCopySub, type Portfolio, type CopySub } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
 type Tracked = { address: string; label: string };
 type SmartWallet = { address: string; catches: { symbol: string; mint: string; multiple: number }[]; catchCount: number; bestMultiple: number; avgMultiple: number };
@@ -49,8 +50,8 @@ function CopyPanel({ settings, onChange, onStart, onCancel }: { settings: CopySe
 export default function TrackerBody() {
   const { user, authenticated, login } = usePrivy();
   const toast = useToast();
-  const address = (user as any)?.wallet?.address as string | undefined;
-  const walletId = (user as any)?.wallet?.id as string | undefined;
+  const address = getSolanaAddress(user);
+  const walletId = getSolanaWalletId(user);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceChecked, setBalanceChecked] = useState(false);
