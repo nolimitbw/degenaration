@@ -7,6 +7,10 @@
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const PLATFORM_FEE_BPS = 200; // 2%
+// Auto-trades are UNATTENDED, so a catastrophic-impact fill (thin liquidity vs trade size)
+// would rek the user before they could react. Reject it — matches the frontend /api/swap
+// guard so manual and automated trades share the same protection.
+const MAX_PRICE_IMPACT_PCT = 15;
 
 // Only charge the 2% platform fee when a destination account is actually configured.
 // Jupiter rejects a swap whose quote requests platformFeeBps but supplies no feeAccount,
@@ -24,6 +28,10 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
   if (APPLY_FEE) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
   const q = await fetch(url).then(r => r.json());
   if (q.error) throw new Error(`quote failed: ${q.error}`);
+  const impact = Math.abs(Number(q.priceImpactPct) * 100);
+  if (Number.isFinite(impact) && impact > MAX_PRICE_IMPACT_PCT) {
+    throw new Error(`price impact ${impact.toFixed(1)}% exceeds ${MAX_PRICE_IMPACT_PCT}% limit`);
+  }
   return q;
 }
 
