@@ -37,6 +37,9 @@ create table if not exists public.copy_subscriptions (
   leader_wallet text not null,
   label text,
   size_sol double precision not null default 0.1,
+  tp1 numeric default 2, tp1_sell int default 50,
+  tp2 numeric default 5, tp2_sell int default 25,
+  stop_loss int default 40,
   slippage_bps int not null default 300,
   daily_cap_sol double precision not null default 2,
   daily_spent double precision not null default 0,
@@ -49,7 +52,9 @@ create policy "own copy subs" on public.copy_subscriptions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
 
-(This is the same block already appended to `supabase/schema.sql`.)
+(This is the same block already appended to `supabase/schema.sql`. If you already ran the
+older version of this block, also run `supabase/add-copy-subscription-tp-sl.sql` once to
+add the tp1/tp2/stop_loss columns to your existing table.)
 After this, creating a limit order or a copy-subscription in the app really saves to your DB.
 
 ---

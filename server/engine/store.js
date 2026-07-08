@@ -31,7 +31,7 @@ const loadTrackedWallets = async () => {
   const rows = await sbGet("copy_subscriptions?enabled=eq.true&select=leader_wallet");
   return [...new Set((rows || []).map((r) => r.leader_wallet))].map((address) => ({ address }));
 };
-const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`);
+const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss`);
 const recordCopy = (evt) => sbInsert("trades", { mint: evt.mint, side: "buy", sol_amount: evt.size, kind: "copy", sig: evt.sig, wallet_address: evt.user });
 
 // ---- discord call execution ----

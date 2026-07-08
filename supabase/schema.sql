@@ -162,6 +162,11 @@ create table if not exists public.copy_subscriptions (
   leader_wallet text not null,
   label text,
   size_sol double precision not null default 0.1,
+  -- partial take-profit ladder + stop-loss, same shape as the group-call `subscriptions`
+  -- table: tpN is a price multiple (e.g. 2 = 2x), tpN_sell is the % of the position sold there
+  tp1 numeric default 2, tp1_sell int default 50,
+  tp2 numeric default 5, tp2_sell int default 25,
+  stop_loss int default 40,
   slippage_bps int not null default 300,
   daily_cap_sol double precision not null default 2,
   daily_spent double precision not null default 0,

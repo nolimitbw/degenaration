@@ -228,17 +228,19 @@ export async function markOrderFilled(id: string, sig?: string) {
 export type CopySub = {
   id: string; leader_wallet: string; label: string | null; size_sol: number;
   slippage_bps: number; daily_cap_sol: number; enabled: boolean;
+  tp1: number | null; tp1_sell: number | null; tp2: number | null; tp2_sell: number | null; stop_loss: number | null;
 };
 export async function getMyCopySubs(): Promise<CopySub[]> {
   const { data, error } = await supabase
     .from("copy_subscriptions")
-    .select("id,leader_wallet,label,size_sol,slippage_bps,daily_cap_sol,enabled");
+    .select("id,leader_wallet,label,size_sol,slippage_bps,daily_cap_sol,enabled,tp1,tp1_sell,tp2,tp2_sell,stop_loss");
   if (error) return [];
   return data ?? [];
 }
 export async function saveCopySub(sub: {
   leader_wallet: string; label?: string; size_sol: number; slippage_bps?: number;
   daily_cap_sol?: number; user_pubkey: string; wallet_id?: string;
+  tp1?: number; tp1_sell?: number; tp2?: number; tp2_sell?: number; stop_loss?: number;
 }) {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
