@@ -52,6 +52,9 @@ export function useExecuteBuy() {
       }
       return { ok: true, sig };
     } catch (e: any) {
+      // The linked Solana wallet is EXTERNAL (Phantom/Solflare/Backpack), not a Privy
+      // embedded wallet, so useSendTransaction rejects it — fall back to adapter signing.
+      if (/embedded/i.test(e?.message || "")) return extensionBuy(args);
       return { ok: false, error: e.message || "signing cancelled" };
     }
   }, [authenticated, embeddedAddr, sendTransaction]);

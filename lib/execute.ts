@@ -20,7 +20,8 @@ export function pickProvider(): Provider | null {
 }
 
 type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
-type Result = { ok: boolean; sig?: string; error?: string };
+type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
+type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
 
 export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Result> {
   const wallet = provider || pickProvider();
@@ -52,6 +53,57 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
       }).catch(() => {});
     }
     return { ok: true, sig };
+  } catch (e: any) {
+    return { ok: false, error: e.message || "signing cancelled" };
+  }
+}
+
+/**
+ * Sell a percentage (0-1) of the connected EXTENSION wallet's balance of `mint` back to SOL.
+ * Used as the fallback when a user's only Solana wallet is external (Phantom/Solflare/Backpack)
+ * and Privy's embedded-only useSendTransaction can't sign. Mirrors executeBuy's loop.
+ */
+export async function executeSell(args: SellArgs, provider?: Provider): Promise<Result> {
+  const wallet = provider || pickProvider();
+  if (!wallet) return { ok: false, error: "No Solana wallet found. Install Phantom, Solflare or Backpack." };
+  try {
+    await wallet.connect?.();
+    const pubkey = wallet.publicKey?.toBase58?.();
+    if (!pubkey) return { ok: false, error: "Wallet not connected" };
+
+    const pct = Math.min(1, Math.max(0, args.pct));
+    if (pct <= 0) return { ok: false, error: "Pick a sell amount" };
+    const bal = await fetch(`/api/token-balance?owner=${pubkey}&mint=${args.mint}&net=${getNet()}`).then((r) => r.json());
+    if (bal.error) return { ok: false, error: bal.error };
+    const rawTotal = BigInt(bal.rawAmount || "0");
+    if (rawTotal <= BigInt(0)) return { ok: false, error: "You don't hold this token" };
+    const amount = (rawTotal * BigInt(Math.round(pct * 10000))) / BigInt(10000);
+    if (amount <= BigInt(0)) return { ok: false, error: "Amount too small" };
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/swap", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+      body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: amount.toString(), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
+    }).then((r) => r.json());
+    if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
+
+    const web3 = await import("@solana/web3.js");
+    const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
+    const tx = web3.VersionedTransaction.deserialize(raw);
+    const signed = await wallet.signAndSendTransaction(tx);
+    const sig = signed?.signature ?? signed;
+
+    const soldUi = bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount);
+    const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
+    if (session?.access_token) {
+      await fetch("/api/record-trade", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual" })
+      }).catch(() => {});
+    }
+    return { ok: true, sig, soldUi };
   } catch (e: any) {
     return { ok: false, error: e.message || "signing cancelled" };
   }

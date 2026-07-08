@@ -5,6 +5,7 @@ import { useSendTransaction } from "@privy-io/react-auth/solana";
 import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
 import { getSolanaAddress } from "./solanaWallet";
+import { executeSell as extensionSell } from "./execute";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
@@ -23,7 +24,9 @@ export function useExecuteSell() {
   const embeddedAddr = getSolanaAddress(user);
 
   return useCallback(async function executeSell(args: SellArgs): Promise<Result> {
-    if (!authenticated || !embeddedAddr) return { ok: false, error: "Connect a wallet to sell" };
+    if (!authenticated) return { ok: false, error: "Connect a wallet to sell" };
+    // No Privy embedded Solana wallet -> use an extension wallet (mirrors useExecuteBuy).
+    if (!embeddedAddr) return extensionSell(args);
     const pct = Math.min(1, Math.max(0, args.pct));
     if (pct <= 0) return { ok: false, error: "Pick a sell amount" };
     try {
@@ -62,6 +65,9 @@ export function useExecuteSell() {
       }
       return { ok: true, sig, soldUi };
     } catch (e: any) {
+      // External (non-embedded) Solana wallet: Privy's embedded-only sender can't sign it —
+      // fall back to adapter signing so Phantom/Solflare/Backpack users can also sell.
+      if (/embedded/i.test(e?.message || "")) return extensionSell(args);
       return { ok: false, error: e.message || "signing cancelled" };
     }
   }, [authenticated, embeddedAddr, sendTransaction]);
