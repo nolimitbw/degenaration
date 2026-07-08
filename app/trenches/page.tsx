@@ -73,7 +73,10 @@ export default function Trenches() {
 
   async function load() {
     const { tokens, stats } = await fetchTokensFull(tab);
-    setTokens(tokens); setStats(stats); setLoading(false);
+    // A transient empty/rate-limited upstream response shouldn't blank out a list that
+    // was already showing real tokens — keep the last-good list until real data returns.
+    if (tokens.length > 0) setTokens(tokens);
+    setStats(stats); setLoading(false);
     setPulse(true); setTimeout(() => setPulse(false), 600);
   }
   useEffect(() => { setLoading(true); load(); const iv = setInterval(load, 8000); return () => clearInterval(iv); /* eslint-disable-next-line */ }, [tab]);

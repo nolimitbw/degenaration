@@ -22,7 +22,10 @@ export default function ExplorerPage() {
 
   async function load() {
     const { tokens } = await fetchTokensFull(cat === "trending" ? "trending" : "new");
-    setTokens(tokens); setLoading(false); setPulse(true); setTimeout(() => setPulse(false), 600);
+    // A transient empty/rate-limited upstream response shouldn't blank out a list that
+    // was already showing real tokens — keep the last-good list until real data returns.
+    if (tokens.length > 0) setTokens(tokens);
+    setLoading(false); setPulse(true); setTimeout(() => setPulse(false), 600);
   }
   useEffect(() => { setLoading(true); setPage(1); load(); const iv = setInterval(load, 10000); return () => clearInterval(iv); /* eslint-disable-next-line */ }, [cat]);
 
