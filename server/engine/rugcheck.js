@@ -25,16 +25,24 @@ async function rugCheck(mint) {
     }
   }
 
-  // 3) On-chain: mint + freeze authority must be revoked (via RPC)
-  const rpc = process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+  // 3) On-chain: mint + freeze authority must be revoked (via RPC).
+  // FAIL CLOSED: if we cannot verify authorities (RPC down / rate-limited / unexpected
+  // response) we BLOCK the trade rather than assume the token is safe — an unverified
+  // active mint authority (infinite supply) or freeze authority (honeypot) is exactly
+  // what this gate exists to catch. Prefer the reliable RPC to avoid spurious blocks.
+  const rpc = process.env.MAINNET_RPC || process.env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
   const acct = await fetch(rpc, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [mint, { encoding: "jsonParsed" }] })
   }).then(r => r.json()).catch(() => null);
   const info = acct?.result?.value?.data?.parsed?.info;
-  if (info?.mintAuthority) reasons.push("mint authority NOT revoked (can print more tokens)");
-  if (info?.freezeAuthority) reasons.push("freeze authority NOT revoked (can freeze your tokens)");
+  if (!info) {
+    reasons.push("could not verify mint/freeze authority on-chain (blocked for safety)");
+  } else {
+    if (info.mintAuthority) reasons.push("mint authority NOT revoked (can print more tokens)");
+    if (info.freezeAuthority) reasons.push("freeze authority NOT revoked (can freeze your tokens)");
+  }
 
   return { ok: reasons.length === 0, reasons, pair: pair ? { dex: pair.dexId, priceUsd: pair.priceUsd, liqUsd: pair.liquidity?.usd } : null };
 }
