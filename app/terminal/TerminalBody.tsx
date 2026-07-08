@@ -24,8 +24,6 @@ export default function TerminalBody() {
   const [amount, setAmount] = useState(Number(params.get("amount")) > 0 ? Number(params.get("amount")) : 0.5);
   const [sellPct, setSellPct] = useState(100);
   const [slippage, setSlippage] = useState(3);
-  const [tp, setTp] = useState(false);
-  const [sl, setSl] = useState(false);
   const [mev, setMev] = useState(true);
   const [autoRetry, setAutoRetry] = useState(true);
   const [price, setPrice] = useState<any>(null);
@@ -118,9 +116,6 @@ export default function TerminalBody() {
         if (r.ok) {
           toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
           setPreviewOpen(false);
-          if (tp || sl) {
-            await fetch("/api/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mint, type: "limit", side: "buy", trigger: tp ? "above" : "below", target_usd: tp ? null : null, amount_sol: 0, user_pubkey: pubkey, net: getNet() }) }).catch(() => {});
-          }
           setTimeout(loadBalance, 4000);
           return;
         }
@@ -132,9 +127,6 @@ export default function TerminalBody() {
         if (r.ok) {
           toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
           setPreviewOpen(false);
-          if (tp || sl) {
-            await fetch("/api/orders", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mint, type: "limit", side: "sell", trigger: tp ? "above" : "below", target_usd: 0, amount_sol: 0, user_pubkey: pubkey, net: getNet() }) }).catch(() => {});
-          }
           setTimeout(loadBalance, 4000);
           return;
         }
@@ -294,8 +286,6 @@ export default function TerminalBody() {
           {mode !== "sell" && (
             <div className="mt-4 space-y-2 text-sm">
               {[
-                { l: "Take Profit", v: tp, set: setTp },
-                { l: "Stop Loss", v: sl, set: setSl },
                 { l: "MEV protection", v: mev, set: setMev },
                 { l: "Auto-retry", v: autoRetry, set: setAutoRetry }
               ].map((o) => (
