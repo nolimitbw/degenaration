@@ -40,6 +40,30 @@ export function validAmount(raw: unknown, maxLamports = 100 * 1e9): number | nul
   return n;
 }
 
+// u64 max — the largest token amount Solana can represent.
+const U64_MAX = BigInt("18446744073709551615");
+// Fat-finger guard for SOL-denominated inputs (buys): 100 SOL in lamports.
+const MAX_SOL_LAMPORTS = BigInt(100) * BigInt(1_000_000_000);
+const ZERO = BigInt(0);
+
+/**
+ * Validate a swap input amount in the input token's BASE UNITS, returned as an exact
+ * decimal string (no float precision loss — token balances routinely exceed 2^53).
+ * When `isSolInput` is true the amount is SOL lamports, so we also apply the 100-SOL
+ * fat-finger cap; token sells are only bounded by u64 so a whale can fully exit a position.
+ */
+export function validBaseUnits(raw: unknown, isSolInput: boolean): string | null {
+  let v: bigint;
+  try {
+    if (typeof raw === "string") { if (!/^\d+$/.test(raw.trim())) return null; v = BigInt(raw.trim()); }
+    else if (typeof raw === "number") { if (!Number.isInteger(raw) || raw <= 0) return null; v = BigInt(raw); }
+    else return null;
+  } catch { return null; }
+  if (v <= ZERO || v > U64_MAX) return null;
+  if (isSolInput && v > MAX_SOL_LAMPORTS) return null;
+  return v.toString();
+}
+
 export function validSlippageBps(raw: unknown): number {
   const n = Number(raw ?? 300);
   if (!Number.isFinite(n) || n < 1) return 300;

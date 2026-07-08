@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint, validAmount, validSlippageBps } from "@/lib/server/guard";
+import { rateLimit, isMint, validBaseUnits, validSlippageBps } from "@/lib/server/guard";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 const PLATFORM_FEE_BPS = 200;
 const MAX_PRICE_IMPACT_PCT = 15; // reject swaps with insane price impact
 
@@ -18,7 +19,9 @@ export async function POST(req: NextRequest) {
   const { inputMint, outputMint, userPublicKey, mev } = body ?? {};
   if (!isMint(inputMint) || !isMint(outputMint)) return NextResponse.json({ error: "invalid mint(s)" }, { status: 400 });
   if (!isMint(userPublicKey)) return NextResponse.json({ error: "invalid userPublicKey" }, { status: 400 });
-  const amount = validAmount(body.amount);
+  // amount is in the INPUT token's base units. Buys (SOL input) get the 100-SOL fat-finger
+  // cap; token sells are bounded only by u64 so a large position can be fully exited.
+  const amount = validBaseUnits(body.amount, inputMint === SOL_MINT);
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(body.slippageBps);
   const mevEnabled = mev !== false;

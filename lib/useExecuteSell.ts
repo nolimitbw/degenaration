@@ -40,7 +40,7 @@ export function useExecuteSell() {
       const res = await fetch("/api/swap", {
         method: "POST",
         headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
-        body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: Number(amount), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net, mev: args.mev ?? true })
+        body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: amount.toString(), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net, mev: args.mev ?? true })
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
 

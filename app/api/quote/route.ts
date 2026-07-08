@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint, validAmount, validSlippageBps } from "@/lib/server/guard";
+import { rateLimit, isMint, validBaseUnits, validSlippageBps } from "@/lib/server/guard";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const PLATFORM_FEE_BPS = 200;
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 40, windowMs: 60_000 });
@@ -11,7 +12,8 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const inputMint = p.get("in"), outputMint = p.get("out");
   if (!isMint(inputMint) || !isMint(outputMint)) return NextResponse.json({ error: "invalid mint(s)" }, { status: 400 });
-  const amount = validAmount(p.get("amount"));
+  // base units: SOL input (buy) gets the fat-finger cap; token input (sell) allows u64.
+  const amount = validBaseUnits(p.get("amount"), inputMint === SOL_MINT);
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(p.get("slippageBps"));
 
