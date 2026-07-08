@@ -22,14 +22,19 @@ export async function GET(req: NextRequest) {
       if (["danger", "warn"].includes(risk.level) && /mint|freeze|honeypot/i.test(risk.name)) reasons.push(risk.name);
     }
 
-    const rpc = process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com";
+    // Prefer the reliable RPC; fail CLOSED so a failed/rate-limited lookup never yields a
+    // false "PASSED" badge that could lead a user to manually buy an unverified token.
+    const rpc = process.env.MAINNET_RPC || process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com";
     const acct = await fetch(rpc, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [mint, { encoding: "jsonParsed" }] })
     }).then(r => r.json()).catch(() => null);
     const info = acct?.result?.value?.data?.parsed?.info;
-    if (info?.mintAuthority) reasons.push("mint authority not revoked");
-    if (info?.freezeAuthority) reasons.push("freeze authority not revoked");
+    if (!info) reasons.push("could not verify mint/freeze authority");
+    else {
+      if (info.mintAuthority) reasons.push("mint authority not revoked");
+      if (info.freezeAuthority) reasons.push("freeze authority not revoked");
+    }
 
     return NextResponse.json({ mint, ok: reasons.length === 0, reasons });
   } catch (e: any) {
