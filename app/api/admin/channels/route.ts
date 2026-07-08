@@ -3,9 +3,10 @@ import { rateLimit } from "@/lib/server/guard";
 
 /**
  * Owner-only management of Discord call channels (service-role table, so it must go through
- * the server key). Gated by the admin key: header `x-admin-key` must match ADMIN_KEY
- * (falls back to NEXT_PUBLIC_ADMIN_KEY). Approving a channel links/creates its group so the
- * bot starts forwarding its calls.
+ * the server key). Gated by the SERVER-ONLY admin key: header `x-admin-key` must match the
+ * ADMIN_KEY env var. Never accept a NEXT_PUBLIC_ value here — it ships in the client bundle,
+ * so anyone could read it and approve their own (scam) channel. Approving a channel
+ * links/creates its group so the bot starts forwarding its calls.
  */
 function sb() {
   const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,7 +17,7 @@ function sb() {
 }
 
 function authed(req: NextRequest) {
-  const expected = process.env.ADMIN_KEY || process.env.NEXT_PUBLIC_ADMIN_KEY;
+  const expected = process.env.ADMIN_KEY; // server-only; NEVER a NEXT_PUBLIC_ value
   return !!expected && req.headers.get("x-admin-key") === expected;
 }
 

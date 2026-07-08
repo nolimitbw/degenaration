@@ -43,8 +43,9 @@ export default function AutoTrade() {
       </div>
       <p className="mt-1 text-xs text-dim">
         Let the engine run your limit orders and copy trades even while your device is off.
-        The delegated key is <b className="text-gray-900">trade-only</b>, bound by your spend caps
-        above, and <b className="text-gray-900">revocable anytime</b>. It can never withdraw.
+        Our engine only ever signs <b className="text-gray-900">Jupiter swaps within your spend caps</b>
+        above, never a transfer out, and the grant is <b className="text-gray-900">revocable anytime</b>.
+        Your keys stay in Privy — we never hold them.
       </p>
       {delegated ? (
         <button onClick={disable} disabled={busy} className="mt-4 w-full rounded-md border border-hotpink/50 py-2.5 text-sm font-bold text-hotpink transition hover:bg-hotpink/10 disabled:opacity-50">{busy ? "…" : "Revoke auto-trading"}</button>

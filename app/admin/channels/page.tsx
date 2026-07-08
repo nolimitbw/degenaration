@@ -19,7 +19,7 @@ export default function AdminChannels() {
     setErr(null);
     const res = await fetch("/api/admin/channels", { headers: { "x-admin-key": getAdminKey() } })
       .then((r) => r.json()).catch(() => ({ error: "request failed" }));
-    if (res.error) { setErr(res.error === "unauthorized" ? "Set NEXT_PUBLIC_ADMIN_KEY + ADMIN_KEY to the same value, then re-unlock." : res.error); setLoaded(true); return; }
+    if (res.error) { setErr(res.error === "unauthorized" ? "Unauthorized — open any page with ?admin=<your ADMIN_KEY> to unlock this device (ADMIN_KEY is set server-side on Vercel)." : res.error); setLoaded(true); return; }
     setChannels(res.channels ?? []); setLoaded(true);
   }, []);
   useEffect(() => { load(); }, [load]);
