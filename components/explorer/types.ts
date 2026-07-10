@@ -1,5 +1,5 @@
 export type Sort = "newest" | "volume" | "mcap" | "change" | "liquidity";
-export type Cat = "all" | "raydium" | "trending";
+export type Cat = "all" | "raydium" | "pump" | "trending";
 export type View = "table" | "cards";
 export type Tf = "5m" | "1h" | "6h" | "24h";
 export type Tok = {
