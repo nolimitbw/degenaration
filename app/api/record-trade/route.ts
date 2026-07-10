@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, sanitizeError } from "@/lib/server/guard";
+
+const toNum = (v: any): number | null => v != null ? Number(v) : null;
 
 /**
  * POST /api/record-trade — records an executed swap (for portfolio, history, commissions).
@@ -27,10 +29,10 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supa.from("trades").insert({
     user_id: auth.user.id, mint: b.mint, side: b.side === "sell" ? "sell" : "buy",
-    sol_amount: Number(b.solAmount) || null, token_amount: Number(b.tokenAmount) || null,
-    price_usd: Number(b.priceUsd) || null, fee_sol: Number(b.feeSol) || null,
+    sol_amount: toNum(b.solAmount), token_amount: toNum(b.tokenAmount),
+    price_usd: toNum(b.priceUsd), fee_sol: toNum(b.feeSol),
     tx_signature: b.sig || null, kind: b.kind || "manual"
   });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

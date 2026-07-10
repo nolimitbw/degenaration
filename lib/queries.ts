@@ -180,7 +180,7 @@ export async function fetchPortfolio(address: string, net?: string): Promise<Por
   return fetch(`/api/portfolio?address=${address}${q}`).then((r) => r.json()).catch(() => null);
 }
 export function fmtUsd(n: number | null | undefined): string {
-  if (n == null) return "—";
+  if (n == null || !Number.isFinite(n)) return "—";
   if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
   if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
   if (n >= 1e3) return "$" + (n / 1e3).toFixed(1) + "K";
@@ -188,6 +188,7 @@ export function fmtUsd(n: number | null | undefined): string {
   return "$" + n.toFixed(4);
 }
 export function fmtAmt(n: number): string {
+  if (!Number.isFinite(n)) return "—";
   if (n >= 1e9) return (n / 1e9).toFixed(2) + "B";
   if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
   if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";

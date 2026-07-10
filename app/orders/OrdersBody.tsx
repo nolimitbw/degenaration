@@ -121,7 +121,7 @@ export default function OrdersBody() {
               <div className="flex items-center gap-2">
                 {ready && <span className="rounded-full bg-toxic/20 px-2 py-0.5 font-mono text-[10px] font-bold text-toxic">READY</span>}
                 <button onClick={() => runExec(o)} className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white shadow-toxic transition hover:brightness-110">Execute</button>
-                <button onClick={async () => { await cancelLimitOrder(o.id); refresh(); }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
+                <button onClick={async () => { try { await cancelLimitOrder(o.id); refresh(); } catch {} }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
               </div>
             </div>
           );

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { getApprovedGroups, saveSubscription, type Group } from "@/lib/queries";
+import { getApprovedGroups, getMySubscriptions, saveSubscription, type Group } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
@@ -39,11 +39,23 @@ export default function CallsBody() {
   function toggle(id: string) {
     const on = !copying.includes(id);
     setCopying(on ? [...copying, id] : copying.filter((x) => x !== id));
-    persist(id, on);
   }
 
   useEffect(() => {
     getApprovedGroups().then((g) => { setGroups(g); setLive(g.length > 0); setLoaded(true); });
+    getMySubscriptions().then((subs) => {
+      const enabled = subs.filter((s) => s.enabled).map((s) => s.group_id);
+      setCopying(enabled);
+      const saved: Record<string, Settings> = {};
+      for (const s of subs) {
+        saved[s.group_id] = {
+          size: s.size_sol, tp1: s.tp1, tp1sell: s.tp1_sell,
+          tp2: s.tp2, tp2sell: s.tp2_sell, sl: s.stop_loss,
+          slippage: s.slippage_bps / 100, dailyCap: s.daily_cap_sol
+        };
+      }
+      if (Object.keys(saved).length) setSettings(saved);
+    });
   }, []);
 
   const s = (id: string) => settings[id] ?? DEFAULTS;

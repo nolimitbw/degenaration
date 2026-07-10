@@ -25,7 +25,7 @@ export default function WalletBody() {
 
   useEffect(() => {
     getMyProfile().then((p) => { if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); } });
-    if (address) fetchBalance(address, getNet()).then((b) => b && setBalance(b.sol));
+    if (address) fetchBalance(address, getNet()).then((b) => { if (b && !b.error) setBalance(b.sol); });
   }, [address]);
 
   const copy = () => { if (!address) return; navigator.clipboard?.writeText(address); setCopied(true); toast("Address copied"); setTimeout(() => setCopied(false), 1500); };

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/server/guard";
+import { rateLimit, sanitizeError } from "@/lib/server/guard";
 import { ttlFetchSafe } from "@/lib/server/cache";
 
 /**
@@ -115,6 +115,6 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     const cached = (global as any).__smartWalletsCache;
     if (cached) return NextResponse.json({ wallets: cached.data, asOf: cached.at, cached: true, stale: true });
-    return NextResponse.json({ error: e.message, wallets: [] }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e), wallets: [] }, { status: 502 });
   }
 }

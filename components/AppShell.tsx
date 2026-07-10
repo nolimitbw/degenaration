@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import Ticker2 from "./Ticker2";
+import Ticker from "./Ticker";
 import Search from "./Search";
 import { useIsAdmin } from "@/lib/admin";
 
@@ -165,7 +165,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <WalletButton />
           </div>
         </div>
-        <Ticker2 />
+        <Ticker />
       </header>
 
       {/* mobile drawer */}

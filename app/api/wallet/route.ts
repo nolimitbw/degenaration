@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 /**
  * GET /api/wallet?address=<pubkey>
@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
   const rpc = net === "mainnet" ? (process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com") : (net === "devnet" ? "https://api.devnet.solana.com" : (process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com"));
   try {
     const [balRes, sigRes] = await Promise.all([
-      fetch(rpc, { method: "POST", headers: { "content-type": "application/json" },
+      fetchWithTimeout(rpc, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [address] }) }).then((r) => r.json()),
-      fetch(rpc, { method: "POST", headers: { "content-type": "application/json" },
+      fetchWithTimeout(rpc, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "getSignaturesForAddress", params: [address, { limit: 20 }] }) }).then((r) => r.json())
     ]);
     const lamports = balRes?.result?.value ?? 0;
@@ -29,6 +29,6 @@ export async function GET(req: NextRequest) {
       recent: sigs.slice(0, 8).map((s) => ({ sig: s.signature, ts: s.blockTime ? s.blockTime * 1000 : null, err: !!s.err }))
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

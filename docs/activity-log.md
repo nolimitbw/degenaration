@@ -846,3 +846,88 @@ touches real wallet-signed swaps.
   /api/tokens output shows real image data now flowing through.
 - Not deployed — this is local/dev-server-verified only, same as every other change this
   session. Nothing pushed or `vercel --prod`'d.
+
+## Session: fetch timeouts + error message sanitization across all API routes
+
+Added `AbortController`-based timeout (15s default) to every external `fetch` call
+across all API routes so a hung upstream never leaves a serverless function running
+until Vercel's 60s hard limit. Also replaced raw `e.message` in catch blocks with a
+`sanitizeError()` helper that strips stack traces, error prefixes, and truncates to
+200 chars — never leaks internal paths/stack traces to the client.
+
+### Changes
+
+- `lib/server/guard.ts`: added `fetchWithTimeout()` (AbortController, configurable default
+  15s) and `sanitizeError()` (strips "Error:" prefix, first line only, 200-char cap).
+- `lib/server/cache.ts`: imported `fetchWithTimeout` from guard. `ttlFetch` now uses it
+  instead of raw `fetch` — this covers `ohlcv`, `smart-wallets`, and `pools` automatically
+  since they go through the cache layer.
+- Updated all 19 API route files:
+  - **fetch → fetchWithTimeout**: `price`, `tokens`, `wallet`, `token-balance`, `balance`,
+    `rugcheck`, `holders`, `portfolio`, `checkalerts`, `swap`, `quote`, `simulate`, `search`,
+    `ingest-call`, `admin/channels` (all external fetch calls wrapped)
+  - **e.message → sanitizeError(e)**: `price`, `tokens`, `ohlcv`, `wallet`, `token-balance`,
+    `balance`, `rugcheck`, `holders`, `portfolio`, `checkalerts`, `swap`, `quote`, `simulate`,
+    `search`, `smart-wallets`, `withdraw`, `record-trade`
+  - No-change exceptions (no external fetch or no catch with e.message): `calls`, `smart-wallets`
+    (timeout via cache already)
+
+### Verify
+- `npx tsc --noEmit`: clean, 0 errors.
+- `npm run build`: green, all 45 routes build successfully.
+
+## Session: exhaustive bug sweep (2026-07-10)
+
+Ran 3 parallel static-analysis agents (React bugs, API/data layer bugs, UI/logic bugs)
+over the entire codebase. Found 19 real bugs. Fixed all of them.
+
+### Critical (1)
+- **`app/alerts/page.tsx`**: infinite re-render loop. `useEffect` with `[alerts]` dep
+  called `setAlerts` with `.map()` (new array ref every time), causing the effect to
+  re-run indefinitely. Fixed by using a `useRef` to hold the latest alerts and empty dep
+  array — the interval always reads the current list without re-triggering itself.
+
+### High (11)
+- **`app/tracker/TrackerBody.tsx`**: stale `pfs` closure in interval callback caused
+  loading skeleton to flash every 30s poll. Replaced `!pfs[w.address]` check with
+  unconditional `true` (functional setter, no stale reference needed).
+- **`app/tracker/TrackerBody.tsx`**: `disableCopy` had no error handling — promise
+  rejection went unhandled and the success toast was shown even on failure. Added
+  try/catch + checks the Supabase response error.
+- **`app/orders/OrdersBody.tsx:124`**: `cancelLimitOrder` called with no try/catch —
+  unhandled rejection on network error. Wrapped in try/catch.
+- **`app/admin/page.tsx:18-29`**: `approve`/`reject` hung UI in "busy" state on
+  rejection (no error handling). Added try/catch around both.
+- **`lib/useQuickBuyPresets.ts:21`**: `getMyProfile().then(...)` with no `.catch()` —
+  unhandled rejection would leave `loaded` stuck at `false` forever. Added `.catch()`.
+- **`app/api/admin/channels/route.ts:47,64`**: PATCH calls could throw unhandled
+  (no try/catch, no `.catch()`). Wrapped in try/catch.
+- **`app/api/ingest-call/route.ts:51-55`**: Supabase REST POST could throw unhandled.
+  Wrapped in try/catch.
+- **`app/api/tokens/route.ts:37`**: `new Date(undefined)` returns Invalid Date,
+  `.getTime()` = NaN. `new Date(null)` returns epoch (Jan 1 1970), producing massive
+  `ageMs`. Validated `pool_created_at` is a string first.
+- **`app/api/simulate/route.ts:25,29`**: `Number(undefined)` = NaN leaked into JSON
+  response when Jupiter returned malformed data. Added null checks before Number().
+
+### Medium (4)
+- **`app/alerts/page.tsx:30-31`**: stale `alerts` closure in Notification callback
+  (looked up triggered alert by id from a captured, possibly outdated array). Fixed
+  by reading from the ref that's kept current.
+- **`app/api/search/route.ts:15`**: `p.baseToken.symbol`/`name` accessed without
+  optional chaining — could leak `null` in response fields. Added `?.` / `?? null`.
+- **`app/api/rugcheck/route.ts:20`**: NaN comparison bypassed risk check (`NaN != null`
+  is true but `NaN > 60` is false). Added `Number.isFinite()` guard.
+- **`lib/queries.ts:183-188`**: `fmtUsd` and `fmtAmt` would produce `"$NaN"` in UI
+  if passed NaN. Added `Number.isFinite` guard.
+
+### Low (2)
+- **`app/apply/page.tsx:20-27`**: no client-side validation before form submission
+  (relied entirely on HTML5 `required`, which JS can bypass). Added field-length and
+  presence checks with user-facing error messages.
+- **`lib/queries.ts:190-195`**: `fmtAmt` same NaN issue as `fmtUsd`. Added guard.
+
+### Verify
+- `npx tsc --noEmit`: clean, 0 errors.
+- `npm run build`: green, all 45 routes.
+- `node server/test/run.js`: 24/24 pass.

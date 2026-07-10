@@ -1,6 +1,6 @@
 "use client";
 import AppShell from "@/components/AppShell";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Alert = { id: string; mint: string; label: string; kind: "above" | "below"; target: number; fired?: boolean };
 
@@ -10,6 +10,8 @@ export default function Alerts() {
   const [label, setLabel] = useState("");
   const [kind, setKind] = useState<"above" | "below">("above");
   const [target, setTarget] = useState(0);
+  const alertsRef = useRef(alerts);
+  alertsRef.current = alerts;
 
   useEffect(() => {
     const s = typeof window !== "undefined" ? localStorage.getItem("degen_alerts") : null;
@@ -21,13 +23,14 @@ export default function Alerts() {
 
   useEffect(() => {
     const check = async () => {
-      if (!alerts.length) return;
-      const res = await fetch("/api/checkalerts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alerts }) }).then(r => r.json()).catch(() => null);
+      const current = alertsRef.current;
+      if (!current.length) return;
+      const res = await fetch("/api/checkalerts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alerts: current }) }).then(r => r.json()).catch(() => null);
       if (res?.triggered?.length) {
         setAlerts(a => a.map(x => res.triggered.includes(x.id) ? { ...x, fired: true } : x));
         if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
           res.triggered.forEach((id: string) => {
-            const al = alerts.find(x => x.id === id);
+            const al = current.find(x => x.id === id);
             if (al) new Notification("Degenaration alert", { body: `${al.label} is ${al.kind} $${al.target}` });
           });
         }
@@ -35,7 +38,7 @@ export default function Alerts() {
     };
     const iv = setInterval(check, 20000); check();
     return () => clearInterval(iv);
-  }, [alerts]);
+  }, []);
 
   const add = () => {
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) || target <= 0) return;

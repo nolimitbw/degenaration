@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 // Real on-chain portfolio: SPL token balances priced live via DexScreener.
 // Powers both Holdings (your wallet) and Wallet Tracker (any wallet).
@@ -14,7 +14,7 @@ function rpcFor(net: string | null) {
 }
 
 async function rpc(url: string, method: string, params: any[]) {
-  const r = await fetch(url, {
+  const r = await fetchWithTimeout(url, {
     method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
   });
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
     // price SOL + top holdings via DexScreener (batch, max 30 addresses)
     const mints = [SOL_MINT, ...holdings.map((h) => h.mint)].slice(0, 30);
-    const ds = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mints.join(",")}`, { cache: "no-store" })
+    const ds = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mints.join(",")}`, { cache: "no-store" })
       .then((r) => r.json()).catch(() => null);
     const price = new Map<string, any>();
     for (const p of ds?.pairs ?? []) {
@@ -81,6 +81,6 @@ export async function GET(req: NextRequest) {
       totalUsd: solUsd + tokenUsd, count: positions.length
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

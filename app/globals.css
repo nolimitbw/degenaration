@@ -4,34 +4,60 @@
 
 :root {
   --void: #f5f7fa;
+  --void-rgb: 245 247 250;
   --panel: #ffffff;
+  --panel-rgb: 255 255 255;
   --edge: #e2e5ec;
+  --edge-rgb: 226 229 236;
   --toxic: #22e07a;
+  --toxic-rgb: 34 224 122;
   --hotpink: #ff4d5e;
+  --hotpink-rgb: 255 77 94;
   --cyber: #34d399;
+  --cyber-rgb: 52 211 153;
   --dim: #8b93a5;
+  --dim-rgb: 139 147 165;
   --ink: #1a1d26;
+  --ink-rgb: 26 29 38;
   --ember: #eafff2;
+  --ember-rgb: 234 255 242;
   --haze: #8fb8a0;
+  --haze-rgb: 143 184 160;
   --brand: #22e07a;
+  --brand-rgb: 34 224 122;
   --brand-dim: rgba(34, 224, 122, 0.5);
+  --shadow-toxic: 0 0 0 1px rgba(34,224,122,0.35), 0 8px 24px -8px rgba(34,224,122,0.45);
+  --shadow-pink: 0 0 0 1px rgba(255,77,94,0.35), 0 8px 24px -8px rgba(255,77,94,0.4);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --void: #07070b;
+    --void-rgb: 7 7 11;
     --panel: #0d0d15;
+    --panel-rgb: 13 13 21;
     --edge: #1c1c2a;
+    --edge-rgb: 28 28 42;
     --toxic: #a3ff12;
+    --toxic-rgb: 163 255 18;
     --hotpink: #ff2d78;
+    --hotpink-rgb: 255 45 120;
     --cyber: #7b5cff;
+    --cyber-rgb: 123 92 255;
     --dim: #8b8b9e;
+    --dim-rgb: 139 139 158;
     --ink: #eafff2;
+    --ink-rgb: 234 255 242;
     --ember: #eafff2;
+    --ember-rgb: 234 255 242;
     --haze: #8fb8a0;
+    --haze-rgb: 143 184 160;
     --brand: #a3ff12;
+    --brand-rgb: 163 255 18;
     --brand-dim: rgba(163, 255, 18, 0.5);
+    --shadow-toxic: 0 0 0 1px rgba(163,255,18,0.35), 0 8px 24px -8px rgba(163,255,18,0.45);
+    --shadow-pink: 0 0 0 1px rgba(255,45,120,0.35), 0 8px 24px -8px rgba(255,45,120,0.4);
     color-scheme: dark;
   }
 }
@@ -47,18 +73,18 @@ body {
 
 .grid-bg {
   background-image:
-    linear-gradient(rgba(34, 224, 122, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 224, 122, 0.06) 1px, transparent 1px);
+    linear-gradient(rgb(var(--toxic-rgb) / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--toxic-rgb) / 0.06) 1px, transparent 1px);
   background-size: 44px 44px;
   -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
   mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
 }
 
-.text-glow-toxic { text-shadow: 0 0 18px rgba(34, 224, 122, 0.45); }
-.text-glow-pink { text-shadow: 0 0 18px rgba(255, 77, 94, 0.45); }
+.text-glow-toxic { text-shadow: 0 0 18px rgb(var(--toxic-rgb) / 0.45); }
+.text-glow-pink { text-shadow: 0 0 18px rgb(var(--hotpink-rgb) / 0.45); }
 
 .gradient-text {
-  background: linear-gradient(90deg, #1a1d26, #22e07a, #34d399, #1a1d26);
+  background: linear-gradient(90deg, rgb(var(--ink-rgb)), rgb(var(--toxic-rgb)), rgb(var(--cyber-rgb)), rgb(var(--ink-rgb)));
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -79,7 +105,7 @@ body {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgba(34,224,122,0.55), rgba(52,211,153,0.25), transparent 60%);
+  background: linear-gradient(135deg, rgb(var(--toxic-rgb) / 0.55), rgb(var(--cyber-rgb) / 0.25), transparent 60%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -112,15 +138,15 @@ body {
 .flash-up { animation: flash-up 700ms ease-out; }
 .flash-down { animation: flash-down 700ms ease-out; }
 @keyframes flash-up {
-  0% { background-color: rgba(34, 224, 122, 0.4); }
+  0% { background-color: rgb(var(--toxic-rgb) / 0.4); }
   100% { background-color: transparent; }
 }
 @keyframes flash-down {
-  0% { background-color: rgba(255, 77, 94, 0.4); }
+  0% { background-color: rgb(var(--hotpink-rgb) / 0.4); }
   100% { background-color: transparent; }
 }
 
-::selection { background: rgba(34, 224, 122, 0.85); color: #ffffff; }
+::selection { background: rgb(var(--toxic-rgb) / 0.85); color: #ffffff; }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -138,11 +164,15 @@ body {
 .degen-home {
   --bg-0: #04120a;
   --grape: #22e07a;
+  --grape-rgb: 34 224 122;
   --magenta: #5ef2a6;
   --azure: #34d399;
   --ember: #eafff2;
+  --ember-rgb: 234 255 242;
   --ink: #eafff2;
+  --ink-rgb: 234 255 242;
   --haze: #8fb8a0;
+  --haze-rgb: 143 184 160;
   color-scheme: dark;
   position: relative;
   min-height: 100vh;
@@ -155,7 +185,7 @@ body {
     radial-gradient(80% 60% at 12% 8%, rgba(26, 120, 72, 0.22) 0%, transparent 55%),
     linear-gradient(180deg, #03130a 0%, #051a0d 52%, #03110a 100%);
 }
-.degen-home ::selection { background: rgba(34, 224, 122, 0.9); color: #04120a; }
+.degen-home ::selection { background: rgb(var(--grape-rgb) / 0.9); color: #04120a; }
 .degen-home .text-haze { color: var(--haze); }
 
 /* full-page scroll-scrubbed launch video background */
@@ -199,7 +229,7 @@ body {
 
 /* animated white->green gradient text */
 .cosmic-text {
-  background: linear-gradient(100deg, #ffffff, #7cffab, #22e07a, #d6ffe6, #ffffff);
+  background: linear-gradient(100deg, #ffffff, #7cffab, rgb(var(--grape-rgb)), #d6ffe6, #ffffff);
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -241,7 +271,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(from var(--angle, 0deg), transparent 52%, #22e07a, #7cffab, #0f9d58, transparent 92%);
+  background: conic-gradient(from var(--angle, 0deg), transparent 52%, rgb(var(--grape-rgb)), #7cffab, #0f9d58, transparent 92%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -260,17 +290,17 @@ body {
 }
 .card-cosmic:hover {
   transform: translateY(-8px);
-  border-color: rgba(34, 224, 122, 0.34);
-  box-shadow: 0 44px 90px -46px rgba(0,0,0,0.95), 0 0 46px -12px rgba(34, 224, 122, 0.26);
+  border-color: rgb(var(--grape-rgb) / 0.34);
+  box-shadow: 0 44px 90px -46px rgba(0,0,0,0.95), 0 0 46px -12px rgb(var(--grape-rgb) / 0.26);
 }
 .card-cosmic:hover::before { opacity: 1; }
 @property --angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 @keyframes border-spin { to { --angle: 360deg; } }
 
 /* glow helpers */
-.glow-grape   { box-shadow: 0 0 0 1px rgba(34,224,122,0.4), 0 12px 40px -12px rgba(34,224,122,0.6); }
+.glow-grape   { box-shadow: 0 0 0 1px rgb(var(--grape-rgb) / 0.4), 0 12px 40px -12px rgb(var(--grape-rgb) / 0.6); }
 .glow-magenta { box-shadow: 0 0 0 1px rgba(94,242,166,0.4), 0 12px 40px -12px rgba(94,242,166,0.55); }
-.text-glow-grape { text-shadow: 0 0 24px rgba(34, 224, 122, 0.55); }
+.text-glow-grape { text-shadow: 0 0 24px rgb(var(--grape-rgb) / 0.55); }
 
 /* magnetic CTA — green sheen that never sits still */
 .btn-cosmic {
@@ -278,15 +308,15 @@ body {
   isolation: isolate;
   border-radius: 16px;
   /* mirrored stops so the animated pan loops with no visible seam */
-  background: linear-gradient(100deg, #0f9d58, #22e07a, #7cffab, #22e07a, #0f9d58);
+  background: linear-gradient(100deg, #0f9d58, rgb(var(--grape-rgb)), #7cffab, rgb(var(--grape-rgb)), #0f9d58);
   background-size: 220% 100%;
   color: #04160c;
   font-weight: 800;
   animation: cosmic-pan 14s ease-in-out infinite;
-  box-shadow: 0 10px 34px -12px rgba(34, 224, 122, 0.5), 0 1px 0 0 rgba(255,255,255,0.35) inset;
+  box-shadow: 0 10px 34px -12px rgb(var(--grape-rgb) / 0.5), 0 1px 0 0 rgba(255,255,255,0.35) inset;
   transition: transform 0.4s cubic-bezier(0.2,0.7,0.2,1), box-shadow 0.4s;
 }
-.btn-cosmic:hover { box-shadow: 0 18px 54px -14px rgba(34, 224, 122, 0.7), 0 1px 0 0 rgba(255,255,255,0.4) inset; }
+.btn-cosmic:hover { box-shadow: 0 18px 54px -14px rgb(var(--grape-rgb) / 0.7), 0 1px 0 0 rgba(255,255,255,0.4) inset; }
 .btn-ghost {
   border-radius: 14px;
   border: 1px solid rgba(96, 220, 150, 0.32);
@@ -294,7 +324,7 @@ body {
   color: var(--ink);
   transition: border-color 0.25s, background 0.25s, transform 0.25s;
 }
-.btn-ghost:hover { border-color: rgba(34, 224, 122, 0.7); background: rgba(34, 224, 122, 0.1); }
+.btn-ghost:hover { border-color: rgb(var(--grape-rgb) / 0.7); background: rgb(var(--grape-rgb) / 0.1); }
 
 /* two-tone logo: base state is "De" WHITE, "genaration" GREEN; they trade on a slow eased loop */
 .logo-de  { color: #f2f6fb; animation: logo-swap-a 7s ease-in-out infinite; }

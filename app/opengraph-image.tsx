@@ -21,12 +21,12 @@ export default function Image() {
         }}
       >
         <div style={{ display: "flex", fontSize: 88, fontWeight: 800, color: "#ffffff", letterSpacing: -2 }}>
-          DEGEN<span style={{ color: "#22e07a" }}>ARATION</span>
+          DEGEN<span style={{ color: "#a3ff12" }}>ARATION</span>
         </div>
         <div style={{ marginTop: 24, fontSize: 34, color: "#7d828c", maxWidth: 900, textAlign: "center" }}>
           On-chain trading terminal & alpha copy-trading on Solana
         </div>
-        <div style={{ marginTop: 40, fontSize: 24, color: "#22e07a", fontFamily: "monospace" }}>
+        <div style={{ marginTop: 40, fontSize: 24, color: "#a3ff12", fontFamily: "monospace" }}>
           Non-custodial · your keys, your coins
         </div>
       </div>

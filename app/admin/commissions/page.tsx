@@ -18,7 +18,7 @@ export default function Commissions() {
 
   useEffect(() => {
     getCommissionTotals().then(setTotals);
-    if (FEE_WALLET) fetchBalance(FEE_WALLET).then((b) => b && setBalance(b.sol));
+    if (FEE_WALLET) fetchBalance(FEE_WALLET).then((b) => { if (b && !b.error) setBalance(b.sol); });
   }, []);
 
   async function withdraw() {

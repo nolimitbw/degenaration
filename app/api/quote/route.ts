@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint, validBaseUnits, validSlippageBps } from "@/lib/server/guard";
+import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const PLATFORM_FEE_BPS = 200;
@@ -24,13 +24,13 @@ export async function GET(req: NextRequest) {
     url.searchParams.set("amount", String(amount));
     url.searchParams.set("slippageBps", String(slippageBps));
     url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
-    const q = await fetch(url, { cache: "no-store" }).then(r => r.json());
+    const q = await fetchWithTimeout(url, { cache: "no-store" }).then(r => r.json());
     if (q.error) return NextResponse.json({ error: q.error }, { status: 400 });
     return NextResponse.json({
       inAmount: q.inAmount, outAmount: q.outAmount, priceImpactPct: q.priceImpactPct,
       platformFeeBps: PLATFORM_FEE_BPS, route: (q.routePlan ?? []).map((r: any) => r.swapInfo?.label).filter(Boolean)
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/server/guard";
+import { rateLimit, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 /**
  * GET /api/tokens?mode=trending|new
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const mode = req.nextUrl.searchParams.get("mode") === "new" ? "new_pools" : "trending_pools";
 
   try {
-    const gt = await fetch(`${GT}/${mode}?page=1&include=base_token`, { cache: "no-store", headers: { accept: "application/json" } }).then((r) => r.json());
+    const gt = await fetchWithTimeout(`${GT}/${mode}?page=1&include=base_token`, { cache: "no-store", headers: { accept: "application/json" } }).then((r) => r.json());
     const pools: any[] = gt?.data ?? [];
     const now = Date.now();
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       const symbol = (a.name || "").split("/")[0].trim();
       const vol = a.volume_usd ?? {}; const chg = a.price_change_percentage ?? {};
       const tx = (a.transactions ?? {}).h1 ?? (a.transactions ?? {}).h24 ?? {};
-      const created = a.pool_created_at ? new Date(a.pool_created_at).getTime() : null;
+      const created = typeof a.pool_created_at === "string" ? new Date(a.pool_created_at).getTime() || null : null;
       const gtImg = gtTokens.get(rel);
       return {
         address, symbol, name: symbol,
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     // it with null when DexScreener has a pair for this token with no "info" profile.
     const addrs = base.map((t) => t.address).slice(0, 30);
     if (addrs.length) {
-      const ds = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${addrs.join(",")}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+      const ds = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${addrs.join(",")}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
       const info = new Map<string, any>();
       for (const p of ds?.pairs ?? []) {
         const ad = p.baseToken?.address; if (!ad) continue;
@@ -70,6 +70,6 @@ export async function GET(req: NextRequest) {
     const totalVol = base.reduce((s, t) => s + (t.vol24h || 0), 0);
     return NextResponse.json({ tokens: base, stats: { count: base.length, totalVol }, source: "geckoterminal" });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message, tokens: [] }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e), tokens: [] }, { status: 502 });
   }
 }

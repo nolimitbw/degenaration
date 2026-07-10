@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint, validBaseUnits, validSlippageBps } from "@/lib/server/guard";
+import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     qurl.searchParams.set("amount", String(amount));
     qurl.searchParams.set("slippageBps", String(slippageBps));
     if (applyFee) qurl.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
-    const quote = await fetch(qurl, { cache: "no-store" }).then((r) => r.json());
+    const quote = await fetchWithTimeout(qurl, { cache: "no-store" }).then((r) => r.json());
     if (quote.error) return NextResponse.json({ error: quote.error }, { status: 400 });
 
     // reject extreme price impact before building the tx
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     };
     if (applyFee) swapBody.feeAccount = feeAccount;
 
-    const swap = await fetch(`${JUP}/swap`, {
+    const swap = await fetchWithTimeout(`${JUP}/swap`, {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(swapBody)
     }).then((r) => r.json());
     if (swap.error) return NextResponse.json({ error: swap.error }, { status: 400 });
@@ -61,6 +61,6 @@ export async function POST(req: NextRequest) {
       priceImpactPct: quote.priceImpactPct, platformFeeBps: applyFee ? PLATFORM_FEE_BPS : 0, feeAccountSet: applyFee
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

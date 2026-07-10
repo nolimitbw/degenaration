@@ -7,7 +7,7 @@ import { fetchPortfolio, fmtUsd, fmtAmt, getMyTrades, type Portfolio, type Trade
 import PortfolioChart from "@/components/PortfolioChart";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
-const ALLOC_COLORS = ["#22e07a", "#7ff0b8", "#f0b429", "#5ea9ff", "#ff4d5e", "#7d828c"];
+const ALLOC_COLORS = ["#a3ff12", "#7ff0b8", "#f0b429", "#5ea9ff", "#ff4d5e", "#7d828c"];
 
 export default function HoldingsBody() {
   const { authenticated, user, login } = usePrivy();
@@ -48,7 +48,7 @@ export default function HoldingsBody() {
   const totalSpentSol = trades.filter((t) => t.side === "buy").reduce((s, t) => s + (t.sol_amount || 0), 0);
   const totalSoldSol = trades.filter((t) => t.side === "sell").reduce((s, t) => s + (t.sol_amount || 0), 0);
   const netSpentSol = totalSpentSol - totalSoldSol;
-  const currentValueSol = pf?.sol ?? 0 + (pf?.tokenUsd ?? 0) / (pf?.solPrice || 1);
+  const currentValueSol = (pf?.sol ?? 0) + (pf?.tokenUsd ?? 0) / (pf?.solPrice || 1);
   const pnlSol = netSpentSol > 0 ? currentValueSol - netSpentSol : null;
   const pnlPct = netSpentSol > 0 && pnlSol != null ? (pnlSol / netSpentSol) * 100 : null;
 
@@ -100,7 +100,7 @@ export default function HoldingsBody() {
       {chartData.length > 1 && (
         <div className="mt-6 rounded-lg border border-edge bg-panel p-4">
           <p className="mb-2 font-mono text-[11px] uppercase text-dim">Portfolio value (recent trades)</p>
-          <PortfolioChart data={chartData} color={pnlSol != null && pnlSol >= 0 ? "#22e07a" : "#ff4d5e"} />
+          <PortfolioChart data={chartData} color={pnlSol != null && pnlSol >= 0 ? "#a3ff12" : "#ff4d5e"} />
         </div>
       )}
 

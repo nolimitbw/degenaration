@@ -27,16 +27,16 @@ function startMonitor({ positions, getPrice, submitSigned, onEvent }) {
           onEvent({ type: "SL", position: p, mult });
           continue;
         }
-        // TP1: partial sell
-        if (!p.filled.tp1 && mult >= p.settings.tp1) {
+        // TP1: partial sell (tp1 is stored as percentage, e.g. 200 for 2x)
+        if (!p.filled.tp1 && mult >= p.settings.tp1 / 100) {
           const amt = Math.floor(p.amountRaw * (p.settings.tp1sell / 100));
           const { tx } = await sellToken(p.mint, amt, p.userPubkey, p.settings.slippageBps);
           await submitSigned(tx, p.userPubkey);
           p.amountRaw -= amt; p.filled.tp1 = true;
           onEvent({ type: "TP1", position: p, mult });
         }
-        // TP2: partial sell
-        if (!p.filled.tp2 && mult >= p.settings.tp2) {
+        // TP2: partial sell (tp2 is stored as percentage, e.g. 500 for 5x)
+        if (!p.filled.tp2 && mult >= p.settings.tp2 / 100) {
           const amt = Math.floor(p.amountRaw * (p.settings.tp2sell / 100));
           const { tx } = await sellToken(p.mint, amt, p.userPubkey, p.settings.slippageBps);
           await submitSigned(tx, p.userPubkey);

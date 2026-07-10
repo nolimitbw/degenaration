@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, fetchWithTimeout } from "@/lib/server/guard";
 
 /**
  * POST /api/ingest-call  — the Discord bot posts detected calls here.
@@ -30,31 +30,35 @@ export async function POST(req: NextRequest) {
   const H = { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
 
   // 1. Channel must be an approved call channel.
-  const chans = await fetch(`${SB}/rest/v1/call_channels?channel_id=eq.${encodeURIComponent(channelId)}&status=eq.approved&select=group_id,guild_name`, { headers: H }).then((r) => r.json()).catch(() => null);
+  const chans = await fetchWithTimeout(`${SB}/rest/v1/call_channels?channel_id=eq.${encodeURIComponent(channelId)}&status=eq.approved&select=group_id,guild_name`, { headers: H }).then((r) => r.json()).catch(() => null);
   const chan = Array.isArray(chans) ? chans[0] : null;
   if (!chan) return NextResponse.json({ error: "channel not approved" }, { status: 403 });
 
   // 2. Resolve the group name (for the leaderboard) + enrich with live price data.
   let groupName: string | null = chan.guild_name ?? null;
   if (chan.group_id) {
-    const g = await fetch(`${SB}/rest/v1/approved_groups?id=eq.${chan.group_id}&select=name`, { headers: H }).then((r) => r.json()).catch(() => null);
+    const g = await fetchWithTimeout(`${SB}/rest/v1/approved_groups?id=eq.${chan.group_id}&select=name`, { headers: H }).then((r) => r.json()).catch(() => null);
     if (Array.isArray(g) && g[0]?.name) groupName = g[0].name;
   }
   let symbol: string | null = null, calledMcap: number | null = null;
   try {
-    const px = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" }).then((r) => r.json());
+    const px = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" }).then((r) => r.json());
     const pair = (px?.pairs ?? []).sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
     if (pair) { symbol = pair.baseToken?.symbol ?? null; calledMcap = pair.fdv ?? pair.marketCap ?? null; }
   } catch { /* enrichment is best-effort */ }
 
   // 3. Record the call (dedup on message_id via unique index -> ignore duplicates).
-  const res = await fetch(`${SB}/rest/v1/calls`, {
-    method: "POST",
-    headers: { ...H, prefer: "resolution=ignore-duplicates,return=minimal" },
-    body: JSON.stringify({ group_id: chan.group_id, group_name: groupName, mint, symbol, called_mcap: calledMcap, message_id: messageId ?? null, raw: (raw ?? "").slice(0, 500) })
-  });
-  if (!res.ok && res.status !== 409) {
-    return NextResponse.json({ error: "record failed", status: res.status }, { status: 502 });
+  try {
+    const res = await fetchWithTimeout(`${SB}/rest/v1/calls`, {
+      method: "POST",
+      headers: { ...H, prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: JSON.stringify({ group_id: chan.group_id, group_name: groupName, mint, symbol, called_mcap: calledMcap, message_id: messageId ?? null, raw: (raw ?? "").slice(0, 500) })
+    });
+    if (!res.ok && res.status !== 409) {
+      return NextResponse.json({ error: "record failed", status: res.status }, { status: 502 });
+    }
+  } catch {
+    return NextResponse.json({ error: "record failed" }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true, group: groupName, mint, symbol });

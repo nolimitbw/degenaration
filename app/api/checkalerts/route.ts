@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/server/guard";
+import { rateLimit, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 /**
  * POST /api/checkalerts  body: { alerts: [{ id, mint, kind, target }] }
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const triggered: string[] = [];
   try {
     if (mints.length) {
-      const data = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mints.join(",")}`, { cache: "no-store" }).then(r => r.json());
+      const data = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mints.join(",")}`, { cache: "no-store" }).then(r => r.json());
       const price: Record<string, number> = {};
       for (const p of data?.pairs ?? []) {
         const a = p.baseToken?.address; const v = Number(p.priceUsd);
@@ -29,6 +29,6 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ triggered });
   } catch (e: any) {
-    return NextResponse.json({ triggered: [], error: e.message });
+    return NextResponse.json({ triggered: [], error: sanitizeError(e) });
   }
 }

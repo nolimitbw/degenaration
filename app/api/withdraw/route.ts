@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint, validAmount } from "@/lib/server/guard";
+import { rateLimit, isMint, validAmount, sanitizeError } from "@/lib/server/guard";
 
 /**
  * POST /api/withdraw
@@ -45,6 +45,6 @@ export async function POST(req: NextRequest) {
     const serialized = tx.serialize({ requireAllSignatures: false }).toString("base64");
     return NextResponse.json({ transaction: serialized, lamports });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

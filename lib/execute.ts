@@ -35,7 +35,7 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     const res = await fetch("/api/swap", {
       method: "POST",
       headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
-      body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: Math.floor(args.solAmount * 1e9), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
+      body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: BigInt(Math.round(args.solAmount * 1e9)).toString(), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
     }).then((r) => r.json());
     if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
 

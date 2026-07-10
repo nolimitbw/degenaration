@@ -7,7 +7,7 @@ export default function Search() {
   const [q, setQ] = useState("");
   const [res, setRes] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const t = useRef<any>(null);
+  const t = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (t.current) clearTimeout(t.current);
     if (q.length < 2) { setRes([]); return; }
@@ -15,6 +15,7 @@ export default function Search() {
       const d = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => null);
       setRes(d?.results ?? []); setOpen(true);
     }, 250);
+    return () => { if (t.current) clearTimeout(t.current); };
   }, [q]);
   const go = (addr: string) => { setOpen(false); setQ(""); router.push(`/terminal?mint=${addr}`); };
   return (

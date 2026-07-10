@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 // GET /api/token-balance?owner=<pubkey>&mint=<mint>&net= -> raw + ui token balance for one mint.
 // Read-only RPC call; used by the Sell flow to compute an exact raw amount (no decimal guessing).
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     ? "https://api.devnet.solana.com"
     : (process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com");
   try {
-    const r = await fetch(rpc, {
+    const r = await fetchWithTimeout(rpc, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({
         jsonrpc: "2.0", id: 1, method: "getTokenAccountsByOwner",
@@ -33,6 +33,6 @@ export async function GET(req: NextRequest) {
     const uiAmount = decimals > 0 ? Number(raw) / 10 ** decimals : Number(raw);
     return NextResponse.json({ owner, mint, rawAmount: raw.toString(), decimals, uiAmount });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

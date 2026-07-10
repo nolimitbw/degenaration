@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, sanitizeError } from "@/lib/server/guard";
 import { ttlFetchSafe } from "@/lib/server/cache";
 import { deepestPool } from "@/lib/server/pools";
 
@@ -29,6 +29,6 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => a.t - b.t);
     return NextResponse.json({ candles, pool });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message, candles: [] }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e), candles: [] }, { status: 502 });
   }
 }

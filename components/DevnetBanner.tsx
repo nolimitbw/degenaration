@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 // Mainnet-only risk banner. Real funds, real trades — shown until dismissed.
-export default function RiskBanner() {
+export default function DevnetBanner() {
   const [show, setShow] = useState(true);
   if (!show) return null;
   return (

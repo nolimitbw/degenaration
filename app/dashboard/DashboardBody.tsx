@@ -15,7 +15,7 @@ export default function DashboardBody() {
   const [feesPaid, setFeesPaid] = useState(0);
 
   useEffect(() => {
-    if (address) fetchBalance(address, getNet()).then((b) => b && setBalance(b.sol));
+    if (address) fetchBalance(address, getNet()).then((b) => { if (b && !b.error) setBalance(b.sol); });
     getMyTrades().then((t) => { setTrades(t); setFeesPaid(t.reduce((s, x) => s + Number(x.fee_sol || 0), 0)); });
   }, [address]);
 

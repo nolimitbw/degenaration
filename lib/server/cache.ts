@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "./guard";
+
 /**
  * Tiny in-memory TTL cache with in-flight request coalescing for upstream JSON APIs.
  * Free data sources (GeckoTerminal, DexScreener) rate-limit hard; this collapses bursts
@@ -18,7 +20,7 @@ export async function ttlFetch(url: string, ttlMs = 15_000, init?: RequestInit):
   const pending = INFLIGHT.get(url);
   if (pending) return pending;
 
-  const p = fetch(url, { cache: "no-store", ...init })
+  const p = fetchWithTimeout(url, { cache: "no-store", ...init })
     .then((r) => {
       // A non-2xx (e.g. upstream rate-limit) can still have a parseable JSON body
       // shaped nothing like the real payload — never cache that as if it were data.

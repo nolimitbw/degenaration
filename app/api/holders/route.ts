@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 // GET /api/holders?mint= -> top token holders (RPC getTokenLargestAccounts) + supply
 export async function GET(req: NextRequest) {
@@ -11,9 +11,9 @@ export async function GET(req: NextRequest) {
   const rpc = net === "mainnet" ? (process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com") : (net === "devnet" ? "https://api.devnet.solana.com" : (process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com"));
   try {
     const [largest, supply] = await Promise.all([
-      fetch(rpc, { method: "POST", headers: { "content-type": "application/json" },
+      fetchWithTimeout(rpc, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getTokenLargestAccounts", params: [mint] }) }).then(r => r.json()),
-      fetch(rpc, { method: "POST", headers: { "content-type": "application/json" },
+      fetchWithTimeout(rpc, { method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "getTokenSupply", params: [mint] }) }).then(r => r.json())
     ]);
     const total = Number(supply?.result?.value?.uiAmount) || 0;
@@ -24,6 +24,6 @@ export async function GET(req: NextRequest) {
     }));
     return NextResponse.json({ holders, totalSupply: total });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message, holders: [] }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e), holders: [] }, { status: 502 });
   }
 }

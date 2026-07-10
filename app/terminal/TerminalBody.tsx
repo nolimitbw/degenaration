@@ -112,25 +112,27 @@ export default function TerminalBody() {
     for (let attempt = 1; attempt <= retries; attempt++) {
       if (preview?.side === "sell") {
         const r = await executeSell({ mint, pct: sellPct / 100, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
-        setExecuting(false);
         if (r.ok) {
+          setExecuting(false);
           toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
           setPreviewOpen(false);
           setTimeout(loadBalance, 4000);
           return;
         }
         if (attempt < retries) { toast(`Retry ${attempt}/${retries - 1}…`, "info"); continue; }
+        setExecuting(false);
         toast(r.error || "Sell failed", "err");
       } else {
         const r = await executeBuy({ mint, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
-        setExecuting(false);
         if (r.ok) {
+          setExecuting(false);
           toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
           setPreviewOpen(false);
           setTimeout(loadBalance, 4000);
           return;
         }
         if (attempt < retries) { toast(`Retry ${attempt}/${retries - 1}…`, "info"); continue; }
+        setExecuting(false);
         toast(r.error || "Buy failed", "err");
       }
     }

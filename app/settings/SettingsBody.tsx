@@ -7,7 +7,7 @@ import { getSolanaAddress } from "@/lib/solanaWallet";
 // Account settings. Supabase sections (password/2FA) apply to email/password accounts;
 // the wallet card covers Privy (Google/email) users who sign in with an embedded wallet.
 export default function SettingsBody() {
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user, logout } = usePrivy();
   const [email, setEmail] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
   const [joined, setJoined] = useState<string | null>(null);
@@ -53,6 +53,7 @@ export default function SettingsBody() {
 
   async function signOutAll() {
     await supabase.auth.signOut({ scope: "global" });
+    logout();
     setMsg("Signed out of all sessions.");
   }
 
@@ -88,33 +89,37 @@ export default function SettingsBody() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-edge bg-panel p-5">
-          <h2 className="font-bold">Change password</h2>
-          <p className="mt-1 text-xs text-dim">For email/password accounts.</p>
-          <div className="mt-3 flex gap-2">
-            <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password"
-              className="flex-1 rounded-md border border-edge bg-void px-3 py-2 text-sm outline-none focus:border-toxic" />
-            <button onClick={changePassword} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Update</button>
-          </div>
-        </section>
-
-        <section className="rounded-lg border border-edge bg-panel p-5">
-          <h2 className="font-bold">Two-factor authentication (2FA)</h2>
-          <p className="mt-1 text-xs text-dim">Add an authenticator app for an extra layer of security.</p>
-          {!qr ? (
-            <button onClick={enroll2FA} className="mt-3 rounded-md border border-edge px-4 py-2 text-sm font-bold transition hover:border-toxic hover:text-toxic">Enable 2FA</button>
-          ) : (
-            <div className="mt-3">
-              <img src={qr} alt="2FA QR code" className="h-40 w-40 rounded bg-white p-2" />
-              <p className="mt-2 text-xs text-dim">Scan with your authenticator, then enter the 6-digit code:</p>
-              <div className="mt-2 flex gap-2">
-                <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6}
-                  className="w-32 rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic" />
-                <button onClick={verify2FA} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Verify</button>
-              </div>
+        {email && (
+          <section className="rounded-lg border border-edge bg-panel p-5">
+            <h2 className="font-bold">Change password</h2>
+            <p className="mt-1 text-xs text-dim">For email/password accounts.</p>
+            <div className="mt-3 flex gap-2">
+              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password"
+                className="flex-1 rounded-md border border-edge bg-void px-3 py-2 text-sm outline-none focus:border-toxic" />
+              <button onClick={changePassword} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Update</button>
             </div>
-          )}
-        </section>
+          </section>
+        )}
+
+        {email && (
+          <section className="rounded-lg border border-edge bg-panel p-5">
+            <h2 className="font-bold">Two-factor authentication (2FA)</h2>
+            <p className="mt-1 text-xs text-dim">Add an authenticator app for an extra layer of security.</p>
+            {!qr ? (
+              <button onClick={enroll2FA} className="mt-3 rounded-md border border-edge px-4 py-2 text-sm font-bold transition hover:border-toxic hover:text-toxic">Enable 2FA</button>
+            ) : (
+              <div className="mt-3">
+                <img src={qr} alt="2FA QR code" className="h-40 w-40 rounded bg-white p-2" />
+                <p className="mt-2 text-xs text-dim">Scan with your authenticator, then enter the 6-digit code:</p>
+                <div className="mt-2 flex gap-2">
+                  <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6}
+                    className="w-32 rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic" />
+                  <button onClick={verify2FA} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Verify</button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="rounded-lg border border-edge bg-panel p-5">
           <h2 className="font-bold">Sessions</h2>

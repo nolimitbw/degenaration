@@ -69,3 +69,20 @@ export function validSlippageBps(raw: unknown): number {
   if (!Number.isFinite(n) || n < 1) return 300;
   return Math.min(n, 2000); // cap at 20% to reject insane slippage
 }
+
+const FETCH_TIMEOUT_MS = 15_000;
+export async function fetchWithTimeout(url: string | URL | Request, options?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function sanitizeError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  return msg.replace(/^.*Error:\s*/i, "").split("\n")[0].slice(0, 200);
+}

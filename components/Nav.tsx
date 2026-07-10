@@ -35,7 +35,7 @@ export default function Nav() {
         animate={{ y: scrolled ? 0 : [0, -3, 0] }}
         transition={scrolled ? { duration: 0.3 } : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
         className={`glass-cosmic flex items-center gap-2 rounded-full transition-all duration-300 ${
-          scrolled ? "px-3 py-1.5 shadow-[0_10px_40px_-12px_rgba(34,224,122,0.5)]" : "px-4 py-2.5"
+          scrolled ? "px-3 py-1.5 shadow-[0_10px_40px_-12px_rgb(var(--toxic-rgb)/.5)]" : "px-4 py-2.5"
         }`}
         style={{ backdropFilter: scrolled ? "blur(22px) saturate(160%)" : "blur(14px) saturate(140%)" }}
       >

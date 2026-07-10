@@ -22,7 +22,7 @@ export function useQuickBuyPresets() {
       if (!alive) return;
       if (p?.quick_buy_amounts?.length) setPresets(p.quick_buy_amounts);
       setLoaded(true);
-    });
+    }).catch(() => { if (alive) setLoaded(true); });
     const onSync = (e: any) => setPresets(e.detail);
     window.addEventListener(SYNC_EVENT, onSync);
     return () => { alive = false; window.removeEventListener(SYNC_EVENT, onSync); };

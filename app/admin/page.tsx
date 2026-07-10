@@ -17,14 +17,18 @@ export default function Admin() {
 
   async function approve(a: Application) {
     setBusy(a.id);
-    await approveApplication(a);
-    await load();
+    try {
+      await approveApplication(a);
+      await load();
+    } catch {}
     setBusy(null);
   }
   async function reject(a: Application) {
     setBusy(a.id);
-    await rejectApplication(a.id);
-    await load();
+    try {
+      await rejectApplication(a.id);
+      await load();
+    } catch {}
     setBusy(null);
   }
 

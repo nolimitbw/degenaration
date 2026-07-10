@@ -97,7 +97,11 @@ export default function TrackerBody() {
     toast(`Copying ${lbl} — ${settings.size} SOL/trade`); setCopyFor(null); getMyCopySubs().then(setSubs);
   }
   async function disableCopy(leader: string) {
-    await removeCopySub(leader); toast("Copy trade stopped"); getMyCopySubs().then(setSubs);
+    try {
+      const { error } = await removeCopySub(leader);
+      if (error) { toast(error.message || "Could not stop copy", "err"); return; }
+      toast("Copy trade stopped"); getMyCopySubs().then(setSubs);
+    } catch { toast("Could not stop copy", "err"); }
   }
 
   useEffect(() => {
@@ -109,7 +113,7 @@ export default function TrackerBody() {
     if (typeof window !== "undefined") localStorage.setItem("degen_tracked", JSON.stringify(wallets));
     let alive = true;
     const load = () => wallets.forEach(async (w) => {
-      setLoading((l) => ({ ...l, [w.address]: !pfs[w.address] }));
+      setLoading((l) => ({ ...l, [w.address]: true }));
       const p = await fetchPortfolio(w.address, getNet());
       if (alive && p && !(p as any).error) setPfs((prev) => ({ ...prev, [w.address]: p }));
       setLoading((l) => ({ ...l, [w.address]: false }));

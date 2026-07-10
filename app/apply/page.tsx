@@ -19,8 +19,18 @@ export default function Apply() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const trimmed = {
+      server_name: form.server_name.trim(),
+      invite_link: form.invite_link.trim(),
+      owner_handle: form.owner_handle.trim(),
+      member_count: form.member_count.trim(),
+      pitch: form.pitch.trim()
+    };
+    if (!trimmed.server_name || trimmed.server_name.length > 100) { setErr("Server name is required (max 100 chars)"); return; }
+    if (!trimmed.invite_link || trimmed.invite_link.length > 200) { setErr("Valid invite link is required"); return; }
+    if (!trimmed.owner_handle || trimmed.owner_handle.length > 100) { setErr("Your Discord username is required"); return; }
     setBusy(true); setErr(null);
-    const { error } = await submitApplication(form);
+    const { error } = await submitApplication(trimmed);
     setBusy(false);
     if (error) { setErr("Could not submit yet — run the database schema first, then try again."); return; }
     setSent(true);

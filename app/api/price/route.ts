@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint } from "@/lib/server/guard";
+import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (!isMint(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
   try {
     const targets = mint === SOL_MINT ? SOL_MINT : `${SOL_MINT},${mint}`;
-    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${targets}`, { cache: "no-store" });
+    const r = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${targets}`, { cache: "no-store" });
     const j = await r.json();
 
     let solPrice = 0;
@@ -36,6 +36,6 @@ export async function GET(req: NextRequest) {
       found: true
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 });
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }
 }

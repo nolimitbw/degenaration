@@ -18,7 +18,7 @@ export default function GlowCard({ children, className = "" }: { children: React
         className="pointer-events-none absolute -inset-px opacity-0 transition-opacity duration-300"
         style={{
           opacity: pos.x > -100 ? 1 : 0,
-          background: `radial-gradient(320px circle at ${pos.x}px ${pos.y}px, rgba(34,224,122,0.10), transparent 60%)`
+          background: `radial-gradient(320px circle at ${pos.x}px ${pos.y}px, rgb(var(--toxic-rgb) / .10), transparent 60%)`
         }}
       />
       {children}

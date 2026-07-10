@@ -9,6 +9,7 @@ export default function Cards({ rows, loading, onPick }: { rows: Tok[]; loading:
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {loading && Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-40 animate-pulse rounded-lg border border-edge bg-panel/40" />)}
+      {!loading && !rows.length && <div className="col-span-full grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center"><p className="text-sm font-bold text-dim">No tokens found</p></div>}
       {!loading && rows.map((t) => (
         <div key={t.address} role="button" tabIndex={0} aria-label={`View ${t.symbol ?? "token"} details`}
           onClick={() => onPick(t)}
