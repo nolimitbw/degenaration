@@ -11,6 +11,7 @@ import { getRpc } from "@/lib/net";
 import { useToast } from "@/components/Toast";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 import { getSolanaAddress } from "@/lib/solanaWallet";
+import Candles from "./Candles";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
@@ -24,13 +25,14 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
   const [rug, setRug] = useState<any>(null);
   const [conc, setConc] = useState<number | null>(null);
   const [pool, setPool] = useState<string | null>(null);
+  const [candles, setCandles] = useState<any[]>([]);
   const [amount, setAmount] = useState(0.5);
   const [slippage, setSlippage] = useState(3);
   const [sim, setSim] = useState<any>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setSim(null); setPrice(null); setRug(null); setConc(null); setPool(null);
+    setSim(null); setPrice(null); setRug(null); setConc(null); setPool(null); setCandles([]);
     if (!token) return;
     const mint = token.address;
     fetch(`/api/price?mint=${mint}`).then((r) => r.json()).then(setPrice).catch(() => {});
@@ -39,9 +41,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
       const top = (d?.holders ?? []).slice(0, 10).reduce((s: number, h: any) => s + (h.pct || 0), 0);
       setConc(top || null);
     }).catch(() => {});
-    // GeckoTerminal's own embed — the same source trenches/explorer list from, so a pool
-    // exists here well before DexScreener's separate "info" profile ever gets indexed
-    fetch(`/api/ohlcv?mint=${mint}&tf=hour`).then((r) => r.json()).then((d) => setPool(d?.pool ?? null)).catch(() => {});
+    fetch(`/api/ohlcv?mint=${mint}&tf=hour`).then((r) => r.json()).then((d) => { setPool(d?.pool ?? null); setCandles(d?.candles ?? []); }).catch(() => {});
   }, [token]);
 
   useEffect(() => {
@@ -120,14 +120,17 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           </div>
         )}
 
-        {/* chart — GeckoTerminal's own embed: the same source trenches/explorer are built
-            from, so it has a pool indexed far more reliably/quickly than DexScreener's
-            separate "info" profile for brand-new launches */}
         <div className="mt-4">
           {pool ? (
             <iframe key={pool} src={`https://www.geckoterminal.com/solana/pools/${pool}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0`} className="h-72 w-full rounded-md border border-edge" title="chart" />
-          ) : (
+          ) : price?.pairAddress ? (
+            <iframe key={price.pairAddress} src={`https://dexscreener.com/${price.chainId || "solana"}/${price.pairAddress}?embed=1&theme=dark&trades=0&info=0`} className="h-72 w-full rounded-md border border-edge" title="chart" />
+          ) : candles.length > 0 ? (
+            <Candles data={candles} />
+          ) : price ? (
             <div className="grid h-72 place-items-center rounded-md border border-edge bg-void text-sm text-dim">No chart data yet — check back in a few minutes.</div>
+          ) : (
+            <div className="grid h-72 place-items-center rounded-md border border-edge bg-void text-sm text-dim">Loading chart…</div>
           )}
         </div>
 
