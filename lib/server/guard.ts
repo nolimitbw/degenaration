@@ -70,7 +70,7 @@ export function validSlippageBps(raw: unknown): number {
   return Math.min(n, 2000); // cap at 20% to reject insane slippage
 }
 
-const FETCH_TIMEOUT_MS = 15_000;
+const FETCH_TIMEOUT_MS = 30_000;
 export async function fetchWithTimeout(url: string | URL | Request, options?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
