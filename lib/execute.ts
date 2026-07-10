@@ -1,6 +1,7 @@
 "use client";
 import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
+import { fetchWithTimeout, sanitizeError } from "./server/guard";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
@@ -32,7 +33,8 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     if (!pubkey) return { ok: false, error: "Wallet not connected" };
 
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/swap", {
+    const url = `/api/swap`;
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
       body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: BigInt(Math.round(args.solAmount * 1e9)).toString(), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
@@ -54,7 +56,7 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     }
     return { ok: true, sig };
   } catch (e: any) {
-    return { ok: false, error: e.message || "signing cancelled" };
+    return { ok: false, error: sanitizeError(e) || "signing cancelled" };
   }
 }
 
@@ -73,7 +75,7 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
 
     const pct = Math.min(1, Math.max(0, args.pct));
     if (pct <= 0) return { ok: false, error: "Pick a sell amount" };
-    const bal = await fetch(`/api/token-balance?owner=${pubkey}&mint=${args.mint}&net=${getNet()}`).then((r) => r.json());
+    const bal = await fetchWithTimeout(`/api/token-balance?owner=${pubkey}&mint=${args.mint}&net=${getNet()}`).then((r) => r.json());
     if (bal.error) return { ok: false, error: bal.error };
     const rawTotal = BigInt(bal.rawAmount || "0");
     if (rawTotal <= BigInt(0)) return { ok: false, error: "You don't hold this token" };
@@ -81,7 +83,7 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
     if (amount <= BigInt(0)) return { ok: false, error: "Amount too small" };
 
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/swap", {
+    const res = await fetchWithTimeout("/api/swap", {
       method: "POST",
       headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
       body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: amount.toString(), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
@@ -97,7 +99,7 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
     const soldUi = bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount);
     const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
     if (session?.access_token) {
-      await fetch("/api/record-trade", {
+      await fetchWithTimeout("/api/record-trade", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual" })
@@ -105,6 +107,6 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
     }
     return { ok: true, sig, soldUi };
   } catch (e: any) {
-    return { ok: false, error: e.message || "signing cancelled" };
+    return { ok: false, error: sanitizeError(e) || "signing cancelled" };
   }
 }

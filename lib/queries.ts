@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { fetchWithTimeout, sanitizeError } from "./server/guard";
 
 export type Group = {
   id: string;
@@ -88,10 +89,10 @@ export async function getMyTrades(): Promise<Trade[]> {
 
 /** Live price + rug-check helpers that call our API routes. */
 export async function fetchPrice(mint: string) {
-  return fetch(`/api/price?mint=${mint}`).then((r) => r.json()).catch(() => null);
+  return fetchWithTimeout(`/api/price?mint=${mint}`).then((r) => r.json()).catch(() => null);
 }
 export async function fetchRugcheck(mint: string) {
-  return fetch(`/api/rugcheck?mint=${mint}`).then((r) => r.json()).catch(() => null);
+  return fetchWithTimeout(`/api/rugcheck?mint=${mint}`).then((r) => r.json()).catch(() => null);
 }
 
 // ---- admin ----
@@ -163,7 +164,7 @@ export async function getCommissionTotals() {
 
 export async function fetchBalance(address: string, net?: string) {
   const q = net ? `&net=${net}` : "";
-  return fetch(`/api/balance?address=${address}${q}`).then((r) => r.json()).catch(() => null);
+  return fetchWithTimeout(`/api/balance?address=${address}${q}`).then((r) => r.json()).catch(() => null);
 }
 
 // ---- real on-chain portfolio (SPL holdings priced live) ----
@@ -177,7 +178,7 @@ export type Portfolio = {
 };
 export async function fetchPortfolio(address: string, net?: string): Promise<Portfolio | null> {
   const q = net ? `&net=${net}` : "";
-  return fetch(`/api/portfolio?address=${address}${q}`).then((r) => r.json()).catch(() => null);
+  return fetchWithTimeout(`/api/portfolio?address=${address}${q}`).then((r) => r.json()).catch(() => null);
 }
 export function fmtUsd(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "—";

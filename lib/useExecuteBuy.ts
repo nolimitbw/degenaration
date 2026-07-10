@@ -4,6 +4,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useSendTransaction } from "@privy-io/react-auth/solana";
 import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
+import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { executeBuy as extensionBuy } from "./execute";
 import { getSolanaAddress } from "./solanaWallet";
 
@@ -34,7 +35,7 @@ export function useExecuteBuy() {
         headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
         body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: String(Math.round(args.solAmount * 1e9)), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
       }).then((r) => r.json());
-      if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
+      if (res.error || !res.swapTransaction)         return { ok: false, error: res.error || "could not build swap" };
 
       const web3 = await import("@solana/web3.js");
       const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
@@ -44,7 +45,7 @@ export function useExecuteBuy() {
       const sig = receipt?.signature ?? undefined;
 
       if (session?.access_token) {
-        await fetch("/api/record-trade", {
+        await fetchWithTimeout("/api/record-trade", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual" })
@@ -54,8 +55,8 @@ export function useExecuteBuy() {
     } catch (e: any) {
       // The linked Solana wallet is EXTERNAL (Phantom/Solflare/Backpack), not a Privy
       // embedded wallet, so useSendTransaction rejects it — fall back to adapter signing.
-      if (/embedded/i.test(e?.message || "")) return extensionBuy(args);
-      return { ok: false, error: e.message || "signing cancelled" };
+      if (/embedded/i.test(sanitizeError(e) || "")) return extensionBuy(args);
+      return { ok: false, error: sanitizeError(e) || "signing cancelled" };
     }
   }, [authenticated, embeddedAddr, sendTransaction]);
 }

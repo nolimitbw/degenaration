@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (!id || !["approve", "reject"].includes(action)) return NextResponse.json({ error: "bad request" }, { status: 400 });
 
   if (action === "reject") {
-    try { await fetchWithTimeout(`${s.SB}/rest/v1/call_channels?id=eq.${id}`, { method: "PATCH", headers: { ...s.H, prefer: "return=minimal" }, body: JSON.stringify({ status: "rejected" }) }); } catch {}
+    await fetchWithTimeout(`${s.SB}/rest/v1/call_channels?id=eq.${id}`, { method: "PATCH", headers: { ...s.H, prefer: "return=minimal" }, body: JSON.stringify({ status: "rejected" }) });
     return NextResponse.json({ ok: true });
   }
 
@@ -61,6 +61,6 @@ export async function POST(req: NextRequest) {
     }).then((r) => r.json()).catch(() => null);
     groupId = Array.isArray(created) ? created[0]?.id : null;
   }
-  try { await fetchWithTimeout(`${s.SB}/rest/v1/call_channels?id=eq.${id}`, { method: "PATCH", headers: { ...s.H, prefer: "return=minimal" }, body: JSON.stringify({ status: "approved", group_id: groupId }) }); } catch {}
+  await fetchWithTimeout(`${s.SB}/rest/v1/call_channels?id=eq.${id}`, { method: "PATCH", headers: { ...s.H, prefer: "return=minimal" }, body: JSON.stringify({ status: "approved", group_id: groupId }) });
   return NextResponse.json({ ok: true, group_id: groupId });
 }

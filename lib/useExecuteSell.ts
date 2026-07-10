@@ -4,6 +4,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useSendTransaction } from "@privy-io/react-auth/solana";
 import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
+import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { getSolanaAddress } from "./solanaWallet";
 import { executeSell as extensionSell } from "./execute";
 
@@ -40,7 +41,7 @@ export function useExecuteSell() {
       if (amount <= BigInt(0)) return { ok: false, error: "Amount too small" };
 
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/swap", {
+      const res = await fetchWithTimeout("/api/swap", {
         method: "POST",
         headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
         body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: amount.toString(), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net, mev: args.mev ?? true })
@@ -57,7 +58,7 @@ export function useExecuteSell() {
       const soldUi = (bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount));
       const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
       if (session?.access_token) {
-        await fetch("/api/record-trade", {
+        await fetchWithTimeout("/api/record-trade", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual" })
@@ -67,8 +68,8 @@ export function useExecuteSell() {
     } catch (e: any) {
       // External (non-embedded) Solana wallet: Privy's embedded-only sender can't sign it —
       // fall back to adapter signing so Phantom/Solflare/Backpack users can also sell.
-      if (/embedded/i.test(e?.message || "")) return extensionSell(args);
-      return { ok: false, error: e.message || "signing cancelled" };
+      if (/embedded/i.test(sanitizeError(e) || "")) return extensionSell(args);
+      return { ok: false, error: sanitizeError(e) || "signing cancelled" };
     }
   }, [authenticated, embeddedAddr, sendTransaction]);
 }
