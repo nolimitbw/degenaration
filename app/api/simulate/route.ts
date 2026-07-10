@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const q = await fetch(url, { cache: "no-store" }).then((r) => r.json());
     if (q.error) return NextResponse.json({ error: q.error }, { status: 400 });
     const out = Number(q.outAmount);
-    const impact = Math.abs(Number(q.priceImpactPct) * 100);
+    const impact = Math.abs(Number(q.priceImpactPct));
     const feeSol = (amount / 1e9) * (PLATFORM_FEE_BPS / 10000);
     const minReceived = q.otherAmountThreshold ? Number(q.otherAmountThreshold) : Math.floor(out * (1 - slippageBps / 10000));
     return NextResponse.json({

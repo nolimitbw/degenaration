@@ -3,7 +3,6 @@
  * Uses free public APIs; engine skips the trade + notifies user on any failure.
  */
 const MIN_LIQUIDITY_USD = 10_000;
-const MAX_TOP10_PCT = 45;
 
 async function rugCheck(mint) {
   const reasons = [];

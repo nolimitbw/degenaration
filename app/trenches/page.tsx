@@ -113,12 +113,12 @@ export default function Trenches() {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-xs">
           {(["new", "trending"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1.5 font-bold transition ${tab === t ? "bg-toxic text-white" : "text-dim hover:text-gray-900"}`}>{t.toUpperCase()}</button>
+            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1.5 font-bold transition ${tab === t ? "bg-toxic text-white" : "text-dim hover:text-ink"}`}>{t.toUpperCase()}</button>
           ))}
         </div>
         <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-xs">
           {(["hot", "new", "volume", "gainers"] as Sort[]).map((sopt) => (
-            <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-cyber/20 text-cyber" : "text-dim hover:text-gray-900"}`}>{sopt.toUpperCase()}</button>
+            <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-cyber/20 text-cyber" : "text-dim hover:text-ink"}`}>{sopt.toUpperCase()}</button>
           ))}
         </div>
         <QuickBuyEditor presets={BUY_PRESETS} loaded={presetsLoaded} onSave={saveBuyPresets} />
@@ -141,9 +141,9 @@ export default function Trenches() {
                 <FlashValue value={t.change24h} className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</FlashValue>
               </div>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
-              <div><p className="text-dim">MC</p><FlashValue value={t.marketCap} className="text-gray-900">{fmtNum(t.marketCap)}</FlashValue></div>
-              <div><p className="text-dim">Liq</p><FlashValue value={t.liquidityUsd} className="text-gray-900">{fmtNum(t.liquidityUsd)}</FlashValue></div>
-              <div><p className="text-dim">1h Vol</p><FlashValue value={t.vol1h} className="text-gray-900">{fmtNum(t.vol1h)}</FlashValue></div>
+              <div><p className="text-dim">MC</p><FlashValue value={t.marketCap} className="text-ink">{fmtNum(t.marketCap)}</FlashValue></div>
+              <div><p className="text-dim">Liq</p><FlashValue value={t.liquidityUsd} className="text-ink">{fmtNum(t.liquidityUsd)}</FlashValue></div>
+              <div><p className="text-dim">1h Vol</p><FlashValue value={t.vol1h} className="text-ink">{fmtNum(t.vol1h)}</FlashValue></div>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-1 font-mono text-[10px]">
               {([["5m", t.change5m], ["1h", t.change1h], ["24h", t.change24h]] as const).map(([l, v]) => (
@@ -166,7 +166,7 @@ export default function Trenches() {
                   );
                 })}
               </div>
-              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-gray-900" title={x.type} aria-label={x.type}>↗</a>)}
+              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-ink" title={x.type} aria-label={x.type}>↗</a>)}
             </div>
             <Link href={`/terminal?mint=${t.address}`} onClick={(e) => e.stopPropagation()} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Quick trade →</Link>
           </div>

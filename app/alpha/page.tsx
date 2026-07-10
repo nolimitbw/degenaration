@@ -30,10 +30,10 @@ export default function Alpha() {
           <h1 className="text-2xl font-bold">Alpha leaderboard</h1>
           <p className="mt-1 text-sm text-dim">Groups and callers ranked by real recorded on-chain performance.</p>
         </div>
-        <div className="flex gap-2">{["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-toxic text-toxic":"border-edge text-dim hover:text-gray-900"}`}>{t}</button>)}</div>
+        <div className="flex gap-2">{["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-toxic text-toxic":"border-edge text-dim hover:text-ink"}`}>{t}</button>)}</div>
       </div>
       <div className="mt-6 flex gap-1 rounded-md border border-edge p-1 font-mono text-xs w-fit">
-        {(["groups","calls","callers"] as View[]).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded px-4 py-2 font-bold transition ${view===v?"bg-toxic text-white":"text-dim hover:text-gray-900"}`}>{v.toUpperCase()}</button>)}
+        {(["groups","calls","callers"] as View[]).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded px-4 py-2 font-bold transition ${view===v?"bg-toxic text-white":"text-dim hover:text-ink"}`}>{v.toUpperCase()}</button>)}
       </div>
 
       {empty ? (

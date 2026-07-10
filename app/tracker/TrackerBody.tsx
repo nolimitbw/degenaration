@@ -22,7 +22,7 @@ function CopyPanel({ settings, onChange, onStart, onCancel }: { settings: CopySe
       <span className="font-mono text-[10px] uppercase text-dim">{label}</span>
       <div className="mt-0.5 flex items-center gap-1">
         <input type="number" step={step} value={settings[key]} onChange={(e) => onChange({ ...settings, [key]: +e.target.value })}
-          className="w-full rounded border border-edge bg-panel px-2 py-1 text-xs text-gray-900 outline-none focus:border-toxic" />
+          className="w-full rounded border border-edge bg-panel px-2 py-1 text-xs text-ink outline-none focus:border-toxic" />
         {suffix && <span className="font-mono text-[10px] text-dim">{suffix}</span>}
       </div>
     </label>
@@ -187,7 +187,7 @@ export default function TrackerBody() {
                         ) : (
                           <button onClick={() => openCopy(s.address)} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30">Copy trades</button>
                         )}
-                        <button onClick={() => add(s.address, s.catches[0]?.symbol)} className="font-mono text-[11px] text-dim hover:text-gray-900">+ track</button>
+                        <button onClick={() => add(s.address, s.catches[0]?.symbol)} className="font-mono text-[11px] text-dim hover:text-ink">+ track</button>
                       </div>
                     )}
                   </div>
@@ -240,7 +240,7 @@ export default function TrackerBody() {
                             <span className="w-16 truncate font-bold">{p.symbol ?? p.mint.slice(0, 4)}</span>
                             <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
                             <span className="flex-1 text-right text-dim">{fmtUsd(p.valueUsd)}</span>
-                            <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-gray-900" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}>↗</Link>
+                            <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-ink" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}>↗</Link>
                           </div>
                         ))}
                       </div>

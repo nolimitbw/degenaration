@@ -16,7 +16,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <button onClick={reset} className="rounded-md bg-toxic px-6 py-3 font-bold text-white shadow-toxic transition hover:brightness-110">
           Try again
         </button>
-        <Link href="/" className="rounded-md border border-edge bg-panel px-6 py-3 font-bold text-gray-900 transition hover:border-toxic">
+        <Link href="/" className="rounded-md border border-edge bg-panel px-6 py-3 font-bold text-ink transition hover:border-toxic">
           Home
         </Link>
       </div>

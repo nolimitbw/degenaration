@@ -92,7 +92,7 @@ export default function CallsBody() {
               </div>
 
               <button onClick={() => setOpen(open === g.id ? null : g.id)}
-                className="mt-4 w-full rounded-md border border-edge py-2 font-mono text-xs text-dim transition hover:border-cyber hover:text-gray-900">
+                className="mt-4 w-full rounded-md border border-edge py-2 font-mono text-xs text-dim transition hover:border-cyber hover:text-ink">
                 {open === g.id ? "▲ hide settings" : "▼ trade settings"}
               </button>
 

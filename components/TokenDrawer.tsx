@@ -108,7 +108,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
               <p className="font-mono text-[11px] text-dim">{token.name} · {fmtAge(token.ageMs)}</p>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-gray-900">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-ink">✕</button>
         </div>
 
         {/* links */}
@@ -133,10 +133,10 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
 
         {/* stats */}
         <div className="mt-4 grid grid-cols-3 gap-2 font-mono text-[11px]">
-          <div><p className="text-dim">Price</p><p className="text-gray-900">{price?.priceUsd ? `$${price.priceUsd}` : fmtNum(token.priceUsd)}</p></div>
-          <div><p className="text-dim">MC / FDV</p><p className="text-gray-900">{fmtNum(price?.fdv ?? token.marketCap)}</p></div>
-          <div><p className="text-dim">Liq</p><p className="text-gray-900">{fmtNum(price?.liquidityUsd ?? token.liquidityUsd)}</p></div>
-          <div><p className="text-dim">24h Vol</p><p className="text-gray-900">{fmtNum(price?.volume24h ?? token.vol24h)}</p></div>
+          <div><p className="text-dim">Price</p><p className="text-ink">{price?.priceUsd ? `$${price.priceUsd}` : fmtNum(token.priceUsd)}</p></div>
+          <div><p className="text-dim">MC / FDV</p><p className="text-ink">{fmtNum(price?.fdv ?? token.marketCap)}</p></div>
+          <div><p className="text-dim">Liq</p><p className="text-ink">{fmtNum(price?.liquidityUsd ?? token.liquidityUsd)}</p></div>
+          <div><p className="text-dim">24h Vol</p><p className="text-ink">{fmtNum(price?.volume24h ?? token.vol24h)}</p></div>
           <div><p className="text-dim">24h</p><p className={(price?.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}>{price?.change24h != null ? `${price.change24h >= 0 ? "+" : ""}${Number(price.change24h).toFixed(1)}%` : "—"}</p></div>
           <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{price?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{price?.sells24h ?? "—"}</span></p></div>
         </div>
@@ -157,7 +157,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           {rug?.ok && <p className="mt-1 font-mono text-[10px] text-dim">Mint & freeze checks clear, liquidity present. Always DYOR.</p>}
           <div className="mt-2 flex justify-between border-t border-edge pt-2 font-mono text-[10px]">
             <span className="text-dim">Top 10 holders</span>
-            <span className={conc != null && conc > 50 ? "text-hotpink" : "text-gray-900"}>{conc != null ? `${conc.toFixed(1)}%` : "—"}</span>
+            <span className={conc != null && conc > 50 ? "text-hotpink" : "text-ink"}>{conc != null ? `${conc.toFixed(1)}%` : "—"}</span>
           </div>
         </div>
 

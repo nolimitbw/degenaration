@@ -43,8 +43,8 @@ export default function AutoTrade() {
       </div>
       <p className="mt-1 text-xs text-dim">
         Let the engine run your limit orders and copy trades even while your device is off.
-        Our engine only ever signs <b className="text-gray-900">Jupiter swaps within your spend caps</b>
-        above, never a transfer out, and the grant is <b className="text-gray-900">revocable anytime</b>.
+        Our engine only ever signs <b className="text-ink">Jupiter swaps within your spend caps</b>
+        above, never a transfer out, and the grant is <b className="text-ink">revocable anytime</b>.
         Your keys stay in Privy — we never hold them.
       </p>
       {delegated ? (

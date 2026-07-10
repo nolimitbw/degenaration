@@ -79,11 +79,11 @@ export default function WalletBody() {
             <h2 className="font-bold">Trade permission</h2>
             <p className="mt-1 text-xs text-dim">Hard limits on what the auto-trader can spend. Change or revoke anytime.</p>
             <label className="mt-4 block">
-              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-gray-900">{maxTrade} SOL</span></span>
+              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
               <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-toxic" />
             </label>
             <label className="mt-4 block">
-              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Daily spend cap</span><span className="text-gray-900">{dailyCap} SOL</span></span>
+              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Daily spend cap</span><span className="text-ink">{dailyCap} SOL</span></span>
               <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-toxic" />
             </label>
             <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110">{savedLimits ? "✓ Saved" : "Save limits"}</button>

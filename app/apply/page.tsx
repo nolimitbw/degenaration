@@ -44,11 +44,11 @@ export default function Apply() {
               calls channel:
             </p>
             <ol className="mx-auto mt-5 max-w-md space-y-3 text-sm text-dim">
-              <li><b className="text-gray-900">1.</b> Add the Degenaration bot to your server (read-only — it only watches messages):
+              <li><b className="text-ink">1.</b> Add the Degenaration bot to your server (read-only — it only watches messages):
                 <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="mt-2 block rounded-md bg-toxic px-4 py-2 text-center font-bold text-white transition hover:brightness-110">Add bot to my server →</a>
               </li>
-              <li><b className="text-gray-900">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code>. The bot confirms.</li>
-              <li><b className="text-gray-900">3.</b> We approve the channel — from then on every call auto-copies for your subscribers.</li>
+              <li><b className="text-ink">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code>. The bot confirms.</li>
+              <li><b className="text-ink">3.</b> We approve the channel — from then on every call auto-copies for your subscribers.</li>
             </ol>
           </div>
         ) : (

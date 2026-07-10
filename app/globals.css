@@ -3,16 +3,44 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  --void: #f5f7fa;
+  --panel: #ffffff;
+  --edge: #e2e5ec;
+  --toxic: #22e07a;
+  --hotpink: #ff4d5e;
+  --cyber: #34d399;
+  --dim: #8b93a5;
+  --ink: #1a1d26;
+  --ember: #eafff2;
+  --haze: #8fb8a0;
   --brand: #22e07a;
   --brand-dim: rgba(34, 224, 122, 0.5);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --void: #07070b;
+    --panel: #0d0d15;
+    --edge: #1c1c2a;
+    --toxic: #a3ff12;
+    --hotpink: #ff2d78;
+    --cyber: #7b5cff;
+    --dim: #8b8b9e;
+    --ink: #eafff2;
+    --ember: #eafff2;
+    --haze: #8fb8a0;
+    --brand: #a3ff12;
+    --brand-dim: rgba(163, 255, 18, 0.5);
+    color-scheme: dark;
+  }
 }
 
 html { scroll-behavior: smooth; }
 
 body {
-  background: #f5f7fa;
-  color: #1a1d26;
+  background: var(--void);
+  color: var(--ink);
   overflow-x: hidden;
   position: relative;
 }
@@ -43,7 +71,7 @@ body {
 
 .gradient-border {
   position: relative;
-  background: #ffffff;
+  background: var(--panel);
 }
 .gradient-border::before {
   content: "";
@@ -65,6 +93,11 @@ body {
   background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(14px) saturate(120%);
   -webkit-backdrop-filter: blur(14px) saturate(120%);
+}
+@media (prefers-color-scheme: dark) {
+  .glass {
+    background: rgba(13, 13, 21, 0.75);
+  }
 }
 
 .ticker-track { animation: ticker 40s linear infinite; }
@@ -93,6 +126,10 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb { background: #2a2a3a; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a4a; }
+}
 
 /* ============================================================
    Degen cosmic home theme  (scoped to .degen-home only, so the

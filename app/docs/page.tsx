@@ -18,7 +18,7 @@ export default function Docs() {
       <div className="mt-8 space-y-6">
         {FAQ.map((f) => (
           <div key={f.q} className="rounded-lg border border-edge bg-panel p-5">
-            <h2 className="font-bold text-gray-900">{f.q}</h2>
+            <h2 className="font-bold text-ink">{f.q}</h2>
             <p className="mt-2 text-sm leading-relaxed text-dim">{f.a}</p>
           </div>
         ))}

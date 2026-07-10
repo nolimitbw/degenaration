@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (quote.error) return NextResponse.json({ error: quote.error }, { status: 400 });
 
     // reject extreme price impact before building the tx
-    const impact = Math.abs(Number(quote.priceImpactPct) * 100);
+    const impact = Math.abs(Number(quote.priceImpactPct));
     if (Number.isFinite(impact) && impact > MAX_PRICE_IMPACT_PCT) {
       return NextResponse.json({ error: `price impact ${impact.toFixed(1)}% exceeds ${MAX_PRICE_IMPACT_PCT}% limit` }, { status: 400 });
     }

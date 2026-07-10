@@ -28,7 +28,7 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
   if (APPLY_FEE) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
   const q = await fetch(url).then(r => r.json());
   if (q.error) throw new Error(`quote failed: ${q.error}`);
-  const impact = Math.abs(Number(q.priceImpactPct) * 100);
+  const impact = Math.abs(Number(q.priceImpactPct));
   if (Number.isFinite(impact) && impact > MAX_PRICE_IMPACT_PCT) {
     throw new Error(`price impact ${impact.toFixed(1)}% exceeds ${MAX_PRICE_IMPACT_PCT}% limit`);
   }

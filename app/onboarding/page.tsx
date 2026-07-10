@@ -54,7 +54,7 @@ export default function Onboarding() {
 
           {step === 0 && (
             <div className="mt-4 space-y-4 text-sm text-dim">
-              <p className="rounded-md border border-hotpink/40 bg-hotpink/5 p-4 leading-relaxed text-gray-900/90">
+              <p className="rounded-md border border-hotpink/40 bg-hotpink/5 p-4 leading-relaxed text-ink/90">
                 Memecoin trading is extremely high risk. Prices can go to zero in seconds.
                 Only trade what you can afford to lose. Degenaration is self-directed software,
                 not financial advice, and never holds custody of your funds.
@@ -84,7 +84,7 @@ export default function Onboarding() {
             <div className="mt-4 space-y-3 text-sm text-dim">
               <p>Fund your wallet with mainnet SOL to start copying calls.</p>
               <Link href="/wallet" className="block rounded-md border border-edge bg-void p-4 transition hover:border-toxic">
-                <span className="font-bold text-gray-900">Open deposit screen →</span>
+                <span className="font-bold text-ink">Open deposit screen →</span>
                 <p className="mt-1 text-xs">Your deposit address and QR code.</p>
               </Link>
             </div>

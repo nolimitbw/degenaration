@@ -13,10 +13,10 @@ export default function Filters({ cat, setCat, sort, setSort, view, setView, q, 
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name / ticker / address"
         className="w-full max-w-xs rounded-md border border-edge bg-void px-3 py-1.5 font-mono text-xs outline-none focus:border-toxic sm:w-56" />
       <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-[11px]">
-        {CATS.map(([c, l]) => <button key={c} onClick={() => setCat(c)} className={`rounded px-3 py-1.5 font-bold transition ${cat===c?"bg-cyber/20 text-cyber":"text-dim hover:text-gray-900"}`}>{l}</button>)}
+        {CATS.map(([c, l]) => <button key={c} onClick={() => setCat(c)} className={`rounded px-3 py-1.5 font-bold transition ${cat===c?"bg-cyber/20 text-cyber":"text-dim hover:text-ink"}`}>{l}</button>)}
       </div>
       <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-[11px]">
-        {SORTS.map(([s, l]) => <button key={s} onClick={() => setSort(s)} className={`rounded px-3 py-1.5 font-bold transition ${sort===s?"bg-toxic text-white":"text-dim hover:text-gray-900"}`}>{l}</button>)}
+        {SORTS.map(([s, l]) => <button key={s} onClick={() => setSort(s)} className={`rounded px-3 py-1.5 font-bold transition ${sort===s?"bg-toxic text-white":"text-dim hover:text-ink"}`}>{l}</button>)}
       </div>
       <div className="ml-auto flex gap-1 rounded-md border border-edge p-0.5 font-mono text-[11px]">
         <button onClick={() => setView("table")} className={`rounded px-2 py-1 ${view==="table"?"bg-toxic/20 text-toxic":"text-dim"}`}>Table</button>

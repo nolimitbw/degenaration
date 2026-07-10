@@ -38,7 +38,7 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
           <div className="w-full max-w-sm rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Quick-buy amounts</h3>
-              <button onClick={() => setOpen(false)} aria-label="Close" className="text-dim hover:text-gray-900">✕</button>
+              <button onClick={() => setOpen(false)} aria-label="Close" className="text-dim hover:text-ink">✕</button>
             </div>
             <p className="mt-1 text-xs text-dim">Your own SOL presets — shown as one-tap buy buttons on Trenches.</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
