@@ -30,7 +30,7 @@ export default function Groups() {
               initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }}
               className="card-cosmic group p-6">
               <h3 className="text-lg font-bold text-starlight">{g.name}</h3>
-              <p className="mt-1 font-mono text-xs text-haze">{g.members} members · {g.win_rate ?? "—"}% win · <span className={(g.pnl_30d ?? "").startsWith("+") ? "text-cyber" : "text-haze"}>{g.pnl_30d ?? "new"}</span></p>
+              <p className="mt-1 font-mono text-xs text-haze">{g.members} members · {g.win_rate ?? "—"}% win · <span className={(g.pnl_30d ?? "").startsWith("+") ? "text-up" : "text-haze"}>{g.pnl_30d ?? "new"}</span></p>
               <Link href="/onboarding" className="mt-5 block w-full rounded-xl border border-white/10 py-2.5 text-center text-sm font-bold text-haze transition group-hover:border-grape/60 group-hover:text-grape">Copy this group</Link>
             </motion.div>
           ))}

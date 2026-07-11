@@ -242,7 +242,7 @@ export default function TrackerBody() {
                           <div key={p.mint} className="flex items-center gap-2 font-mono text-xs">
                             {p.image ? <img src={p.image} alt="" className="h-5 w-5 rounded-full" /> : <div className="grid h-5 w-5 place-items-center rounded-full bg-edge text-[8px]">{(p.symbol ?? "?").slice(0, 2)}</div>}
                             <span className="w-16 truncate font-bold">{p.symbol ?? p.mint.slice(0, 4)}</span>
-                            <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
+                            <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
                             <span className="flex-1 text-right text-dim">{fmtUsd(p.valueUsd)}</span>
                             <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-ink" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}>↗</Link>
                           </div>

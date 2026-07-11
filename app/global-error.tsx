@@ -8,11 +8,11 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
       <body style={{ margin: 0, background: "#08090c", color: "#e5e5ee", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, textAlign: "center", padding: 20 }}>
           <p style={{ fontSize: 22, fontWeight: 700 }}>
-            DEGEN<span style={{ color: "#a3ff12" }}>ARATION</span>
+            DEGEN<span style={{ color: "#ff2255" }}>ARATION</span>
           </p>
           <p style={{ color: "#ff4d5e", fontWeight: 700 }}>The app failed to load</p>
           <p style={{ color: "#7d828c", fontSize: 14, maxWidth: 360 }}>An unexpected error occurred. Your funds are safe — the app never holds your keys.</p>
-          <button onClick={reset} style={{ background: "#a3ff12", color: "#08090c", fontWeight: 700, border: "none", borderRadius: 6, padding: "12px 24px", cursor: "pointer" }}>
+          <button onClick={reset} style={{ background: "#ff2255", color: "#ffffff", fontWeight: 700, border: "none", borderRadius: 6, padding: "12px 24px", cursor: "pointer" }}>
             Reload
           </button>
         </div>

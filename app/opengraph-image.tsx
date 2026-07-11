@@ -17,16 +17,16 @@ export default function Image() {
           alignItems: "center",
           justifyContent: "center",
           background: "#08090c",
-          backgroundImage: "radial-gradient(circle at 30% 20%, rgba(127,240,184,0.25), transparent 45%), radial-gradient(circle at 75% 80%, rgba(34,224,122,0.15), transparent 45%)"
+          backgroundImage: "radial-gradient(circle at 30% 20%, rgba(255,34,85,0.25), transparent 45%), radial-gradient(circle at 75% 80%, rgba(255,68,102,0.15), transparent 45%)"
         }}
       >
         <div style={{ display: "flex", fontSize: 88, fontWeight: 800, color: "#ffffff", letterSpacing: -2 }}>
-          DEGEN<span style={{ color: "#a3ff12" }}>ARATION</span>
+          DEGEN<span style={{ color: "#ff2255" }}>ARATION</span>
         </div>
         <div style={{ marginTop: 24, fontSize: 34, color: "#7d828c", maxWidth: 900, textAlign: "center" }}>
           On-chain trading terminal & alpha copy-trading on Solana
         </div>
-        <div style={{ marginTop: 40, fontSize: 24, color: "#a3ff12", fontFamily: "monospace" }}>
+        <div style={{ marginTop: 40, fontSize: 24, color: "#ff2255", fontFamily: "monospace" }}>
           Non-custodial · your keys, your coins
         </div>
       </div>

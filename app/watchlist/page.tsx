@@ -62,7 +62,7 @@ export default function Watchlist() {
                     </div>
                   </td>
                   <td className="px-4 py-3 font-mono">{d?.priceUsd ? `$${d.priceUsd}` : "…"}</td>
-                  <td className={`px-4 py-3 font-mono ${(d?.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}`}>{d?.change24h != null ? `${d.change24h >= 0 ? "+" : ""}${Number(d.change24h).toFixed(1)}%` : "…"}</td>
+                  <td className={`px-4 py-3 font-mono ${(d?.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{d?.change24h != null ? `${d.change24h >= 0 ? "+" : ""}${Number(d.change24h).toFixed(1)}%` : "…"}</td>
                   <td className="px-4 py-3 font-mono text-dim">{d ? fmtNum(d.fdv) : "…"}</td>
                   <td className="px-4 py-3 font-mono text-dim">{d ? fmtNum(d.liquidityUsd) : "…"}</td>
                   <td className="px-4 py-3">

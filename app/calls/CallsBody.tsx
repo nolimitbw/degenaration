@@ -93,7 +93,7 @@ export default function CallsBody() {
                   <h3 className="font-bold">{g.name}</h3>
                   <p className="mt-0.5 font-mono text-xs text-dim">
                     {g.members ?? "—"} members · {g.win_rate ?? "—"}% win ·{" "}
-                    <span className={(g.pnl_30d ?? "").startsWith("+") ? "text-toxic" : "text-hotpink"}>{g.pnl_30d ?? "—"} 30d</span>
+                    <span className={(g.pnl_30d ?? "").startsWith("+") ? "text-up" : "text-hotpink"}>{g.pnl_30d ?? "—"} 30d</span>
                   </p>
                 </div>
                 <button onClick={() => toggle(g.id)}

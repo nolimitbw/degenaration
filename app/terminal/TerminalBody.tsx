@@ -166,7 +166,7 @@ export default function TerminalBody() {
                 </div>
               </div>
               <div className="text-right font-mono text-xs">
-                <p className={chg >= 0 ? "text-toxic" : "text-hotpink"}>
+                <p className={chg >= 0 ? "text-up" : "text-hotpink"}>
                   {chg != null ? `${chg >= 0 ? "+" : ""}${chg.toFixed(1)}% 24h` : "—"}
                 </p>
                 <p className="text-dim">Liq {price?.liquidityUsd ? `$${Math.round(price.liquidityUsd / 1000)}K` : "—"} · {price?.dex ?? "—"}</p>

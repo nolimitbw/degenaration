@@ -2,7 +2,7 @@ import FlashValue from "@/components/FlashValue";
 
 export function Chg({ v }: { v: number | null | undefined }) {
   if (v == null) return <span className="text-dim">—</span>;
-  return <FlashValue value={v} className={v >= 0 ? "text-toxic" : "text-hotpink"}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</FlashValue>;
+  return <FlashValue value={v} className={v >= 0 ? "text-up" : "text-hotpink"}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</FlashValue>;
 }
 export function Pressure({ b, s }: { b: number; s: number }) {
   const t = (b + s) || 1; const bp = (b / t) * 100;

@@ -16,7 +16,7 @@ export default function Ticker() {
         {row.map((t, i) => (
           <Link key={i} href={`/terminal?mint=${t.address}`} className="flex items-center gap-1.5 font-mono text-[11px] transition hover:text-ink">
             <span className="text-ink">{t.symbol}</span>
-            <span className={(t.change24h || 0) >= 0 ? "text-toxic" : "text-hotpink"}>{(t.change24h || 0) >= 0 ? "+" : ""}{(t.change24h ?? 0).toFixed(0)}%</span>
+            <span className={(t.change24h || 0) >= 0 ? "text-up" : "text-hotpink"}>{(t.change24h || 0) >= 0 ? "+" : ""}{(t.change24h ?? 0).toFixed(0)}%</span>
           </Link>
         ))}
       </div>

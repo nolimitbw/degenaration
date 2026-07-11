@@ -103,7 +103,7 @@ export default function Hero() {
             className={`glass-cosmic pointer-events-none absolute hidden rounded-xl px-3.5 py-2 sm:block ${i === 0 ? "left-[10%] top-10" : "bottom-16 right-[8%]"}`}
           >
             <p className="font-mono text-sm font-bold text-starlight">{c.t}</p>
-            <p className={`font-mono text-xs ${c.p.startsWith("-") ? "text-down" : "text-cyber"}`}>{c.p}</p>
+            <p className={`font-mono text-xs ${c.p.startsWith("-") ? "text-down" : "text-up"}`}>{c.p}</p>
           </motion.div>
         ))}
       </motion.div>

@@ -9,24 +9,26 @@
   --panel-rgb: 255 255 255;
   --edge: #e2e5ec;
   --edge-rgb: 226 229 236;
-  --toxic: #22e07a;
-  --toxic-rgb: 34 224 122;
+  --toxic: #ff2255;
+  --toxic-rgb: 255 34 85;
   --hotpink: #ff4d5e;
   --hotpink-rgb: 255 77 94;
-  --cyber: #34d399;
-  --cyber-rgb: 52 211 153;
+  --cyber: #ff3366;
+  --cyber-rgb: 255 51 102;
+  --up: #22e07a;
+  --up-rgb: 34 224 122;
   --dim: #8b93a5;
   --dim-rgb: 139 147 165;
   --ink: #1a1d26;
   --ink-rgb: 26 29 38;
-  --ember: #eafff2;
-  --ember-rgb: 234 255 242;
-  --haze: #8fb8a0;
-  --haze-rgb: 143 184 160;
-  --brand: #22e07a;
-  --brand-rgb: 34 224 122;
-  --brand-dim: rgba(34, 224, 122, 0.5);
-  --shadow-toxic: 0 0 0 1px rgba(34,224,122,0.35), 0 8px 24px -8px rgba(34,224,122,0.45);
+  --ember: #fff5f7;
+  --ember-rgb: 255 245 247;
+  --haze: #d4d4dc;
+  --haze-rgb: 212 212 220;
+  --brand: #ff2255;
+  --brand-rgb: 255 34 85;
+  --brand-dim: rgba(255, 34, 85, 0.5);
+  --shadow-toxic: 0 0 0 1px rgba(255,34,85,0.35), 0 8px 24px -8px rgba(255,34,85,0.45);
   --shadow-pink: 0 0 0 1px rgba(255,77,94,0.35), 0 8px 24px -8px rgba(255,77,94,0.4);
   color-scheme: light;
 }
@@ -39,24 +41,26 @@
     --panel-rgb: 13 13 21;
     --edge: #1c1c2a;
     --edge-rgb: 28 28 42;
-    --toxic: #a3ff12;
-    --toxic-rgb: 163 255 18;
+    --toxic: #ff2255;
+    --toxic-rgb: 255 34 85;
     --hotpink: #ff2d78;
     --hotpink-rgb: 255 45 120;
-    --cyber: #7b5cff;
-    --cyber-rgb: 123 92 255;
+    --cyber: #ff4466;
+    --cyber-rgb: 255 68 102;
+    --up: #22e07a;
+    --up-rgb: 34 224 122;
     --dim: #8b8b9e;
     --dim-rgb: 139 139 158;
-    --ink: #eafff2;
-    --ink-rgb: 234 255 242;
-    --ember: #eafff2;
-    --ember-rgb: 234 255 242;
-    --haze: #8fb8a0;
-    --haze-rgb: 143 184 160;
-    --brand: #a3ff12;
-    --brand-rgb: 163 255 18;
-    --brand-dim: rgba(163, 255, 18, 0.5);
-    --shadow-toxic: 0 0 0 1px rgba(163,255,18,0.35), 0 8px 24px -8px rgba(163,255,18,0.45);
+    --ink: #ffffff;
+    --ink-rgb: 255 255 255;
+    --ember: #fff5f7;
+    --ember-rgb: 255 245 247;
+    --haze: #ccccd6;
+    --haze-rgb: 204 204 214;
+    --brand: #ff2255;
+    --brand-rgb: 255 34 85;
+    --brand-dim: rgba(255, 34, 85, 0.5);
+    --shadow-toxic: 0 0 0 1px rgba(255,34,85,0.35), 0 8px 24px -8px rgba(255,34,85,0.45);
     --shadow-pink: 0 0 0 1px rgba(255,45,120,0.35), 0 8px 24px -8px rgba(255,45,120,0.4);
     color-scheme: dark;
   }
@@ -162,30 +166,30 @@ body {
    app/dashboard pages keep their existing light styling)
    ============================================================ */
 .degen-home {
-  --bg-0: #04120a;
-  --grape: #22e07a;
-  --grape-rgb: 34 224 122;
-  --magenta: #5ef2a6;
-  --azure: #34d399;
-  --ember: #eafff2;
-  --ember-rgb: 234 255 242;
-  --ink: #eafff2;
-  --ink-rgb: 234 255 242;
-  --haze: #8fb8a0;
-  --haze-rgb: 143 184 160;
+  --bg-0: #0a0404;
+  --grape: #ff2255;
+  --grape-rgb: 255 34 85;
+  --magenta: #ff5577;
+  --azure: #ff3366;
+  --ember: #fff5f7;
+  --ember-rgb: 255 245 247;
+  --ink: #ffffff;
+  --ink-rgb: 255 255 255;
+  --haze: #ccccd6;
+  --haze-rgb: 204 204 214;
   color-scheme: dark;
   position: relative;
   min-height: 100vh;
   color: var(--ink);
   overflow-x: clip;
-  /* monochrome-green studio backdrop: deep forest base, bright lime glow behind the hero */
+  /* monochrome-red studio backdrop: deep crimson base, bright neon glow behind the hero */
   background:
-    radial-gradient(85% 70% at 64% 32%, rgba(74, 210, 120, 0.30) 0%, transparent 55%),
-    radial-gradient(120% 95% at 50% 122%, rgba(16, 96, 52, 0.40) 0%, transparent 60%),
-    radial-gradient(80% 60% at 12% 8%, rgba(26, 120, 72, 0.22) 0%, transparent 55%),
-    linear-gradient(180deg, #03130a 0%, #051a0d 52%, #03110a 100%);
+    radial-gradient(85% 70% at 64% 32%, rgba(255, 34, 85, 0.25) 0%, transparent 55%),
+    radial-gradient(120% 95% at 50% 122%, rgba(120, 16, 40, 0.35) 0%, transparent 60%),
+    radial-gradient(80% 60% at 12% 8%, rgba(100, 20, 40, 0.20) 0%, transparent 55%),
+    linear-gradient(180deg, #0a0204 0%, #120508 52%, #0a0204 100%);
 }
-.degen-home ::selection { background: rgb(var(--grape-rgb) / 0.9); color: #04120a; }
+.degen-home ::selection { background: rgb(var(--grape-rgb) / 0.9); color: #0a0204; }
 .degen-home .text-haze { color: var(--haze); }
 
 /* full-page scroll-scrubbed launch video background */
@@ -194,7 +198,7 @@ body {
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background: #03110a; /* matches .degen-home base so there's no flash before the video paints */
+  background: #0a0204;
 }
 .launch-video {
   position: absolute;
@@ -223,13 +227,13 @@ body {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(3, 17, 10, 0.55) 0%, rgba(3, 17, 10, 0.25) 30%, rgba(3, 17, 10, 0.55) 75%, rgba(3, 17, 10, 0.88) 100%),
-    radial-gradient(70% 60% at 50% 40%, transparent 40%, rgba(3, 17, 10, 0.5) 100%);
+    linear-gradient(180deg, rgba(10, 2, 4, 0.55) 0%, rgba(10, 2, 4, 0.25) 30%, rgba(10, 2, 4, 0.55) 75%, rgba(10, 2, 4, 0.88) 100%),
+    radial-gradient(70% 60% at 50% 40%, transparent 40%, rgba(10, 2, 4, 0.5) 100%);
 }
 
-/* animated white->green gradient text */
+/* animated white->red gradient text */
 .cosmic-text {
-  background: linear-gradient(100deg, #ffffff, #7cffab, rgb(var(--grape-rgb)), #d6ffe6, #ffffff);
+  background: linear-gradient(100deg, #ffffff, #ff7799, rgb(var(--grape-rgb)), #ffaabb, #ffffff);
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -242,10 +246,10 @@ body {
 .glass-cosmic {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0) 45%),
-    rgba(9, 26, 16, 0.55);
+    rgba(16, 6, 8, 0.55);
   backdrop-filter: blur(18px) saturate(125%);
   -webkit-backdrop-filter: blur(18px) saturate(125%);
-  border: 1px solid rgba(96, 200, 140, 0.18);
+  border: 1px solid rgba(200, 80, 100, 0.18);
   box-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 20px 50px -30px rgba(0,0,0,0.8);
 }
 
@@ -254,10 +258,10 @@ body {
   position: relative;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0) 42%),
-    linear-gradient(180deg, rgba(14, 34, 22, 0.6), rgba(5, 16, 10, 0.66));
+    linear-gradient(180deg, rgba(34, 8, 14, 0.6), rgba(16, 4, 8, 0.66));
   backdrop-filter: blur(10px) saturate(115%);
   -webkit-backdrop-filter: blur(10px) saturate(115%);
-  border: 1px solid rgba(110, 190, 140, 0.14);
+  border: 1px solid rgba(190, 80, 100, 0.14);
   border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 30px 70px -46px rgba(0,0,0,0.95);
@@ -271,7 +275,7 @@ body {
   inset: -1px;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(from var(--angle, 0deg), transparent 52%, rgb(var(--grape-rgb)), #7cffab, #0f9d58, transparent 92%);
+  background: conic-gradient(from var(--angle, 0deg), transparent 52%, rgb(var(--grape-rgb)), #ff7799, #cc0033, transparent 92%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -299,18 +303,17 @@ body {
 
 /* glow helpers */
 .glow-grape   { box-shadow: 0 0 0 1px rgb(var(--grape-rgb) / 0.4), 0 12px 40px -12px rgb(var(--grape-rgb) / 0.6); }
-.glow-magenta { box-shadow: 0 0 0 1px rgba(94,242,166,0.4), 0 12px 40px -12px rgba(94,242,166,0.55); }
+.glow-magenta { box-shadow: 0 0 0 1px rgba(255,85,119,0.4), 0 12px 40px -12px rgba(255,85,119,0.55); }
 .text-glow-grape { text-shadow: 0 0 24px rgb(var(--grape-rgb) / 0.55); }
 
-/* magnetic CTA — green sheen that never sits still */
+/* magnetic CTA — red sheen that never sits still */
 .btn-cosmic {
   position: relative;
   isolation: isolate;
   border-radius: 16px;
-  /* mirrored stops so the animated pan loops with no visible seam */
-  background: linear-gradient(100deg, #0f9d58, rgb(var(--grape-rgb)), #7cffab, rgb(var(--grape-rgb)), #0f9d58);
+  background: linear-gradient(100deg, #cc0033, rgb(var(--grape-rgb)), #ff7799, rgb(var(--grape-rgb)), #cc0033);
   background-size: 220% 100%;
-  color: #04160c;
+  color: #ffffff;
   font-weight: 800;
   animation: cosmic-pan 14s ease-in-out infinite;
   box-shadow: 0 10px 34px -12px rgb(var(--grape-rgb) / 0.5), 0 1px 0 0 rgba(255,255,255,0.35) inset;
@@ -319,23 +322,23 @@ body {
 .btn-cosmic:hover { box-shadow: 0 18px 54px -14px rgb(var(--grape-rgb) / 0.7), 0 1px 0 0 rgba(255,255,255,0.4) inset; }
 .btn-ghost {
   border-radius: 14px;
-  border: 1px solid rgba(96, 220, 150, 0.32);
+  border: 1px solid rgba(220, 96, 120, 0.32);
   background: rgba(255, 255, 255, 0.03);
   color: var(--ink);
   transition: border-color 0.25s, background 0.25s, transform 0.25s;
 }
 .btn-ghost:hover { border-color: rgb(var(--grape-rgb) / 0.7); background: rgb(var(--grape-rgb) / 0.1); }
 
-/* two-tone logo: base state is "De" WHITE, "genaration" GREEN; they trade on a slow eased loop */
-.logo-de  { color: #f2f6fb; animation: logo-swap-a 7s ease-in-out infinite; }
-.logo-gen { color: #26e08a; animation: logo-swap-b 7s ease-in-out infinite; }
+/* two-tone logo: base state is "De" WHITE, "genaration" RED; they trade on a slow eased loop */
+.logo-de  { color: #ffffff; animation: logo-swap-a 7s ease-in-out infinite; }
+.logo-gen { color: #ff2255; animation: logo-swap-b 7s ease-in-out infinite; }
 @keyframes logo-swap-a {
-  0%, 100% { color: #f2f6fb; text-shadow: 0 0 12px rgba(242,246,251,0.25); }
-  50%      { color: #26e08a; text-shadow: 0 0 16px rgba(38,224,138,0.45); }
+  0%, 100% { color: #ffffff; text-shadow: 0 0 12px rgba(255,255,255,0.25); }
+  50%      { color: #ff2255; text-shadow: 0 0 16px rgba(255,34,85,0.45); }
 }
 @keyframes logo-swap-b {
-  0%, 100% { color: #26e08a; text-shadow: 0 0 16px rgba(38,224,138,0.45); }
-  50%      { color: #f2f6fb; text-shadow: 0 0 12px rgba(242,246,251,0.25); }
+  0%, 100% { color: #ff2255; text-shadow: 0 0 16px rgba(255,34,85,0.45); }
+  50%      { color: #ffffff; text-shadow: 0 0 12px rgba(255,255,255,0.25); }
 }
 
 @keyframes coin-rain {

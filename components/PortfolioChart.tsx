@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 type Datum = { value: number; label: string };
 
-export default function PortfolioChart({ data, color = "#22e07a" }: { data: Datum[]; color?: string }) {
+export default function PortfolioChart({ data, color = "#ff2255" }: { data: Datum[]; color?: string }) {
   const paths = useMemo(() => {
     if (!data.length) return { line: "", area: "" };
     const w = 400, h = 120;

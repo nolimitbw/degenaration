@@ -138,7 +138,7 @@ export default function Trenches() {
                   <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-hotpink/20 px-1 text-[9px] text-hotpink">new</span>}</p>
                   <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>
                 </div>
-                <FlashValue value={t.change24h} className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-toxic":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</FlashValue>
+                <FlashValue value={t.change24h} className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-up":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</FlashValue>
               </div>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
               <div><p className="text-dim">MC</p><FlashValue value={t.marketCap} className="text-ink">{fmtNum(t.marketCap)}</FlashValue></div>
@@ -149,7 +149,7 @@ export default function Trenches() {
               {([["5m", t.change5m], ["1h", t.change1h], ["24h", t.change24h]] as const).map(([l, v]) => (
                 <div key={l} className="rounded bg-void/60 px-1 py-0.5 text-center">
                   <span className="text-dim">{l} </span>
-                  <FlashValue value={v} className={(v ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}>{v != null ? `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%` : "—"}</FlashValue>
+                  <FlashValue value={v} className={(v ?? 0) >= 0 ? "text-up" : "text-hotpink"}>{v != null ? `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%` : "—"}</FlashValue>
                 </div>
               ))}
             </div>

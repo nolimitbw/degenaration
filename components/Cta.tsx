@@ -5,16 +5,16 @@ import Magnetic from "@/components/Magnetic";
 
 // Slow, subtle metallic coin specks drifting down (deterministic — no Math.random).
 const RAIN = [
-  { l: "6%", d: 0, dur: 13, s: 10, a: "#c9ffdb", b: "#1f8f5a" },
-  { l: "16%", d: 2.4, dur: 16, s: 7, a: "#ffffff", b: "#8fb8a0" },
-  { l: "27%", d: 1.1, dur: 14, s: 12, a: "#eafff2", b: "#3fb87e" },
-  { l: "38%", d: 3.6, dur: 15, s: 6, a: "#c9ffdb", b: "#1f8f5a" },
+  { l: "6%", d: 0, dur: 13, s: 10, a: "#ffc9d4", b: "#8f1f3a" },
+  { l: "16%", d: 2.4, dur: 16, s: 7, a: "#ffffff", b: "#cc8899" },
+  { l: "27%", d: 1.1, dur: 14, s: 12, a: "#ffeaf0", b: "#b83f5a" },
+  { l: "38%", d: 3.6, dur: 15, s: 6, a: "#ffc9d4", b: "#8f1f3a" },
   { l: "49%", d: 0.6, dur: 17, s: 9, a: "#ffe6a8", b: "#a9741f" },
-  { l: "60%", d: 2.0, dur: 13, s: 8, a: "#c9ffdb", b: "#1f8f5a" },
-  { l: "71%", d: 4.2, dur: 16, s: 11, a: "#ffffff", b: "#8fb8a0" },
-  { l: "82%", d: 1.4, dur: 14, s: 7, a: "#eafff2", b: "#3fb87e" },
+  { l: "60%", d: 2.0, dur: 13, s: 8, a: "#ffc9d4", b: "#8f1f3a" },
+  { l: "71%", d: 4.2, dur: 16, s: 11, a: "#ffffff", b: "#cc8899" },
+  { l: "82%", d: 1.4, dur: 14, s: 7, a: "#ffeaf0", b: "#b83f5a" },
   { l: "92%", d: 3.0, dur: 15, s: 9, a: "#ffe6a8", b: "#a9741f" },
-  { l: "45%", d: 5.0, dur: 18, s: 6, a: "#c9ffdb", b: "#1f8f5a" }
+  { l: "45%", d: 5.0, dur: 18, s: 6, a: "#ffc9d4", b: "#8f1f3a" }
 ];
 
 export default function Cta() {

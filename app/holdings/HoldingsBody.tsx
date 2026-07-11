@@ -7,7 +7,7 @@ import { fetchPortfolio, fmtUsd, fmtAmt, getMyTrades, type Portfolio, type Trade
 import PortfolioChart from "@/components/PortfolioChart";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
-const ALLOC_COLORS = ["#a3ff12", "#7ff0b8", "#f0b429", "#5ea9ff", "#ff4d5e", "#7d828c"];
+const ALLOC_COLORS = ["#ff2255", "#ff5577", "#f0b429", "#5ea9ff", "#ff4d5e", "#7d828c"];
 
 export default function HoldingsBody() {
   const { authenticated, user, login } = usePrivy();
@@ -87,8 +87,8 @@ export default function HoldingsBody() {
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">PnL</p>
-          <p className={`mt-2 font-mono text-2xl font-bold ${pnlSol != null && pnlSol >= 0 ? "text-toxic" : "text-hotpink"}`}>{loading ? "…" : pnlSol != null ? `${pnlSol >= 0 ? "+" : ""}${pnlSol.toFixed(3)} SOL` : "—"}</p>
-          {pnlPct != null && <p className={`mt-0.5 font-mono text-xs ${pnlPct >= 0 ? "text-toxic" : "text-hotpink"}`}>{pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%</p>}
+          <p className={`mt-2 font-mono text-2xl font-bold ${pnlSol != null && pnlSol >= 0 ? "text-up" : "text-hotpink"}`}>{loading ? "…" : pnlSol != null ? `${pnlSol >= 0 ? "+" : ""}${pnlSol.toFixed(3)} SOL` : "—"}</p>
+          {pnlPct != null && <p className={`mt-0.5 font-mono text-xs ${pnlPct >= 0 ? "text-up" : "text-hotpink"}`}>{pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%</p>}
           {pnlSol == null && <p className="mt-0.5 font-mono text-[10px] text-dim">Trades needed</p>}
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -100,7 +100,7 @@ export default function HoldingsBody() {
       {chartData.length > 1 && (
         <div className="mt-6 rounded-lg border border-edge bg-panel p-4">
           <p className="mb-2 font-mono text-[11px] uppercase text-dim">Portfolio value (recent trades)</p>
-          <PortfolioChart data={chartData} color={pnlSol != null && pnlSol >= 0 ? "#a3ff12" : "#ff4d5e"} />
+          <PortfolioChart data={chartData} color={pnlSol != null && pnlSol >= 0 ? "#22e07a" : "#ff4d5e"} />
         </div>
       )}
 
@@ -141,7 +141,7 @@ export default function HoldingsBody() {
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">{fmtAmt(p.amount)}</td>
                 <td className="px-4 py-3 font-mono text-xs">{p.priceUsd != null ? fmtUsd(p.priceUsd) : "—"}</td>
-                <td className={`px-4 py-3 font-mono text-xs ${(p.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(1)}%` : "—"}</td>
+                <td className={`px-4 py-3 font-mono text-xs ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(1)}%` : "—"}</td>
                 <td className="px-4 py-3 font-mono text-xs font-bold">{fmtUsd(p.valueUsd)}</td>
                 <td className="px-4 py-3"><Link href={`/terminal?mint=${p.mint}`} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim hover:border-toxic hover:text-toxic">Trade</Link></td>
               </tr>

@@ -140,7 +140,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           <div><p className="text-dim">MC / FDV</p><p className="text-ink">{fmtNum(price?.fdv ?? token.marketCap)}</p></div>
           <div><p className="text-dim">Liq</p><p className="text-ink">{fmtNum(price?.liquidityUsd ?? token.liquidityUsd)}</p></div>
           <div><p className="text-dim">24h Vol</p><p className="text-ink">{fmtNum(price?.volume24h ?? token.vol24h)}</p></div>
-          <div><p className="text-dim">24h</p><p className={(price?.change24h ?? 0) >= 0 ? "text-toxic" : "text-hotpink"}>{price?.change24h != null ? `${price.change24h >= 0 ? "+" : ""}${Number(price.change24h).toFixed(1)}%` : "—"}</p></div>
+          <div><p className="text-dim">24h</p><p className={(price?.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}>{price?.change24h != null ? `${price.change24h >= 0 ? "+" : ""}${Number(price.change24h).toFixed(1)}%` : "—"}</p></div>
           <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{price?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{price?.sells24h ?? "—"}</span></p></div>
         </div>
 
