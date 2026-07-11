@@ -264,10 +264,10 @@ export type LiveToken = {
   ageMs: number | null; dex: string | null; url: string;
 };
 export async function fetchTokens(mode: "trending" | "new"): Promise<any[]> {
-  return fetch(`/api/tokens?mode=${mode}`).then((r) => r.json()).then((d) => d.tokens ?? []).catch(() => []);
+  return fetchWithTimeout(`/api/tokens?mode=${mode}`).then((r) => r.json()).then((d) => d.tokens ?? []).catch(() => []);
 }
 export async function fetchTokensFull(mode: "trending" | "new"): Promise<{ tokens: any[]; stats: any }> {
-  return fetch(`/api/tokens?mode=${mode}`).then((r) => r.json()).then((d) => ({ tokens: d.tokens ?? [], stats: d.stats ?? { count: 0, totalVol: 0 } })).catch(() => ({ tokens: [], stats: { count: 0, totalVol: 0 } }));
+  return fetchWithTimeout(`/api/tokens?mode=${mode}`).then((r) => r.json()).then((d) => ({ tokens: d.tokens ?? [], stats: d.stats ?? { count: 0, totalVol: 0 } })).catch(() => ({ tokens: [], stats: { count: 0, totalVol: 0 } }));
 }
 export function fmtNum(n: number | null): string {
   if (n == null) return "—";
