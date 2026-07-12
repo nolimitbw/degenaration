@@ -7,7 +7,7 @@ const FAQ = [
   { q: "What does it cost?", a: "Free to join. When the platform fee wallet is configured, the execution fee is shown in the trade preview before you sign. If fees are off, the terminal says so." },
   { q: "Is this live or testnet?", a: "Live on Solana mainnet with real funds. Trades are real and irreversible — only deposit what you can afford to lose and always DYOR." },
   { q: "How are call groups ranked?", a: "By real on-chain performance — total return, hit rate, median return and best call — not screenshots. See the Alpha leaderboard." },
-  { q: "Is it safe?", a: "Non-custodial by design, with rug-checks (liquidity, mint/freeze authority, honeypot), rate-limited APIs, input validation, and no private keys stored anywhere. An independent security audit is planned before mainnet." }
+  { q: "Is it safe?", a: "Non-custodial by design, with rug-checks (liquidity, mint/freeze authority, honeypot), rate-limited APIs, input validation, and no private keys stored anywhere. An independent security review is planned while mainnet use remains high-risk and self-directed." }
 ];
 
 export default function Docs() {

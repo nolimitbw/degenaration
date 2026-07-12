@@ -3,8 +3,8 @@
 - `bot/` — Discord bot. Owners of APPROVED servers invite it; it parses calls
   (address or link only) and forwards them to the engine.
 - `engine/` — receives calls, rug-checks (DexScreener + RugCheck + on-chain
-  authority checks), builds Jupiter swaps with the 2% platform fee
-  (platformFeeBps=200 → PLATFORM_FEE_ACCOUNT), executes per-user with their
+  authority checks), builds Jupiter swaps with the configured platform fee
+  (enabled only when PLATFORM_FEE_ACCOUNT is set), executes per-user with their
   TP/SL/size/daily-cap settings via delegated session keys.
 
 - `worker.js` — 24/7 automation: runs the limit-order watcher (`engine/limits.js`,

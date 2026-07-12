@@ -1,18 +1,17 @@
 /**
- * Jupiter swap builder — THE 2% FEE LIVES HERE.
- * platformFeeBps = 200 → 2% taken on-chain on every swap (in AND out,
- * including partial TP/SL sells). Fee lands in PLATFORM_FEE_ACCOUNT.
+ * Jupiter swap builder. The configured platform fee is applied only when
+ * PLATFORM_FEE_ACCOUNT is present, matching the website preview APIs.
  * Docs: https://dev.jup.ag/docs/swap-api
  */
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const PLATFORM_FEE_BPS = 200; // 2%
+const PLATFORM_FEE_BPS = 200;
 // Auto-trades are UNATTENDED, so a catastrophic-impact fill (thin liquidity vs trade size)
 // would rek the user before they could react. Reject it — matches the frontend /api/swap
 // guard so manual and automated trades share the same protection.
 const MAX_PRICE_IMPACT_PCT = 15;
 
-// Only charge the 2% platform fee when a destination account is actually configured.
+// Only charge the platform fee when a destination account is actually configured.
 // Jupiter rejects a swap whose quote requests platformFeeBps but supplies no feeAccount,
 // so requesting the fee unconditionally would make EVERY worker trade fail when the env
 // var is unset. Mirror the frontend /api/swap behaviour: fee is all-or-nothing per env.
@@ -44,7 +43,7 @@ async function buildSwapTx({ quote, userPublicKey }) {
     dynamicComputeUnitLimit: true,
     prioritizationFeeLamports: "auto"
   };
-  if (APPLY_FEE) swapBody.feeAccount = FEE_ACCOUNT; // our 2% destination
+  if (APPLY_FEE) swapBody.feeAccount = FEE_ACCOUNT;
   const res = await fetch(`${JUP}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },

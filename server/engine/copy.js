@@ -66,6 +66,7 @@ function startCopyWatcher(deps, pollMs = 10000) {
         let subs = [];
         try { subs = await loadSubscribers(w.address); } catch { subs = []; }
         for (const s of subs) {
+          if (!s.wallet_id) { onEvent({ type: "NO_WALLET", user: s.user_pubkey }); continue; }
           if (spentSoFar(s) + s.size_sol > s.daily_cap_sol) { onEvent({ type: "CAP", user: s.user_pubkey }); continue; }
           try {
             const { tx } = await buyToken(mint, s.size_sol, s.user_pubkey, s.slippage_bps || 300);

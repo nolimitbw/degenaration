@@ -37,11 +37,11 @@ test("does not misfire on two addresses (ambiguous)", () => {
   assert.strictEqual(parseCall(two), null);
 });
 
-console.log("fee math (2% platform fee)");
+console.log("fee math (configured platform fee)");
 const PLATFORM_FEE_BPS = 200;
 function feeFor(sol) { return sol * (PLATFORM_FEE_BPS / 10000); }
-test("2% of 0.5 SOL = 0.01", () => assert.ok(Math.abs(feeFor(0.5) - 0.01) < 1e-9));
-test("2% of 1.2 SOL = 0.024", () => assert.ok(Math.abs(feeFor(1.2) - 0.024) < 1e-9));
+test("configured fee of 0.5 SOL = 0.01", () => assert.ok(Math.abs(feeFor(0.5) - 0.01) < 1e-9));
+test("configured fee of 1.2 SOL = 0.024", () => assert.ok(Math.abs(feeFor(1.2) - 0.024) < 1e-9));
 test("fee applies on partial sells too", () => {
   const partial = 0.5 * 0.5; // sell 50% of a 0.5 SOL position
   assert.ok(Math.abs(feeFor(partial) - 0.005) < 1e-9);

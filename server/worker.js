@@ -7,7 +7,7 @@
  * a transaction — so it can never move funds by accident. See GO-LIVE Phase A/E.
  *
  * Env: SUPABASE_URL, SUPABASE_SERVICE_KEY, MAINNET_RPC (paid recommended),
- *      PLATFORM_FEE_ACCOUNT (optional 2% fee), PRIVY_APP_ID/PRIVY_APP_SECRET (for signing).
+ *      PLATFORM_FEE_ACCOUNT (optional platform fee), PRIVY_APP_ID/PRIVY_APP_SECRET (for signing).
  */
 require("dotenv").config();
 const { getPrice } = require("./engine/prices");
