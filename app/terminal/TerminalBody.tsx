@@ -16,6 +16,19 @@ const SELL_PCTS = [25, 50, 75, 100];
 
 type Mode = "buy" | "sell" | "limit";
 
+async function fetchJson<T = any>(url: string, ms = 9000): Promise<T | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    return await response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Privy + trade-execution terminal body. Lazily loaded by app/terminal/page.tsx.
 export default function TerminalBody() {
   const params = useSearchParams();
@@ -67,16 +80,21 @@ export default function TerminalBody() {
 
   async function load() {
     setLoading(true);
-    const p = await fetch(`/api/price?mint=${mint}`).then((r) => r.json()).catch(() => null);
-    setPrice(p);
-    const oh = await fetch(`/api/ohlcv?mint=${mint}&tf=${tf}`).then((r) => r.json()).catch(() => null);
-    setCandles(oh?.candles ?? []);
-    const hd = await fetch(`/api/holders?mint=${mint}`).then((r) => r.json()).catch(() => null);
-    setHolders(hd?.holders ?? []);
-    const q = await fetch(`/api/quote?in=${SOL}&out=${mint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`).then((r) => r.json()).catch(() => null);
-    setQuote(q);
-    setLoading(false);
-    loadBalance();
+    try {
+      const [p, oh, hd, q] = await Promise.all([
+        fetchJson(`/api/price?mint=${mint}`),
+        fetchJson(`/api/ohlcv?mint=${mint}&tf=${tf}`),
+        fetchJson(`/api/holders?mint=${mint}`),
+        fetchJson(`/api/quote?in=${SOL}&out=${mint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
+      ]);
+      setPrice(p);
+      setCandles(oh?.candles ?? []);
+      setHolders(hd?.holders ?? []);
+      setQuote(q);
+    } finally {
+      setLoading(false);
+      loadBalance();
+    }
   }
 
   // auto-load the token on mount (covers arriving via /terminal?mint=... from Quick trade)
@@ -86,6 +104,7 @@ export default function TerminalBody() {
 
   // BUY preview: simulate the SOL->token swap, then confirm & sign
   async function runBuyPreview() {
+    if (!authenticated) { login(); return; }
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
     const s = await fetch(`/api/simulate?in=${SOL}&out=${mint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
       .then((r) => r.json()).catch(() => ({ error: "Simulation failed — try again." }));
@@ -139,17 +158,28 @@ export default function TerminalBody() {
   }
 
   const chg = price?.change24h;
+  const priceLabel = price?.priceUsd ? `$${price.priceUsd}` : "Load a token";
+  const quoteLabel = mode === "buy" && price?.priceUsd && price?.solPrice
+    ? `${(amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${price?.symbol ?? "tokens"}`
+    : "Preview required";
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-xl font-bold">Trade Terminal
-          <span className="rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic">LIVE</span>
-        </h1>
-        <div className="flex gap-2">
+      <div className="terminal-hero flex flex-wrap items-center justify-between gap-4 rounded-lg border border-edge bg-panel p-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-bold">Trade Terminal</h1>
+            <span className="rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic">LIVE</span>
+            <span className="rounded-full border border-edge px-2 py-0.5 font-mono text-[10px] text-dim">Jupiter routed</span>
+          </div>
+          <p className="mt-1 text-xs text-dim">Market buys, sells, and limit orders. Every execution requires your wallet signature.</p>
+        </div>
+        <div className="flex w-full gap-2 sm:w-auto">
           <input value={mint} onChange={(e) => setMint(e.target.value)} placeholder="Token mint address"
-            className="w-72 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-          <button onClick={load} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Load</button>
+            className="min-h-11 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic sm:w-80" />
+          <button onClick={load} disabled={loading || !mint.trim()} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+            {loading ? "Loading" : "Load"}
+          </button>
         </div>
       </div>
 
@@ -162,7 +192,7 @@ export default function TerminalBody() {
                 {price?.image ? <img src={price.image} alt="" className="h-11 w-11 rounded-full" /> : <div className="grid h-11 w-11 place-items-center rounded-full bg-edge font-mono text-xs">{(price?.symbol ?? mint).slice(0, 2)}</div>}
                 <div>
                   <p className="font-mono text-sm font-bold">{price?.symbol ?? mint.slice(0, 6)} <span className="text-dim">{price?.name ? `· ${price.name}` : ""}</span></p>
-                  <p className="mt-0.5 font-mono text-2xl font-bold">{price?.priceUsd ? `$${price.priceUsd}` : "—"}</p>
+                  <p className="mt-0.5 font-mono text-2xl font-bold">{priceLabel}</p>
                 </div>
               </div>
               <div className="text-right font-mono text-xs">
@@ -171,6 +201,11 @@ export default function TerminalBody() {
                 </p>
                 <p className="text-dim">Liq {price?.liquidityUsd ? `$${Math.round(price.liquidityUsd / 1000)}K` : "—"} · {price?.dex ?? "—"}</p>
               </div>
+            </div>
+            <div className="mt-4 grid gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-3">
+              <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Est. receive</p><p className="mt-0.5 text-ink">{quoteLabel}</p></div>
+              <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Fee</p><p className="mt-0.5 text-ink">2% platform</p></div>
+              <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Custody</p><p className="mt-0.5 text-ink">Wallet-signed</p></div>
             </div>
             <div className="mt-3 flex gap-1">
               {(["chart", "holders", "info"] as const).map((t) => (
@@ -308,7 +343,7 @@ export default function TerminalBody() {
           {mode === "limit" ? (
             <button onClick={createLimit} disabled={limitTarget <= 0 || amount <= 0}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-              Create limit order
+              {authenticated ? "Create limit order" : "Connect wallet for limit"}
             </button>
           ) : mode === "sell" ? (
             <button onClick={runSellPreview} disabled={previewLoading || !authenticated || !bal || bal.uiAmount <= 0}
@@ -318,7 +353,7 @@ export default function TerminalBody() {
           ) : (
             <button onClick={runBuyPreview} disabled={previewLoading || amount <= 0}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-              {`Buy ${amount} SOL`}
+              {authenticated ? `Buy ${amount} SOL` : "Connect wallet to buy"}
             </button>
           )}
           <p className="mt-2 text-center font-mono text-[10px] text-dim">{mode === "limit" ? "Auto-buys when the target hits (watch on Limit Orders)" : "Preview the trade, then sign in your wallet"}</p>
@@ -330,7 +365,7 @@ export default function TerminalBody() {
           <div className="w-full max-w-md rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{preview?.side === "sell" ? "Sell preview" : "Buy preview"}</h3>
-              <button onClick={() => setPreviewOpen(false)} aria-label="Close" className="text-dim hover:text-ink">✕</button>
+              <button onClick={() => setPreviewOpen(false)} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink">x</button>
             </div>
             {previewLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-dim"><span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-toxic" /> Fetching quote…</div>
@@ -356,7 +391,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct.toFixed(2)}%</span></div>
                 <div className="flex justify-between"><span className="text-dim">Platform fee (2%)</span><span>{preview.feeSol.toFixed(4)} SOL</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
-                {preview.warn && <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-[11px] text-hotpink">⚠ {preview.warn}</p>}
+                {preview.warn && <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-[11px] text-hotpink">{preview.warn}</p>}
                 <button onClick={confirmTrade} disabled={executing}
                   className="mt-2 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
                   {executing ? "Awaiting signature…" : "Confirm buy & sign"}
