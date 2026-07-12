@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders, emailFromPrivyUser } from "@/lib/admin";
+import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 // The platform fee wallet (2% commissions land here). Set to your fee wallet address.
 const FEE_WALLET = process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || "";
@@ -13,6 +13,7 @@ const FEE_WALLET = process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || "";
 export default function Commissions() {
   const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const { admin } = useIsAdmin();
   const email = emailFromPrivyUser(user);
   const [totals, setTotals] = useState({ totalSol: 0, count: 0 });
   const [balance, setBalance] = useState<number | null>(null);
@@ -22,14 +23,14 @@ export default function Commissions() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!identityToken && !email) return;
+    if (!admin) return;
     adminHeaders(getAccessToken, identityToken, email)
-      .then((headers) => fetch("/api/admin/summary", { headers }))
+      .then((headers) => fetch("/api/admin/summary", { cache: "no-store", headers }))
       .then((r) => r.json())
       .then((d) => setTotals({ totalSol: Number(d?.summary?.commissionSol || 0), count: Number(d?.summary?.tradeCount || 0) }))
       .catch(() => {});
     if (FEE_WALLET) fetchBalance(FEE_WALLET).then((b) => { if (b && !b.error) setBalance(b.sol); });
-  }, [email, getAccessToken, identityToken]);
+  }, [admin, email, getAccessToken, identityToken]);
 
   async function withdraw() {
     setStatus(null);

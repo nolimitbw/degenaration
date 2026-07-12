@@ -13,7 +13,7 @@ type Channel = {
 export default function AdminChannels() {
   const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
-  const { admin, ready } = useIsAdmin();
+  const { admin } = useIsAdmin();
   const email = emailFromPrivyUser(user);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -22,7 +22,7 @@ export default function AdminChannels() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
-    if (!admin || !identityToken) {
+    if (!admin) {
       setLoaded(false);
       return;
     }
@@ -42,11 +42,11 @@ export default function AdminChannels() {
     setLastSync(new Date());
   }, [admin, email, getAccessToken, identityToken]);
   useEffect(() => {
-    if (!admin || !identityToken) return;
+    if (!admin) return;
     load();
     const timer = window.setInterval(load, 10000);
     return () => window.clearInterval(timer);
-  }, [admin, identityToken, load]);
+  }, [admin, load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
@@ -81,7 +81,7 @@ export default function AdminChannels() {
           Refresh
         </button>
         <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
-          {loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : ready && admin ? "waiting for owner token" : "loading owner data"}
+          {loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
         </span>
         {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
@@ -90,7 +90,7 @@ export default function AdminChannels() {
 
       <h2 className="mt-8 text-lg font-bold">Pending</h2>
       <div className="mt-3 space-y-3">
-        {!loaded && <p className="text-sm text-dim">{email ? "Waiting for secure owner token..." : "Waiting for owner session..."}</p>}
+        {!loaded && <p className="text-sm text-dim">{email ? "Loading registered channels..." : "Waiting for owner session..."}</p>}
         {loaded && !pending.length && !err && <p className="text-sm text-dim">No channels waiting for approval.</p>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-lg border border-edge bg-panel p-5">

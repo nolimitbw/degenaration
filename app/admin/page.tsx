@@ -4,7 +4,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { type Application } from "@/lib/queries";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders, emailFromPrivyUser } from "@/lib/admin";
+import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 type Summary = {
   commissionSol?: number | string;
@@ -17,6 +17,7 @@ type Summary = {
 export default function Admin() {
   const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const { admin } = useIsAdmin();
   const email = emailFromPrivyUser(user);
   const [apps, setApps] = useState<Application[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -25,7 +26,7 @@ export default function Admin() {
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
-    if (!identityToken) return;
+    if (!admin) return;
     setErr(null);
     const headers = await adminHeaders(getAccessToken, identityToken, email);
     const [response, summaryResponse] = await Promise.all([
@@ -37,7 +38,7 @@ export default function Admin() {
     setSummary(summaryResponse.summary ?? null);
     setLoaded(true);
   }
-  useEffect(() => { if (identityToken) load(); }, [email, identityToken]);
+  useEffect(() => { if (admin) load(); }, [admin, email, identityToken]);
 
   async function approve(a: Application) {
     setBusy(a.id);
