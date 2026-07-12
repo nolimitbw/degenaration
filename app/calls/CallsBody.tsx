@@ -19,6 +19,7 @@ export default function CallsBody() {
   const [open, setOpen] = useState<string | null>(null);
   const [settings, setSettings] = useState<Record<string, Settings>>({});
   const [saved, setSaved] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
   const toast = useToast();
 
   const pubkey = getSolanaAddress(user);
@@ -26,6 +27,8 @@ export default function CallsBody() {
 
   async function persist(id: string, on: boolean) {
     if (!authenticated) { login(); return; }
+    if (!pubkey) { toast("No wallet found", "err"); return; }
+    setSaving(id);
     const token = await getAccessToken();
     const c = s(id);
     const { error } = await saveSubscription({
@@ -33,13 +36,22 @@ export default function CallsBody() {
       tp2: c.tp2, tp2_sell: c.tp2sell, stop_loss: c.sl, slippage_bps: c.slippage * 100,
       daily_cap_sol: c.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId
     }, token);
-    if (error) { toast(error.message || "Could not save — sign in first", "err"); return; }
-    setSaved(id); toast(on ? "Copying this group — saved" : "Settings saved"); setTimeout(() => setSaved(null), 1500);
+    setSaving(null);
+    if (error) {
+      setCopying((current) => on ? current.filter((x) => x !== id) : [...new Set([...current, id])]);
+      toast(error.message || "Could not save — sign in first", "err");
+      return;
+    }
+    setCopying((current) => on ? [...new Set([...current, id])] : current.filter((x) => x !== id));
+    setSaved(id); toast(on ? "Copying this group — saved" : "Copying paused"); setTimeout(() => setSaved(null), 1500);
   }
 
   function toggle(id: string) {
+    if (!authenticated) { login(); return; }
+    if (!pubkey) { toast("No wallet found", "err"); return; }
     const on = !copying.includes(id);
     setCopying(on ? [...copying, id] : copying.filter((x) => x !== id));
+    persist(id, on);
   }
 
   useEffect(() => {
@@ -97,8 +109,8 @@ export default function CallsBody() {
                     {g.members ?? "—"} members · {g.metrics.calls} calls in the tracked window
                   </p>
                 </div>
-                <button onClick={() => toggle(g.id)}
-                  className={`relative h-7 w-14 rounded-full transition ${on ? "bg-toxic" : "bg-edge"}`}
+                <button onClick={() => toggle(g.id)} disabled={saving === g.id}
+                  className={`relative h-7 w-14 rounded-full transition disabled:opacity-60 ${on ? "bg-toxic" : "bg-edge"}`}
                   aria-label="toggle copying">
                   <span className={`absolute top-1 h-5 w-5 rounded-full bg-void transition-all ${on ? "left-8" : "left-1"}`} />
                 </button>
@@ -170,8 +182,9 @@ export default function CallsBody() {
                      rug-check on · mint-authority check · liquidity-lock check
                   </p>
                   <button onClick={() => persist(g.id, on)}
-                    className="col-span-2 rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110">
-                    {saved === g.id ? "✓ Saved" : "Save settings"}
+                    disabled={saving === g.id}
+                    className="col-span-2 rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-60">
+                    {saving === g.id ? "Saving..." : saved === g.id ? "Saved" : "Save settings"}
                   </button>
                 </div>
               )}
