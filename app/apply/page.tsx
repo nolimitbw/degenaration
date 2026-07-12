@@ -3,10 +3,13 @@ import AppShell from "@/components/AppShell";
 import { useState } from "react";
 import { submitApplication } from "@/lib/queries";
 
-// Bot invite link (verified). Override per-deploy with NEXT_PUBLIC_DISCORD_BOT_INVITE if the
-// canonical Discord app id ever changes. permissions=68608 = View Channels + Read History + Send.
+// Keep this client id aligned with the DISCORD_BOT_TOKEN application.
+const BOT_CLIENT_ID = "1525315046303858748";
+
+// Override per-deploy with NEXT_PUBLIC_DISCORD_BOT_INVITE if the canonical Discord app id ever changes.
+// permissions=68608 = View Channels + Send Messages + Read Message History.
 const BOT_INVITE = process.env.NEXT_PUBLIC_DISCORD_BOT_INVITE ||
-  "https://discord.com/oauth2/authorize?client_id=1521883553682559116&permissions=68608&scope=bot";
+  `https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&permissions=68608&scope=bot%20applications.commands`;
 
 export default function Apply() {
   const [sent, setSent] = useState(false);
@@ -42,8 +45,21 @@ export default function Apply() {
         <h1 className="text-2xl font-bold">List your Discord server</h1>
         <p className="mt-1 text-sm text-dim">
           Run a calls group? Apply to get listed on Degenaration. Approved groups get a
-          copy button next to every call — and your community trades it in seconds.
+          measurable source profile, and traders can choose their own rules for following it.
         </p>
+        <div className="mt-6 rounded-lg border border-toxic/30 bg-toxic/5 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-ink">Add the active Degenaration bot</h2>
+              <p className="mt-1 text-xs leading-relaxed text-dim">
+                Server managers can add the bot, then run <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code> in a calls channel. New channels stay pending until approval.
+              </p>
+            </div>
+            <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="shrink-0 rounded-md bg-toxic px-4 py-2 text-center text-sm font-bold text-white transition hover:brightness-110">
+              Add bot
+            </a>
+          </div>
+        </div>
 
         {sent ? (
           <div className="mt-8 rounded-lg border border-toxic/50 bg-panel p-8">
@@ -58,7 +74,7 @@ export default function Apply() {
                 <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="mt-2 block rounded-md bg-toxic px-4 py-2 text-center font-bold text-white transition hover:brightness-110">Add bot to my server →</a>
               </li>
               <li><b className="text-ink">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code>. The bot confirms.</li>
-              <li><b className="text-ink">3.</b> We approve the channel — from then on every call auto-copies for your subscribers.</li>
+              <li><b className="text-ink">3.</b> We review the channel. Once approved, qualifying calls are recorded so your source can build a public performance record.</li>
             </ol>
           </div>
         ) : (
