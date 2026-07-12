@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useCallback, useEffect, useState } from "react";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
+import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 type Channel = {
   id: string; guild_name: string | null; channel_name: string | null; channel_id: string;
@@ -27,12 +27,9 @@ export default function AdminChannels() {
       return;
     }
     setErr(null);
-    const res = await fetch("/api/admin/channels", { cache: "no-store", headers: await adminHeaders(getAccessToken, identityToken, email) })
-      .then(async (r) => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) }))
-      .catch(() => ({ ok: false, status: 0, data: { error: "request failed" } }));
-    if (!res.ok || res.data?.error) {
-      const reason = res.data?.error || `request failed (${res.status})`;
-      setErr(reason === "forbidden" ? "Owner API rejected this session. Sign out and use the owner Google account." : reason);
+    const res = await adminFetchJson<{ channels?: Channel[] }>("/api/admin/channels", getAccessToken, identityToken, email);
+    if (!res.ok) {
+      setErr(res.error);
       setChannels([]);
       setLoaded(true);
       return;
@@ -50,13 +47,11 @@ export default function AdminChannels() {
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
-    const res = await fetch("/api/admin/channels", {
+    const res = await adminFetchJson("/api/admin/channels", getAccessToken, identityToken, email, {
       method: "POST",
-      headers: await adminHeaders(getAccessToken, identityToken, email),
       body: JSON.stringify({ id, action })
-    }).then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => null) }))
-      .catch(() => ({ ok: false, data: { error: "request failed" } }));
-    if (!res.ok || res.data?.error) setErr(res.data?.error || `${action} failed`);
+    });
+    if (!res.ok) setErr(res.error || `${action} failed`);
     await load();
     setBusy(null);
   }

@@ -4,7 +4,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { type Application } from "@/lib/queries";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
+import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 type Summary = {
   commissionSol?: number | string;
@@ -28,14 +28,15 @@ export default function Admin() {
   async function load() {
     if (!admin) return;
     setErr(null);
-    const headers = await adminHeaders(getAccessToken, identityToken, email);
     const [response, summaryResponse] = await Promise.all([
-      fetch("/api/admin/applications", { cache: "no-store", headers }).then((r) => r.json()).catch(() => ({ applications: [] })),
-      fetch("/api/admin/summary", { cache: "no-store", headers }).then((r) => r.json()).catch(() => ({ summary: null }))
+      adminFetchJson<{ applications?: Application[] }>("/api/admin/applications", getAccessToken, identityToken, email),
+      adminFetchJson<{ summary?: Summary }>("/api/admin/summary", getAccessToken, identityToken, email)
     ]);
-    if (response.error) setErr(response.error === "forbidden" ? "Owner API rejected this session. Sign out and use the owner Google account." : response.error);
-    setApps(response.applications ?? []);
-    setSummary(summaryResponse.summary ?? null);
+    if (!response.ok || !summaryResponse.ok) {
+      setErr(!response.ok ? response.error : !summaryResponse.ok ? summaryResponse.error : null);
+    }
+    setApps(response.ok ? response.data.applications ?? [] : []);
+    setSummary(summaryResponse.ok ? summaryResponse.data.summary ?? null : null);
     setLoaded(true);
   }
   useEffect(() => { if (admin) load(); }, [admin, email, identityToken]);
@@ -43,10 +44,11 @@ export default function Admin() {
   async function approve(a: Application) {
     setBusy(a.id);
     try {
-      await fetch("/api/admin/applications", {
-        method: "POST", headers: await adminHeaders(getAccessToken, identityToken, email),
+      const res = await adminFetchJson("/api/admin/applications", getAccessToken, identityToken, email, {
+        method: "POST",
         body: JSON.stringify({ id: a.id, action: "approve" })
       });
+      if (!res.ok) setErr(res.error);
       await load();
     } catch {}
     setBusy(null);
@@ -54,10 +56,11 @@ export default function Admin() {
   async function reject(a: Application) {
     setBusy(a.id);
     try {
-      await fetch("/api/admin/applications", {
-        method: "POST", headers: await adminHeaders(getAccessToken, identityToken, email),
+      const res = await adminFetchJson("/api/admin/applications", getAccessToken, identityToken, email, {
+        method: "POST",
         body: JSON.stringify({ id: a.id, action: "reject" })
       });
+      if (!res.ok) setErr(res.error);
       await load();
     } catch {}
     setBusy(null);

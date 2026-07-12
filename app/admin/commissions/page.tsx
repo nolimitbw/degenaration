@@ -4,7 +4,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { fetchBalance } from "@/lib/queries";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
+import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 // The platform fee wallet (2% commissions land here). Set to your fee wallet address.
 const FEE_WALLET = process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || "";
@@ -25,16 +25,19 @@ export default function Commissions() {
 
   useEffect(() => {
     if (!admin) return;
-    adminHeaders(getAccessToken, identityToken, email)
-      .then((headers) => fetch("/api/admin/summary", { cache: "no-store", headers }))
-      .then((r) => r.json())
-      .then((d) => {
-        setTotals({ totalSol: Number(d?.summary?.commissionSol || 0), count: Number(d?.summary?.tradeCount || 0) });
+    adminFetchJson<{ summary?: any }>("/api/admin/summary", getAccessToken, identityToken, email)
+      .then((res) => {
+        if (!res.ok) {
+          setStatus(res.error);
+          return;
+        }
+        const d = res.data;
+        setTotals({ totalSol: Number(d.summary?.commissionSol || 0), count: Number(d.summary?.tradeCount || 0) });
         setFee({
-          platformFeeBps: Number(d?.summary?.platformFeeBps || 0),
-          feeWalletConfigured: Boolean(d?.summary?.feeWalletConfigured),
-          publicFeeWallet: d?.summary?.publicFeeWallet || null,
-          withdrawalsConfigured: Boolean(d?.summary?.withdrawalsConfigured)
+          platformFeeBps: Number(d.summary?.platformFeeBps || 0),
+          feeWalletConfigured: Boolean(d.summary?.feeWalletConfigured),
+          publicFeeWallet: d.summary?.publicFeeWallet || null,
+          withdrawalsConfigured: Boolean(d.summary?.withdrawalsConfigured)
         });
       })
       .catch(() => {});
@@ -52,14 +55,13 @@ export default function Commissions() {
       await sol.connect();
       const owner = sol.publicKey?.toBase58();
       if (owner !== FEE_WALLET) { setStatus("Connected wallet is not the fee wallet."); setBusy(false); return; }
-      const res = await fetch("/api/withdraw", {
+      const res = await adminFetchJson<any>("/api/withdraw", getAccessToken, identityToken, email, {
         method: "POST",
-        headers: await adminHeaders(getAccessToken, identityToken, email),
         body: JSON.stringify({ from: FEE_WALLET, to: dest, amountSol: amount })
-      }).then((r) => r.json());
-      if (res.error) throw new Error(res.error);
+      });
+      if (!res.ok) throw new Error(res.error);
       const web3 = await import("@solana/web3.js");
-      const tx = (web3 as any).Transaction.from(Uint8Array.from(atob(res.transaction), (c) => c.charCodeAt(0)));
+      const tx = (web3 as any).Transaction.from(Uint8Array.from(atob(res.data.transaction), (c) => c.charCodeAt(0)));
       const sig = await sol.signAndSendTransaction(tx);
       setStatus(`✓ Withdrawal sent: ${sig.signature ?? sig}`);
     } catch (e: any) {

@@ -10,7 +10,10 @@ export async function GET(req: NextRequest) {
 
   const result = await callAdminRpc<any[]>("admin_list_server_applications", {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json({ applications: Array.isArray(result.data) ? result.data : [] });
+  return NextResponse.json(
+    { applications: Array.isArray(result.data) ? result.data : [] },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -27,5 +30,5 @@ export async function POST(req: NextRequest) {
 
   const result = await callAdminRpc("admin_decide_server_application", { p_id: body.id, p_action: body.action });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json(result.data);
+  return NextResponse.json(result.data, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }

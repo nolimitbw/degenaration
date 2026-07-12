@@ -34,3 +34,30 @@ export async function adminHeaders(getAccessToken: () => Promise<string | null>,
     ...(email ? { "x-admin-email": email } : {})
   };
 }
+
+export function adminErrorMessage(error: string | undefined, status?: number) {
+  if (error === "forbidden") return "Owner API rejected this session. Sign out and use the owner Google account.";
+  if (error === "unauthorized") return "Owner session expired. Sign in with the owner Google account again.";
+  return error || `request failed${status ? ` (${status})` : ""}`;
+}
+
+export async function adminFetchJson<T>(
+  url: string,
+  getAccessToken: () => Promise<string | null>,
+  identityToken?: string | null,
+  email?: string | null,
+  init?: RequestInit
+): Promise<{ ok: true; status: number; data: T } | { ok: false; status: number; data: any; error: string }> {
+  const headers = await adminHeaders(getAccessToken, identityToken, email);
+  const response = await fetch(url, {
+    cache: "no-store",
+    ...init,
+    headers: { ...headers, ...(init?.headers || {}) }
+  }).catch(() => null);
+  if (!response) return { ok: false, status: 0, data: null, error: "request failed" };
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.error) {
+    return { ok: false, status: response.status, data, error: adminErrorMessage(data?.error, response.status) };
+  }
+  return { ok: true, status: response.status, data };
+}
