@@ -3,6 +3,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import Magnetic from "@/components/Magnetic";
 import RevealText from "@/components/RevealText";
+import FeeStatus from "@/components/FeeStatus";
 
 export default function Hero() {
   return (
@@ -64,7 +65,7 @@ export default function Hero() {
           className="hero-proof mx-auto mt-8 flex max-w-xl flex-wrap justify-center gap-x-7 gap-y-3 font-mono text-xs lg:mx-0 lg:justify-start"
         >
           <div><dt>Calls</dt><dd>Tracked</dd></div>
-          <div><dt>Fees</dt><dd>2%</dd></div>
+          <FeeStatus />
           <div><dt>Custody</dt><dd>Never</dd></div>
         </motion.dl>
       </div>

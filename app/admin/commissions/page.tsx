@@ -6,7 +6,7 @@ import { fetchBalance } from "@/lib/queries";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
-// The platform fee wallet (2% commissions land here). Set to your fee wallet address.
+// The platform fee wallet. Set to your fee wallet address to enable commission accrual.
 const FEE_WALLET = process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || "";
 type FeeConfig = { platformFeeBps?: number; feeWalletConfigured?: boolean; publicFeeWallet?: string | null; withdrawalsConfigured?: boolean };
 

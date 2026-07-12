@@ -8,7 +8,7 @@ const feeSolFrom = (v: any): number => process.env.PLATFORM_FEE_ACCOUNT ? (toNum
 
 /**
  * POST /api/record-trade — records an executed swap (for portfolio, history, commissions).
- * Auth: Privy bearer token or legacy Supabase bearer token. Fee is the 2% platform fee taken on-chain.
+ * Auth: Privy bearer token or legacy Supabase bearer token. Fee is the configured platform fee taken on-chain.
  */
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 30, windowMs: 60_000 });

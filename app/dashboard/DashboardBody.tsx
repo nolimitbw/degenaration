@@ -44,7 +44,7 @@ export default function DashboardBody() {
           <p className="mt-2 font-mono text-2xl font-bold">{trades ? trades.length : "…"}</p>
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
-          <p className="text-xs uppercase text-dim">Fees paid (2%)</p>
+          <p className="text-xs uppercase text-dim">Fees paid</p>
           <p className="mt-2 font-mono text-2xl font-bold">{feesPaid.toFixed(3)} SOL</p>
         </div>
       </div>

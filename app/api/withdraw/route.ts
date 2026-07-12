@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/server/admin";
  * body: { from, to, amountSol }
  * Builds an UNSIGNED SOL transfer transaction (base64). The owner signs it with their
  * own wallet (Phantom via window.solana) — the platform never holds keys.
- * Use for withdrawing accumulated 2% commissions from the fee wallet.
+ * Use for withdrawing accumulated platform commissions from the fee wallet.
  */
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 10, windowMs: 60_000 });
