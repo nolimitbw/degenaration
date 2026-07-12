@@ -16,7 +16,7 @@ function short(a: string) { return `${a.slice(0, 4)}…${a.slice(-4)}`; }
 
 // Shared copy-trade settings form — used for both discovered "smart money" wallets and
 // manually-tracked ones. Size / take-profit ladder / stop-loss / daily cap, all editable.
-function CopyPanel({ settings, onChange, onStart, onCancel }: { settings: CopySettings; onChange: (s: CopySettings) => void; onStart: () => void; onCancel: () => void }) {
+function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { settings: CopySettings; onChange: (s: CopySettings) => void; onStart: () => void; onCancel: () => void; busy?: boolean }) {
   const field = (label: string, key: keyof CopySettings, step = "0.1", suffix = "") => (
     <label className="block">
       <span className="font-mono text-[10px] uppercase text-dim">{label}</span>
@@ -39,8 +39,8 @@ function CopyPanel({ settings, onChange, onStart, onCancel }: { settings: CopySe
         {field("Stop-loss", "sl", "5", "%")}
       </div>
       <div className="mt-3 flex gap-2">
-        <button onClick={onStart} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white">Start copying</button>
-        <button onClick={onCancel} className="rounded border border-edge px-3 py-1.5 font-mono text-[11px] text-dim">cancel</button>
+        <button onClick={onStart} disabled={busy} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white disabled:opacity-60">{busy ? "Saving..." : "Start copying"}</button>
+        <button onClick={onCancel} disabled={busy} className="rounded border border-edge px-3 py-1.5 font-mono text-[11px] text-dim disabled:opacity-60">cancel</button>
       </div>
     </div>
   );
@@ -62,6 +62,7 @@ export default function TrackerBody() {
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [subs, setSubs] = useState<CopySub[]>([]);
   const [copyFor, setCopyFor] = useState<string | null>(null);
+  const [copyBusy, setCopyBusy] = useState<string | null>(null);
   const [settings, setSettings] = useState<CopySettings>(DEFAULT_SETTINGS);
   const [addr, setAddr] = useState("");
   const [label, setLabel] = useState("");
@@ -79,30 +80,34 @@ export default function TrackerBody() {
   }, []);
 
   const isCopied = (a: string) => subs.some((s) => s.leader_wallet === a && s.enabled);
-  const hasFunds = authenticated && address && (balance ?? 0) > 0;
+  const canCopy = authenticated && address && (balance ?? 0) > 0;
 
   function openCopy(leader: string) {
     if (!authenticated) { login(); return; }
-    if (!hasFunds) { toast("Fund your wallet with SOL first — see /wallet", "err"); return; }
+    if (!canCopy) { toast("Fund your wallet with SOL first — see /wallet", "err"); return; }
     setSettings(DEFAULT_SETTINGS);
     setCopyFor(leader);
   }
   async function enableCopy(leader: string, lbl: string) {
     if (!address) { toast("No wallet found", "err"); return; }
+    setCopyBusy(leader);
     const { error } = await saveCopySub({
       leader_wallet: leader, label: lbl, size_sol: settings.size, daily_cap_sol: settings.dailyCap,
       tp1: settings.tp1, tp1_sell: settings.tp1sell, tp2: settings.tp2, tp2_sell: settings.tp2sell, stop_loss: settings.sl,
       slippage_bps: 300, user_pubkey: address, wallet_id: walletId
     }, await getAccessToken());
+    setCopyBusy(null);
     if (error) { toast(error.message || "Could not enable copy", "err"); return; }
-    toast(`Copying ${lbl} — ${settings.size} SOL/trade`); setCopyFor(null); refreshSubs();
+    toast(`Copying ${lbl} — ${settings.size} SOL/trade`); setCopyFor(null); await refreshSubs();
   }
   async function disableCopy(leader: string) {
     try {
+      setCopyBusy(leader);
       const { error } = await removeCopySub(leader, await getAccessToken());
+      setCopyBusy(null);
       if (error) { toast(error.message || "Could not stop copy", "err"); return; }
-      toast("Copy trade stopped"); refreshSubs();
-    } catch { toast("Could not stop copy", "err"); }
+      toast("Copy trade stopped"); await refreshSubs();
+    } catch { setCopyBusy(null); toast("Could not stop copy", "err"); }
   }
 
   useEffect(() => {
@@ -126,9 +131,8 @@ export default function TrackerBody() {
   }, [wallets]);
 
   const add = (a: string, lbl?: string) => {
-    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) return;
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)) { toast("Paste a valid Solana wallet address", "err"); return; }
     if (!authenticated) { login(); return; }
-    if (!hasFunds) { toast("Fund your wallet with SOL first — see /wallet", "err"); return; }
     setWallets((w) => [...w.filter((x) => x.address !== a), { address: a, label: lbl || a.slice(0, 6) }]);
     setAddr(""); setLabel("");
   };
@@ -141,7 +145,7 @@ export default function TrackerBody() {
       </h1>
       <p className="mt-1 text-sm text-dim">Real on-chain smart-money discovery, plus any wallet you want to follow — priced live.</p>
 
-      {/* gate: must be connected + funded before tracking/copying anything */}
+      {/* gate: must be connected before tracking/copying anything */}
       {!authenticated ? (
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
           <p className="text-sm font-bold text-dim">Connect your wallet to track or copy-trade</p>
@@ -152,14 +156,16 @@ export default function TrackerBody() {
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
           <p className="font-mono text-xs text-dim">Checking your balance…</p>
         </div>
-      ) : !hasFunds ? (
-        <div className="mt-6 grid place-items-center rounded-lg border border-hotpink/40 bg-panel/40 py-12 text-center">
-          <p className="text-sm font-bold text-dim">Add SOL to your wallet to unlock tracking &amp; copy trading</p>
-          <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Your balance is {balance?.toFixed(3) ?? "0"} SOL. Deposit first — copy trades need real funds to execute.</p>
-          <Link href="/wallet" className="mt-4 rounded-md bg-toxic px-6 py-2.5 text-sm font-bold text-white shadow-toxic">Go to Wallet</Link>
-        </div>
       ) : (
         <>
+          {!canCopy && (
+            <div className="mt-6 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
+              <p className="text-sm font-bold text-ink">Tracking is available. Add SOL before enabling copy trades.</p>
+              <p className="mt-1 font-mono text-[11px] text-dim">Current wallet balance: {balance?.toFixed(3) ?? "0"} SOL. Copy trades use real funds and will stay locked until the wallet is funded.</p>
+              <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Go to Wallet</Link>
+            </div>
+          )}
+
           {/* smart money discovery */}
           <div className="mt-6">
             <div className="flex items-center justify-between">
@@ -184,11 +190,11 @@ export default function TrackerBody() {
                     </div>
                     <p className="mt-1 font-mono text-[10px] text-dim">{s.catchCount} early {s.catchCount === 1 ? "catch" : "catches"} · {s.catches.map((c) => c.symbol).join(", ")}</p>
                     {copyFor === s.address ? (
-                      <CopyPanel settings={settings} onChange={setSettings} onStart={() => enableCopy(s.address, s.catches[0]?.symbol ?? short(s.address))} onCancel={() => setCopyFor(null)} />
+                      <CopyPanel settings={settings} onChange={setSettings} onStart={() => enableCopy(s.address, s.catches[0]?.symbol ?? short(s.address))} onCancel={() => setCopyFor(null)} busy={copyBusy === s.address} />
                     ) : (
                       <div className="mt-2 flex items-center gap-2">
                         {isCopied(s.address) ? (
-                          <button onClick={() => disableCopy(s.address)} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10">● Copying · stop</button>
+                          <button onClick={() => disableCopy(s.address)} disabled={copyBusy === s.address} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10 disabled:opacity-60">{copyBusy === s.address ? "Stopping..." : "● Copying · stop"}</button>
                         ) : (
                           <button onClick={() => openCopy(s.address)} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30">Copy trades</button>
                         )}
@@ -256,11 +262,11 @@ export default function TrackerBody() {
                     )}
 
                     {copyFor === w.address ? (
-                      <CopyPanel settings={settings} onChange={setSettings} onStart={() => enableCopy(w.address, w.label)} onCancel={() => setCopyFor(null)} />
+                      <CopyPanel settings={settings} onChange={setSettings} onStart={() => enableCopy(w.address, w.label)} onCancel={() => setCopyFor(null)} busy={copyBusy === w.address} />
                     ) : (
                       <div className="mt-3 flex items-center gap-3">
                         {isCopied(w.address) ? (
-                          <button onClick={() => disableCopy(w.address)} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10">● Copying · stop</button>
+                          <button onClick={() => disableCopy(w.address)} disabled={copyBusy === w.address} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10 disabled:opacity-60">{copyBusy === w.address ? "Stopping..." : "● Copying · stop"}</button>
                         ) : (
                           <button onClick={() => openCopy(w.address)} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30">Copy trades</button>
                         )}

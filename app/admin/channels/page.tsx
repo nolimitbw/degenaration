@@ -63,6 +63,7 @@ export default function AdminChannels() {
 
   const pending = channels.filter((c) => c.status === "pending");
   const decided = channels.filter((c) => c.status !== "pending");
+  const newest = channels[0];
 
   return (
     <AdminGuard>
@@ -76,7 +77,8 @@ export default function AdminChannels() {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <button
           onClick={() => load()}
-          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic"
+          disabled={!admin}
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic disabled:opacity-50"
         >
           Refresh
         </button>
@@ -87,6 +89,21 @@ export default function AdminChannels() {
       </div>
 
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg border border-edge bg-panel p-4">
+          <p className="font-mono text-[10px] uppercase text-dim">Pending approval</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-toxic">{loaded ? pending.length : "..."}</p>
+        </div>
+        <div className="rounded-lg border border-edge bg-panel p-4">
+          <p className="font-mono text-[10px] uppercase text-dim">Total registrations</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-ink">{loaded ? channels.length : "..."}</p>
+        </div>
+        <div className="rounded-lg border border-edge bg-panel p-4">
+          <p className="font-mono text-[10px] uppercase text-dim">Newest channel</p>
+          <p className="mt-2 truncate font-mono text-sm font-bold text-ink">{newest ? `${newest.guild_name || "Discord server"} #${newest.channel_name || newest.channel_id}` : loaded ? "None" : "..."}</p>
+        </div>
+      </div>
 
       <h2 className="mt-8 text-lg font-bold">Pending</h2>
       <div className="mt-3 space-y-3">

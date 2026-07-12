@@ -78,7 +78,7 @@ export type Subscription = {
   user_pubkey?: string; wallet_id?: string;
 };
 
-function bearer(token?: string | null) {
+function bearer(token?: string | null): Record<string, string> {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 

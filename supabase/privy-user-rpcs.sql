@@ -314,7 +314,7 @@ begin
       (p_payload->>'tp2')::numeric,
       (p_payload->>'tp2_sell')::integer,
       (p_payload->>'stop_loss')::integer,
-      true,
+      coalesce((p_payload->>'enabled')::boolean, true),
       p_payload->>'user_pubkey',
       nullif(p_payload->>'wallet_id', '')
     )
@@ -330,7 +330,7 @@ begin
       tp2 = (p_payload->>'tp2')::numeric,
       tp2_sell = (p_payload->>'tp2_sell')::integer,
       stop_loss = (p_payload->>'stop_loss')::integer,
-      enabled = true,
+      enabled = coalesce((p_payload->>'enabled')::boolean, true),
       user_pubkey = p_payload->>'user_pubkey',
       wallet_id = nullif(p_payload->>'wallet_id', '')
     where id = v_id

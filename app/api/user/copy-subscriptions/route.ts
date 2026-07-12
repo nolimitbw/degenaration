@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     tp2: numeric(body?.tp2, 5, 0.1, 1000),
     tp2_sell: Math.round(numeric(body?.tp2_sell, 25, 1, 100)),
     stop_loss: Math.round(numeric(body?.stop_loss, 40, 1, 100)),
-    enabled: true,
+    enabled: body?.enabled !== false,
     user_pubkey: userPubkey,
     wallet_id: typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : null
   };
