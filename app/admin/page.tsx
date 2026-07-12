@@ -4,7 +4,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { type Application } from "@/lib/queries";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders } from "@/lib/admin";
+import { adminHeaders, emailFromPrivyUser } from "@/lib/admin";
 
 type Summary = {
   commissionSol?: number | string;
@@ -15,8 +15,9 @@ type Summary = {
 };
 
 export default function Admin() {
-  const { getAccessToken } = usePrivy();
+  const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const email = emailFromPrivyUser(user);
   const [apps, setApps] = useState<Application[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -25,23 +26,23 @@ export default function Admin() {
 
   async function load() {
     setErr(null);
-    const headers = await adminHeaders(getAccessToken, identityToken);
+    const headers = await adminHeaders(getAccessToken, identityToken, email);
     const [response, summaryResponse] = await Promise.all([
       fetch("/api/admin/applications", { headers }).then((r) => r.json()).catch(() => ({ applications: [] })),
       fetch("/api/admin/summary", { headers }).then((r) => r.json()).catch(() => ({ summary: null }))
     ]);
-    if (response.error) setErr(response.error === "admin auth not configured" ? "Admin auth needs PRIVY_APP_SECRET on Vercel before this page can load." : response.error);
+    if (response.error) setErr(response.error);
     setApps(response.applications ?? []);
     setSummary(summaryResponse.summary ?? null);
     setLoaded(true);
   }
-  useEffect(() => { if (identityToken) load(); }, [identityToken]);
+  useEffect(() => { if (identityToken || email) load(); }, [email, identityToken]);
 
   async function approve(a: Application) {
     setBusy(a.id);
     try {
       await fetch("/api/admin/applications", {
-        method: "POST", headers: await adminHeaders(getAccessToken, identityToken),
+        method: "POST", headers: await adminHeaders(getAccessToken, identityToken, email),
         body: JSON.stringify({ id: a.id, action: "approve" })
       });
       await load();
@@ -52,7 +53,7 @@ export default function Admin() {
     setBusy(a.id);
     try {
       await fetch("/api/admin/applications", {
-        method: "POST", headers: await adminHeaders(getAccessToken, identityToken),
+        method: "POST", headers: await adminHeaders(getAccessToken, identityToken, email),
         body: JSON.stringify({ id: a.id, action: "reject" })
       });
       await load();

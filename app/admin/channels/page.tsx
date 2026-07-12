@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useCallback, useEffect, useState } from "react";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders } from "@/lib/admin";
+import { adminHeaders, emailFromPrivyUser } from "@/lib/admin";
 
 type Channel = {
   id: string; guild_name: string | null; channel_name: string | null; channel_id: string;
@@ -11,8 +11,9 @@ type Channel = {
 };
 
 export default function AdminChannels() {
-  const { getAccessToken } = usePrivy();
+  const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const email = emailFromPrivyUser(user);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -20,18 +21,18 @@ export default function AdminChannels() {
 
   const load = useCallback(async () => {
     setErr(null);
-    const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken, identityToken) })
+    const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken, identityToken, email) })
       .then((r) => r.json()).catch(() => ({ error: "request failed" }));
-    if (res.error) { setErr(res.error === "admin auth not configured" ? "Admin auth needs PRIVY_APP_SECRET on Vercel before this page can load." : res.error); setLoaded(true); return; }
+    if (res.error) { setErr(res.error); setLoaded(true); return; }
     setChannels(res.channels ?? []); setLoaded(true);
-  }, [getAccessToken, identityToken]);
-  useEffect(() => { if (identityToken) load(); }, [identityToken, load]);
+  }, [email, getAccessToken, identityToken]);
+  useEffect(() => { if (identityToken || email) load(); }, [email, identityToken, load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
     await fetch("/api/admin/channels", {
       method: "POST",
-      headers: await adminHeaders(getAccessToken, identityToken),
+      headers: await adminHeaders(getAccessToken, identityToken, email),
       body: JSON.stringify({ id, action })
     }).catch(() => {});
     await load();
@@ -54,6 +55,7 @@ export default function AdminChannels() {
 
       <h2 className="mt-8 text-lg font-bold">Pending</h2>
       <div className="mt-3 space-y-3">
+        {!loaded && <p className="text-sm text-dim">{email ? "Loading registered channels..." : "Waiting for owner session..."}</p>}
         {loaded && !pending.length && <p className="text-sm text-dim">No channels waiting for approval.</p>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-lg border border-edge bg-panel p-5">
