@@ -10,6 +10,8 @@ type Channel = {
   registered_by: string | null; guild_member_count: number | null; status: string; group_id: string | null; created_at: string;
 };
 type Summary = { pendingChannels?: number; approvedChannels?: number };
+type ChannelsResponse = { channels?: Channel[]; source?: string; normalizedFrom?: string; rpcCount?: number; rpcError?: string };
+const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v3";
 
 export default function AdminChannels() {
   const { getAccessToken, user } = usePrivy();
@@ -22,6 +24,7 @@ export default function AdminChannels() {
   const [err, setErr] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [source, setSource] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!admin) {
@@ -35,16 +38,18 @@ export default function AdminChannels() {
     }
     setErr(null);
     const [res, summaryRes] = await Promise.all([
-      adminFetchJson<{ channels?: Channel[] }>("/api/admin/channels", getAccessToken, identityToken, email),
+      adminFetchJson<ChannelsResponse>("/api/admin/channels", getAccessToken, identityToken, email),
       adminFetchJson<{ summary?: Summary }>("/api/admin/summary", getAccessToken, identityToken, email)
     ]);
     if (!res.ok) {
       setErr(res.error);
       setChannels([]);
+      setSource(null);
       setLoaded(true);
       return;
     }
     setChannels(res.data?.channels ?? []);
+    setSource([res.data?.source, res.data?.normalizedFrom && `payload:${res.data.normalizedFrom}`, res.data?.rpcError && "rpc fallback"].filter(Boolean).join(" · ") || null);
     setSummary(summaryRes.ok ? summaryRes.data.summary ?? null : null);
     if (!summaryRes.ok) setErr(summaryRes.error);
     setLoaded(true);
@@ -94,6 +99,7 @@ export default function AdminChannels() {
         <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
           {waitingForOwnerToken ? "verifying owner session" : loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
         </span>
+        <span className="font-mono text-[10px] text-dim">{ADMIN_CHANNELS_UI_VERSION}{source ? ` · ${source}` : ""}</span>
         {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
 
@@ -120,7 +126,7 @@ export default function AdminChannels() {
         {waitingForOwnerToken && <p className="text-sm text-dim">Verifying the owner identity token before loading approvals...</p>}
         {loaded && expectedPending > pending.length && !err && (
           <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
-            Database summary sees {expectedPending} pending channel{expectedPending === 1 ? "" : "s"}, but the channel list returned {pending.length}. Press Refresh; if this remains, the admin RPC list needs attention.
+            Database summary sees {expectedPending} pending channel{expectedPending === 1 ? "" : "s"}, but this page received {pending.length}. API source: {source || "unknown"}. Hard refresh this page, then press Refresh; if it stays here, the deployed admin API is not returning the channel list.
           </p>
         )}
         {loaded && !pending.length && !err && <p className="text-sm text-dim">No channels waiting for approval.</p>}
