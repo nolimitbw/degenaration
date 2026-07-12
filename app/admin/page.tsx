@@ -25,18 +25,19 @@ export default function Admin() {
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
+    if (!identityToken) return;
     setErr(null);
     const headers = await adminHeaders(getAccessToken, identityToken, email);
     const [response, summaryResponse] = await Promise.all([
-      fetch("/api/admin/applications", { headers }).then((r) => r.json()).catch(() => ({ applications: [] })),
-      fetch("/api/admin/summary", { headers }).then((r) => r.json()).catch(() => ({ summary: null }))
+      fetch("/api/admin/applications", { cache: "no-store", headers }).then((r) => r.json()).catch(() => ({ applications: [] })),
+      fetch("/api/admin/summary", { cache: "no-store", headers }).then((r) => r.json()).catch(() => ({ summary: null }))
     ]);
-    if (response.error) setErr(response.error);
+    if (response.error) setErr(response.error === "forbidden" ? "Owner API rejected this session. Sign out and use the owner Google account." : response.error);
     setApps(response.applications ?? []);
     setSummary(summaryResponse.summary ?? null);
     setLoaded(true);
   }
-  useEffect(() => { if (identityToken || email) load(); }, [email, identityToken]);
+  useEffect(() => { if (identityToken) load(); }, [email, identityToken]);
 
   async function approve(a: Application) {
     setBusy(a.id);

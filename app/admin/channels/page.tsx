@@ -13,34 +13,50 @@ type Channel = {
 export default function AdminChannels() {
   const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
-  const { admin } = useIsAdmin();
+  const { admin, ready } = useIsAdmin();
   const email = emailFromPrivyUser(user);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
+    if (!admin || !identityToken) {
+      setLoaded(false);
+      return;
+    }
     setErr(null);
     const res = await fetch("/api/admin/channels", { cache: "no-store", headers: await adminHeaders(getAccessToken, identityToken, email) })
-      .then((r) => r.json()).catch(() => ({ error: "request failed" }));
-    if (res.error) { setErr(res.error); setChannels([]); setLoaded(true); return; }
-    setChannels(res.channels ?? []); setLoaded(true);
-  }, [email, getAccessToken, identityToken]);
+      .then(async (r) => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => null) }))
+      .catch(() => ({ ok: false, status: 0, data: { error: "request failed" } }));
+    if (!res.ok || res.data?.error) {
+      const reason = res.data?.error || `request failed (${res.status})`;
+      setErr(reason === "forbidden" ? "Owner API rejected this session. Sign out and use the owner Google account." : reason);
+      setChannels([]);
+      setLoaded(true);
+      return;
+    }
+    setChannels(res.data?.channels ?? []);
+    setLoaded(true);
+    setLastSync(new Date());
+  }, [admin, email, getAccessToken, identityToken]);
   useEffect(() => {
-    if (!admin) return;
+    if (!admin || !identityToken) return;
     load();
     const timer = window.setInterval(load, 10000);
     return () => window.clearInterval(timer);
-  }, [admin, load]);
+  }, [admin, identityToken, load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
-    await fetch("/api/admin/channels", {
+    const res = await fetch("/api/admin/channels", {
       method: "POST",
       headers: await adminHeaders(getAccessToken, identityToken, email),
       body: JSON.stringify({ id, action })
-    }).catch(() => {});
+    }).then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => null) }))
+      .catch(() => ({ ok: false, data: { error: "request failed" } }));
+    if (!res.ok || res.data?.error) setErr(res.data?.error || `${action} failed`);
     await load();
     setBusy(null);
   }
@@ -65,15 +81,16 @@ export default function AdminChannels() {
           Refresh
         </button>
         <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
-          {loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
+          {loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : ready && admin ? "waiting for owner token" : "loading owner data"}
         </span>
+        {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
 
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
 
       <h2 className="mt-8 text-lg font-bold">Pending</h2>
       <div className="mt-3 space-y-3">
-        {!loaded && <p className="text-sm text-dim">{email ? "Loading registered channels..." : "Waiting for owner session..."}</p>}
+        {!loaded && <p className="text-sm text-dim">{email ? "Waiting for secure owner token..." : "Waiting for owner session..."}</p>}
         {loaded && !pending.length && !err && <p className="text-sm text-dim">No channels waiting for approval.</p>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-lg border border-edge bg-panel p-5">
