@@ -14,6 +14,15 @@ const WalletButton = dynamic(() => import("./WalletButton"), {
   loading: () => <div className="h-8 w-28 animate-pulse rounded-md bg-edge/40" />
 });
 
+const WalletStatus = dynamic(() => import("./WalletStatus"), {
+  ssr: false,
+  loading: () => (
+    <span className="flex items-center gap-1.5 font-mono text-[11px] text-dim">
+      <span className="h-1.5 w-1.5 rounded-full bg-dim/60" /> Checking
+    </span>
+  )
+});
+
 // Primary nav — always visible on desktop (Trojan-style top bar).
 const PRIMARY = [
   { href: "/trenches", label: "Trenches" },
@@ -209,13 +218,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <BottomLink href="/dashboard" label="Positions" icon="◱" active={path === "/dashboard"} />
           <BottomLink href="/alerts" label="Alerts" icon="◔" active={path === "/alerts"} />
           <BottomLink href="/tracker" label="Tracker" icon="◉" active={path === "/tracker"} />
-          <BottomLink href="/trenches" label="Trenches" icon="🔥" active={path === "/trenches"} />
+          <BottomLink href="/trenches" label="Trenches" icon="▴" active={path === "/trenches"} />
           <BottomLink href="/explorer" label="Explorer" icon="◎" active={path === "/explorer"} />
           <div className="ml-auto flex items-center gap-4">
             <SolPrice />
-            <span className="flex items-center gap-1.5 font-mono text-[11px] text-toxic">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-toxic" /> Connected
-            </span>
+            <WalletStatus />
           </div>
         </div>
       </footer>
