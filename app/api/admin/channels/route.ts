@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/server/guard";
 import { callAdminRpc, requireAdmin } from "@/lib/server/admin";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
@@ -10,7 +13,10 @@ export async function GET(req: NextRequest) {
 
   const result = await callAdminRpc<any[]>("admin_list_call_channels", {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json({ channels: Array.isArray(result.data) ? result.data : [] });
+  return NextResponse.json(
+    { channels: Array.isArray(result.data) ? result.data : [] },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -27,5 +33,5 @@ export async function POST(req: NextRequest) {
 
   const result = await callAdminRpc("admin_decide_call_channel", { p_id: body.id, p_action: body.action });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json(result.data);
+  return NextResponse.json(result.data, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }

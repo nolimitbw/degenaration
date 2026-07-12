@@ -5,7 +5,7 @@ import Candles from "@/components/Candles";
 import { usePrivy } from "@privy-io/react-auth";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { useExecuteSell } from "@/lib/useExecuteSell";
-import { createLimitOrder } from "@/lib/queries";
+import { createLimitOrder, fmtUsd } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getNet } from "@/lib/net";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
@@ -13,6 +13,7 @@ import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const SELL_PCTS = [25, 50, 75, 100];
+const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 type Mode = "buy" | "sell" | "limit";
 
@@ -60,32 +61,36 @@ export default function TerminalBody() {
   const { presets: AMOUNTS } = useQuickBuyPresets();
   const toast = useToast();
   const pubkey = getSolanaAddress(user);
+  const cleanMint = mint.trim();
+  const mintOk = MINT_RE.test(cleanMint);
 
   const loadBalance = useCallback(async () => {
-    if (!pubkey || !mint) { setBal(null); return; }
-    const b = await fetch(`/api/token-balance?owner=${pubkey}&mint=${mint}&net=${getNet()}`).then((r) => r.json()).catch(() => null);
+    const currentMint = mint.trim();
+    if (!pubkey || !MINT_RE.test(currentMint)) { setBal(null); return; }
+    const b = await fetch(`/api/token-balance?owner=${pubkey}&mint=${currentMint}&net=${getNet()}`).then((r) => r.json()).catch(() => null);
     if (b && !b.error) setBal({ uiAmount: b.uiAmount, rawAmount: b.rawAmount, decimals: b.decimals });
     else setBal(null);
   }, [pubkey, mint]);
 
   async function createLimit() {
     if (!authenticated) { login(); return; }
-    if (limitTarget <= 0 || amount <= 0) { toast("Enter a target price and amount", "err"); return; }
+    if (!mintOk || limitTarget <= 0 || amount <= 0) { toast("Enter a valid mint, target price and amount", "err"); return; }
     const walletId = getSolanaWalletId(user);
     if (!pubkey) { toast("No wallet found", "err"); return; }
-    const { error } = await createLimitOrder({ mint, symbol: price?.symbol || mint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
+    const { error } = await createLimitOrder({ mint: cleanMint, symbol: price?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created — see Limit Orders");
   }
 
   async function load() {
+    if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     setLoading(true);
     try {
       const [p, oh, hd, q] = await Promise.all([
-        fetchJson(`/api/price?mint=${mint}`),
-        fetchJson(`/api/ohlcv?mint=${mint}&tf=${tf}`),
-        fetchJson(`/api/holders?mint=${mint}`),
-        fetchJson(`/api/quote?in=${SOL}&out=${mint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
+        fetchJson(`/api/price?mint=${cleanMint}`),
+        fetchJson(`/api/ohlcv?mint=${cleanMint}&tf=${tf}`),
+        fetchJson(`/api/holders?mint=${cleanMint}`),
+        fetchJson(`/api/quote?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
       ]);
       setPrice(p);
       setCandles(oh?.candles ?? []);
@@ -105,8 +110,9 @@ export default function TerminalBody() {
   // BUY preview: simulate the SOL->token swap, then confirm & sign
   async function runBuyPreview() {
     if (!authenticated) { login(); return; }
+    if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
-    const s = await fetch(`/api/simulate?in=${SOL}&out=${mint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
+    const s = await fetch(`/api/simulate?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
       .then((r) => r.json()).catch(() => ({ error: "Simulation failed — try again." }));
     setPreview({ side: "buy", ...s }); setPreviewLoading(false);
   }
@@ -114,11 +120,12 @@ export default function TerminalBody() {
   // SELL preview: quote token->SOL for the chosen % of the live balance
   async function runSellPreview() {
     if (!authenticated) { login(); return; }
+    if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     if (!bal || bal.uiAmount <= 0) { toast("You don't hold this token", "err"); return; }
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
     const rawTotal = BigInt(bal.rawAmount || "0");
     const rawAmt = (rawTotal * BigInt(Math.round((sellPct / 100) * 10000))) / BigInt(10000);
-    const q = await fetch(`/api/quote?in=${mint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${slippage * 100}`)
+    const q = await fetch(`/api/quote?in=${cleanMint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${slippage * 100}`)
       .then((r) => r.json()).catch(() => ({ error: "Quote failed — try again." }));
     const solOut = q.outAmount ? Number(q.outAmount) / 1e9 : null;
     const sellUi = bal.uiAmount * (sellPct / 100);
@@ -130,7 +137,7 @@ export default function TerminalBody() {
     const retries = autoRetry ? 3 : 1;
     for (let attempt = 1; attempt <= retries; attempt++) {
       if (preview?.side === "sell") {
-        const r = await executeSell({ mint, pct: sellPct / 100, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        const r = await executeSell({ mint: cleanMint, pct: sellPct / 100, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
         if (r.ok) {
           setExecuting(false);
           toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -142,7 +149,7 @@ export default function TerminalBody() {
         setExecuting(false);
         toast(r.error || "Sell failed", "err");
       } else {
-        const r = await executeBuy({ mint, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        const r = await executeBuy({ mint: cleanMint, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
         if (r.ok) {
           setExecuting(false);
           toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -177,7 +184,7 @@ export default function TerminalBody() {
         <div className="flex w-full gap-2 sm:w-auto">
           <input value={mint} onChange={(e) => setMint(e.target.value)} placeholder="Token mint address"
             className="min-h-11 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic sm:w-80" />
-          <button onClick={load} disabled={loading || !mint.trim()} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+          <button onClick={load} disabled={loading || !mintOk} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
             {loading ? "Loading" : "Load"}
           </button>
         </div>
@@ -199,7 +206,7 @@ export default function TerminalBody() {
                 <p className={chg >= 0 ? "text-up" : "text-hotpink"}>
                   {chg != null ? `${chg >= 0 ? "+" : ""}${chg.toFixed(1)}% 24h` : "—"}
                 </p>
-                <p className="text-dim">Liq {price?.liquidityUsd ? `$${Math.round(price.liquidityUsd / 1000)}K` : "—"} · {price?.dex ?? "—"}</p>
+                <p className="text-dim">Liq {fmtUsd(Number(price?.liquidityUsd) || null)} · {price?.dex ?? "—"}</p>
               </div>
             </div>
             <div className="mt-4 grid gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-3">
@@ -214,8 +221,8 @@ export default function TerminalBody() {
               ))}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-4">
-              <div><p className="text-dim">FDV</p><p className="text-ink">{price?.fdv ? `$${Math.round(price.fdv / 1000).toLocaleString()}K` : "—"}</p></div>
-              <div><p className="text-dim">24h Vol</p><p className="text-ink">{price?.volume24h ? `$${Math.round(price.volume24h / 1000).toLocaleString()}K` : "—"}</p></div>
+              <div><p className="text-dim">FDV</p><p className="text-ink">{fmtUsd(Number(price?.fdv) || null)}</p></div>
+              <div><p className="text-dim">24h Vol</p><p className="text-ink">{fmtUsd(Number(price?.volume24h) || null)}</p></div>
               <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{price?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{price?.sells24h ?? "—"}</span></p></div>
               <div><p className="text-dim">Socials</p><p className="flex gap-2">{(price?.socials || []).slice(0, 3).map((x: any) => (<a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:underline">{x.type?.slice(0, 2)}</a>))}{!(price?.socials || []).length && <span className="text-dim">—</span>}</p></div>
             </div>
@@ -239,7 +246,7 @@ export default function TerminalBody() {
                 <p className="text-dim">Name: <span className="text-ink">{price?.name ?? "—"}</span></p>
                 <p className="text-dim">Symbol: <span className="text-ink">{price?.symbol ?? "—"}</span></p>
                 <p className="text-dim">FDV: <span className="text-ink">{price?.fdv ? "$" + Math.round(price.fdv).toLocaleString() : "—"}</span></p>
-                <p className="text-dim">Mint: <span className="break-all text-ink">{mint}</span></p>
+                <p className="text-dim">Mint: <span className="break-all text-ink">{cleanMint}</span></p>
                 <p className="text-dim">Links: {(price?.websites || []).concat((price?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 text-cyber hover:underline">↗</a>))}{!(price?.websites || []).length && !(price?.socials || []).length && <span className="text-ink">—</span>}</p>
               </div>
             )}
@@ -341,17 +348,17 @@ export default function TerminalBody() {
           )}
 
           {mode === "limit" ? (
-            <button onClick={createLimit} disabled={limitTarget <= 0 || amount <= 0}
+            <button onClick={createLimit} disabled={authenticated && (!mintOk || limitTarget <= 0 || amount <= 0)}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
               {authenticated ? "Create limit order" : "Connect wallet for limit"}
             </button>
           ) : mode === "sell" ? (
-            <button onClick={runSellPreview} disabled={previewLoading || !authenticated || !bal || bal.uiAmount <= 0}
+            <button onClick={runSellPreview} disabled={previewLoading || (authenticated && (!mintOk || !bal || bal.uiAmount <= 0))}
               className="mt-4 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
               {!authenticated ? "Connect wallet to sell" : !bal || bal.uiAmount <= 0 ? "No balance to sell" : `Sell ${sellPct}%`}
             </button>
           ) : (
-            <button onClick={runBuyPreview} disabled={previewLoading || amount <= 0}
+            <button onClick={runBuyPreview} disabled={previewLoading || !mintOk || amount <= 0}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
               {authenticated ? `Buy ${amount} SOL` : "Connect wallet to buy"}
             </button>

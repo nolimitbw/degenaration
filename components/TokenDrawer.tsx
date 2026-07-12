@@ -3,22 +3,16 @@ import { useEffect, useState } from "react";
 import { fmtNum, fmtAge } from "@/lib/queries";
 import { getNet } from "@/lib/net";
 import { usePrivy } from "@privy-io/react-auth";
-import { useSendTransaction } from "@privy-io/react-auth/solana";
-import { executeBuy as extensionBuy } from "@/lib/execute";
-import { supabase } from "@/lib/supabase";
-import { Connection, VersionedTransaction } from "@solana/web3.js";
-import { getRpc } from "@/lib/net";
 import { useToast } from "@/components/Toast";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
-import { getSolanaAddress } from "@/lib/solanaWallet";
+import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import Candles from "./Candles";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
 export default function TokenDrawer({ token, onClose }: { token: any | null; onClose: () => void }) {
-  const { authenticated, user } = usePrivy();
-  const { sendTransaction } = useSendTransaction();
-  const embeddedAddr = getSolanaAddress(user);
+  const { authenticated, login } = usePrivy();
+  const executeBuy = useExecuteBuy();
   const toast = useToast();
   const { presets: PRESETS } = useQuickBuyPresets();
   const [price, setPrice] = useState<any>(null);
@@ -60,31 +54,12 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
   }
 
   async function doBuy() {
+    if (!authenticated) { login(); return; }
+    if (amount <= 0) { toast("Enter a buy amount", "err"); return; }
     setBusy(true);
-    if (embeddedAddr && authenticated) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch("/api/swap", {
-          method: "POST",
-          headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
-          body: JSON.stringify({ inputMint: SOL, outputMint: token.address, amount: Math.floor(amount * 1e9), userPublicKey: embeddedAddr, slippageBps: slippage * 100, net: getNet(), mev: true })
-        }).then((r) => r.json());
-        if (res.error || !res.swapTransaction) { toast(res.error || "Could not build swap", "err"); setBusy(false); return; }
-        const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
-        const tx = VersionedTransaction.deserialize(raw);
-        const connection = new Connection(getRpc(), "confirmed");
-        const receipt: any = await sendTransaction({ transaction: tx, connection });
-        const sig = receipt?.signature ?? null;
-        if (sig) { toast("Trade sent — " + sig.slice(0, 8)); onClose(); }
-        else toast("Signing cancelled", "err");
-      } catch (e: any) {
-        toast(e.message || "Signing failed", "err");
-      }
-    } else {
-      const r = await extensionBuy({ mint: token.address, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: token.symbol });
-      if (r.ok) { toast("Trade sent — " + (r.sig?.slice(0, 8) ?? "")); onClose(); }
-      else toast(r.error || "Trade failed", "err");
-    }
+    const r = await executeBuy({ mint: token.address, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: token.symbol, mev: true });
+    if (r.ok) { toast("Trade sent — " + (r.sig?.slice(0, 8) ?? "")); onClose(); }
+    else toast(r.error || "Trade failed", "err");
     setBusy(false);
   }
 
@@ -108,15 +83,15 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
               <p className="font-mono text-[11px] text-dim">{token.name} · {fmtAge(token.ageMs)}</p>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-ink">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-ink">x</button>
         </div>
 
         {/* links */}
         {(socials.length > 0 || websites.length > 0) && (
           <div className="mt-3 flex flex-wrap gap-2 font-mono text-[10px]">
-            {websites.slice(0, 2).map((u: string) => <a key={u} href={u} target="_blank" rel="noreferrer" className="rounded border border-edge px-2 py-0.5 text-cyber hover:border-cyber">site ↗</a>)}
-            {socials.slice(0, 3).map((s: any) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="rounded border border-edge px-2 py-0.5 text-cyber hover:border-cyber">{s.type} ↗</a>)}
-            <a href={`https://solscan.io/token/${token.address}`} target="_blank" rel="noreferrer" className="rounded border border-edge px-2 py-0.5 text-dim hover:border-cyber hover:text-cyber">solscan ↗</a>
+            {websites.slice(0, 2).map((u: string) => <a key={u} href={u} target="_blank" rel="noreferrer" className="rounded border border-edge px-2 py-0.5 text-cyber hover:border-cyber">site</a>)}
+            {socials.slice(0, 3).map((s: any) => <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="rounded border border-edge px-2 py-0.5 text-cyber hover:border-cyber">{s.type}</a>)}
+            <a href={`https://solscan.io/token/${token.address}`} target="_blank" rel="noreferrer" className="rounded border border-edge px-2 py-0.5 text-dim hover:border-cyber hover:text-cyber">solscan</a>
           </div>
         )}
 
@@ -154,7 +129,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           </div>
           {rug && !rug.ok && (rug.reasons?.length ?? 0) > 0 && (
             <ul className="mt-2 space-y-1">
-              {rug.reasons.map((r: string) => <li key={r} className="flex items-start gap-1 font-mono text-[10px] text-hotpink">⚠ <span>{r}</span></li>)}
+              {rug.reasons.map((r: string) => <li key={r} className="flex items-start gap-1 font-mono text-[10px] text-hotpink">! <span>{r}</span></li>)}
             </ul>
           )}
           {rug?.ok && <p className="mt-1 font-mono text-[10px] text-dim">Mint & freeze checks clear, liquidity present. Always DYOR.</p>}
@@ -186,8 +161,8 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
           )}
           {sim?.error && <p className="mt-2 font-mono text-[11px] text-hotpink">{sim.error}</p>}
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <button onClick={doSim} disabled={busy} className="rounded-md border border-edge py-2.5 text-sm font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">{busy ? "…" : "Simulate"}</button>
-            <button onClick={doBuy} disabled={busy} className="rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">Buy</button>
+            <button onClick={doSim} disabled={busy} className="rounded-md border border-edge py-2.5 text-sm font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">{busy ? "..." : "Simulate"}</button>
+            <button onClick={doBuy} disabled={busy || amount <= 0} className="rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">{authenticated ? "Buy" : "Connect wallet"}</button>
           </div>
           <p className="mt-2 text-center font-mono text-[10px] text-dim">Non-custodial · your wallet signs · 2% fee on-chain</p>
         </div>

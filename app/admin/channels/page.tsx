@@ -22,12 +22,17 @@ export default function AdminChannels() {
 
   const load = useCallback(async () => {
     setErr(null);
-    const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken, identityToken, email) })
+    const res = await fetch("/api/admin/channels", { cache: "no-store", headers: await adminHeaders(getAccessToken, identityToken, email) })
       .then((r) => r.json()).catch(() => ({ error: "request failed" }));
     if (res.error) { setErr(res.error); setChannels([]); setLoaded(true); return; }
     setChannels(res.channels ?? []); setLoaded(true);
   }, [email, getAccessToken, identityToken]);
-  useEffect(() => { if (admin) load(); }, [admin, load]);
+  useEffect(() => {
+    if (!admin) return;
+    load();
+    const timer = window.setInterval(load, 10000);
+    return () => window.clearInterval(timer);
+  }, [admin, load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
