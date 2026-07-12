@@ -9,6 +9,7 @@ type Channel = {
   id: string; guild_name: string | null; channel_name: string | null; channel_id: string;
   registered_by: string | null; guild_member_count: number | null; status: string; group_id: string | null; created_at: string;
 };
+type Summary = { pendingChannels?: number; approvedChannels?: number };
 
 export default function AdminChannels() {
   const { getAccessToken, user } = usePrivy();
@@ -20,14 +21,23 @@ export default function AdminChannels() {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [summary, setSummary] = useState<Summary | null>(null);
 
   const load = useCallback(async () => {
     if (!admin) {
       setLoaded(false);
       return;
     }
+    if (!identityToken) {
+      setErr(null);
+      setLoaded(false);
+      return;
+    }
     setErr(null);
-    const res = await adminFetchJson<{ channels?: Channel[] }>("/api/admin/channels", getAccessToken, identityToken, email);
+    const [res, summaryRes] = await Promise.all([
+      adminFetchJson<{ channels?: Channel[] }>("/api/admin/channels", getAccessToken, identityToken, email),
+      adminFetchJson<{ summary?: Summary }>("/api/admin/summary", getAccessToken, identityToken, email)
+    ]);
     if (!res.ok) {
       setErr(res.error);
       setChannels([]);
@@ -35,6 +45,8 @@ export default function AdminChannels() {
       return;
     }
     setChannels(res.data?.channels ?? []);
+    setSummary(summaryRes.ok ? summaryRes.data.summary ?? null : null);
+    if (!summaryRes.ok) setErr(summaryRes.error);
     setLoaded(true);
     setLastSync(new Date());
   }, [admin, email, getAccessToken, identityToken]);
@@ -59,6 +71,8 @@ export default function AdminChannels() {
   const pending = channels.filter((c) => c.status === "pending");
   const decided = channels.filter((c) => c.status !== "pending");
   const newest = channels[0];
+  const waitingForOwnerToken = admin && !identityToken;
+  const expectedPending = Number(summary?.pendingChannels ?? pending.length);
 
   return (
     <AdminGuard>
@@ -78,7 +92,7 @@ export default function AdminChannels() {
           Refresh
         </button>
         <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
-          {loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
+          {waitingForOwnerToken ? "verifying owner session" : loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
         </span>
         {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
@@ -88,7 +102,7 @@ export default function AdminChannels() {
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border border-edge bg-panel p-4">
           <p className="font-mono text-[10px] uppercase text-dim">Pending approval</p>
-          <p className="mt-2 font-mono text-2xl font-bold text-toxic">{loaded ? pending.length : "..."}</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-toxic">{loaded ? expectedPending : "..."}</p>
         </div>
         <div className="rounded-lg border border-edge bg-panel p-4">
           <p className="font-mono text-[10px] uppercase text-dim">Total registrations</p>
@@ -103,6 +117,12 @@ export default function AdminChannels() {
       <h2 className="mt-8 text-lg font-bold">Pending</h2>
       <div className="mt-3 space-y-3">
         {!loaded && <p className="text-sm text-dim">{email ? "Loading registered channels..." : "Waiting for owner session..."}</p>}
+        {waitingForOwnerToken && <p className="text-sm text-dim">Verifying the owner identity token before loading approvals...</p>}
+        {loaded && expectedPending > pending.length && !err && (
+          <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
+            Database summary sees {expectedPending} pending channel{expectedPending === 1 ? "" : "s"}, but the channel list returned {pending.length}. Press Refresh; if this remains, the admin RPC list needs attention.
+          </p>
+        )}
         {loaded && !pending.length && !err && <p className="text-sm text-dim">No channels waiting for approval.</p>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-lg border border-edge bg-panel p-5">

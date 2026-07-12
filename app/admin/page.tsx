@@ -19,6 +19,7 @@ export default function Admin() {
   const { identityToken } = useIdentityToken();
   const { admin } = useIsAdmin();
   const email = emailFromPrivyUser(user);
+  const waitingForOwnerToken = admin && !identityToken;
   const [apps, setApps] = useState<Application[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -27,6 +28,11 @@ export default function Admin() {
 
   async function load() {
     if (!admin) return;
+    if (!identityToken) {
+      setLoaded(false);
+      setErr(null);
+      return;
+    }
     setErr(null);
     const [response, summaryResponse] = await Promise.all([
       adminFetchJson<{ applications?: Application[] }>("/api/admin/applications", getAccessToken, identityToken, email),
@@ -76,7 +82,7 @@ export default function Admin() {
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Owner dashboard</h1>
         <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${loaded ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>
-          {loaded ? "live from DB" : "loading"}
+          {waitingForOwnerToken ? "verifying owner" : loaded ? "live from DB" : "loading"}
         </span>
       </div>
       <p className="mt-1 text-sm text-dim">
@@ -84,6 +90,11 @@ export default function Admin() {
       </p>
 
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
+      {waitingForOwnerToken && (
+        <p className="mt-4 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-xs text-dim">
+          Verifying the owner identity token before loading private admin data...
+        </p>
+      )}
 
       <div className="mt-6 grid gap-3 md:grid-cols-5">
         {[

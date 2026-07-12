@@ -15,6 +15,7 @@ export default function Commissions() {
   const { identityToken } = useIdentityToken();
   const { admin } = useIsAdmin();
   const email = emailFromPrivyUser(user);
+  const waitingForOwnerToken = admin && !identityToken;
   const [totals, setTotals] = useState({ totalSol: 0, count: 0 });
   const [balance, setBalance] = useState<number | null>(null);
   const [dest, setDest] = useState("");
@@ -25,12 +26,17 @@ export default function Commissions() {
 
   useEffect(() => {
     if (!admin) return;
+    if (!identityToken) {
+      setStatus("Verifying the owner identity token before loading commissions...");
+      return;
+    }
     adminFetchJson<{ summary?: any }>("/api/admin/summary", getAccessToken, identityToken, email)
       .then((res) => {
         if (!res.ok) {
           setStatus(res.error);
           return;
         }
+        setStatus(null);
         const d = res.data;
         setTotals({ totalSol: Number(d.summary?.commissionSol || 0), count: Number(d.summary?.tradeCount || 0) });
         setFee({
@@ -120,6 +126,7 @@ export default function Commissions() {
           {busy ? "Signing…" : "Withdraw to my wallet"}
         </button>
         {status && <p className="mt-3 break-all font-mono text-[11px] text-dim">{status}</p>}
+        {waitingForOwnerToken && <p className="mt-3 font-mono text-[11px] text-dim">Owner session verification is still finishing.</p>}
       </div>
     </AppShell>
     </AdminGuard>
