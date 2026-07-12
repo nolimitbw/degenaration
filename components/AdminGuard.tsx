@@ -1,16 +1,23 @@
 "use client";
 import { useIsAdmin } from "@/lib/admin";
+import { usePrivy } from "@privy-io/react-auth";
 
-// Renders children only on an unlocked owner device. Everyone else sees a plain
-// "not found" that is indistinguishable from a route that does not exist.
 export default function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { admin, ready } = useIsAdmin();
+  const { admin, ready, email } = useIsAdmin();
+  const { authenticated, login } = usePrivy();
   if (!ready) return null;
   if (!admin) {
     return (
       <main className="grid-bg flex min-h-screen flex-col items-center justify-center gap-2 px-5 text-center">
-        <h1 className="font-mono text-5xl font-bold text-dim">404</h1>
-        <p className="text-sm text-dim">This page could not be found.</p>
+        <h1 className="text-2xl font-bold">Owner dashboard</h1>
+        <p className="max-w-md text-sm text-dim">
+          {authenticated
+            ? `Signed in as ${email || "another account"}. Use the owner Google account to open this dashboard.`
+            : "Sign in with the owner Google account to open this dashboard."}
+        </p>
+        <button onClick={() => login()} className="mt-4 rounded-md bg-toxic px-5 py-2 text-sm font-bold text-white shadow-toxic">
+          Sign in
+        </button>
       </main>
     );
   }

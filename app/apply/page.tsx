@@ -52,7 +52,7 @@ export default function Apply() {
             <div>
               <h2 className="text-sm font-bold text-ink">Add the active Degenaration bot</h2>
               <p className="mt-1 text-xs leading-relaxed text-dim">
-                Server managers can add the bot, then run <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code> in a calls channel. New channels stay pending until approval.
+                Server managers can add the bot, then run <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">/register</code> in a calls channel. New channels stay pending until approval.
               </p>
             </div>
             <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="shrink-0 rounded-md bg-toxic px-4 py-2 text-center text-sm font-bold text-white transition hover:brightness-110">
@@ -73,7 +73,7 @@ export default function Apply() {
               <li><b className="text-ink">1.</b> Add the Degenaration bot to your server (read-only — it only watches messages):
                 <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="mt-2 block rounded-md bg-toxic px-4 py-2 text-center font-bold text-white transition hover:brightness-110">Add bot to my server →</a>
               </li>
-              <li><b className="text-ink">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">!register</code>. The bot confirms.</li>
+              <li><b className="text-ink">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">/register</code>. The bot confirms.</li>
               <li><b className="text-ink">3.</b> We review the channel. Once approved, qualifying calls are recorded so your source can build a public performance record.</li>
             </ol>
           </div>

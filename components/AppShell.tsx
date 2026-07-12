@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import Ticker from "./Ticker";
 import Search from "./Search";
-import { useIsAdmin } from "@/lib/admin";
 
 // Load the wallet button (and its heavy Privy bundle) only on the client, after paint.
 // Keeps ~800KB of signing code off the critical path so data pages open instantly.
@@ -126,8 +125,7 @@ function BottomLink({ href, label, icon, active }: { href: string; label: string
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { admin } = useIsAdmin();
-  const tools = admin ? [...TOOLS, ...ADMIN_TOOLS] : TOOLS;
+  const tools = [...TOOLS, ...ADMIN_TOOLS];
   const allNav = [...PRIMARY, ...tools];
 
   return (

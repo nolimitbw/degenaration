@@ -2,14 +2,16 @@
 import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useCallback, useEffect, useState } from "react";
-import { getAdminKey } from "@/lib/admin";
+import { usePrivy } from "@privy-io/react-auth";
+import { adminHeaders } from "@/lib/admin";
 
 type Channel = {
   id: string; guild_name: string | null; channel_name: string | null; channel_id: string;
-  registered_by: string | null; status: string; group_id: string | null; created_at: string;
+  registered_by: string | null; guild_member_count: number | null; status: string; group_id: string | null; created_at: string;
 };
 
 export default function AdminChannels() {
+  const { getAccessToken } = usePrivy();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -17,18 +19,18 @@ export default function AdminChannels() {
 
   const load = useCallback(async () => {
     setErr(null);
-    const res = await fetch("/api/admin/channels", { headers: { "x-admin-key": getAdminKey() } })
+    const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken) })
       .then((r) => r.json()).catch(() => ({ error: "request failed" }));
-    if (res.error) { setErr(res.error === "unauthorized" ? "Unauthorized — open any page with ?admin=<your ADMIN_KEY> to unlock this device (ADMIN_KEY is set server-side on Vercel)." : res.error); setLoaded(true); return; }
+    if (res.error) { setErr(res.error === "admin auth not configured" ? "Admin auth needs PRIVY_APP_SECRET on Vercel before this page can load." : res.error); setLoaded(true); return; }
     setChannels(res.channels ?? []); setLoaded(true);
-  }, []);
+  }, [getAccessToken]);
   useEffect(() => { load(); }, [load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
     await fetch("/api/admin/channels", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-admin-key": getAdminKey() },
+      headers: await adminHeaders(getAccessToken),
       body: JSON.stringify({ id, action })
     }).catch(() => {});
     await load();
@@ -43,8 +45,8 @@ export default function AdminChannels() {
     <AppShell>
       <h1 className="text-2xl font-bold">Admin · Discord call channels</h1>
       <p className="mt-1 text-sm text-dim">
-        Server owners run <code className="rounded bg-void px-1 font-mono text-toxic">!register</code> in their call
-        channel; approve one here and the bot starts forwarding its calls into autotrading.
+        Server owners run <code className="rounded bg-void px-1 font-mono text-toxic">/register</code> in their call
+        channel; approve one here and the bot relays its calls to the platform Discord and eligible subscribers.
       </p>
 
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
@@ -57,7 +59,7 @@ export default function AdminChannels() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h3 className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></h3>
-                <p className="mt-0.5 font-mono text-[11px] text-dim">channel {c.channel_id} · registered by {c.registered_by ?? "—"}</p>
+                <p className="mt-0.5 font-mono text-[11px] text-dim">channel {c.channel_id} · {c.guild_member_count ?? "—"} members · registered by {c.registered_by ?? "—"}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => act(c.id, "approve")} disabled={busy === c.id}

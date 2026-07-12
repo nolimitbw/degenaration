@@ -8,9 +8,9 @@ export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin.ok) return admin.response;
 
-  const result = await callAdminRpc<any[]>("admin_list_call_channels", {});
+  const result = await callAdminRpc<any[]>("admin_list_server_applications", {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json({ channels: Array.isArray(result.data) ? result.data : [] });
+  return NextResponse.json({ applications: Array.isArray(result.data) ? result.data : [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
 
-  const result = await callAdminRpc("admin_decide_call_channel", { p_id: body.id, p_action: body.action });
+  const result = await callAdminRpc("admin_decide_server_application", { p_id: body.id, p_action: body.action });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json(result.data);
 }
