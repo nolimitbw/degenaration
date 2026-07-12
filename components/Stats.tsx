@@ -1,48 +1,28 @@
 "use client";
-import { motion, useInView, useMotionValue, animate } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 
-// Honest product facts only — no fabricated traction/volume metrics on a money site.
 const STATS = [
-  { label: "Flat fee — no subscription", prefix: "", value: 2, suffix: "%", decimals: 0 },
-  { label: "Non-custodial — your keys", prefix: "", value: 100, suffix: "%", decimals: 0 },
-  { label: "Avg trade execution", prefix: "<", value: 2, suffix: "s", decimals: 0 },
-  { label: "Automated copy engine", prefix: "", value: 24, suffix: "/7", decimals: 0 }
+  { value: "2%", label: "Transparent execution fee" },
+  { value: "Non-custodial", label: "Your wallet remains yours" },
+  { value: "Per source", label: "Independent rules and caps" },
+  { value: "Tracked", label: "Call-performance records" }
 ];
-
-function Counter({ value, decimals }: { value: number; decimals: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true });
-  const mv = useMotionValue(0);
-  const [text, setText] = useState("0");
-  useEffect(() => {
-    if (!inView) return;
-    const controls = animate(mv, value, { duration: 1.4, ease: "easeOut" });
-    const unsub = mv.on("change", (v) =>
-      setText(v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals }))
-    );
-    return () => { controls.stop(); unsub(); };
-  }, [inView, value, decimals, mv]);
-  return <span ref={ref}>{text}</span>;
-}
 
 export default function Stats() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-16">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {STATS.map((s, i) => (
+        {STATS.map((stat, index) => (
           <motion.div
-            key={s.label}
+            key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: i * 0.08 }}
-            className="glass-cosmic rounded-2xl px-6 py-8 text-center transition hover:border-grape/30"
+            transition={{ delay: index * 0.08 }}
+            className="glass-cosmic rounded-lg px-6 py-8 text-center transition hover:border-grape/50"
           >
-            <p className="font-mono text-4xl font-bold">
-              <span className="cosmic-text">{s.prefix}<Counter value={s.value} decimals={s.decimals} />{s.suffix}</span>
-            </p>
-            <p className="mt-2 text-sm text-haze">{s.label}</p>
+            <p className="text-xl font-bold text-grape md:text-2xl">{stat.value}</p>
+            <p className="mt-2 text-sm text-haze">{stat.label}</p>
           </motion.div>
         ))}
       </div>

@@ -51,7 +51,7 @@ export default function Hero() {
             </Link>
           </Magnetic>
           <Magnetic strength={0.3}>
-            <Link href="/trenches" className="btn-ghost inline-flex min-h-12 items-center px-6 py-3 font-bold">
+            <Link href="/terminal" className="btn-ghost inline-flex min-h-12 items-center px-6 py-3 font-bold">
               Open trading terminal
             </Link>
           </Magnetic>

@@ -6,7 +6,7 @@ import RocketGlyph from "@/components/RocketGlyph";
 const STEPS = [
   { q: "Phase 1", title: "The terminal", body: "Live trenches, token screener, pro charts and a non-custodial wallet." },
   { q: "Phase 2", title: "Copy engine", body: "Automated alpha copy-trading with take-profit, stop-loss and per-group sizing." },
-  { q: "Phase 3", title: "Alpha leaderboard", body: "Call groups ranked by verified on-chain performance — copy the winners." },
+  { q: "Phase 3", title: "Alpha leaderboard", body: "Call groups ranked by verified on-chain performance. Copy the winners." },
   { q: "Phase 4", title: "Everywhere", body: "Mobile app, more alpha sources and deeper portfolio analytics." }
 ];
 
@@ -19,13 +19,13 @@ export default function Roadmap() {
 
   return (
     <section id="roadmap" ref={ref} className="mx-auto max-w-6xl px-5 py-24">
-      <h2 className="text-4xl font-bold tracking-tight md:text-5xl">The <span className="cosmic-text">launch</span> trajectory</h2>
+      <h2 className="text-4xl font-bold tracking-tight md:text-5xl">The <span className="text-grape">launch</span> trajectory</h2>
       <p className="mt-3 max-w-xl text-haze">Where Degenaration is headed. The rocket moves as you scroll.</p>
 
       {/* horizontal timeline (md+) */}
       <div className="relative mt-24 hidden md:block">
         <div className="absolute left-0 right-0 top-0 h-0.5 rounded-full bg-white/10" />
-        <motion.div style={{ width }} className="absolute left-0 top-0 h-0.5 rounded-full bg-gradient-to-r from-grape via-magenta to-ember" />
+        <motion.div style={{ width }} className="absolute left-0 top-0 h-0.5 rounded-full bg-grape" />
         <motion.div style={{ left }} className="absolute -top-8 -translate-x-1/2">
           <span className="block rotate-[38deg]"><RocketGlyph size={26} /></span>
         </motion.div>

@@ -7,9 +7,8 @@ import Logo from "@/components/Logo";
 
 const LINKS = [
   { label: "Home", href: "#top" },
-  { label: "Features", href: "#features" },
+  { label: "Discord sources", href: "#groups" },
   { label: "How It Works", href: "#how" },
-  { label: "Roadmap", href: "#roadmap" },
   { label: "FAQ", href: "/docs" }
 ];
 
@@ -29,7 +28,7 @@ export default function Nav() {
       initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-      className="fixed inset-x-0 top-3 z-[70] flex justify-center px-4"
+      className="fixed inset-x-0 top-12 z-[70] flex justify-center px-4"
     >
       <motion.nav
         animate={{ y: scrolled ? 0 : [0, -3, 0] }}
@@ -58,8 +57,8 @@ export default function Nav() {
         <div className="hidden items-center gap-2 md:flex">
           <Link href="/login" className="btn-ghost px-3 py-1.5 text-sm font-semibold">Connect Wallet</Link>
           <Magnetic strength={0.5}>
-            <Link href="/trenches" className={`btn-cosmic font-bold transition-all ${scrolled ? "px-4 py-1.5 text-sm" : "px-5 py-2 text-sm"}`}>
-              Launch App →
+            <Link href="/terminal" className={`btn-cosmic font-bold transition-all ${scrolled ? "px-4 py-1.5 text-sm" : "px-5 py-2 text-sm"}`}>
+              Launch app
             </Link>
           </Magnetic>
         </div>
@@ -67,9 +66,10 @@ export default function Nav() {
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Menu"
+          aria-expanded={open}
           className="btn-ghost ml-1 grid h-9 w-9 place-items-center md:hidden"
         >
-          <span className="text-lg leading-none">{open ? "✕" : "☰"}</span>
+          <span className={`menu-icon ${open ? "menu-icon-open" : ""}`} aria-hidden="true"><i /><i /><i /></span>
         </button>
       </motion.nav>
 
@@ -86,7 +86,7 @@ export default function Nav() {
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <Link href="/login" onClick={() => setOpen(false)} className="btn-ghost px-3 py-2.5 text-center text-sm font-semibold">Connect Wallet</Link>
-            <Link href="/trenches" onClick={() => setOpen(false)} className="btn-cosmic px-3 py-2.5 text-center text-sm font-bold">Launch App →</Link>
+            <Link href="/terminal" onClick={() => setOpen(false)} className="btn-cosmic px-3 py-2.5 text-center text-sm font-bold">Launch app</Link>
           </div>
         </motion.div>
       )}

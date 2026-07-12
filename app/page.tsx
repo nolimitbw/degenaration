@@ -1,6 +1,5 @@
 import ScrollProgress from "@/components/ScrollProgress";
 import ScrollVideoBackground from "@/components/ScrollVideoBackground";
-import CursorGlow from "@/components/CursorGlow";
 import Loader from "@/components/Loader";
 import Nav from "@/components/Nav";
 import Hero from "@/components/Hero";
@@ -17,7 +16,6 @@ export default function Home() {
   return (
     <div className="degen-home">
       <Loader />
-      <CursorGlow />
       <ScrollVideoBackground />
       <ScrollProgress />
       <Nav />

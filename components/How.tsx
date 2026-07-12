@@ -4,23 +4,23 @@ import { motion } from "framer-motion";
 const STEPS = [
   {
     n: "01",
-    title: "Connect or create a wallet",
-    body: "Sign in with Google or email and spin up an embedded Solana wallet in seconds, or connect Phantom. Your private key never leaves your control — Degenaration receives trade-only permission, capped and revocable."
+    title: "A caller connects a channel",
+    body: "Approved Discord sources add the bot and authorize only their calls channels. The platform records qualifying token calls with a timestamp and entry data."
   },
   {
     n: "02",
-    title: "Choose your alpha groups",
-    body: "Browse Discord call groups with on-chain-verified track records. Subscribe to the ones whose edge you trust, and tune each independently."
+    title: "Performance is measured",
+    body: "Each call is checked against later market data. The directory shows the tracked sample, 2x hit rate, average peak and best recorded run."
   },
   {
     n: "03",
-    title: "Define your risk rules",
-    body: "Set position size, take-profit ladders, stop-loss and max slippage per group. Every call is screened for liquidity, mint authority and honeypot traits before a lamport moves."
+    title: "You choose your rules",
+    body: "Enable only the sources you trust, then set size, take-profit, stop-loss, slippage and daily loss limits independently for each one."
   },
   {
     n: "04",
-    title: "Trade on autopilot",
-    body: "Calls execute from your wallet in under two seconds, around the clock. Monitor every position live and pause the entire engine with one click."
+    title: "Your wallet executes",
+    body: "When your enabled source posts a qualified call, your configured rules decide whether to trade. You can edit or pause them at any time."
   }
 ];
 
@@ -29,9 +29,9 @@ export default function How() {
     <section id="how" className="relative py-24">
       <div className="mx-auto max-w-6xl px-5">
         <h2 className="text-4xl font-bold tracking-tight md:text-5xl">
-          From call to trade in <span className="cosmic-text">seconds</span>
+          From Discord call to <span className="text-grape">controlled trade</span>
         </h2>
-        <p className="mt-3 max-w-xl text-haze">Four steps to a fully automated, risk-managed trading setup.</p>
+        <p className="mt-3 max-w-xl text-haze">A transparent path from caller history to your own per-source execution rules.</p>
         <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((s, i) => (
             <motion.div
@@ -42,7 +42,7 @@ export default function How() {
               transition={{ delay: i * 0.1 }}
               className="card-cosmic p-6"
             >
-              <p className="font-mono text-3xl font-bold cosmic-text">{s.n}</p>
+              <p className="font-mono text-3xl font-bold text-grape">{s.n}</p>
               <h3 className="mt-3 text-lg font-bold text-starlight">{s.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-haze">{s.body}</p>
             </motion.div>

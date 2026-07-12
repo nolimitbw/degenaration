@@ -48,7 +48,7 @@ export default function Alpha() {
               <tbody>{data!.calls.map((c, i) => (<tr key={c.id} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{rank(i)}</td><td className="px-4 py-3 font-bold">{c.caller ?? "—"}</td><td className="px-4 py-3 text-dim">{c.group_name ?? "—"}</td><td className="px-4 py-3">{c.symbol ?? c.mint.slice(0,6)}</td><td className="px-4 py-3 text-dim">{c.called_mcap ? "$"+Math.round(c.called_mcap).toLocaleString() : "—"}</td><td className="px-4 py-3 font-bold text-up">{c.peakX ? c.peakX.toFixed(1)+"x" : "—"}</td></tr>))}</tbody>
             </table>
           ) : (
-            <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-panel font-mono text-[11px] uppercase text-dim"><tr>{["#","Name","Points","Avg","Hit rate","Calls","Best"].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
+            <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-panel font-mono text-[11px] uppercase text-dim"><tr>{["#","Name","Points","Avg peak","2x hit rate","Calls","Best"].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
               <tbody>{(list as any[]).map((g, i) => (<tr key={`${g.name}-${i}`} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{rank(i)}</td><td className="px-4 py-3 font-bold">{g.name}</td><td className="px-4 py-3 text-cyber">{g.points.toFixed(0)}</td><td className="px-4 py-3 text-up">{g.avgX.toFixed(2)}x</td><td className="px-4 py-3">{g.hitRate.toFixed(0)}%</td><td className="px-4 py-3 text-dim">{g.calls}</td><td className="px-4 py-3 text-up">{g.bestX.toFixed(1)}x</td></tr>))}</tbody>
             </table>
           )}
