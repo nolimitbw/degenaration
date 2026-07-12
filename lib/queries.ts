@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
+import { UNVERIFIED_DEMO_GROUP_IDS } from "./callSources";
 
 export type Group = {
   id: string;
@@ -10,17 +11,33 @@ export type Group = {
   tag: string | null;
 };
 
-// Demo rows seeded by an old schema migration — never actually approved as call
-// groups. RLS blocks the anon key from deleting them (correctly), so they're
-// filtered here until the owner runs supabase/cleanup-demo-groups.sql. Matched
-// by row id, not name — a name match would also hide a future real group that
-// happens to share one of these (fairly generic) display names.
-const UNVERIFIED_DEMO_GROUP_IDS = new Set([
-  "4184172f-fc9b-4812-b824-47b47803e98c", // "Alpha Trenches"
-  "d190319f-215e-418a-bf2b-379cf02027ad", // "Solana Snipers"
-  "63873a8c-a247-45cc-8b9a-ccf01a2d0437", // "Pump Scouts"
-  "2453d26f-107b-40ff-8771-3991e8869dc6"  // "Degen Central"
-]);
+export type CallSourceMetrics = {
+  calls: number;
+  measuredCalls: number;
+  hitRate: number | null;
+  avgPeakX: number | null;
+  medianPeakX: number | null;
+  bestPeakX: number | null;
+  latestCallAt: string | null;
+};
+
+export type CallSource = {
+  id: string;
+  name: string;
+  members: string | null;
+  tag: string | null;
+  createdAt: string;
+  metrics: CallSourceMetrics;
+  recentCalls: Array<{
+    id: string;
+    mint: string | null;
+    symbol: string | null;
+    caller: string | null;
+    calledAt: string | null;
+    peakX: number | null;
+    currentX: number | null;
+  }>;
+};
 
 /** Approved call groups for the public Calls page. Falls back to [] if DB not reachable. */
 export async function getApprovedGroups(): Promise<Group[]> {
@@ -31,6 +48,14 @@ export async function getApprovedGroups(): Promise<Group[]> {
     .order("created_at", { ascending: true });
   if (error) return [];
   return (data ?? []).filter((g) => !UNVERIFIED_DEMO_GROUP_IDS.has(g.id));
+}
+
+/** Approved Discord call sources with dynamically measured performance. */
+export async function getCallSources(timeframe = "30d"): Promise<CallSource[]> {
+  const data = await fetchWithTimeout(`/api/call-sources?tf=${encodeURIComponent(timeframe)}`)
+    .then((r) => r.ok ? r.json() : { sources: [] })
+    .catch(() => ({ sources: [] }));
+  return Array.isArray(data?.sources) ? data.sources : [];
 }
 
 /** Submit a server-listing application from the /apply page. */
@@ -53,7 +78,17 @@ export type Subscription = {
   user_pubkey?: string; wallet_id?: string;
 };
 
-export async function getMySubscriptions(): Promise<Subscription[]> {
+function bearer(token?: string | null) {
+  return token ? { authorization: `Bearer ${token}` } : {};
+}
+
+export async function getMySubscriptions(token?: string | null): Promise<Subscription[]> {
+  if (token) {
+    const data = await fetchWithTimeout("/api/user/subscriptions", { headers: bearer(token) })
+      .then((r) => r.ok ? r.json() : { subscriptions: [] })
+      .catch(() => ({ subscriptions: [] }));
+    return Array.isArray(data?.subscriptions) ? data.subscriptions : [];
+  }
   const { data, error } = await supabase
     .from("subscriptions")
     .select("group_id,size_sol,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,daily_cap_sol,enabled");
@@ -62,7 +97,17 @@ export async function getMySubscriptions(): Promise<Subscription[]> {
 }
 
 /** Upsert a per-group subscription for the signed-in user. */
-export async function saveSubscription(sub: Partial<Subscription> & { group_id: string }) {
+export async function saveSubscription(sub: Partial<Subscription> & { group_id: string }, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout("/api/user/subscriptions", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...bearer(token) },
+      body: JSON.stringify(sub)
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not save" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
   if (!uid) return { error: { message: "not signed in" } };
@@ -205,13 +250,29 @@ export type DbLimitOrder = {
 export async function createLimitOrder(o: {
   mint: string; symbol: string; trigger: "below" | "above"; target_usd: number;
   amount_sol: number; slippage_bps: number; user_pubkey: string; wallet_id?: string;
-}) {
+}, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout("/api/user/limit-orders", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...bearer(token) },
+      body: JSON.stringify(o)
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not create order" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
   if (!uid) return { error: { message: "sign in first" } };
   return supabase.from("limit_orders").insert({ user_id: uid, ...o });
 }
-export async function getMyLimitOrders(): Promise<DbLimitOrder[]> {
+export async function getMyLimitOrders(token?: string | null): Promise<DbLimitOrder[]> {
+  if (token) {
+    const data = await fetchWithTimeout("/api/user/limit-orders", { headers: bearer(token) })
+      .then((r) => r.ok ? r.json() : { orders: [] })
+      .catch(() => ({ orders: [] }));
+    return Array.isArray(data?.orders) ? data.orders : [];
+  }
   const { data, error } = await supabase
     .from("limit_orders")
     .select("id,mint,symbol,trigger,target_usd,amount_sol,slippage_bps,status,created_at,sig")
@@ -219,10 +280,30 @@ export async function getMyLimitOrders(): Promise<DbLimitOrder[]> {
   if (error) return [];
   return data ?? [];
 }
-export async function cancelLimitOrder(id: string) {
+export async function cancelLimitOrder(id: string, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout("/api/user/limit-orders", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...bearer(token) },
+      body: JSON.stringify({ id, action: "cancel" })
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not cancel order" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   return supabase.from("limit_orders").update({ status: "cancelled" }).eq("id", id);
 }
-export async function markOrderFilled(id: string, sig?: string) {
+export async function markOrderFilled(id: string, sig?: string, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout("/api/user/limit-orders", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...bearer(token) },
+      body: JSON.stringify({ id, action: "filled", sig })
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not mark order filled" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   return supabase.from("limit_orders").update({ status: "filled", sig, filled_at: new Date().toISOString() }).eq("id", id);
 }
 
@@ -232,7 +313,13 @@ export type CopySub = {
   slippage_bps: number; daily_cap_sol: number; enabled: boolean;
   tp1: number | null; tp1_sell: number | null; tp2: number | null; tp2_sell: number | null; stop_loss: number | null;
 };
-export async function getMyCopySubs(): Promise<CopySub[]> {
+export async function getMyCopySubs(token?: string | null): Promise<CopySub[]> {
+  if (token) {
+    const data = await fetchWithTimeout("/api/user/copy-subscriptions", { headers: bearer(token) })
+      .then((r) => r.ok ? r.json() : { subscriptions: [] })
+      .catch(() => ({ subscriptions: [] }));
+    return Array.isArray(data?.subscriptions) ? data.subscriptions : [];
+  }
   const { data, error } = await supabase
     .from("copy_subscriptions")
     .select("id,leader_wallet,label,size_sol,slippage_bps,daily_cap_sol,enabled,tp1,tp1_sell,tp2,tp2_sell,stop_loss");
@@ -243,7 +330,17 @@ export async function saveCopySub(sub: {
   leader_wallet: string; label?: string; size_sol: number; slippage_bps?: number;
   daily_cap_sol?: number; user_pubkey: string; wallet_id?: string;
   tp1?: number; tp1_sell?: number; tp2?: number; tp2_sell?: number; stop_loss?: number;
-}) {
+}, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout("/api/user/copy-subscriptions", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...bearer(token) },
+      body: JSON.stringify(sub)
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not save copy subscription" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
   if (!uid) return { error: { message: "sign in first" } };
@@ -252,7 +349,16 @@ export async function saveCopySub(sub: {
     { onConflict: "user_id,leader_wallet" }
   );
 }
-export async function removeCopySub(leader_wallet: string) {
+export async function removeCopySub(leader_wallet: string, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout(`/api/user/copy-subscriptions?leader_wallet=${encodeURIComponent(leader_wallet)}`, {
+      method: "DELETE",
+      headers: bearer(token)
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not stop copy" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   return supabase.from("copy_subscriptions").delete().eq("leader_wallet", leader_wallet);
 }
 

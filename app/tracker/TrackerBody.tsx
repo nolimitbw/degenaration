@@ -48,7 +48,7 @@ function CopyPanel({ settings, onChange, onStart, onCancel }: { settings: CopySe
 
 // Privy-dependent wallet-tracker body. Lazily loaded by app/tracker/page.tsx.
 export default function TrackerBody() {
-  const { user, authenticated, login } = usePrivy();
+  const { user, authenticated, login, getAccessToken } = usePrivy();
   const toast = useToast();
   const address = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
@@ -66,7 +66,8 @@ export default function TrackerBody() {
   const [addr, setAddr] = useState("");
   const [label, setLabel] = useState("");
 
-  useEffect(() => { if (authenticated) getMyCopySubs().then(setSubs); }, [authenticated]);
+  const refreshSubs = async () => setSubs(await getMyCopySubs(await getAccessToken()));
+  useEffect(() => { if (authenticated) refreshSubs().catch(() => {}); }, [authenticated]);
   useEffect(() => {
     if (!authenticated || !address) { setBalanceChecked(true); return; }
     setBalanceChecked(false);
@@ -92,15 +93,15 @@ export default function TrackerBody() {
       leader_wallet: leader, label: lbl, size_sol: settings.size, daily_cap_sol: settings.dailyCap,
       tp1: settings.tp1, tp1_sell: settings.tp1sell, tp2: settings.tp2, tp2_sell: settings.tp2sell, stop_loss: settings.sl,
       slippage_bps: 300, user_pubkey: address, wallet_id: walletId
-    });
+    }, await getAccessToken());
     if (error) { toast(error.message || "Could not enable copy", "err"); return; }
-    toast(`Copying ${lbl} — ${settings.size} SOL/trade`); setCopyFor(null); getMyCopySubs().then(setSubs);
+    toast(`Copying ${lbl} — ${settings.size} SOL/trade`); setCopyFor(null); refreshSubs();
   }
   async function disableCopy(leader: string) {
     try {
-      const { error } = await removeCopySub(leader);
+      const { error } = await removeCopySub(leader, await getAccessToken());
       if (error) { toast(error.message || "Could not stop copy", "err"); return; }
-      toast("Copy trade stopped"); getMyCopySubs().then(setSubs);
+      toast("Copy trade stopped"); refreshSubs();
     } catch { toast("Could not stop copy", "err"); }
   }
 

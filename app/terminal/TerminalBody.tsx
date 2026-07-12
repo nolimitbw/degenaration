@@ -54,7 +54,7 @@ export default function TerminalBody() {
   const [executing, setExecuting] = useState(false);
   const [limitTarget, setLimitTarget] = useState(0);
   const [limitTrigger, setLimitTrigger] = useState<"below" | "above">("below");
-  const { user, authenticated, login } = usePrivy();
+  const { user, authenticated, login, getAccessToken } = usePrivy();
   const executeBuy = useExecuteBuy();
   const executeSell = useExecuteSell();
   const { presets: AMOUNTS } = useQuickBuyPresets();
@@ -73,7 +73,7 @@ export default function TerminalBody() {
     if (limitTarget <= 0 || amount <= 0) { toast("Enter a target price and amount", "err"); return; }
     const walletId = getSolanaWalletId(user);
     if (!pubkey) { toast("No wallet found", "err"); return; }
-    const { error } = await createLimitOrder({ mint, symbol: price?.symbol || mint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId });
+    const { error } = await createLimitOrder({ mint, symbol: price?.symbol || mint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created — see Limit Orders");
   }

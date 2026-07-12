@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { getApprovedGroups, getMySubscriptions, saveSubscription, type Group } from "@/lib/queries";
+import { getCallSources, getMySubscriptions, saveSubscription, type CallSource } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 
@@ -11,8 +11,8 @@ const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25
 // Privy-aware Discord Calls body. Passes the embedded wallet id so the 24/7 worker can
 // sign delegated buys when a subscribed group posts a call.
 export default function CallsBody() {
-  const { user, authenticated, login } = usePrivy();
-  const [groups, setGroups] = useState<Group[]>([]);
+  const { user, authenticated, login, getAccessToken } = usePrivy();
+  const [groups, setGroups] = useState<CallSource[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [live, setLive] = useState(false);
   const [copying, setCopying] = useState<string[]>([]);
@@ -26,12 +26,13 @@ export default function CallsBody() {
 
   async function persist(id: string, on: boolean) {
     if (!authenticated) { login(); return; }
+    const token = await getAccessToken();
     const c = s(id);
     const { error } = await saveSubscription({
       group_id: id, size_sol: c.size, tp1: c.tp1, tp1_sell: c.tp1sell,
       tp2: c.tp2, tp2_sell: c.tp2sell, stop_loss: c.sl, slippage_bps: c.slippage * 100,
       daily_cap_sol: c.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId
-    });
+    }, token);
     if (error) { toast(error.message || "Could not save — sign in first", "err"); return; }
     setSaved(id); toast(on ? "Copying this group — saved" : "Settings saved"); setTimeout(() => setSaved(null), 1500);
   }
@@ -42,8 +43,9 @@ export default function CallsBody() {
   }
 
   useEffect(() => {
-    getApprovedGroups().then((g) => { setGroups(g); setLive(g.length > 0); setLoaded(true); });
-    getMySubscriptions().then((subs) => {
+    getCallSources().then((g) => { setGroups(g); setLive(g.length > 0); setLoaded(true); });
+    if (!authenticated) return;
+    getAccessToken().then((token) => getMySubscriptions(token)).then((subs) => {
       const enabled = subs.filter((s) => s.enabled).map((s) => s.group_id);
       setCopying(enabled);
       const saved: Record<string, Settings> = {};
@@ -55,8 +57,8 @@ export default function CallsBody() {
         };
       }
       if (Object.keys(saved).length) setSettings(saved);
-    });
-  }, []);
+    }).catch(() => {});
+  }, [authenticated, getAccessToken]);
 
   const s = (id: string) => settings[id] ?? DEFAULTS;
   const set = (id: string, patch: Partial<Settings>) =>
@@ -71,14 +73,14 @@ export default function CallsBody() {
         </span>
       </div>
       <p className="mt-1 text-sm text-dim">
-        Vetted groups only. Toggle copy, then tune your rules per group — every call is
+        Compare independently tracked results, then tune your rules per source. Every call is
         rug-checked before your wallet moves.
       </p>
 
       {loaded && groups.length === 0 && (
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
           <p className="text-sm font-bold text-dim">No call groups yet</p>
-          <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Groups appear here after their owners add the bot, register their channel, and you approve it in Admin. Nothing is seeded — this is your real, empty list until you launch.</p>
+          <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Sources appear after their owners add the bot, register a calls channel, and it is approved. Nothing is seeded, so every performance figure is earned from recorded calls.</p>
           <a href="/apply" className="mt-4 rounded-md border border-edge px-4 py-2 text-xs font-bold text-dim hover:border-toxic hover:text-toxic">List a server →</a>
         </div>
       )}
@@ -92,8 +94,7 @@ export default function CallsBody() {
                 <div>
                   <h3 className="font-bold">{g.name}</h3>
                   <p className="mt-0.5 font-mono text-xs text-dim">
-                    {g.members ?? "—"} members · {g.win_rate ?? "—"}% win ·{" "}
-                    <span className={(g.pnl_30d ?? "").startsWith("+") ? "text-up" : "text-hotpink"}>{g.pnl_30d ?? "—"} 30d</span>
+                    {g.members ?? "—"} members · {g.metrics.calls} calls in the tracked window
                   </p>
                 </div>
                 <button onClick={() => toggle(g.id)}
@@ -103,6 +104,19 @@ export default function CallsBody() {
                 </button>
               </div>
 
+              <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-4">
+                <Metric label="2x hit rate" value={g.metrics.hitRate == null ? "Pending" : `${g.metrics.hitRate.toFixed(0)}%`} />
+                <Metric label="Avg peak" value={g.metrics.avgPeakX == null ? "Pending" : `${g.metrics.avgPeakX.toFixed(2)}x`} tone="text-up" />
+                <Metric label="Median peak" value={g.metrics.medianPeakX == null ? "Pending" : `${g.metrics.medianPeakX.toFixed(2)}x`} />
+                <Metric label="Best call" value={g.metrics.bestPeakX == null ? "Pending" : `${g.metrics.bestPeakX.toFixed(1)}x`} tone="text-toxic" />
+              </div>
+
+              <p className="mt-3 font-mono text-[10px] text-dim/75">
+                {g.metrics.measuredCalls
+                  ? `${g.metrics.measuredCalls}/${g.metrics.calls} calls have an entry and live peak measurement. 2x hit rate means the call reached at least 2.00x from its recorded entry.`
+                  : "Metrics appear after the scanner records an entry price and checks the call against live market data."}
+              </p>
+
               <button onClick={() => setOpen(open === g.id ? null : g.id)}
                 className="mt-4 w-full rounded-md border border-edge py-2 font-mono text-xs text-dim transition hover:border-cyber hover:text-ink">
                 {open === g.id ? "▲ hide settings" : "▼ trade settings"}
@@ -110,6 +124,18 @@ export default function CallsBody() {
 
               {open === g.id && (
                 <div className="mt-4 grid grid-cols-2 gap-4 border-t border-edge pt-4 text-sm">
+                  {g.recentCalls.length > 0 && (
+                    <div className="col-span-2 overflow-hidden rounded-md border border-edge">
+                      <div className="border-b border-edge bg-void px-3 py-2 font-mono text-[10px] uppercase text-dim">Latest recorded calls</div>
+                      {g.recentCalls.map((call) => (
+                        <div key={call.id} className="flex items-center justify-between gap-3 border-b border-edge px-3 py-2 last:border-b-0">
+                          <span className="min-w-0 truncate font-mono text-xs text-ink">{call.symbol || call.mint?.slice(0, 8) || "Unknown token"}</span>
+                          <span className="truncate font-mono text-[10px] text-dim">{call.caller || "Channel call"}</span>
+                          <span className={`font-mono text-xs font-bold ${call.peakX && call.peakX >= 1 ? "text-up" : "text-dim"}`}>{call.peakX ? `${call.peakX.toFixed(2)}x peak` : "Scanning"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <label className="block">
                     <span className="font-mono text-[11px] uppercase text-dim">Size per call (SOL)</span>
                     <input type="number" step="0.1" value={cfg.size} onChange={(e) => set(g.id, { size: +e.target.value })}
@@ -154,5 +180,14 @@ export default function CallsBody() {
         })}
       </div>
     </>
+  );
+}
+
+function Metric({ label, value, tone = "text-ink" }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="bg-void px-3 py-2.5">
+      <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
+      <p className={`mt-1 font-mono text-sm font-bold ${tone}`}>{value}</p>
+    </div>
   );
 }

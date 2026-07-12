@@ -10,7 +10,7 @@ const POLL_MS = 20000;
 
 // Privy + trade-execution body for limit orders. Lazily loaded by app/orders/page.tsx.
 export default function OrdersBody() {
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
   const executeBuy = useExecuteBuy();
   const toast = useToast();
   const [orders, setOrders] = useState<DbLimitOrder[]>([]);
@@ -27,7 +27,9 @@ export default function OrdersBody() {
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
 
-  const refresh = useCallback(async () => { if (authenticated) setOrders(await getMyLimitOrders()); }, [authenticated]);
+  const refresh = useCallback(async () => {
+    if (authenticated) setOrders(await getMyLimitOrders(await getAccessToken()));
+  }, [authenticated, getAccessToken]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const runExec = useCallback(async (o: DbLimitOrder) => {
@@ -35,9 +37,9 @@ export default function OrdersBody() {
     firing.current.add(o.id);
     const r = await executeBuy({ mint: o.mint, solAmount: o.amount_sol, slippageBps: o.slippage_bps, symbol: o.symbol ?? undefined });
     firing.current.delete(o.id);
-    if (r.ok) { await markOrderFilled(o.id, r.sig); toast(`Limit filled — ${o.symbol}`); refresh(); }
+    if (r.ok) { await markOrderFilled(o.id, r.sig, await getAccessToken()); toast(`Limit filled — ${o.symbol}`); refresh(); }
     else toast(r.error || "Execution failed", "err");
-  }, [toast, refresh, executeBuy]);
+  }, [toast, refresh, executeBuy, getAccessToken]);
 
   // client watcher: prices + optional execute while the tab is open (worker handles offline)
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function OrdersBody() {
   const create = async () => {
     if (!authenticated || !pubkey) { login(); return; }
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) || target <= 0 || amount <= 0) { toast("Enter a valid mint, target and amount", "err"); return; }
-    const { error } = await createLimitOrder({ mint, symbol: symbol || mint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId });
+    const { error } = await createLimitOrder({ mint, symbol: symbol || mint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created"); setMint(""); setSymbol(""); setTarget(0); refresh();
   };
@@ -121,7 +123,7 @@ export default function OrdersBody() {
               <div className="flex items-center gap-2">
                 {ready && <span className="rounded-full bg-toxic/20 px-2 py-0.5 font-mono text-[10px] font-bold text-toxic">READY</span>}
                 <button onClick={() => runExec(o)} className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white shadow-toxic transition hover:brightness-110">Execute</button>
-                <button onClick={async () => { try { await cancelLimitOrder(o.id); refresh(); } catch {} }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
+                <button onClick={async () => { try { await cancelLimitOrder(o.id, await getAccessToken()); refresh(); } catch {} }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
               </div>
             </div>
           );
