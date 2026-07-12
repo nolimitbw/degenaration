@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
   const leader = body?.leader_wallet;
   const userPubkey = body?.user_pubkey;
   if (!isMint(leader) || !isMint(userPubkey)) return NextResponse.json({ error: "invalid wallet" }, { status: 400 });
+  const enabled = body?.enabled !== false;
+  const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
+  if (enabled && !walletId) {
+    return NextResponse.json({ error: "enable 24/7 auto-trading before copying wallets" }, { status: 400 });
+  }
   const payload = {
     privy_user_id: user.privyUserId,
     leader_wallet: leader,
@@ -38,9 +43,9 @@ export async function POST(req: NextRequest) {
     tp2: numeric(body?.tp2, 5, 0.1, 1000),
     tp2_sell: Math.round(numeric(body?.tp2_sell, 25, 1, 100)),
     stop_loss: Math.round(numeric(body?.stop_loss, 40, 1, 100)),
-    enabled: body?.enabled !== false,
+    enabled,
     user_pubkey: userPubkey,
-    wallet_id: typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : null
+    wallet_id: walletId || null
   };
   const result = await callPrivyRpc("app_user_upsert_copy_subscription", { p_privy_user_id: user.privyUserId, p_payload: payload });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });

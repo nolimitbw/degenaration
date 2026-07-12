@@ -4,7 +4,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { fmtUsd, createLimitOrder, getMyLimitOrders, cancelLimitOrder, markOrderFilled, type DbLimitOrder } from "@/lib/queries";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
 const POLL_MS = 20000;
 
@@ -26,6 +26,7 @@ export default function OrdersBody() {
 
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
+  const delegated = hasDelegatedSolanaWallet(user);
 
   const refresh = useCallback(async () => {
     if (authenticated) setOrders(await getMyLimitOrders(await getAccessToken()));
@@ -65,6 +66,7 @@ export default function OrdersBody() {
   const create = async () => {
     if (!authenticated || !pubkey) { login(); return; }
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) || target <= 0 || amount <= 0) { toast("Enter a valid mint, target and amount", "err"); return; }
+    if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before creating limits", "err"); return; }
     const { error } = await createLimitOrder({ mint, symbol: symbol || mint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created"); setMint(""); setSymbol(""); setTarget(0); refresh();
@@ -97,6 +99,13 @@ export default function OrdersBody() {
           Also execute in this tab
         </label>
       </div>
+      {pubkey && (!walletId || !delegated) && (
+        <div className="mt-5 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
+          <p className="text-sm font-bold text-ink">Enable 24/7 auto-trading before creating offline limit orders.</p>
+          <p className="mt-1 font-mono text-[11px] text-dim">The worker needs your delegated Privy Solana wallet id to execute limits when this tab is closed.</p>
+          <a href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Open Wallet</a>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-2 rounded-lg border border-edge bg-panel p-4 sm:grid-cols-2 lg:grid-cols-6">
         <input value={mint} onChange={(e) => setMint(e.target.value)} placeholder="Token mint" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic lg:col-span-2" />

@@ -29,8 +29,12 @@ export async function POST(req: NextRequest) {
   const target = num(body?.target_usd, 0, 1_000_000_000);
   const amount = num(body?.amount_sol, 0, 100);
   const userPubkey = body?.user_pubkey;
+  const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
   if (!isMint(mint) || !target || !amount || !isMint(userPubkey)) {
     return NextResponse.json({ error: "invalid order" }, { status: 400 });
+  }
+  if (!walletId) {
+    return NextResponse.json({ error: "enable 24/7 auto-trading before creating limit orders" }, { status: 400 });
   }
 
   const payload = {
@@ -42,7 +46,7 @@ export async function POST(req: NextRequest) {
     amount_sol: amount,
     slippage_bps: validSlippageBps(body?.slippage_bps),
     user_pubkey: userPubkey,
-    wallet_id: typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : null,
+    wallet_id: walletId,
     status: "open"
   };
   const result = await callPrivyRpc("app_user_create_limit_order", { p_privy_user_id: user.privyUserId, p_payload: payload });

@@ -12,3 +12,6 @@ export function getSolanaAddress(user: any): string | undefined {
 export function getSolanaWalletId(user: any): string | undefined {
   return getSolanaWallet(user)?.id;
 }
+export function hasDelegatedSolanaWallet(user: any): boolean {
+  return Boolean(getSolanaWallet(user)?.delegated);
+}

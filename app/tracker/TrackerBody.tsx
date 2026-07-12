@@ -5,7 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { getNet } from "@/lib/net";
 import { fetchPortfolio, fetchBalance, fmtUsd, getMyCopySubs, saveCopySub, removeCopySub, type Portfolio, type CopySub } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
 type Tracked = { address: string; label: string };
 type SmartWallet = { address: string; catches: { symbol: string; mint: string; multiple: number }[]; catchCount: number; bestMultiple: number; avgMultiple: number };
@@ -52,6 +52,7 @@ export default function TrackerBody() {
   const toast = useToast();
   const address = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
+  const delegated = hasDelegatedSolanaWallet(user);
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceChecked, setBalanceChecked] = useState(false);
@@ -81,15 +82,18 @@ export default function TrackerBody() {
 
   const isCopied = (a: string) => subs.some((s) => s.leader_wallet === a && s.enabled);
   const canCopy = authenticated && address && (balance ?? 0) > 0;
+  const canAutomate = canCopy && walletId && delegated;
 
   function openCopy(leader: string) {
     if (!authenticated) { login(); return; }
     if (!canCopy) { toast("Fund your wallet with SOL first — see /wallet", "err"); return; }
+    if (!canAutomate) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
     setSettings(DEFAULT_SETTINGS);
     setCopyFor(leader);
   }
   async function enableCopy(leader: string, lbl: string) {
     if (!address) { toast("No wallet found", "err"); return; }
+    if (!canAutomate) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
     setCopyBusy(leader);
     const { error } = await saveCopySub({
       leader_wallet: leader, label: lbl, size_sol: settings.size, daily_cap_sol: settings.dailyCap,
@@ -163,6 +167,13 @@ export default function TrackerBody() {
               <p className="text-sm font-bold text-ink">Tracking is available. Add SOL before enabling copy trades.</p>
               <p className="mt-1 font-mono text-[11px] text-dim">Current wallet balance: {balance?.toFixed(3) ?? "0"} SOL. Copy trades use real funds and will stay locked until the wallet is funded.</p>
               <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Go to Wallet</Link>
+            </div>
+          )}
+          {canCopy && !canAutomate && (
+            <div className="mt-6 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
+              <p className="text-sm font-bold text-ink">Enable 24/7 auto-trading before copy trading.</p>
+              <p className="mt-1 font-mono text-[11px] text-dim">The worker needs your delegated Privy Solana wallet id before copied wallets can execute while you are offline.</p>
+              <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Open Wallet</Link>
             </div>
           )}
 

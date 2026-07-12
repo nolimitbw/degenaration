@@ -27,6 +27,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const groupId = typeof body?.group_id === "string" ? body.group_id : "";
   if (!isUuid(groupId)) return NextResponse.json({ error: "invalid group" }, { status: 400 });
+  const enabled = body?.enabled !== false;
+  const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
+  if (enabled && !walletId) {
+    return NextResponse.json({ error: "enable 24/7 auto-trading before copying call groups" }, { status: 400 });
+  }
 
   const payload = {
     privy_user_id: user.privyUserId,
@@ -39,9 +44,9 @@ export async function POST(req: NextRequest) {
     stop_loss: Math.round(numeric(body?.stop_loss, 40, 1, 100)),
     slippage_bps: Math.round(numeric(body?.slippage_bps, 300, 1, 2000)),
     daily_cap_sol: numeric(body?.daily_cap_sol, 2, 0.001, 1000),
-    enabled: body?.enabled !== false,
+    enabled,
     user_pubkey: typeof body?.user_pubkey === "string" ? body.user_pubkey.slice(0, 80) : null,
-    wallet_id: typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : null
+    wallet_id: walletId || null
   };
 
   const result = await callPrivyRpc("app_user_upsert_subscription", {

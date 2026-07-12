@@ -9,7 +9,7 @@ import { createLimitOrder, fmtUsd } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getNet } from "@/lib/net";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
-import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const SELL_PCTS = [25, 50, 75, 100];
@@ -70,6 +70,8 @@ export default function TerminalBody() {
   const pubkey = getSolanaAddress(user);
   const cleanMint = mint.trim();
   const mintOk = MINT_RE.test(cleanMint);
+  const walletId = getSolanaWalletId(user);
+  const delegated = hasDelegatedSolanaWallet(user);
 
   const loadBalance = useCallback(async () => {
     const currentMint = mint.trim();
@@ -82,8 +84,8 @@ export default function TerminalBody() {
   async function createLimit() {
     if (!authenticated) { login(); return; }
     if (!mintOk || limitTarget <= 0 || amount <= 0) { toast("Enter a valid mint, target price and amount", "err"); return; }
-    const walletId = getSolanaWalletId(user);
     if (!pubkey) { toast("No wallet found", "err"); return; }
+    if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before creating limits", "err"); return; }
     const { error } = await createLimitOrder({ mint: cleanMint, symbol: price?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created — see Limit Orders");
@@ -334,6 +336,11 @@ export default function TerminalBody() {
                   className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
               </label>
             </div>
+          )}
+          {mode === "limit" && authenticated && pubkey && (!walletId || !delegated) && (
+            <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-[11px] text-hotpink">
+              Enable 24/7 auto-trading in Wallet before saving offline limit orders.
+            </p>
           )}
 
           {mode !== "sell" && (

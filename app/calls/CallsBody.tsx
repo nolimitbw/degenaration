@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { getCallSources, getMySubscriptions, saveSubscription, type CallSource } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
 type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
 const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
@@ -24,10 +24,12 @@ export default function CallsBody() {
 
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
+  const delegated = hasDelegatedSolanaWallet(user);
 
   async function persist(id: string, on: boolean) {
     if (!authenticated) { login(); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
+    if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
     setSaving(id);
     const token = await getAccessToken();
     const c = s(id);
@@ -50,6 +52,7 @@ export default function CallsBody() {
     if (!authenticated) { login(); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
     const on = !copying.includes(id);
+    if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
     setCopying(on ? [...copying, id] : copying.filter((x) => x !== id));
     persist(id, on);
   }
@@ -88,6 +91,13 @@ export default function CallsBody() {
         Compare independently tracked results, then tune your rules per source. Every call is
         rug-checked before your wallet moves.
       </p>
+      {authenticated && pubkey && (!walletId || !delegated) && (
+        <div className="mt-4 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
+          <p className="text-sm font-bold text-ink">Enable 24/7 auto-trading before copying call groups.</p>
+          <p className="mt-1 font-mono text-[11px] text-dim">The worker needs your Privy delegated Solana wallet id before it can execute calls while you are offline.</p>
+          <a href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Open Wallet</a>
+        </div>
+      )}
 
       {loaded && groups.length === 0 && (
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
