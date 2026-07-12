@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useCallback, useEffect, useState } from "react";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { adminHeaders, emailFromPrivyUser } from "@/lib/admin";
+import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 type Channel = {
   id: string; guild_name: string | null; channel_name: string | null; channel_id: string;
@@ -13,6 +13,7 @@ type Channel = {
 export default function AdminChannels() {
   const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const { admin } = useIsAdmin();
   const email = emailFromPrivyUser(user);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -23,10 +24,10 @@ export default function AdminChannels() {
     setErr(null);
     const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken, identityToken, email) })
       .then((r) => r.json()).catch(() => ({ error: "request failed" }));
-    if (res.error) { setErr(res.error); setLoaded(true); return; }
+    if (res.error) { setErr(res.error); setChannels([]); setLoaded(true); return; }
     setChannels(res.channels ?? []); setLoaded(true);
   }, [email, getAccessToken, identityToken]);
-  useEffect(() => { if (identityToken || email) load(); }, [email, identityToken, load]);
+  useEffect(() => { if (admin) load(); }, [admin, load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
@@ -51,12 +52,24 @@ export default function AdminChannels() {
         channel; approve one here and the bot relays its calls to the platform Discord and eligible subscribers.
       </p>
 
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <button
+          onClick={() => load()}
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic"
+        >
+          Refresh
+        </button>
+        <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
+          {loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
+        </span>
+      </div>
+
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
 
       <h2 className="mt-8 text-lg font-bold">Pending</h2>
       <div className="mt-3 space-y-3">
         {!loaded && <p className="text-sm text-dim">{email ? "Loading registered channels..." : "Waiting for owner session..."}</p>}
-        {loaded && !pending.length && <p className="text-sm text-dim">No channels waiting for approval.</p>}
+        {loaded && !pending.length && !err && <p className="text-sm text-dim">No channels waiting for approval.</p>}
         {pending.map((c) => (
           <div key={c.id} className="rounded-lg border border-edge bg-panel p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">

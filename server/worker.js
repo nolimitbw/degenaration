@@ -14,6 +14,7 @@ const { getPrice } = require("./engine/prices");
 const { startLimitWatcher } = require("./engine/limits");
 const { startCopyWatcher } = require("./engine/copy");
 const { startCallWatcher } = require("./engine/calls");
+const { startPerformanceScanner } = require("./engine/performance");
 const signer = require("./engine/signer");
 const store = require("./engine/store");
 
@@ -41,7 +42,7 @@ console.log(`[worker] starting — signing ${SIGNING_READY ? "ENABLED" : "DISABL
 
 startLimitWatcher({
   loadOpenOrders: store.loadOpenOrders, loadProfileCaps: store.loadProfileCaps, getPrice, signAndSend,
-  markFilled: store.markFilled, markError: store.markError, onEvent: log("limit")
+  markFilled: store.markFilled, markError: store.markError, recordTrade: store.recordTrade, onEvent: log("limit")
 });
 
 startCopyWatcher({
@@ -55,4 +56,11 @@ startCallWatcher({
   loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
   markCallExecuted: store.markCallExecuted, signAndSend, bumpGroupSpent: store.bumpGroupSpent,
   recordCopy: store.recordCopy, onEvent: log("call")
+});
+
+// This scanner measures source accuracy independently of whether anyone copied a call.
+startPerformanceScanner({
+  loadPerformanceCalls: store.loadPerformanceCalls,
+  updateCallPerformance: store.updateCallPerformance,
+  onEvent: log("performance")
 });

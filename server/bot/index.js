@@ -18,6 +18,7 @@ const { loadApprovedChannels, registerChannel } = require("./store");
 const INGEST_URL = process.env.INGEST_URL;              // e.g. https://degenaration.vercel.app/api/ingest-call
 const BOT_SECRET = process.env.BOT_SHARED_SECRET;
 const REFRESH_MS = Number(process.env.CHANNELS_REFRESH_MS || 30000);
+const RELAY_CHANNEL_ID = process.env.RELAY_CHANNEL_ID || "";
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -28,6 +29,35 @@ let approved = {};
 async function refresh() {
   try { approved = await loadApprovedChannels(); }
   catch (e) { console.error("[bot] channel refresh failed:", e.message); }
+}
+
+function callerName(msg) {
+  return String(msg.member?.displayName || msg.author.globalName || msg.author.username || "Discord caller").slice(0, 100);
+}
+
+async function relayCall(msg, group, call) {
+  if (!/^\d{17,20}$/.test(RELAY_CHANNEL_ID)) return;
+  try {
+    const channel = await client.channels.fetch(RELAY_CHANNEL_ID);
+    if (!channel?.isTextBased?.() || typeof channel.send !== "function") throw new Error("relay channel is not text-based");
+    await channel.send({
+      allowedMentions: { parse: [] },
+      embeds: [{
+        color: 0xa3ff12,
+        title: `New alpha call - ${group.groupName || "Discord source"}`,
+        description: `\`${call.mint}\``,
+        url: `https://dexscreener.com/solana/${call.mint}`,
+        fields: [
+          { name: "Caller", value: callerName(msg), inline: true },
+          { name: "Channel", value: `#${String(msg.channel.name || "calls").slice(0, 80)}`, inline: true },
+          { name: "Signal", value: call.confidence, inline: true }
+        ],
+        timestamp: new Date().toISOString()
+      }]
+    });
+  } catch (e) {
+    console.error("[bot] relay failed:", e.message);
+  }
 }
 
 client.once("ready", async () => {
@@ -47,8 +77,9 @@ client.on("messageCreate", async (msg) => {
     try {
       await registerChannel({
         guildId: msg.guild.id, guildName: msg.guild.name,
+        guildMemberCount: msg.guild.memberCount,
         channelId: msg.channel.id, channelName: msg.channel.name,
-        registeredBy: `${msg.author.username} (${msg.author.id})`
+        registeredBy: msg.author.username
       });
       msg.reply("Channel submitted. It will start copying calls once Degenaration approves it.").catch(() => {});
     } catch (e) {
@@ -71,9 +102,13 @@ client.on("messageCreate", async (msg) => {
     const r = await fetch(INGEST_URL, {
       method: "POST",
       headers: { "content-type": "application/json", "x-bot-secret": BOT_SECRET },
-      body: JSON.stringify({ channelId: msg.channel.id, mint: call.mint, raw: msg.content.slice(0, 500), messageId: msg.id })
+      body: JSON.stringify({
+        channelId: msg.channel.id, channelName: msg.channel.name, mint: call.mint,
+        messageId: msg.id, caller: callerName(msg), confidence: call.confidence
+      })
     });
-    if (!r.ok) console.error(`[bot] ingest rejected (${r.status})`);
+    if (!r.ok) { console.error(`[bot] ingest rejected (${r.status})`); return; }
+    await relayCall(msg, group, call);
   } catch (e) {
     console.error("[bot] ingest failed:", e.message);
   }

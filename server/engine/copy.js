@@ -74,7 +74,7 @@ function startCopyWatcher(deps, pollMs = 10000) {
             // then persist the running total for the UI.
             const rec = spent.get(s.id); rec.amount += s.size_sol;
             try { await bumpDailySpent(s.id, rec.amount); } catch { /* non-fatal: in-memory cap still holds */ }
-            await recordCopy({ wallet: w.address, mint, user: s.user_pubkey, size: s.size_sol, sig });
+            await recordCopy({ wallet: w.address, mint, user: s.user_pubkey, privy_user_id: s.privy_user_id, size: s.size_sol, sig, kind: "copy" });
             onEvent({ type: "COPY", wallet: w.address, mint, user: s.user_pubkey, sig });
           } catch (e) {
             onEvent({ type: "EXEC_ERROR", user: s.user_pubkey, mint, error: e.message });

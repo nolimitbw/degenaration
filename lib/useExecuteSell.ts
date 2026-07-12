@@ -2,7 +2,6 @@
 import { useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSendTransaction } from "@privy-io/react-auth/solana";
-import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { getSolanaAddress } from "./solanaWallet";
@@ -20,14 +19,14 @@ type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
  * Non-custodial — the user's wallet signs. Mirrors useExecuteBuy's proven loop.
  */
 export function useExecuteSell() {
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user, getAccessToken } = usePrivy();
   const { sendTransaction } = useSendTransaction();
   const embeddedAddr = getSolanaAddress(user);
 
   return useCallback(async function executeSell(args: SellArgs): Promise<Result> {
     if (!authenticated) return { ok: false, error: "Connect a wallet to sell" };
     // No Privy embedded Solana wallet -> use an extension wallet (mirrors useExecuteBuy).
-    if (!embeddedAddr) return extensionSell(args);
+    if (!embeddedAddr) return extensionSell({ ...args, authToken: await getAccessToken() });
     const pct = Math.min(1, Math.max(0, args.pct));
     if (pct <= 0) return { ok: false, error: "Pick a sell amount" };
     try {
@@ -40,10 +39,10 @@ export function useExecuteSell() {
       const amount = (rawTotal * BigInt(Math.round(pct * 10000))) / BigInt(10000);
       if (amount <= BigInt(0)) return { ok: false, error: "Amount too small" };
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getAccessToken();
       const res = await fetchWithTimeout("/api/swap", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: amount.toString(), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net, mev: args.mev ?? true })
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
@@ -57,19 +56,19 @@ export function useExecuteSell() {
 
       const soldUi = (bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount));
       const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
-      if (session?.access_token) {
+      if (token) {
         await fetchWithTimeout("/api/record-trade", {
           method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual" })
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual", userPubkey: embeddedAddr })
         }).catch(() => {});
       }
       return { ok: true, sig, soldUi };
     } catch (e: any) {
       // External (non-embedded) Solana wallet: Privy's embedded-only sender can't sign it —
       // fall back to adapter signing so Phantom/Solflare/Backpack users can also sell.
-      if (/embedded/i.test(sanitizeError(e) || "")) return extensionSell(args);
+      if (/embedded/i.test(sanitizeError(e) || "")) return extensionSell({ ...args, authToken: await getAccessToken() });
       return { ok: false, error: sanitizeError(e) || "signing cancelled" };
     }
-  }, [authenticated, embeddedAddr, sendTransaction]);
+  }, [authenticated, embeddedAddr, getAccessToken, sendTransaction]);
 }

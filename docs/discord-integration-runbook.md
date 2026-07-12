@@ -9,15 +9,17 @@ The whole pipeline is built and wired. This is the definitive state + the only r
 4. The owner runs `!register` in the exact channel they post calls in (bot replies to confirm).
 5. That channel appears as **pending** in `call_channels`; you **approve** it.
 6. From then on the bot forwards every call in that channel to `/api/ingest-call`, which
-   records it; the 24/7 worker mirrors it to that group's subscribers (rug-checked, capped).
-7. Users pick which approved groups to copy on `/calls`, with per-group size/TP/SL/cap.
+   records it, posts a structured relay into the Degenaration Discord, and lets the 24/7
+   worker mirror it to that group's subscribers (rug-checked, capped).
+7. Users pick which approved groups to copy on `/calls`, where 2x hit rate, peak multiples,
+   measured-call coverage, and recent calls are derived from scanner data.
 
 ## What is DONE and verified
-- **Discord app** "De Generation" — client id `1521883553682559116`.
+- **Discord app** "De Generation PR" — client id `1522107717836214405`.
 - **Message Content Intent: ENABLED** and **Server Members Intent: ENABLED** (verified in the
   Developer Portal — without Message Content the bot cannot read calls; it's on).
-- **Bot invite link (verified — resolves to a real "Add a bot to a server" screen):**
-  `https://discord.com/oauth2/authorize?client_id=1521883553682559116&permissions=68608&scope=bot`
+- **Bot invite link:**
+  `https://discord.com/oauth2/authorize?client_id=1522107717836214405&permissions=68608&scope=bot%20applications.commands`
   (permissions 68608 = View Channels + Read Message History + Send Messages, i.e. read calls
   and reply to `!register`.)
 - **Bot code** (`server/bot/`): listener, `!register` self-registration, Solana-mint parser,
@@ -31,23 +33,19 @@ The whole pipeline is built and wired. This is the definitive state + the only r
   `calls.executed_at does not exist` error, now resolved once PostgREST cache refreshed).
 - **Website UI**: `/apply` (owner application), `/calls` (browse approved groups, toggle copy,
   per-group settings). Complete.
+- **Call-source measurement**: `supabase/call-source-platform.sql` adds source attribution and
+  price/market-cap tracking. `server/engine/performance.js` refreshes recent calls so public
+  metrics are earned, not supplied by a caller.
 
-## Remaining steps (need your credentials — I cannot handle tokens/secrets)
-1. **Bot token**: Developer Portal → app `1521883553682559116` → Bot → Reset Token → copy it
-   (shown once). This is a credential; keep it secret.
-2. **Deploy the bot** as a second Railway service (same project as `degenaration-worker`):
-   - Start command: `node bot/index.js` (root `server/`); ensure `discord.js` is installed in
-     the deployed service (it's in `server/bot/package.json`).
-   - Env vars: `DISCORD_BOT_TOKEN` (step 1), `BOT_SHARED_SECRET` (any long random string —
-     must MATCH the frontend's, step 3), `INGEST_URL=https://degenaration.vercel.app/api/ingest-call`,
-     `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `CHANNELS_REFRESH_MS=30000`.
-3. **Frontend secret**: set `BOT_SHARED_SECRET` in Vercel to the SAME value as the bot, so
-   `/api/ingest-call` accepts the bot's posts. Redeploy.
-4. **Admin approval**: approve pending `call_channels` rows (an admin action; the bot only
-   reads channels whose row is `status = approved`).
+## Remaining steps
+1. **Deploy/push `nolimitbw/Degencalls`** with the latest bridge code.
+2. **Bot env**: `DISCORD_TOKEN`, `BOT_SHARED_SECRET`, `DEGENARATION_SITE_URL=https://degenaration.vercel.app`,
+   and `CHANNELS_REFRESH_MS=30000`.
+3. **Admin approval**: approve pending `call_channels` rows. The bot only records channels
+   whose row is `status = approved`.
 
 ## Notes
-- There are 3 "De Generation" apps in the portal (duplicates). Use `1521883553682559116` —
-  it's the one with the intents configured. Consider deleting the other two to avoid confusion.
+- There are multiple "De Generation" apps in the portal. Use `1522107717836214405` because it
+  matches the current `DISCORD_BOT_TOKEN`; consider deleting the older duplicates to avoid confusion.
 - The bot invite link can be sent to owners after you approve them (the `/apply` success
   screen already promises "a Discord DM with the bot invite link if approved").

@@ -122,7 +122,13 @@ export type Trade = {
   price_usd: number | null; fee_sol: number | null; kind: string | null; created_at: string;
 };
 
-export async function getMyTrades(): Promise<Trade[]> {
+export async function getMyTrades(token?: string | null): Promise<Trade[]> {
+  if (token) {
+    const data = await fetchWithTimeout("/api/user/trades", { headers: bearer(token) })
+      .then((r) => r.ok ? r.json() : { trades: [] })
+      .catch(() => ({ trades: [] }));
+    return Array.isArray(data?.trades) ? data.trades : [];
+  }
   const { data, error } = await supabase
     .from("trades")
     .select("id,mint,side,sol_amount,price_usd,fee_sol,kind,created_at")

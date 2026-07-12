@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchWithTimeout, isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
-import { requirePrivyUser, serviceHeaders, serviceUrl } from "@/lib/server/privy";
+import { isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
+import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
 
 const num = (v: unknown, min = 0, max = 10_000) => {
   const n = Number(v);
@@ -12,13 +12,9 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const user = await requirePrivyUser(req);
   if (!user.ok) return user.response;
-  const SB = serviceUrl();
-  const headers = serviceHeaders();
-  if (!SB || !headers) return NextResponse.json({ error: "server not configured" }, { status: 503 });
-
-  const rows = await fetchWithTimeout(`${SB}/rest/v1/limit_orders?privy_user_id=eq.${encodeURIComponent(user.privyUserId)}&select=id,mint,symbol,trigger,target_usd,amount_sol,slippage_bps,status,created_at,sig&order=created_at.desc`, { headers })
-    .then((r) => r.json()).catch(() => []);
-  return NextResponse.json({ orders: Array.isArray(rows) ? rows : [] });
+  const result = await callPrivyRpc<any[]>("app_user_list_limit_orders", { p_privy_user_id: user.privyUserId });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ orders: Array.isArray(result.data) ? result.data : [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -26,9 +22,6 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const user = await requirePrivyUser(req);
   if (!user.ok) return user.response;
-  const SB = serviceUrl();
-  const headers = serviceHeaders({ prefer: "return=representation" });
-  if (!SB || !headers) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
   const body = await req.json().catch(() => null);
   const mint = body?.mint;
@@ -52,10 +45,9 @@ export async function POST(req: NextRequest) {
     wallet_id: typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : null,
     status: "open"
   };
-  const response = await fetchWithTimeout(`${SB}/rest/v1/limit_orders`, { method: "POST", headers, body: JSON.stringify(payload) });
-  const data = await response.json().catch(() => null);
-  if (!response.ok) return NextResponse.json({ error: data?.message || "could not create order" }, { status: 400 });
-  return NextResponse.json({ ok: true, order: Array.isArray(data) ? data[0] : data });
+  const result = await callPrivyRpc("app_user_create_limit_order", { p_privy_user_id: user.privyUserId, p_payload: payload });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ ok: true, order: result.data });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -63,19 +55,16 @@ export async function PATCH(req: NextRequest) {
   if (limited) return limited;
   const user = await requirePrivyUser(req);
   if (!user.ok) return user.response;
-  const SB = serviceUrl();
-  const headers = serviceHeaders({ prefer: "return=minimal" });
-  if (!SB || !headers) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
   const body = await req.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "invalid id" }, { status: 400 });
-  const patch = body?.action === "filled"
-    ? { status: "filled", sig: typeof body?.sig === "string" ? body.sig.slice(0, 120) : null, filled_at: new Date().toISOString() }
-    : { status: "cancelled" };
-  const response = await fetchWithTimeout(`${SB}/rest/v1/limit_orders?id=eq.${encodeURIComponent(id)}&privy_user_id=eq.${encodeURIComponent(user.privyUserId)}`, {
-    method: "PATCH", headers, body: JSON.stringify(patch)
+  const result = await callPrivyRpc("app_user_update_limit_order", {
+    p_privy_user_id: user.privyUserId,
+    p_id: id,
+    p_action: body?.action === "filled" ? "filled" : "cancelled",
+    p_sig: typeof body?.sig === "string" ? body.sig.slice(0, 120) : ""
   });
-  if (!response.ok) return NextResponse.json({ error: "could not update order" }, { status: 400 });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
 }

@@ -1,5 +1,4 @@
 "use client";
-import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
 
@@ -20,8 +19,8 @@ export function pickProvider(): Provider | null {
   return ws[0]?.provider ?? null;
 }
 
-type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
-type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
+type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean; authToken?: string | null };
+type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean; authToken?: string | null };
 type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
 
 export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Result> {
@@ -32,11 +31,10 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     const pubkey = wallet.publicKey?.toBase58?.();
     if (!pubkey) return { ok: false, error: "Wallet not connected" };
 
-    const { data: { session } } = await supabase.auth.getSession();
     const url = `/api/swap`;
     const res = await fetchWithTimeout(url, {
       method: "POST",
-      headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+      headers: { "content-type": "application/json", ...(args.authToken ? { authorization: `Bearer ${args.authToken}` } : {}) },
       body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: BigInt(Math.round(args.solAmount * 1e9)).toString(), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
     }).then((r) => r.json());
     if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
@@ -47,11 +45,11 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     const signed = await wallet.signAndSendTransaction(tx);
     const sig = signed?.signature ?? signed;
 
-    if (session?.access_token) {
+    if (args.authToken) {
       await fetch("/api/record-trade", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual" })
+        headers: { "content-type": "application/json", authorization: `Bearer ${args.authToken}` },
+        body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual", userPubkey: pubkey })
       }).catch(() => {});
     }
     return { ok: true, sig };
@@ -82,10 +80,9 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
     const amount = (rawTotal * BigInt(Math.round(pct * 10000))) / BigInt(10000);
     if (amount <= BigInt(0)) return { ok: false, error: "Amount too small" };
 
-    const { data: { session } } = await supabase.auth.getSession();
     const res = await fetchWithTimeout("/api/swap", {
       method: "POST",
-      headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+      headers: { "content-type": "application/json", ...(args.authToken ? { authorization: `Bearer ${args.authToken}` } : {}) },
       body: JSON.stringify({ inputMint: args.mint, outputMint: SOL, amount: amount.toString(), userPublicKey: pubkey, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
     }).then((r) => r.json());
     if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
@@ -98,11 +95,11 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
 
     const soldUi = bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount);
     const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
-    if (session?.access_token) {
+    if (args.authToken) {
       await fetchWithTimeout("/api/record-trade", {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual" })
+        headers: { "content-type": "application/json", authorization: `Bearer ${args.authToken}` },
+        body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual", userPubkey: pubkey })
       }).catch(() => {});
     }
     return { ok: true, sig, soldUi };

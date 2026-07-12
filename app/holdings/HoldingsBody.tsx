@@ -10,7 +10,7 @@ import { getSolanaAddress } from "@/lib/solanaWallet";
 const ALLOC_COLORS = ["#ff2255", "#ff5577", "#f0b429", "#5ea9ff", "#ff4d5e", "#7d828c"];
 
 export default function HoldingsBody() {
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
   const [pf, setPf] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -18,14 +18,15 @@ export default function HoldingsBody() {
 
   const load = useCallback(async () => {
     if (!pubkey) { setLoading(false); return; }
+    const token = authenticated ? await getAccessToken() : null;
     const [p, t] = await Promise.all([
       fetchPortfolio(pubkey, getNet()),
-      getMyTrades()
+      getMyTrades(token)
     ]);
     if (p && !(p as any).error) setPf(p);
     setTrades(t ?? []);
     setLoading(false);
-  }, [pubkey]);
+  }, [authenticated, getAccessToken, pubkey]);
 
   useEffect(() => {
     setLoading(true); load();

@@ -2,7 +2,6 @@
 import { useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSendTransaction } from "@privy-io/react-auth/solana";
-import { supabase } from "./supabase";
 import { getRpc, getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { executeBuy as extensionBuy } from "./execute";
@@ -20,19 +19,19 @@ type Result = { ok: boolean; sig?: string; error?: string };
  * Non-custodial throughout — the user's wallet signs every transaction.
  */
 export function useExecuteBuy() {
-  const { authenticated, user } = usePrivy();
+  const { authenticated, user, getAccessToken } = usePrivy();
   const { sendTransaction } = useSendTransaction();
   const embeddedAddr = getSolanaAddress(user);
 
   return useCallback(async function executeBuy(args: BuyArgs): Promise<Result> {
     // No embedded wallet -> use an extension wallet (existing path).
-    if (!authenticated || !embeddedAddr) return extensionBuy(args);
+    if (!authenticated || !embeddedAddr) return extensionBuy({ ...args, authToken: await getAccessToken() });
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getAccessToken();
       const res = await fetch("/api/swap", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {}) },
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ inputMint: SOL, outputMint: args.mint, amount: String(Math.round(args.solAmount * 1e9)), userPublicKey: embeddedAddr, slippageBps: args.slippageBps, net: getNet(), mev: args.mev ?? true })
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction)         return { ok: false, error: res.error || "could not build swap" };
@@ -44,19 +43,19 @@ export function useExecuteBuy() {
       const receipt: any = await sendTransaction({ transaction: tx, connection });
       const sig = receipt?.signature ?? undefined;
 
-      if (session?.access_token) {
+      if (token) {
         await fetchWithTimeout("/api/record-trade", {
           method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual" })
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual", userPubkey: embeddedAddr })
         }).catch(() => {});
       }
       return { ok: true, sig };
     } catch (e: any) {
       // The linked Solana wallet is EXTERNAL (Phantom/Solflare/Backpack), not a Privy
       // embedded wallet, so useSendTransaction rejects it — fall back to adapter signing.
-      if (/embedded/i.test(sanitizeError(e) || "")) return extensionBuy(args);
+      if (/embedded/i.test(sanitizeError(e) || "")) return extensionBuy({ ...args, authToken: await getAccessToken() });
       return { ok: false, error: sanitizeError(e) || "signing cancelled" };
     }
-  }, [authenticated, embeddedAddr, sendTransaction]);
+  }, [authenticated, embeddedAddr, getAccessToken, sendTransaction]);
 }

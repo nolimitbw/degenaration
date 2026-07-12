@@ -1,32 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchWithTimeout, isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
-import { requirePrivyUser, serviceHeaders, serviceUrl } from "@/lib/server/privy";
+import { isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
+import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
 
 const numeric = (v: unknown, fallback: number, min = 0, max = 10_000) => {
   const n = Number(v);
   return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
 };
 
-async function existingCopy(privyUserId: string, leader: string) {
-  const SB = serviceUrl();
-  const headers = serviceHeaders();
-  if (!SB || !headers) return null;
-  const rows = await fetchWithTimeout(`${SB}/rest/v1/copy_subscriptions?privy_user_id=eq.${encodeURIComponent(privyUserId)}&leader_wallet=eq.${encodeURIComponent(leader)}&select=id&limit=1`, { headers })
-    .then((r) => r.json()).catch(() => []);
-  return Array.isArray(rows) ? rows[0]?.id as string | undefined : undefined;
-}
-
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
   const user = await requirePrivyUser(req);
   if (!user.ok) return user.response;
-  const SB = serviceUrl();
-  const headers = serviceHeaders();
-  if (!SB || !headers) return NextResponse.json({ error: "server not configured" }, { status: 503 });
-  const rows = await fetchWithTimeout(`${SB}/rest/v1/copy_subscriptions?privy_user_id=eq.${encodeURIComponent(user.privyUserId)}&select=id,leader_wallet,label,size_sol,slippage_bps,daily_cap_sol,enabled,tp1,tp1_sell,tp2,tp2_sell,stop_loss`, { headers })
-    .then((r) => r.json()).catch(() => []);
-  return NextResponse.json({ subscriptions: Array.isArray(rows) ? rows : [] });
+  const result = await callPrivyRpc<any[]>("app_user_list_copy_subscriptions", { p_privy_user_id: user.privyUserId });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ subscriptions: Array.isArray(result.data) ? result.data : [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -34,9 +22,6 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   const user = await requirePrivyUser(req);
   if (!user.ok) return user.response;
-  const SB = serviceUrl();
-  const headers = serviceHeaders({ prefer: "return=representation" });
-  if (!SB || !headers) return NextResponse.json({ error: "server not configured" }, { status: 503 });
   const body = await req.json().catch(() => null);
   const leader = body?.leader_wallet;
   const userPubkey = body?.user_pubkey;
@@ -57,13 +42,9 @@ export async function POST(req: NextRequest) {
     user_pubkey: userPubkey,
     wallet_id: typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : null
   };
-  const id = await existingCopy(user.privyUserId, leader);
-  const response = await fetchWithTimeout(id ? `${SB}/rest/v1/copy_subscriptions?id=eq.${encodeURIComponent(id)}` : `${SB}/rest/v1/copy_subscriptions`, {
-    method: id ? "PATCH" : "POST", headers, body: JSON.stringify(payload)
-  });
-  const data = await response.json().catch(() => null);
-  if (!response.ok) return NextResponse.json({ error: data?.message || "could not save copy subscription" }, { status: 400 });
-  return NextResponse.json({ ok: true, subscription: Array.isArray(data) ? data[0] : data });
+  const result = await callPrivyRpc("app_user_upsert_copy_subscription", { p_privy_user_id: user.privyUserId, p_payload: payload });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ ok: true, subscription: result.data });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -71,14 +52,9 @@ export async function DELETE(req: NextRequest) {
   if (limited) return limited;
   const user = await requirePrivyUser(req);
   if (!user.ok) return user.response;
-  const SB = serviceUrl();
-  const headers = serviceHeaders({ prefer: "return=minimal" });
-  if (!SB || !headers) return NextResponse.json({ error: "server not configured" }, { status: 503 });
   const leader = req.nextUrl.searchParams.get("leader_wallet") || "";
   if (!isMint(leader)) return NextResponse.json({ error: "invalid wallet" }, { status: 400 });
-  const response = await fetchWithTimeout(`${SB}/rest/v1/copy_subscriptions?privy_user_id=eq.${encodeURIComponent(user.privyUserId)}&leader_wallet=eq.${encodeURIComponent(leader)}`, {
-    method: "DELETE", headers
-  });
-  if (!response.ok) return NextResponse.json({ error: "could not stop copy" }, { status: 400 });
+  const result = await callPrivyRpc("app_user_delete_copy_subscription", { p_privy_user_id: user.privyUserId, p_leader_wallet: leader });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
 }

@@ -17,10 +17,10 @@ function evaluateLimit(order, price) {
  *  getPrice(mint) -> number|null
  *  signAndSend(base64Tx, userPubkey) -> signature   (Privy delegated key)
  *  markFilled(id, sig) / markError(id, msg)          (persist result, e.g. Supabase)
- *  onEvent(evt)
+ *  recordTrade(evt) / onEvent(evt)
  */
 function startLimitWatcher(deps, pollMs = 8000) {
-  const { loadOpenOrders, loadProfileCaps = async () => [], getPrice, signAndSend, markFilled, markError, onEvent = () => {} } = deps;
+  const { loadOpenOrders, loadProfileCaps = async () => [], getPrice, signAndSend, markFilled, markError, recordTrade = async () => {}, onEvent = () => {} } = deps;
   const inflight = new Set();
 
   const tick = async () => {
@@ -52,6 +52,7 @@ function startLimitWatcher(deps, pollMs = 8000) {
         const { tx } = await buyToken(o.mint, o.amount_sol, o.user_pubkey, o.slippage_bps || 300);
         const sig = await signAndSend(tx, o.wallet_id); // walletId signs; user_pubkey built the tx
         await markFilled(o.id, sig);
+        await recordTrade({ mint: o.mint, user: o.user_pubkey, privy_user_id: o.privy_user_id, size: o.amount_sol, sig, kind: "limit" });
         onEvent({ type: "FILLED", order: o, price, sig });
       } catch (e) {
         await markError(o.id, e.message);

@@ -106,6 +106,30 @@ test("ignores calls missing mint or group", () => {
   assert.strictEqual(pickNewCalls([{ id: "c1", mint: "M", group_id: null }, { id: "c2", group_id: "g1" }], new Set()).length, 0);
 });
 
+console.log("call performance scanner");
+const { bestSolanaPair, performanceUpdate } = require("../engine/performance");
+test("uses the most liquid Solana base-token pair", () => {
+  const pair = bestSolanaPair({ pairs: [
+    { chainId: "ethereum", baseToken: { address: "M" }, liquidity: { usd: 999999 } },
+    { chainId: "solana", baseToken: { address: "OTHER" }, liquidity: { usd: 999999 } },
+    { chainId: "solana", baseToken: { address: "M" }, liquidity: { usd: 1000 } },
+    { chainId: "solana", baseToken: { address: "M" }, liquidity: { usd: 5000 } }
+  ] }, "M");
+  assert.strictEqual(pair.liquidity.usd, 5000);
+});
+test("preserves the peak while recording a lower current price", () => {
+  const update = performanceUpdate(
+    { called_price_usd: 0.01, peak_price_usd: 0.04, called_mcap: 100000, peak_mcap: 400000 },
+    { priceUsd: 0.02, marketCap: 200000, liquidityUsd: 50000 },
+    "2026-07-12T00:00:00.000Z"
+  );
+  assert.strictEqual(update.latest_price_usd, 0.02);
+  assert.strictEqual(update.peak_price_usd, 0.04);
+  assert.strictEqual(update.latest_mcap, 200000);
+  assert.strictEqual(update.peak_mcap, 400000);
+  assert.strictEqual(update.last_scanned_at, "2026-07-12T00:00:00.000Z");
+});
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

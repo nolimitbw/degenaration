@@ -42,17 +42,17 @@ export async function requireAdmin(req: NextRequest) {
 
   const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   const idToken = req.headers.get("x-privy-id-token")?.trim() || req.cookies.get("privy-id-token")?.value;
-  const assertedEmail = req.headers.get("x-admin-email")?.trim().toLowerCase() || "";
-  if (!bearer) return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
+  const primaryToken = bearer || idToken;
+  if (!primaryToken) return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 
   try {
-    const access = await verifyPrivyJwt(bearer);
+    const access = await verifyPrivyJwt(primaryToken);
     if (!access?.sub) {
       return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
     }
 
     let email = emailFromIdPayload(access);
-    if (idToken) {
+    if (idToken && bearer) {
       const identity = await verifyPrivyJwt(idToken);
       if (!identity?.sub || access.sub !== identity.sub) {
         return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
@@ -60,7 +60,6 @@ export async function requireAdmin(req: NextRequest) {
       email = emailFromIdPayload(identity) || email;
     }
 
-    email = email || assertedEmail;
     if (!OWNER_EMAILS.includes(email)) return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
     return { ok: true as const, email };
   } catch {

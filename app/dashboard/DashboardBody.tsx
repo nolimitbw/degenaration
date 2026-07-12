@@ -8,7 +8,7 @@ import { getSolanaAddress } from "@/lib/solanaWallet";
 // The Privy-dependent portfolio body. Lazily loaded by app/dashboard/page.tsx so the
 // wallet SDK stays off the route's first-load JS and the shell paints instantly.
 export default function DashboardBody() {
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
   const address = getSolanaAddress(user);
   const [balance, setBalance] = useState<number | null>(null);
   const [trades, setTrades] = useState<Trade[] | null>(null);
@@ -16,8 +16,8 @@ export default function DashboardBody() {
 
   useEffect(() => {
     if (address) fetchBalance(address, getNet()).then((b) => { if (b && !b.error) setBalance(b.sol); });
-    getMyTrades().then((t) => { setTrades(t); setFeesPaid(t.reduce((s, x) => s + Number(x.fee_sol || 0), 0)); });
-  }, [address]);
+    if (authenticated) getAccessToken().then((token) => getMyTrades(token)).then((t) => { setTrades(t); setFeesPaid(t.reduce((s, x) => s + Number(x.fee_sol || 0), 0)); });
+  }, [address, authenticated, getAccessToken]);
 
   if (!authenticated) {
     return (

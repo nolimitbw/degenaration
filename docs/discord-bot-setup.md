@@ -11,26 +11,31 @@ Discord group owner adds the bot -> owner types !register in their call channel
 ```
 
 ## 1. Create the bot (Discord Developer Portal)
-1. https://discord.com/developers/applications -> New Application.
+1. Current bot app: `De Generation PR` (`1522107717836214405`).
 2. Bot tab -> Add Bot -> copy the **token** (DISCORD_BOT_TOKEN).
 3. Enable **Message Content Intent** (Bot -> Privileged Gateway Intents).
 4. OAuth2 -> URL Generator -> scopes `bot`, permissions `Read Messages/View Channels` +
-   `Read Message History`. Share that invite URL with group owners.
+   `Read Message History`. Share this invite URL with group owners:
+   `https://discord.com/oauth2/authorize?client_id=1522107717836214405&permissions=68608&scope=bot%20applications.commands`
 
 ## 2. Database (Supabase SQL editor)
 Run `supabase/discord-bot.sql` once (adds `call_channels`, call dedup/exec columns, and
 subscription signing columns).
+Run `supabase/call-source-platform.sql` once for source attribution and performance columns.
+Production also has secret-checked bot RPCs for register, approved-channel refresh, and ingest,
+so the Discord tracker path no longer needs a Supabase service-role key in Vercel or the bot.
 
 ## 3. Website env (Vercel -> Settings -> Environment Variables), then redeploy
 - `BOT_SHARED_SECRET` — a long random string (the bot sends it as `x-bot-secret`).
-- `SUPABASE_SERVICE_KEY` — Supabase service-role key (server-only; powers ingest + admin).
-- `ADMIN_KEY` — set equal to your `NEXT_PUBLIC_ADMIN_KEY` so /admin/channels can authorize.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- `ADMIN_KEY` — server-only key for /admin/channels if you want browser-based approvals.
 
 ## 4. Run the bot (Railway / Render / any Node host)
-From `server/bot/`: `npm install` then `npm start`, with env:
-- `DISCORD_BOT_TOKEN`, `BOT_SHARED_SECRET` (same as the website),
-- `INGEST_URL=https://<your-site>/api/ingest-call`,
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`.
+Deploy the real bot from `nolimitbw/Degencalls`, with env:
+- `DISCORD_TOKEN`
+- `BOT_SHARED_SECRET` (same as the website)
+- `DEGENARATION_SITE_URL=https://degenaration.vercel.app`
+- `CHANNELS_REFRESH_MS=30000`
 
 ## 5. Onboard a group
 1. Group owner invites the bot (step 1 URL) to their server.

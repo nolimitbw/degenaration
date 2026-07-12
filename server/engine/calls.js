@@ -65,7 +65,7 @@ function startCallWatcher(deps, pollMs = 8000) {
           // then persist the running total for the /tracker cap display.
           const rec = spent.get(s.id); rec.amount += s.size_sol;
           try { await bumpGroupSpent(s.id, rec.amount); } catch { /* non-fatal: in-memory cap still holds */ }
-          await recordCopy({ mint: c.mint, user: s.user_pubkey, size: s.size_sol, sig });
+          await recordCopy({ mint: c.mint, user: s.user_pubkey, privy_user_id: s.privy_user_id, group_id: c.group_id, size: s.size_sol, sig, kind: "call" });
           onEvent({ type: "CALL_BUY", group: c.group_id, mint: c.mint, user: s.user_pubkey, sig });
         } catch (e) {
           onEvent({ type: "EXEC_ERROR", user: s.user_pubkey, mint: c.mint, error: e.message });
