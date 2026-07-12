@@ -13,10 +13,22 @@ type CopySettings = { size: number; tp1: number; tp1sell: number; tp2: number; t
 const DEFAULT_SETTINGS: CopySettings = { size: 0.1, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, dailyCap: 2 };
 
 function short(a: string) { return `${a.slice(0, 4)}…${a.slice(-4)}`; }
+function copySettingsError(s: CopySettings) {
+  if (!Number.isFinite(s.size) || s.size <= 0 || s.size > 100) return "Size must be between 0 and 100 SOL.";
+  if (!Number.isFinite(s.dailyCap) || s.dailyCap < s.size || s.dailyCap > 1000) return "Daily cap must be at least the trade size and no more than 1000 SOL.";
+  if (!Number.isFinite(s.tp1) || s.tp1 <= 1) return "TP1 must be above 1x.";
+  if (!Number.isFinite(s.tp2) || s.tp2 < s.tp1) return "TP2 must be equal to or above TP1.";
+  if (!Number.isFinite(s.tp1sell) || s.tp1sell < 1 || s.tp1sell > 100) return "TP1 sell must be 1% to 100%.";
+  if (!Number.isFinite(s.tp2sell) || s.tp2sell < 0 || s.tp2sell > 100) return "TP2 sell must be 0% to 100%.";
+  if (s.tp1sell + s.tp2sell > 100) return "TP sells cannot add above 100%.";
+  if (!Number.isFinite(s.sl) || s.sl <= 0 || s.sl > 100) return "Stop-loss must be 1% to 100%.";
+  return null;
+}
 
 // Shared copy-trade settings form — used for both discovered "smart money" wallets and
 // manually-tracked ones. Size / take-profit ladder / stop-loss / daily cap, all editable.
 function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { settings: CopySettings; onChange: (s: CopySettings) => void; onStart: () => void; onCancel: () => void; busy?: boolean }) {
+  const error = copySettingsError(settings);
   const field = (label: string, key: keyof CopySettings, step = "0.1", suffix = "") => (
     <label className="block">
       <span className="font-mono text-[10px] uppercase text-dim">{label}</span>
@@ -39,9 +51,10 @@ function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { se
         {field("Stop-loss", "sl", "5", "%")}
       </div>
       <div className="mt-3 flex gap-2">
-        <button onClick={onStart} disabled={busy} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white disabled:opacity-60">{busy ? "Saving..." : "Start copying"}</button>
+        <button onClick={onStart} disabled={busy || !!error} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{busy ? "Saving..." : "Start copying"}</button>
         <button onClick={onCancel} disabled={busy} className="rounded border border-edge px-3 py-1.5 font-mono text-[11px] text-dim disabled:opacity-60">cancel</button>
       </div>
+      {error && <p className="mt-2 font-mono text-[10px] text-hotpink">{error}</p>}
     </div>
   );
 }
@@ -94,6 +107,8 @@ export default function TrackerBody() {
   async function enableCopy(leader: string, lbl: string) {
     if (!address) { toast("No wallet found", "err"); return; }
     if (!canAutomate) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    const invalid = copySettingsError(settings);
+    if (invalid) { toast(invalid, "err"); return; }
     setCopyBusy(leader);
     const { error } = await saveCopySub({
       leader_wallet: leader, label: lbl, size_sol: settings.size, daily_cap_sol: settings.dailyCap,

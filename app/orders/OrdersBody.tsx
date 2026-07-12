@@ -7,6 +7,21 @@ import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
 const POLL_MS = 20000;
+const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+function triggerHit(order: DbLimitOrder, price?: number) {
+  if (!price) return false;
+  return order.trigger === "below" ? price <= order.target_usd : price >= order.target_usd;
+}
+
+function orderDraftError(mint: string, target: number, amount: number, slippage: number, walletId?: string | null, delegated?: boolean) {
+  if (!MINT_RE.test(mint.trim())) return "Paste a valid Solana token mint.";
+  if (!Number.isFinite(target) || target <= 0) return "Enter a target price above zero.";
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 100) return "Order size must be between 0 and 100 SOL.";
+  if (!Number.isFinite(slippage) || slippage <= 0 || slippage > 20) return "Slippage must be between 0.01% and 20%.";
+  if (!walletId || !delegated) return "Enable 24/7 auto-trading before creating limit orders.";
+  return null;
+}
 
 // Privy + trade-execution body for limit orders. Lazily loaded by app/orders/page.tsx.
 export default function OrdersBody() {
@@ -23,6 +38,7 @@ export default function OrdersBody() {
   const [amount, setAmount] = useState(0.5);
   const [slippage, setSlippage] = useState(3);
   const firing = useRef<Set<string>>(new Set());
+  const [firingIds, setFiringIds] = useState<string[]>([]);
 
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
@@ -35,12 +51,17 @@ export default function OrdersBody() {
 
   const runExec = useCallback(async (o: DbLimitOrder) => {
     if (firing.current.has(o.id)) return;
+    if (!authenticated || !pubkey) { login(); return; }
+    if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before executing limits", "err"); return; }
+    if (!triggerHit(o, prices[o.mint])) { toast("This limit is not ready yet", "err"); return; }
     firing.current.add(o.id);
+    setFiringIds((ids) => [...ids, o.id]);
     const r = await executeBuy({ mint: o.mint, solAmount: o.amount_sol, slippageBps: o.slippage_bps, symbol: o.symbol ?? undefined });
     firing.current.delete(o.id);
+    setFiringIds((ids) => ids.filter((id) => id !== o.id));
     if (r.ok) { await markOrderFilled(o.id, r.sig, await getAccessToken()); toast(`Limit filled — ${o.symbol}`); refresh(); }
     else toast(r.error || "Execution failed", "err");
-  }, [toast, refresh, executeBuy, getAccessToken]);
+  }, [authenticated, pubkey, walletId, delegated, prices, login, toast, refresh, executeBuy, getAccessToken]);
 
   // client watcher: prices + optional execute while the tab is open (worker handles offline)
   useEffect(() => {
@@ -65,15 +86,17 @@ export default function OrdersBody() {
 
   const create = async () => {
     if (!authenticated || !pubkey) { login(); return; }
-    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) || target <= 0 || amount <= 0) { toast("Enter a valid mint, target and amount", "err"); return; }
-    if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before creating limits", "err"); return; }
-    const { error } = await createLimitOrder({ mint, symbol: symbol || mint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
+    const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated);
+    if (draftError) { toast(draftError, "err"); return; }
+    const cleanMint = mint.trim();
+    const { error } = await createLimitOrder({ mint: cleanMint, symbol: symbol || cleanMint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: Math.round(slippage * 100), user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created"); setMint(""); setSymbol(""); setTarget(0); refresh();
   };
 
   const open = orders.filter((o) => o.status === "open");
   const done = orders.filter((o) => o.status !== "open");
+  const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated);
 
   if (!authenticated) {
     return (
@@ -115,14 +138,17 @@ export default function OrdersBody() {
         </select>
         <input type="number" step="any" value={target || ""} onChange={(e) => setTarget(+e.target.value)} placeholder="$ target" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
         <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} placeholder="SOL" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={create} className="col-span-full rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Create limit order</button>
+        <input type="number" step="0.1" value={slippage} onChange={(e) => setSlippage(+e.target.value)} placeholder="Slippage %" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-cyber" />
+        {draftError && <p className="col-span-full font-mono text-[11px] text-dim">{draftError}</p>}
+        <button onClick={create} disabled={!!draftError} className="col-span-full rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic disabled:cursor-not-allowed disabled:opacity-50">+ Create limit order</button>
       </div>
 
       <div className="mt-6 space-y-2">
         {!open.length && <p className="text-sm text-dim">No open orders. Create one above, or from the token drawer.</p>}
         {open.map((o) => {
           const price = prices[o.mint];
-          const ready = price != null && (o.trigger === "below" ? price <= o.target_usd : price >= o.target_usd);
+          const ready = triggerHit(o, price);
+          const executing = firingIds.includes(o.id);
           return (
             <div key={o.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 ${ready ? "border-toxic/60 bg-toxic/5" : "border-edge bg-panel"}`}>
               <div>
@@ -131,7 +157,14 @@ export default function OrdersBody() {
               </div>
               <div className="flex items-center gap-2">
                 {ready && <span className="rounded-full bg-toxic/20 px-2 py-0.5 font-mono text-[10px] font-bold text-toxic">READY</span>}
-                <button onClick={() => runExec(o)} className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white shadow-toxic transition hover:brightness-110">Execute</button>
+                <button
+                  onClick={() => runExec(o)}
+                  disabled={!ready || executing || !walletId || !delegated}
+                  title={ready ? "Execute this ready limit order" : "Waiting for the trigger price"}
+                  className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white shadow-toxic transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {executing ? "Executing..." : ready ? "Execute" : "Waiting"}
+                </button>
                 <button onClick={async () => { try { await cancelLimitOrder(o.id, await getAccessToken()); refresh(); } catch {} }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
               </div>
             </div>

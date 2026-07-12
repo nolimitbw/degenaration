@@ -3,9 +3,9 @@ import { rateLimit } from "@/lib/server/guard";
 import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
 
 const isUuid = (value: unknown) => typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
-const numeric = (v: unknown, fallback: number, min = 0, max = 10_000) => {
+const strictNumeric = (v: unknown, min: number, max: number) => {
   const n = Number(v);
-  return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
+  return Number.isFinite(n) && n >= min && n <= max ? n : null;
 };
 
 export async function GET(req: NextRequest) {
@@ -32,18 +32,29 @@ export async function POST(req: NextRequest) {
   if (enabled && !walletId) {
     return NextResponse.json({ error: "enable 24/7 auto-trading before copying call groups" }, { status: 400 });
   }
+  const size = strictNumeric(body?.size_sol, 0.001, 100);
+  const dailyCap = strictNumeric(body?.daily_cap_sol, 0.001, 1000);
+  const tp1 = strictNumeric(body?.tp1, 1.01, 1000);
+  const tp2 = strictNumeric(body?.tp2, 1.01, 1000);
+  const tp1Sell = strictNumeric(body?.tp1_sell, 1, 100);
+  const tp2Sell = strictNumeric(body?.tp2_sell, 0, 100);
+  const stopLoss = strictNumeric(body?.stop_loss, 1, 100);
+  const slippageBps = strictNumeric(body?.slippage_bps, 1, 2000);
+  if (!size || !dailyCap || !tp1 || !tp2 || tp1Sell == null || tp2Sell == null || !stopLoss || !slippageBps || tp2 < tp1 || tp1Sell + tp2Sell > 100 || dailyCap < size) {
+    return NextResponse.json({ error: "invalid call-copy settings" }, { status: 400 });
+  }
 
   const payload = {
     privy_user_id: user.privyUserId,
     group_id: groupId,
-    size_sol: numeric(body?.size_sol, 0.5, 0.001, 100),
-    tp1: numeric(body?.tp1, 2, 0.1, 1000),
-    tp1_sell: Math.round(numeric(body?.tp1_sell, 50, 1, 100)),
-    tp2: numeric(body?.tp2, 5, 0.1, 1000),
-    tp2_sell: Math.round(numeric(body?.tp2_sell, 25, 1, 100)),
-    stop_loss: Math.round(numeric(body?.stop_loss, 40, 1, 100)),
-    slippage_bps: Math.round(numeric(body?.slippage_bps, 300, 1, 2000)),
-    daily_cap_sol: numeric(body?.daily_cap_sol, 2, 0.001, 1000),
+    size_sol: size,
+    tp1,
+    tp1_sell: Math.round(tp1Sell),
+    tp2,
+    tp2_sell: Math.round(tp2Sell),
+    stop_loss: Math.round(stopLoss),
+    slippage_bps: Math.round(slippageBps),
+    daily_cap_sol: dailyCap,
     enabled,
     user_pubkey: typeof body?.user_pubkey === "string" ? body.user_pubkey.slice(0, 80) : null,
     wallet_id: walletId || null

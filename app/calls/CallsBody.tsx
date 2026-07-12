@@ -8,6 +8,19 @@ import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@
 type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
 const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
 
+function settingsError(cfg: Settings) {
+  if (!Number.isFinite(cfg.size) || cfg.size <= 0 || cfg.size > 100) return "Size must be between 0 and 100 SOL.";
+  if (!Number.isFinite(cfg.dailyCap) || cfg.dailyCap < cfg.size || cfg.dailyCap > 1000) return "Daily cap must be at least the trade size and no more than 1000 SOL.";
+  if (!Number.isFinite(cfg.tp1) || cfg.tp1 <= 1) return "TP1 must be above 1x.";
+  if (!Number.isFinite(cfg.tp2) || cfg.tp2 < cfg.tp1) return "TP2 must be equal to or above TP1.";
+  if (!Number.isFinite(cfg.tp1sell) || cfg.tp1sell < 1 || cfg.tp1sell > 100) return "TP1 sell must be 1% to 100%.";
+  if (!Number.isFinite(cfg.tp2sell) || cfg.tp2sell < 0 || cfg.tp2sell > 100) return "TP2 sell must be 0% to 100%.";
+  if (cfg.tp1sell + cfg.tp2sell > 100) return "TP sells cannot add above 100%.";
+  if (!Number.isFinite(cfg.sl) || cfg.sl <= 0 || cfg.sl > 100) return "Stop-loss must be 1% to 100%.";
+  if (!Number.isFinite(cfg.slippage) || cfg.slippage <= 0 || cfg.slippage > 20) return "Slippage must be between 0.01% and 20%.";
+  return null;
+}
+
 // Privy-aware Discord Calls body. Passes the embedded wallet id so the 24/7 worker can
 // sign delegated buys when a subscribed group posts a call.
 export default function CallsBody() {
@@ -30,9 +43,15 @@ export default function CallsBody() {
     if (!authenticated) { login(); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
     if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    const c = s(id);
+    const invalid = settingsError(c);
+    if (invalid) {
+      setCopying((current) => current.filter((x) => x !== id));
+      toast(invalid, "err");
+      return;
+    }
     setSaving(id);
     const token = await getAccessToken();
-    const c = s(id);
     const { error } = await saveSubscription({
       group_id: id, size_sol: c.size, tp1: c.tp1, tp1_sell: c.tp1sell,
       tp2: c.tp2, tp2_sell: c.tp2sell, stop_loss: c.sl, slippage_bps: c.slippage * 100,
@@ -53,6 +72,8 @@ export default function CallsBody() {
     if (!pubkey) { toast("No wallet found", "err"); return; }
     const on = !copying.includes(id);
     if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    const invalid = settingsError(s(id));
+    if (invalid) { toast(invalid, "err"); return; }
     setCopying(on ? [...copying, id] : copying.filter((x) => x !== id));
     persist(id, on);
   }
@@ -110,6 +131,7 @@ export default function CallsBody() {
         {groups.map((g) => {
           const on = copying.includes(g.id);
           const cfg = s(g.id);
+          const invalidSettings = settingsError(cfg);
           return (
             <div key={g.id} className={`gradient-border rounded-lg border p-5 transition ${on ? "border-toxic/60 shadow-toxic" : "border-edge"}`}>
               <div className="flex items-center justify-between">
@@ -188,12 +210,12 @@ export default function CallsBody() {
                     <input type="number" step="0.5" value={cfg.dailyCap} onChange={(e) => set(g.id, { dailyCap: +e.target.value })}
                       className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-hotpink" />
                   </label>
-                  <p className="col-span-2 rounded-md border border-edge bg-void px-3 py-2 font-mono text-[11px] text-dim">
-                     rug-check on · mint-authority check · liquidity-lock check
+                  <p className={`col-span-2 rounded-md border px-3 py-2 font-mono text-[11px] ${invalidSettings ? "border-hotpink/40 bg-hotpink/5 text-hotpink" : "border-edge bg-void text-dim"}`}>
+                    {invalidSettings || "rug-check on · mint-authority check · liquidity-lock check"}
                   </p>
                   <button onClick={() => persist(g.id, on)}
-                    disabled={saving === g.id}
-                    className="col-span-2 rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-60">
+                    disabled={saving === g.id || !!invalidSettings}
+                    className="col-span-2 rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
                     {saving === g.id ? "Saving..." : saved === g.id ? "Saved" : "Save settings"}
                   </button>
                 </div>
