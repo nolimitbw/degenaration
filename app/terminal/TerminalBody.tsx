@@ -17,6 +17,13 @@ const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 type Mode = "buy" | "sell" | "limit";
 
+function formatBaseUnits(value: unknown, decimals: number | null | undefined, digits = 4) {
+  const raw = Number(value);
+  const d = Number.isInteger(decimals) ? Number(decimals) : 6;
+  if (!Number.isFinite(raw)) return "—";
+  return (raw / 10 ** d).toLocaleString(undefined, { maximumFractionDigits: digits });
+}
+
 async function fetchJson<T = any>(url: string, ms = 9000): Promise<T | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -170,7 +177,7 @@ export default function TerminalBody() {
   const feeLabel = feeBps > 0 ? `${(feeBps / 100).toFixed(0)}% platform` : "No platform fee";
   const quoteLabel = mode === "buy" && price?.priceUsd && price?.solPrice
     ? `${(amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${price?.symbol ?? "tokens"}`
-    : "Preview required";
+    : quote?.outAmount ? `${formatBaseUnits(quote.outAmount, quote.outputDecimals, 2)} ${price?.symbol ?? "tokens"}` : "Preview required";
 
   return (
     <>
@@ -345,7 +352,7 @@ export default function TerminalBody() {
 
           {mode === "buy" && (price?.priceUsd || quote?.outAmount) && (
             <p className="mt-4 rounded-md border border-edge bg-void px-3 py-2 font-mono text-[11px] text-toxic">
-              ≈ {price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (Number(quote.outAmount) / 1e6).toLocaleString()} {price?.symbol ?? "tokens"} · {feeBps > 0 ? `${feeBps / 100}% fee applied` : "fee wallet not configured"}
+              ≈ {price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : formatBaseUnits(quote.outAmount, quote.outputDecimals, 2)} {price?.symbol ?? "tokens"} · {feeBps > 0 ? `${feeBps / 100}% fee applied` : "fee wallet not configured"}
             </p>
           )}
 
@@ -395,8 +402,8 @@ export default function TerminalBody() {
             ) : preview ? (
               <div className="mt-4 space-y-2 font-mono text-sm">
                 <div className="flex justify-between"><span className="text-dim">You pay</span><span>{preview.inAmountSol} SOL</span></div>
-                <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{price?.priceUsd && price?.solPrice ? (preview.inAmountSol * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (preview.outAmount / 1e6).toLocaleString()} {price?.symbol}</span></div>
-                <div className="flex justify-between"><span className="text-dim">Min received</span><span>{(preview.minReceived / 1e6).toLocaleString()}</span></div>
+                <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{price?.priceUsd && price?.solPrice ? (preview.inAmountSol * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : formatBaseUnits(preview.outAmount, preview.outputDecimals, 2)} {price?.symbol}</span></div>
+                <div className="flex justify-between"><span className="text-dim">Min received</span><span>{formatBaseUnits(preview.minReceived, preview.outputDecimals)}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct.toFixed(2)}%</span></div>
                 <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.feeSol.toFixed(4)} SOL` : "not configured"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>

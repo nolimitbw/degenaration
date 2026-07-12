@@ -44,10 +44,11 @@ export function useExecuteBuy() {
       const sig = receipt?.signature ?? undefined;
 
       if (token) {
+        const feeSol = res.platformFeeBps ? args.solAmount * (Number(res.platformFeeBps) / 10000) : 0;
         await fetchWithTimeout("/api/record-trade", {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual", userPubkey: embeddedAddr })
+          body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol, sig, kind: "manual", userPubkey: embeddedAddr })
         }).catch(() => {});
       }
       return { ok: true, sig };

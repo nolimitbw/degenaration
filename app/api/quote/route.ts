@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
+import { getMintDecimals } from "@/lib/server/tokenMeta";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const PLATFORM_FEE_BPS = 200;
@@ -19,6 +20,10 @@ export async function GET(req: NextRequest) {
   const applyFee = Boolean(process.env.PLATFORM_FEE_ACCOUNT);
 
   try {
+    const [inputDecimals, outputDecimals] = await Promise.all([
+      getMintDecimals(inputMint),
+      getMintDecimals(outputMint)
+    ]);
     const url = new URL(`${JUP}/quote`);
     url.searchParams.set("inputMint", inputMint);
     url.searchParams.set("outputMint", outputMint);
@@ -29,6 +34,8 @@ export async function GET(req: NextRequest) {
     if (q.error) return NextResponse.json({ error: q.error }, { status: 400 });
     return NextResponse.json({
       inAmount: q.inAmount, outAmount: q.outAmount, priceImpactPct: q.priceImpactPct,
+      inputDecimals,
+      outputDecimals,
       platformFeeBps: applyFee ? PLATFORM_FEE_BPS : 0,
       feeAccountSet: applyFee,
       route: (q.routePlan ?? []).map((r: any) => r.swapInfo?.label).filter(Boolean)

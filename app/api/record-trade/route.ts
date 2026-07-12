@@ -4,6 +4,7 @@ import { rateLimit, isMint, sanitizeError } from "@/lib/server/guard";
 import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
 
 const toNum = (v: any): number | null => v != null ? Number(v) : null;
+const feeSolFrom = (v: any): number => process.env.PLATFORM_FEE_ACCOUNT ? (toNum(v) ?? 0) : 0;
 
 /**
  * POST /api/record-trade — records an executed swap (for portfolio, history, commissions).
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
       p_sol_amount: toNum(b.solAmount),
       p_token_amount: toNum(b.tokenAmount),
       p_price_usd: toNum(b.priceUsd),
-      p_fee_sol: toNum(b.feeSol),
+      p_fee_sol: feeSolFrom(b.feeSol),
       p_tx_signature: b.sig || "",
       p_kind: b.kind || "manual"
     });
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
   const { error } = await supa.from("trades").insert({
     user_id: auth.user.id, mint: b.mint, side: b.side === "sell" ? "sell" : "buy",
     sol_amount: toNum(b.solAmount), token_amount: toNum(b.tokenAmount),
-    price_usd: toNum(b.priceUsd), fee_sol: toNum(b.feeSol),
+    price_usd: toNum(b.priceUsd), fee_sol: feeSolFrom(b.feeSol),
     tx_signature: b.sig || null, kind: b.kind || "manual"
   });
   if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 400 });

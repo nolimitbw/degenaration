@@ -46,10 +46,11 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     const sig = signed?.signature ?? signed;
 
     if (args.authToken) {
+      const feeSol = res.platformFeeBps ? args.solAmount * (Number(res.platformFeeBps) / 10000) : 0;
       await fetch("/api/record-trade", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${args.authToken}` },
-        body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol: args.solAmount * 0.02, sig, kind: "manual", userPubkey: pubkey })
+        body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, feeSol, sig, kind: "manual", userPubkey: pubkey })
       }).catch(() => {});
     }
     return { ok: true, sig };
@@ -95,11 +96,12 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
 
     const soldUi = bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount);
     const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
+    const feeSol = res.platformFeeBps && solOut ? solOut * (Number(res.platformFeeBps) / 10000) : 0;
     if (args.authToken) {
       await fetchWithTimeout("/api/record-trade", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${args.authToken}` },
-        body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol: solOut ? solOut * 0.02 : 0, sig, kind: "manual", userPubkey: pubkey })
+        body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, feeSol, sig, kind: "manual", userPubkey: pubkey })
       }).catch(() => {});
     }
     return { ok: true, sig, soldUi };
