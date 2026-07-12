@@ -72,6 +72,10 @@ export default function TerminalBody() {
   const mintOk = MINT_RE.test(cleanMint);
   const walletId = getSolanaWalletId(user);
   const delegated = hasDelegatedSolanaWallet(user);
+  const amountOk = Number.isFinite(amount) && amount > 0 && amount <= 100;
+  const slippageOk = Number.isFinite(slippage) && slippage > 0 && slippage <= 20;
+  const slippageBps = Math.round(slippage * 100);
+  const canCreateLimit = mintOk && amountOk && slippageOk && limitTarget > 0 && (!authenticated || (walletId && delegated));
 
   const loadBalance = useCallback(async () => {
     const currentMint = mint.trim();
@@ -83,28 +87,32 @@ export default function TerminalBody() {
 
   async function createLimit() {
     if (!authenticated) { login(); return; }
-    if (!mintOk || limitTarget <= 0 || amount <= 0) { toast("Enter a valid mint, target price and amount", "err"); return; }
+    if (!mintOk || limitTarget <= 0 || !amountOk) { toast("Enter a valid mint, target price and amount", "err"); return; }
+    if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
     if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before creating limits", "err"); return; }
-    const { error } = await createLimitOrder({ mint: cleanMint, symbol: price?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippage * 100, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
+    const { error } = await createLimitOrder({ mint: cleanMint, symbol: price?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippageBps, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created — see Limit Orders");
   }
 
   async function load() {
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
+    if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     setLoading(true);
     try {
+      const quoteUrl = amountOk ? `/api/quote?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippageBps}` : null;
       const [p, oh, hd, q] = await Promise.all([
         fetchJson(`/api/price?mint=${cleanMint}`),
         fetchJson(`/api/ohlcv?mint=${cleanMint}&tf=${tf}`),
         fetchJson(`/api/holders?mint=${cleanMint}`),
-        fetchJson(`/api/quote?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
+        quoteUrl ? fetchJson(quoteUrl) : Promise.resolve(null)
       ]);
       setPrice(p);
       setCandles(oh?.candles ?? []);
       setHolders(hd?.holders ?? []);
-      setQuote(q);
+      setQuote(q && !q.error ? q : null);
+      if (q?.error) toast(q.error, "err");
     } finally {
       setLoading(false);
       loadBalance();
@@ -115,13 +123,17 @@ export default function TerminalBody() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
   // keep the balance fresh once a wallet is connected
   useEffect(() => { loadBalance(); }, [loadBalance]);
+  // Any trade input change invalidates the displayed quote until the next load/preview.
+  useEffect(() => { setQuote(null); }, [cleanMint, amount, slippage, mode]);
 
   // BUY preview: simulate the SOL->token swap, then confirm & sign
   async function runBuyPreview() {
     if (!authenticated) { login(); return; }
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
+    if (!amountOk) { toast("Enter a buy amount between 0 and 100 SOL", "err"); return; }
+    if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
-    const s = await fetch(`/api/simulate?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippage * 100}`)
+    const s = await fetch(`/api/simulate?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Simulation failed — try again." }));
     setPreview({ side: "buy", ...s }); setPreviewLoading(false);
   }
@@ -130,11 +142,13 @@ export default function TerminalBody() {
   async function runSellPreview() {
     if (!authenticated) { login(); return; }
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
+    if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     if (!bal || bal.uiAmount <= 0) { toast("You don't hold this token", "err"); return; }
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
     const rawTotal = BigInt(bal.rawAmount || "0");
     const rawAmt = (rawTotal * BigInt(Math.round((sellPct / 100) * 10000))) / BigInt(10000);
-    const q = await fetch(`/api/quote?in=${cleanMint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${slippage * 100}`)
+    if (rawAmt <= BigInt(0)) { setPreview({ side: "sell", error: "Amount too small" }); setPreviewLoading(false); return; }
+    const q = await fetch(`/api/quote?in=${cleanMint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${slippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Quote failed — try again." }));
     const solOut = q.outAmount ? Number(q.outAmount) / 1e9 : null;
     const sellUi = bal.uiAmount * (sellPct / 100);
@@ -146,7 +160,7 @@ export default function TerminalBody() {
     const retries = autoRetry ? 3 : 1;
     for (let attempt = 1; attempt <= retries; attempt++) {
       if (preview?.side === "sell") {
-        const r = await executeSell({ mint: cleanMint, pct: sellPct / 100, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        const r = await executeSell({ mint: cleanMint, pct: sellPct / 100, slippageBps, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
         if (r.ok) {
           setExecuting(false);
           toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -158,7 +172,7 @@ export default function TerminalBody() {
         setExecuting(false);
         toast(r.error || "Sell failed", "err");
       } else {
-        const r = await executeBuy({ mint: cleanMint, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        const r = await executeBuy({ mint: cleanMint, solAmount: amount, slippageBps, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
         if (r.ok) {
           setExecuting(false);
           toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -306,6 +320,7 @@ export default function TerminalBody() {
                 <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
                 <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)}
                   className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+                {!amountOk && <span className="mt-1 block font-mono text-[10px] text-hotpink">Use an amount above 0 and at most 100 SOL.</span>}
               </label>
               <div className="mt-2 grid grid-cols-4 gap-1">
                 {AMOUNTS.map((a) => (
@@ -320,6 +335,7 @@ export default function TerminalBody() {
             <span className="font-mono text-[11px] uppercase text-dim">Max slippage %</span>
             <input type="number" value={slippage} onChange={(e) => setSlippage(+e.target.value)}
               className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+            {!slippageOk && <span className="mt-1 block font-mono text-[10px] text-hotpink">Use slippage between 0.01% and 20%.</span>}
           </label>
 
           {mode === "limit" && (
@@ -364,19 +380,19 @@ export default function TerminalBody() {
           )}
 
           {mode === "limit" ? (
-            <button onClick={createLimit} disabled={authenticated && (!mintOk || limitTarget <= 0 || amount <= 0)}
+            <button onClick={createLimit} disabled={authenticated && !canCreateLimit}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-              {authenticated ? "Create limit order" : "Connect wallet for limit"}
+              {!authenticated ? "Connect wallet for limit" : !walletId || !delegated ? "Enable auto-trading first" : "Create limit order"}
             </button>
           ) : mode === "sell" ? (
-            <button onClick={runSellPreview} disabled={previewLoading || (authenticated && (!mintOk || !bal || bal.uiAmount <= 0))}
+            <button onClick={runSellPreview} disabled={previewLoading || (authenticated && (!mintOk || !slippageOk || !bal || bal.uiAmount <= 0))}
               className="mt-4 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
-              {!authenticated ? "Connect wallet to sell" : !bal || bal.uiAmount <= 0 ? "No balance to sell" : `Sell ${sellPct}%`}
+              {!slippageOk ? "Fix slippage" : !authenticated ? "Connect wallet to sell" : !bal || bal.uiAmount <= 0 ? "No balance to sell" : `Sell ${sellPct}%`}
             </button>
           ) : (
-            <button onClick={runBuyPreview} disabled={previewLoading || !mintOk || amount <= 0}
+            <button onClick={runBuyPreview} disabled={previewLoading || !mintOk || !amountOk || !slippageOk}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-              {authenticated ? `Buy ${amount} SOL` : "Connect wallet to buy"}
+              {!amountOk ? "Fix amount" : !slippageOk ? "Fix slippage" : !authenticated ? "Connect wallet to buy" : `Buy ${amount} SOL`}
             </button>
           )}
           <p className="mt-2 text-center font-mono text-[10px] text-dim">{mode === "limit" ? "Auto-buys when the target hits (watch on Limit Orders)" : "Preview the trade, then sign in your wallet"}</p>
