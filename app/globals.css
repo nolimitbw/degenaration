@@ -206,6 +206,39 @@ body {
   transform-origin: 64% 44%;
   will-change: transform, opacity;
 }
+.launch-rocket-traveller {
+  position: absolute;
+  right: clamp(1.5rem, 10vw, 11rem);
+  bottom: clamp(8rem, 18vh, 14rem);
+  z-index: 1;
+  width: clamp(4.5rem, 8vw, 7rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter:
+    drop-shadow(0 18px 34px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 28px rgb(var(--grape-rgb) / 0.32));
+  will-change: transform, opacity;
+}
+.launch-rocket-traveller svg {
+  width: 100%;
+  height: auto;
+}
+.launch-rocket-trail {
+  position: absolute;
+  left: 50%;
+  top: 78%;
+  width: 2.35rem;
+  height: clamp(5rem, 10vw, 8rem);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.82), transparent 17%),
+    linear-gradient(180deg, rgb(var(--grape-rgb) / 0.72), rgba(255, 116, 72, 0.42) 38%, transparent 82%);
+  filter: blur(7px);
+  transform: translateX(-50%);
+  opacity: 0.86;
+}
 .launch-bomb {
   position: absolute;
   right: clamp(2rem, 9vw, 9rem);
@@ -382,13 +415,15 @@ body {
 @media (max-width: 767px) {
   .launch-video { object-position: 72% center; }
   .launch-video-scrim { background: rgba(5, 6, 10, 0.57); }
+  .launch-rocket-traveller { right: 1.25rem; bottom: 9.5rem; width: 4.4rem; }
+  .launch-rocket-trail { height: 4.8rem; width: 1.8rem; }
   .launch-bomb { right: 1.25rem; bottom: 4rem; width: 7rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .card-cosmic, .btn-cosmic, .btn-ghost, .menu-icon i { transition: none; }
   .launch-video { transform: none !important; }
-  .launch-bomb, .launch-bomb-ring { animation: none; display: none; }
+  .launch-rocket-traveller, .launch-bomb, .launch-bomb-ring { animation: none; display: none; }
 }
 
 .terminal-hero {
