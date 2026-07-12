@@ -10,5 +10,13 @@ export async function GET(req: NextRequest) {
 
   const result = await callAdminRpc("admin_dashboard_summary", {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json({ summary: result.data });
+  return NextResponse.json({
+    summary: {
+      ...(result.data as Record<string, unknown>),
+      platformFeeBps: process.env.PLATFORM_FEE_ACCOUNT ? 200 : 0,
+      feeWalletConfigured: Boolean(process.env.PLATFORM_FEE_ACCOUNT || process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT),
+      publicFeeWallet: process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || null,
+      withdrawalsConfigured: Boolean(process.env.ADMIN_WALLETS || process.env.PLATFORM_FEE_ACCOUNT || process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT)
+    }
+  });
 }

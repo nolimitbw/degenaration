@@ -1,21 +1,27 @@
 "use client";
 import AppShell from "@/components/AppShell";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { submitApplication } from "@/lib/queries";
 
-// Keep this client id aligned with the DISCORD_BOT_TOKEN application.
-const BOT_CLIENT_ID = "1525315046303858748";
-
-// Override per-deploy with NEXT_PUBLIC_DISCORD_BOT_INVITE if the canonical Discord app id ever changes.
-// permissions=68608 = View Channels + Send Messages + Read Message History.
-const BOT_INVITE = process.env.NEXT_PUBLIC_DISCORD_BOT_INVITE ||
-  `https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&permissions=68608&scope=bot%20applications.commands`;
+type BotConfig = {
+  invite: string;
+  clientId: string;
+  registrationBridgeConfigured: boolean;
+};
 
 export default function Apply() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [form, setForm] = useState({ server_name: "", invite_link: "", owner_handle: "", member_count: "", pitch: "" });
+  const [bot, setBot] = useState<BotConfig | null>(null);
+
+  useEffect(() => {
+    fetch("/api/bot/config", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => setBot(data))
+      .catch(() => {});
+  }, []);
 
   const upd = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -55,10 +61,20 @@ export default function Apply() {
                 Server managers can add the bot, then run <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">/register</code> in a calls channel. New channels stay pending until approval.
               </p>
             </div>
-            <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="shrink-0 rounded-md bg-toxic px-4 py-2 text-center text-sm font-bold text-white transition hover:brightness-110">
+            <a href={bot?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="shrink-0 rounded-md bg-toxic px-4 py-2 text-center text-sm font-bold text-white transition hover:brightness-110">
               Add bot
             </a>
           </div>
+          <div className="mt-4 grid gap-2 border-t border-toxic/20 pt-4 font-mono text-[11px] text-dim sm:grid-cols-3">
+            <div><span className="text-ink">Invite</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
+            <div><span className="text-ink">Permissions</span><br />view, send, history</div>
+            <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
+          </div>
+          {bot && !bot.registrationBridgeConfigured && (
+            <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-[11px] text-hotpink">
+              The website can open the invite, but the registration bridge needs BOT_SHARED_SECRET before /register can reach Degenaration.
+            </p>
+          )}
         </div>
 
         {sent ? (
@@ -71,7 +87,7 @@ export default function Apply() {
             </p>
             <ol className="mx-auto mt-5 max-w-md space-y-3 text-sm text-dim">
               <li><b className="text-ink">1.</b> Add the Degenaration bot to your server (read-only — it only watches messages):
-                <a href={BOT_INVITE} target="_blank" rel="noreferrer" className="mt-2 block rounded-md bg-toxic px-4 py-2 text-center font-bold text-white transition hover:brightness-110">Add bot to my server →</a>
+                <a href={bot?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="mt-2 block rounded-md bg-toxic px-4 py-2 text-center font-bold text-white transition hover:brightness-110">Add bot to my server →</a>
               </li>
               <li><b className="text-ink">2.</b> In the channel where you post calls, type <code className="rounded bg-void px-1.5 py-0.5 font-mono text-toxic">/register</code>. The bot confirms.</li>
               <li><b className="text-ink">3.</b> We review the channel. Once approved, qualifying calls are recorded so your source can build a public performance record.</li>
