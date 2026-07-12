@@ -25,10 +25,11 @@ export function useIsAdmin() {
   return { admin: ready && authenticated && isOwnerEmail(email), ready, email };
 }
 
-export async function adminHeaders(getAccessToken: () => Promise<string | null>) {
+export async function adminHeaders(getAccessToken: () => Promise<string | null>, identityToken?: string | null) {
   const token = await getAccessToken();
   return {
     "content-type": "application/json",
-    ...(token ? { authorization: `Bearer ${token}` } : {})
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...(identityToken ? { "x-privy-id-token": identityToken } : {})
   };
 }

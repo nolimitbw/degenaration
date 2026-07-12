@@ -3,7 +3,7 @@ import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { type Application } from "@/lib/queries";
-import { usePrivy } from "@privy-io/react-auth";
+import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { adminHeaders } from "@/lib/admin";
 
 type Summary = {
@@ -16,6 +16,7 @@ type Summary = {
 
 export default function Admin() {
   const { getAccessToken } = usePrivy();
+  const { identityToken } = useIdentityToken();
   const [apps, setApps] = useState<Application[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -24,7 +25,7 @@ export default function Admin() {
 
   async function load() {
     setErr(null);
-    const headers = await adminHeaders(getAccessToken);
+    const headers = await adminHeaders(getAccessToken, identityToken);
     const [response, summaryResponse] = await Promise.all([
       fetch("/api/admin/applications", { headers }).then((r) => r.json()).catch(() => ({ applications: [] })),
       fetch("/api/admin/summary", { headers }).then((r) => r.json()).catch(() => ({ summary: null }))
@@ -34,13 +35,13 @@ export default function Admin() {
     setSummary(summaryResponse.summary ?? null);
     setLoaded(true);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (identityToken) load(); }, [identityToken]);
 
   async function approve(a: Application) {
     setBusy(a.id);
     try {
       await fetch("/api/admin/applications", {
-        method: "POST", headers: await adminHeaders(getAccessToken),
+        method: "POST", headers: await adminHeaders(getAccessToken, identityToken),
         body: JSON.stringify({ id: a.id, action: "approve" })
       });
       await load();
@@ -51,7 +52,7 @@ export default function Admin() {
     setBusy(a.id);
     try {
       await fetch("/api/admin/applications", {
-        method: "POST", headers: await adminHeaders(getAccessToken),
+        method: "POST", headers: await adminHeaders(getAccessToken, identityToken),
         body: JSON.stringify({ id: a.id, action: "reject" })
       });
       await load();

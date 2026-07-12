@@ -4,7 +4,7 @@ import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { fetchBalance } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
-import { usePrivy } from "@privy-io/react-auth";
+import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { adminHeaders } from "@/lib/admin";
 
 // The platform fee wallet (2% commissions land here). Set to your fee wallet address.
@@ -12,6 +12,7 @@ const FEE_WALLET = process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || "";
 
 export default function Commissions() {
   const { getAccessToken } = usePrivy();
+  const { identityToken } = useIdentityToken();
   const [totals, setTotals] = useState({ totalSol: 0, count: 0 });
   const [balance, setBalance] = useState<number | null>(null);
   const [dest, setDest] = useState("");
@@ -20,13 +21,14 @@ export default function Commissions() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    adminHeaders(getAccessToken)
+    if (!identityToken) return;
+    adminHeaders(getAccessToken, identityToken)
       .then((headers) => fetch("/api/admin/summary", { headers }))
       .then((r) => r.json())
       .then((d) => setTotals({ totalSol: Number(d?.summary?.commissionSol || 0), count: Number(d?.summary?.tradeCount || 0) }))
       .catch(() => {});
     if (FEE_WALLET) fetchBalance(FEE_WALLET).then((b) => { if (b && !b.error) setBalance(b.sol); });
-  }, [getAccessToken]);
+  }, [getAccessToken, identityToken]);
 
   async function withdraw() {
     setStatus(null);

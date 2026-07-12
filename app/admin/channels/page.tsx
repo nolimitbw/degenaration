@@ -2,7 +2,7 @@
 import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useCallback, useEffect, useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { adminHeaders } from "@/lib/admin";
 
 type Channel = {
@@ -12,6 +12,7 @@ type Channel = {
 
 export default function AdminChannels() {
   const { getAccessToken } = usePrivy();
+  const { identityToken } = useIdentityToken();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -19,18 +20,18 @@ export default function AdminChannels() {
 
   const load = useCallback(async () => {
     setErr(null);
-    const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken) })
+    const res = await fetch("/api/admin/channels", { headers: await adminHeaders(getAccessToken, identityToken) })
       .then((r) => r.json()).catch(() => ({ error: "request failed" }));
     if (res.error) { setErr(res.error === "admin auth not configured" ? "Admin auth needs PRIVY_APP_SECRET on Vercel before this page can load." : res.error); setLoaded(true); return; }
     setChannels(res.channels ?? []); setLoaded(true);
-  }, [getAccessToken]);
-  useEffect(() => { load(); }, [load]);
+  }, [getAccessToken, identityToken]);
+  useEffect(() => { if (identityToken) load(); }, [identityToken, load]);
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
     await fetch("/api/admin/channels", {
       method: "POST",
-      headers: await adminHeaders(getAccessToken),
+      headers: await adminHeaders(getAccessToken, identityToken),
       body: JSON.stringify({ id, action })
     }).catch(() => {});
     await load();
