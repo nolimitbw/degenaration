@@ -3,7 +3,6 @@ import AppShell from "@/components/AppShell";
 import AdminGuard from "@/components/AdminGuard";
 import { useEffect, useState } from "react";
 import { fetchBalance } from "@/lib/queries";
-import { supabase } from "@/lib/supabase";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { adminHeaders, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
@@ -42,13 +41,9 @@ export default function Commissions() {
       await sol.connect();
       const owner = sol.publicKey?.toBase58();
       if (owner !== FEE_WALLET) { setStatus("Connected wallet is not the fee wallet."); setBusy(false); return; }
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/withdraw", {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {})
-        },
+        headers: await adminHeaders(getAccessToken, identityToken, email),
         body: JSON.stringify({ from: FEE_WALLET, to: dest, amountSol: amount })
       }).then((r) => r.json());
       if (res.error) throw new Error(res.error);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validAmount, sanitizeError } from "@/lib/server/guard";
+import { requireAdmin } from "@/lib/server/admin";
 
 /**
  * POST /api/withdraw
@@ -12,8 +13,8 @@ export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 10, windowMs: 60_000 });
   if (limited) return limited;
 
-  const authz = req.headers.get("authorization") || "";
-  if (!/^Bearer\s+.+/.test(authz)) return NextResponse.json({ error: "authentication required" }, { status: 401 });
+  const admin = await requireAdmin(req);
+  if (!admin.ok) return admin.response;
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }

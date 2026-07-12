@@ -156,7 +156,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
             <div className="mt-3 space-y-1 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[11px]">
               <div className="flex justify-between"><span className="text-dim">Est. receive</span><span className="text-toxic">{price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (sim.outAmount/1e6).toLocaleString()} {token.symbol}</span></div>
               <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={sim.priceImpactPct>10?"text-hotpink":""}>{sim.priceImpactPct.toFixed(2)}%</span></div>
-              <div className="flex justify-between"><span className="text-dim">Fee (2%)</span><span>{sim.feeSol.toFixed(4)} SOL</span></div>
+              <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{sim.platformFeeBps ? `${sim.feeSol.toFixed(4)} SOL` : "not configured"}</span></div>
             </div>
           )}
           {sim?.error && <p className="mt-2 font-mono text-[11px] text-hotpink">{sim.error}</p>}
@@ -164,7 +164,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
             <button onClick={doSim} disabled={busy} className="rounded-md border border-edge py-2.5 text-sm font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">{busy ? "..." : "Simulate"}</button>
             <button onClick={doBuy} disabled={busy || amount <= 0} className="rounded-md bg-toxic py-2.5 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">{authenticated ? "Buy" : "Connect wallet"}</button>
           </div>
-          <p className="mt-2 text-center font-mono text-[10px] text-dim">Non-custodial · your wallet signs · 2% fee on-chain</p>
+          <p className="mt-2 text-center font-mono text-[10px] text-dim">Non-custodial · your wallet signs · fee applies when configured</p>
         </div>
         </div>
       </div>

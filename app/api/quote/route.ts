@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const amount = validBaseUnits(p.get("amount"), inputMint === SOL_MINT);
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(p.get("slippageBps"));
+  const applyFee = Boolean(process.env.PLATFORM_FEE_ACCOUNT);
 
   try {
     const url = new URL(`${JUP}/quote`);
@@ -23,12 +24,14 @@ export async function GET(req: NextRequest) {
     url.searchParams.set("outputMint", outputMint);
     url.searchParams.set("amount", String(amount));
     url.searchParams.set("slippageBps", String(slippageBps));
-    url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+    if (applyFee) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
     const q = await fetchWithTimeout(url, { cache: "no-store" }).then(r => r.json());
     if (q.error) return NextResponse.json({ error: q.error }, { status: 400 });
     return NextResponse.json({
       inAmount: q.inAmount, outAmount: q.outAmount, priceImpactPct: q.priceImpactPct,
-      platformFeeBps: PLATFORM_FEE_BPS, route: (q.routePlan ?? []).map((r: any) => r.swapInfo?.label).filter(Boolean)
+      platformFeeBps: applyFee ? PLATFORM_FEE_BPS : 0,
+      feeAccountSet: applyFee,
+      route: (q.routePlan ?? []).map((r: any) => r.swapInfo?.label).filter(Boolean)
     });
   } catch (e: any) {
     return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });

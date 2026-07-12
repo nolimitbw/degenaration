@@ -15,21 +15,22 @@ export async function GET(req: NextRequest) {
   const amount = validAmount(p.get("amount"));
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(p.get("slippageBps"));
+  const applyFee = Boolean(process.env.PLATFORM_FEE_ACCOUNT);
   try {
     const url = new URL(`${JUP}/quote`);
     url.searchParams.set("inputMint", inputMint); url.searchParams.set("outputMint", outputMint);
     url.searchParams.set("amount", String(amount)); url.searchParams.set("slippageBps", String(slippageBps));
-    url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+    if (applyFee) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
     const q = await fetchWithTimeout(url, { cache: "no-store" }).then((r) => r.json());
     if (q.error) return NextResponse.json({ error: q.error }, { status: 400 });
     const out = q.outAmount != null ? Number(q.outAmount) : 0;
     const impact = q.priceImpactPct != null ? Math.abs(Number(q.priceImpactPct)) : 0;
     const inputDecimals = inputMint === SOL_MINT ? 9 : 6;
-    const feeSol = (amount / 10 ** inputDecimals) * (PLATFORM_FEE_BPS / 10000);
+    const feeSol = applyFee ? (amount / 10 ** inputDecimals) * (PLATFORM_FEE_BPS / 10000) : 0;
     const minReceived = q.otherAmountThreshold ? Number(q.otherAmountThreshold) : (out > 0 ? Math.floor(out * (1 - slippageBps / 10000)) : 0);
     return NextResponse.json({
       inAmountSol: amount / 1e9, outAmount: out, minReceived,
-      priceImpactPct: impact, platformFeeBps: PLATFORM_FEE_BPS, feeSol,
+      priceImpactPct: impact, platformFeeBps: applyFee ? PLATFORM_FEE_BPS : 0, feeAccountSet: applyFee, feeSol,
       slippageBps, route: (q.routePlan ?? []).map((r: any) => r.swapInfo?.label).filter(Boolean),
       warn: impact > 10 ? "High price impact — low liquidity" : null
     });

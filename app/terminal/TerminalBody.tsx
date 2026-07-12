@@ -166,6 +166,8 @@ export default function TerminalBody() {
 
   const chg = price?.change24h;
   const priceLabel = price?.priceUsd ? `$${price.priceUsd}` : "Load a token";
+  const feeBps = Number(quote?.platformFeeBps ?? preview?.platformFeeBps ?? 0) || 0;
+  const feeLabel = feeBps > 0 ? `${(feeBps / 100).toFixed(0)}% platform` : "No platform fee";
   const quoteLabel = mode === "buy" && price?.priceUsd && price?.solPrice
     ? `${(amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${price?.symbol ?? "tokens"}`
     : "Preview required";
@@ -211,7 +213,7 @@ export default function TerminalBody() {
             </div>
             <div className="mt-4 grid gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-3">
               <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Est. receive</p><p className="mt-0.5 text-ink">{quoteLabel}</p></div>
-              <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Fee</p><p className="mt-0.5 text-ink">2% platform</p></div>
+              <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Fee</p><p className="mt-0.5 text-ink">{feeLabel}</p></div>
               <div className="rounded-md bg-void px-3 py-2"><p className="text-dim">Custody</p><p className="mt-0.5 text-ink">Wallet-signed</p></div>
             </div>
             <div className="mt-3 flex gap-1">
@@ -343,7 +345,7 @@ export default function TerminalBody() {
 
           {mode === "buy" && (price?.priceUsd || quote?.outAmount) && (
             <p className="mt-4 rounded-md border border-edge bg-void px-3 py-2 font-mono text-[11px] text-toxic">
-              ≈ {price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (Number(quote.outAmount) / 1e6).toLocaleString()} {price?.symbol ?? "tokens"} · 2% fee applied
+              ≈ {price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (Number(quote.outAmount) / 1e6).toLocaleString()} {price?.symbol ?? "tokens"} · {feeBps > 0 ? `${feeBps / 100}% fee applied` : "fee wallet not configured"}
             </p>
           )}
 
@@ -383,7 +385,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">You sell</span><span>{preview.sellUi?.toLocaleString(undefined, { maximumFractionDigits: 4 })} {price?.symbol}</span></div>
                 <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{preview.solOut != null ? `${preview.solOut.toFixed(4)} SOL` : "—"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct != null ? `${Math.abs(preview.priceImpactPct).toFixed(2)}%` : "—"}</span></div>
-                <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>2%</span></div>
+                <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.platformFeeBps / 100}%` : "not configured"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
                 <button onClick={confirmTrade} disabled={executing}
                   className="mt-2 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
@@ -396,7 +398,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{price?.priceUsd && price?.solPrice ? (preview.inAmountSol * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : (preview.outAmount / 1e6).toLocaleString()} {price?.symbol}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Min received</span><span>{(preview.minReceived / 1e6).toLocaleString()}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct.toFixed(2)}%</span></div>
-                <div className="flex justify-between"><span className="text-dim">Platform fee (2%)</span><span>{preview.feeSol.toFixed(4)} SOL</span></div>
+                <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.feeSol.toFixed(4)} SOL` : "not configured"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
                 {preview.warn && <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-[11px] text-hotpink">{preview.warn}</p>}
                 <button onClick={confirmTrade} disabled={executing}
