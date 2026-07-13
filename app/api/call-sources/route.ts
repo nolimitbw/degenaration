@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
     byGroup.set(call.group_id, list);
   }
 
-  const sources = (groups ?? []).filter((group: any) => !UNVERIFIED_DEMO_GROUP_IDS.has(group.id)).map((group: any) => {
+  const visibleGroups = (groups ?? []).filter((group: any) => !UNVERIFIED_DEMO_GROUP_IDS.has(group.id));
+  const hiddenDemoSources = (groups?.length ?? 0) - visibleGroups.length;
+  const sources = visibleGroups.map((group: any) => {
     const sourceCalls = byGroup.get(group.id) ?? [];
     return {
       id: group.id,
@@ -71,5 +73,5 @@ export async function GET(req: NextRequest) {
     };
   }).sort((a, b) => (b.metrics.avgPeakX ?? 0) - (a.metrics.avgPeakX ?? 0));
 
-  return NextResponse.json({ sources, timeframe: tf, scannedAt: new Date().toISOString() });
+  return NextResponse.json({ sources, timeframe: tf, scannedAt: new Date().toISOString(), hiddenDemoSources });
 }
