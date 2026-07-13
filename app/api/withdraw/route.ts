@@ -24,11 +24,12 @@ export async function POST(req: NextRequest) {
   // Owner-only: a withdrawal may only ever be built FROM an allowlisted owner wallet.
   // Even if this endpoint is called directly, it can never spend anyone else's funds,
   // and the resulting tx still has to be signed by that wallet's key holder.
-  const allowlist = (process.env.ADMIN_WALLETS || process.env.PLATFORM_FEE_ACCOUNT || process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || "")
+  const allowlist = (process.env.ADMIN_WALLETS || process.env.PLATFORM_FEE_ACCOUNT || "")
     .split(",").map((s) => s.trim()).filter(Boolean);
   if (allowlist.length === 0) return NextResponse.json({ error: "withdrawals not configured" }, { status: 403 });
   if (!allowlist.includes(from)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const lamports = validAmount(Math.floor(Number(amountSol) * 1e9));
+  if (from === to) return NextResponse.json({ error: "destination must differ from fee wallet" }, { status: 400 });
+  const lamports = validAmount(Math.floor(Number(amountSol) * 1e9), 10_000 * 1e9);
   if (lamports == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
 
   const rpc = process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com";

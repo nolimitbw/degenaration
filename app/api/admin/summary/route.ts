@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
       summary: {
         ...(result.data as Record<string, unknown>),
         platformFeeBps: process.env.PLATFORM_FEE_ACCOUNT ? 200 : 0,
-        feeWalletConfigured: Boolean(process.env.PLATFORM_FEE_ACCOUNT || process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT),
-        publicFeeWallet: process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || null,
-        withdrawalsConfigured: Boolean(process.env.ADMIN_WALLETS || process.env.PLATFORM_FEE_ACCOUNT || process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT)
+        feeWalletConfigured: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
+        publicFeeWallet: process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || process.env.PLATFORM_FEE_ACCOUNT || null,
+        withdrawalsConfigured: Boolean(process.env.ADMIN_WALLETS || process.env.PLATFORM_FEE_ACCOUNT)
       }
     },
     { headers: { "Cache-Control": "no-store, max-age=0" } }
