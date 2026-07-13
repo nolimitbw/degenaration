@@ -4,6 +4,10 @@
  */
 const SB = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_KEY;
+const SITE_URL = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://degenaration.vercel.app").replace(/\/+$/, "");
+const BOT_SECRET = process.env.BOT_SHARED_SECRET;
+const REGISTER_URL = process.env.BOT_REGISTER_URL || (SITE_URL ? `${SITE_URL}/api/bot/register-channel` : "");
+const APPROVED_URL = process.env.BOT_APPROVED_CHANNELS_URL || (SITE_URL ? `${SITE_URL}/api/bot/approved-channels` : "");
 
 function H(extra) {
   return { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json", ...extra };
@@ -11,6 +15,17 @@ function H(extra) {
 
 // { channelId: { groupId, groupName } } for every APPROVED call channel.
 async function loadApprovedChannels() {
+  if (APPROVED_URL && BOT_SECRET) {
+    const r = await fetch(APPROVED_URL, { headers: { "x-bot-secret": BOT_SECRET } });
+    if (r.ok) {
+      const data = await r.json();
+      const map = {};
+      for (const c of data?.channels || []) map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name };
+      return map;
+    }
+    console.error(`[bot] approved channel bridge failed (${r.status}); falling back to Supabase`);
+  }
+  if (!SB || !KEY) throw new Error("approved channel query not configured");
   const r = await fetch(`${SB}/rest/v1/call_channels?status=eq.approved&select=channel_id,group_id,guild_name`, { headers: H() });
   if (!r.ok) throw new Error(`approved channel query failed (${r.status})`);
   const rows = await r.json();
@@ -21,6 +36,23 @@ async function loadApprovedChannels() {
 
 // Server owner ran /register — create a PENDING channel for admin approval (dedup on channel_id).
 async function registerChannel({ guildId, guildName, guildMemberCount, channelId, channelName, registeredBy }) {
+  if (REGISTER_URL && BOT_SECRET) {
+    const response = await fetch(REGISTER_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-bot-secret": BOT_SECRET },
+      body: JSON.stringify({
+        guild_id: guildId,
+        guild_name: guildName,
+        guild_member_count: guildMemberCount,
+        channel_id: channelId,
+        channel_name: channelName,
+        registered_by: registeredBy
+      })
+    });
+    if (response.ok) return;
+    console.error(`[bot] register bridge failed (${response.status}); falling back to Supabase`);
+  }
+  if (!SB || !KEY) throw new Error("channel registration not configured");
   const response = await fetch(`${SB}/rest/v1/call_channels`, {
     method: "POST",
     headers: H({ prefer: "resolution=ignore-duplicates,return=minimal" }),
