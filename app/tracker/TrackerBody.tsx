@@ -9,8 +9,8 @@ import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@
 
 type Tracked = { address: string; label: string };
 type SmartWallet = { address: string; catches: { symbol: string; mint: string; multiple: number }[]; catchCount: number; bestMultiple: number; avgMultiple: number };
-type CopySettings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; dailyCap: number };
-const DEFAULT_SETTINGS: CopySettings = { size: 0.1, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, dailyCap: 2 };
+type CopySettings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
+const DEFAULT_SETTINGS: CopySettings = { size: 0.1, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
 
 function short(a: string) { return `${a.slice(0, 4)}…${a.slice(-4)}`; }
 function copySettingsError(s: CopySettings) {
@@ -22,6 +22,7 @@ function copySettingsError(s: CopySettings) {
   if (!Number.isFinite(s.tp2sell) || s.tp2sell < 0 || s.tp2sell > 100) return "TP2 sell must be 0% to 100%.";
   if (s.tp1sell + s.tp2sell > 100) return "TP sells cannot add above 100%.";
   if (!Number.isFinite(s.sl) || s.sl <= 0 || s.sl > 100) return "Stop-loss must be 1% to 100%.";
+  if (!Number.isFinite(s.slippage) || s.slippage <= 0 || s.slippage > 20) return "Slippage must be between 0.01% and 20%.";
   return null;
 }
 
@@ -49,6 +50,7 @@ function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { se
         {field("Take-profit 2", "tp2", "0.5", "x")}
         {field("Sell at TP2", "tp2sell", "5", "%")}
         {field("Stop-loss", "sl", "5", "%")}
+        {field("Max slippage", "slippage", "0.25", "%")}
       </div>
       <div className="mt-3 flex gap-2">
         <button onClick={onStart} disabled={busy || !!error} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{busy ? "Saving..." : "Start copying"}</button>
@@ -113,7 +115,7 @@ export default function TrackerBody() {
     const { error } = await saveCopySub({
       leader_wallet: leader, label: lbl, size_sol: settings.size, daily_cap_sol: settings.dailyCap,
       tp1: settings.tp1, tp1_sell: settings.tp1sell, tp2: settings.tp2, tp2_sell: settings.tp2sell, stop_loss: settings.sl,
-      slippage_bps: 300, user_pubkey: address, wallet_id: walletId
+      slippage_bps: Math.round(settings.slippage * 100), user_pubkey: address, wallet_id: walletId
     }, await getAccessToken());
     setCopyBusy(null);
     if (error) { toast(error.message || "Could not enable copy", "err"); return; }
@@ -124,9 +126,10 @@ export default function TrackerBody() {
       setCopyBusy(leader);
       const { error } = await removeCopySub(leader, await getAccessToken());
       setCopyBusy(null);
-      if (error) { toast(error.message || "Could not stop copy", "err"); return; }
+      if (error) { toast(error.message || "Could not stop copy", "err"); return false; }
       toast("Copy trade stopped"); await refreshSubs();
-    } catch { setCopyBusy(null); toast("Could not stop copy", "err"); }
+      return true;
+    } catch { setCopyBusy(null); toast("Could not stop copy", "err"); return false; }
   }
 
   useEffect(() => {
@@ -155,7 +158,13 @@ export default function TrackerBody() {
     setWallets((w) => [...w.filter((x) => x.address !== a), { address: a, label: lbl || a.slice(0, 6) }]);
     setAddr(""); setLabel("");
   };
-  const remove = (a: string) => setWallets((w) => w.filter((x) => x.address !== a));
+  const remove = async (a: string) => {
+    if (isCopied(a)) {
+      const stopped = await disableCopy(a);
+      if (!stopped) return;
+    }
+    setWallets((w) => w.filter((x) => x.address !== a));
+  };
 
   return (
     <>
@@ -296,7 +305,7 @@ export default function TrackerBody() {
                         ) : (
                           <button onClick={() => openCopy(w.address)} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30">Copy trades</button>
                         )}
-                        <button onClick={() => remove(w.address)} className="font-mono text-[11px] text-hotpink hover:underline">remove</button>
+                        <button onClick={() => remove(w.address)} disabled={copyBusy === w.address} className="font-mono text-[11px] text-hotpink hover:underline disabled:opacity-60">{isCopied(w.address) ? "stop & remove" : "remove"}</button>
                       </div>
                     )}
                   </div>
