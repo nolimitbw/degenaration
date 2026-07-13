@@ -12,7 +12,10 @@ type Summary = {
   pendingApplications?: number;
   pendingChannels?: number;
   approvedChannels?: number;
+  feeWalletConfigured?: boolean;
+  platformFeeBps?: number;
 };
+const ADMIN_HOME_UI_VERSION = "admin-home-v2";
 
 export default function Admin() {
   const { getAccessToken, user } = usePrivy();
@@ -28,11 +31,6 @@ export default function Admin() {
 
   async function load() {
     if (!admin) return;
-    if (!identityToken) {
-      setLoaded(false);
-      setErr(null);
-      return;
-    }
     setErr(null);
     const [response, summaryResponse] = await Promise.all([
       adminFetchJson<{ applications?: Application[] }>("/api/admin/applications", getAccessToken, identityToken, email),
@@ -82,8 +80,9 @@ export default function Admin() {
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">Owner dashboard</h1>
         <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${loaded ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>
-          {waitingForOwnerToken ? "verifying owner" : loaded ? "live from DB" : "loading"}
+          {loaded ? "live from DB" : waitingForOwnerToken ? "checking owner" : "loading"}
         </span>
+        <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">{ADMIN_HOME_UI_VERSION}</span>
       </div>
       <p className="mt-1 text-sm text-dim">
         Review call-group applications, approve registered Discord channels, and watch platform commissions from one place.
@@ -92,7 +91,7 @@ export default function Admin() {
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
       {waitingForOwnerToken && (
         <p className="mt-4 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-xs text-dim">
-          Verifying the owner identity token before loading private admin data...
+          Owner identity token is still settling; the dashboard is also trying the verified owner API session.
         </p>
       )}
 
@@ -112,9 +111,15 @@ export default function Admin() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
+        <button onClick={load} disabled={!admin || busy != null} className="rounded-md border border-edge px-4 py-2 text-sm font-bold text-ink hover:border-toxic disabled:opacity-50">Refresh</button>
         <a href="/admin/channels" className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">Approve registered channels</a>
         <a href="/admin/commissions" className="rounded-md border border-edge px-4 py-2 text-sm font-bold text-ink hover:border-toxic">View commissions</a>
       </div>
+      {loaded && summary?.feeWalletConfigured === false && (
+        <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
+          Platform commissions are off because production has no PLATFORM_FEE_ACCOUNT configured.
+        </p>
+      )}
 
       <h2 className="mt-8 text-lg font-bold">Pending server applications</h2>
       <div className="mt-3 space-y-3">
