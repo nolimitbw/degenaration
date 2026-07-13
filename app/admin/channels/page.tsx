@@ -12,7 +12,7 @@ type Channel = {
 type Summary = { pendingChannels?: number; approvedChannels?: number };
 type ChannelsResponse = { channels?: Channel[]; source?: string; normalizedFrom?: string; rpcCount?: number; rpcError?: string };
 type BotConfig = { clientId?: string; slashCommandConfigured?: boolean; registrationCommand?: string; registrationBridgeConfigured?: boolean; botBuild?: string };
-const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v5";
+const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v6";
 
 function withFreshQuery(path: string) {
   const joiner = path.includes("?") ? "&" : "?";
