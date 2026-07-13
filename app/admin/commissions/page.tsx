@@ -8,6 +8,7 @@ import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 
 type FeeConfig = { platformFeeBps?: number; feeWalletConfigured?: boolean; publicFeeWallet?: string | null; withdrawalsConfigured?: boolean };
 const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const COMMISSIONS_UI_VERSION = "commissions-admin-v2";
 
 export default function Commissions() {
   const { getAccessToken, user } = usePrivy();
@@ -17,24 +18,26 @@ export default function Commissions() {
   const waitingForOwnerToken = admin && !identityToken;
   const [totals, setTotals] = useState({ totalSol: 0, count: 0 });
   const [balance, setBalance] = useState<number | null>(null);
+  const [balanceLoaded, setBalanceLoaded] = useState(false);
   const [dest, setDest] = useState("");
   const [amount, setAmount] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [fee, setFee] = useState<FeeConfig>({});
+  const [loaded, setLoaded] = useState(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
   const feeWallet = fee.publicFeeWallet || "";
   const validDest = MINT_RE.test(dest.trim());
-  const validAmount = Number.isFinite(amount) && amount > 0 && amount <= 10000 && (balance == null || amount < balance);
+  const validAmount = Number.isFinite(amount) && amount > 0 && amount <= 10000 && balanceLoaded && balance != null && amount < balance;
   const canWithdraw = Boolean(fee.feeWalletConfigured && fee.withdrawalsConfigured && feeWallet && validDest && validAmount && !busy);
 
-  useEffect(() => {
+  async function load() {
     if (!admin) return;
-    if (!identityToken) {
-      setStatus("Verifying the owner identity token before loading commissions...");
-      return;
-    }
+    setLoaded(false);
     adminFetchJson<{ summary?: any }>("/api/admin/summary", getAccessToken, identityToken, email)
       .then((res) => {
+        setLoaded(true);
+        setLastSync(new Date());
         if (!res.ok) {
           setStatus(res.error);
           return;
@@ -50,10 +53,17 @@ export default function Commissions() {
         });
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [admin, email, getAccessToken, identityToken]);
   useEffect(() => {
     setBalance(null);
-    if (feeWallet) fetchBalance(feeWallet).then((b) => { if (b && !b.error) setBalance(b.sol); });
+    setBalanceLoaded(false);
+    if (feeWallet) fetchBalance(feeWallet).then((b) => { if (b && !b.error) setBalance(b.sol); }).finally(() => setBalanceLoaded(true));
+    else setBalanceLoaded(true);
   }, [feeWallet]);
 
   async function withdraw() {
@@ -61,6 +71,7 @@ export default function Commissions() {
     if (!fee.feeWalletConfigured || !feeWallet) { setStatus("Set server PLATFORM_FEE_ACCOUNT to your fee wallet first."); return; }
     if (!fee.withdrawalsConfigured) { setStatus("Set ADMIN_WALLETS or PLATFORM_FEE_ACCOUNT before withdrawing."); return; }
     if (!validDest) { setStatus("Paste a valid destination Solana address."); return; }
+    if (!balanceLoaded) { setStatus("Wait for the fee wallet balance to load first."); return; }
     if (!validAmount) { setStatus(balance != null && amount >= balance ? "Amount must be below the fee wallet balance so rent and network fees remain." : "Enter a valid withdrawal amount."); return; }
     const sol = (window as any).solana;
     if (!sol?.isPhantom) { setStatus("Connect Phantom (the fee wallet) to sign the withdrawal."); return; }
@@ -91,6 +102,22 @@ export default function Commissions() {
       <p className="mt-1 text-sm text-dim">
         Platform fees only accrue when the fee wallet is configured. Withdrawals are owner-gated and signed by the fee wallet.
       </p>
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-panel/70 p-3">
+        <button
+          onClick={load}
+          disabled={!admin || busy}
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic disabled:opacity-50"
+        >
+          Refresh
+        </button>
+        <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
+          {loaded ? "owner data loaded" : "loading owner data"}
+        </span>
+        <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">
+          {COMMISSIONS_UI_VERSION}
+        </span>
+        {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
+      </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -100,7 +127,7 @@ export default function Commissions() {
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">Fee wallet balance</p>
-          <p className="mt-2 font-mono text-2xl font-bold">{balance != null ? balance.toFixed(3) : "—"} SOL</p>
+          <p className="mt-2 font-mono text-2xl font-bold">{!balanceLoaded ? "Loading" : balance != null ? balance.toFixed(3) : "—"} SOL</p>
           <p className="mt-1 truncate font-mono text-[11px] text-dim">{feeWallet || "not configured"}</p>
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -134,11 +161,11 @@ export default function Commissions() {
           <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
           <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(+e.target.value)}
             className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-toxic" />
-          {amount > 0 && !validAmount && <span className="mt-1 block font-mono text-[10px] text-hotpink">Use an amount below the fee wallet balance and at most 10,000 SOL.</span>}
+          {amount > 0 && !validAmount && <span className="mt-1 block font-mono text-[10px] text-hotpink">{!balanceLoaded ? "Wait for the fee wallet balance first." : "Use an amount below the fee wallet balance and at most 10,000 SOL."}</span>}
         </label>
         <button onClick={withdraw} disabled={!canWithdraw}
           className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-          {busy ? "Signing…" : !fee.feeWalletConfigured ? "Fee wallet not configured" : !fee.withdrawalsConfigured ? "Withdrawals disabled" : "Withdraw to my wallet"}
+          {busy ? "Signing…" : !fee.feeWalletConfigured ? "Fee wallet not configured" : !fee.withdrawalsConfigured ? "Withdrawals disabled" : !balanceLoaded ? "Loading fee wallet" : "Withdraw to my wallet"}
         </button>
         {status && <p className="mt-3 break-all font-mono text-[11px] text-dim">{status}</p>}
         {waitingForOwnerToken && <p className="mt-3 font-mono text-[11px] text-dim">Owner session verification is still finishing.</p>}
