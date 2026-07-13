@@ -19,6 +19,8 @@ export default function WalletBody() {
 
   const [copied, setCopied] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
   const [maxTrade, setMaxTrade] = useState(0.5);
   const [dailyCap, setDailyCap] = useState(2);
   const [savedLimits, setSavedLimits] = useState(false);
@@ -27,8 +29,26 @@ export default function WalletBody() {
     getMyProfile().then((p) => { if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); } });
   }, [address]);
 
+  async function loadBalance() {
+    if (!address) return;
+    setBalanceLoading(true);
+    setBalanceError(null);
+    const snapshot = await fetchBalance(address, getNet());
+    setBalanceLoading(false);
+    if (!snapshot || snapshot.error) {
+      setBalance(null);
+      setBalanceError(snapshot?.error || "Balance unavailable");
+      return;
+    }
+    setBalance(Number(snapshot.sol) || 0);
+  }
+
+  useEffect(() => { loadBalance(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [address]);
+
   const copy = () => { if (!address) return; navigator.clipboard?.writeText(address); setCopied(true); toast("Address copied"); setTimeout(() => setCopied(false), 1500); };
   async function saveLimits() {
+    if (!Number.isFinite(maxTrade) || maxTrade <= 0) { toast("Max per trade must be above 0 SOL", "err"); return; }
+    if (!Number.isFinite(dailyCap) || dailyCap < maxTrade) { toast("Daily cap must be at least max per trade", "err"); return; }
     const { error } = await saveProfileLimits({ max_trade_sol: maxTrade, daily_cap_sol: dailyCap, wallet_address: address });
     if (error) { toast("Could not save — sign in first", "err"); return; }
     setSavedLimits(true); toast("Trade limits saved"); setTimeout(() => setSavedLimits(false), 1500);
@@ -70,9 +90,17 @@ export default function WalletBody() {
 
         <div className="space-y-6">
           <div className="gradient-border rounded-lg border border-edge p-5">
-            <p className="text-xs uppercase text-dim">Balance</p>
-            <p className="mt-1 font-mono text-3xl font-bold">{balance != null ? balance.toFixed(3) : "…"} <span className="text-base text-dim">SOL</span></p>
-            <p className="mt-1 font-mono text-xs text-dim">mainnet</p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase text-dim">Balance</p>
+                <p className="mt-1 font-mono text-3xl font-bold">{balanceLoading ? "…" : balance != null ? balance.toFixed(3) : "—"} <span className="text-base text-dim">SOL</span></p>
+                <p className="mt-1 font-mono text-xs text-dim">{balanceError ? balanceError : "mainnet"}</p>
+              </div>
+              <button onClick={loadBalance} disabled={balanceLoading}
+                className="rounded-md border border-edge px-3 py-1.5 font-mono text-[11px] font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">
+                {balanceLoading ? "Checking" : "Refresh"}
+              </button>
+            </div>
           </div>
           <div className="gradient-border rounded-lg border border-edge p-5">
             <h2 className="font-bold">Trade permission</h2>
