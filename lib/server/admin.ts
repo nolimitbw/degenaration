@@ -28,6 +28,15 @@ async function verifyPrivyJwt(token: string) {
   return payload;
 }
 
+async function tryVerifyPrivyJwt(token: string | undefined | null) {
+  if (!token) return null;
+  try {
+    return await verifyPrivyJwt(token);
+  } catch {
+    return null;
+  }
+}
+
 function emailFromIdPayload(payload: any) {
   const linkedRaw = payload?.linked_accounts;
   let linked: any[] = [];
@@ -42,29 +51,22 @@ export async function requireAdmin(req: NextRequest) {
 
   const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   const idToken = req.headers.get("x-privy-id-token")?.trim() || req.cookies.get("privy-id-token")?.value;
-  const primaryToken = bearer || idToken;
-  if (!primaryToken) return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
+  if (!bearer && !idToken) return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 
-  try {
-    const access = await verifyPrivyJwt(primaryToken);
-    if (!access?.sub) {
-      return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
-    }
+  const identity = await tryVerifyPrivyJwt(idToken);
+  const access = await tryVerifyPrivyJwt(bearer);
+  const verified = identity || access;
 
-    let email = emailFromIdPayload(access);
-    if (idToken && bearer) {
-      const identity = await verifyPrivyJwt(idToken);
-      if (!identity?.sub || access.sub !== identity.sub) {
-        return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
-      }
-      email = emailFromIdPayload(identity) || email;
-    }
-
-    if (!OWNER_EMAILS.includes(email)) return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
-    return { ok: true as const, email };
-  } catch {
+  if (!verified?.sub) {
     return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
   }
+  if (identity?.sub && access?.sub && identity.sub !== access.sub) {
+    return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
+  }
+
+  const email = emailFromIdPayload(identity) || emailFromIdPayload(access);
+  if (!OWNER_EMAILS.includes(email)) return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
+  return { ok: true as const, email };
 }
 
 export function adminRpcConfig() {
