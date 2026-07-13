@@ -15,6 +15,8 @@ export async function GET() {
     invite,
     permissions: BOT_PERMISSIONS,
     scopes: BOT_SCOPES.split(" "),
+    slashCommandConfigured: BOT_SCOPES.split(" ").includes("applications.commands"),
+    registrationCommand: "/register",
     registrationBridgeConfigured: configured
   });
 }

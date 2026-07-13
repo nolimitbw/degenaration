@@ -6,6 +6,8 @@ import { submitApplication } from "@/lib/queries";
 type BotConfig = {
   invite: string;
   clientId: string;
+  slashCommandConfigured?: boolean;
+  registrationCommand?: string;
   registrationBridgeConfigured: boolean;
 };
 
@@ -65,11 +67,17 @@ export default function Apply() {
               Add bot
             </a>
           </div>
-          <div className="mt-4 grid gap-2 border-t border-toxic/20 pt-4 font-mono text-[11px] text-dim sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 border-t border-toxic/20 pt-4 font-mono text-[11px] text-dim sm:grid-cols-4">
             <div><span className="text-ink">Invite</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
             <div><span className="text-ink">Permissions</span><br />view, send, history</div>
+            <div><span className="text-ink">Slash command</span><br />{bot?.slashCommandConfigured ? `${bot.registrationCommand || "/register"} ready` : "missing scope"}</div>
             <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
           </div>
+          {bot && !bot.slashCommandConfigured && (
+            <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-[11px] text-hotpink">
+              The invite is missing applications.commands, so Discord will not show /register. Use the Add bot button above.
+            </p>
+          )}
           {bot && !bot.registrationBridgeConfigured && (
             <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-[11px] text-hotpink">
               The website can open the invite, but the registration bridge needs BOT_SHARED_SECRET before /register can reach Degenaration.
