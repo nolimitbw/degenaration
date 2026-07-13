@@ -11,8 +11,13 @@ type Channel = {
 };
 type Summary = { pendingChannels?: number; approvedChannels?: number };
 type ChannelsResponse = { channels?: Channel[]; source?: string; normalizedFrom?: string; rpcCount?: number; rpcError?: string };
-type BotConfig = { clientId?: string; slashCommandConfigured?: boolean; registrationCommand?: string; registrationBridgeConfigured?: boolean };
-const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v3";
+type BotConfig = { clientId?: string; slashCommandConfigured?: boolean; registrationCommand?: string; registrationBridgeConfigured?: boolean; botBuild?: string };
+const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v4";
+
+function withFreshQuery(path: string) {
+  const joiner = path.includes("?") ? "&" : "?";
+  return `${path}${joiner}t=${Date.now()}`;
+}
 
 export default function AdminChannels() {
   const { getAccessToken, user } = usePrivy();
@@ -40,8 +45,8 @@ export default function AdminChannels() {
     }
     setErr(null);
     const [res, summaryRes] = await Promise.all([
-      adminFetchJson<ChannelsResponse>("/api/admin/channels", getAccessToken, identityToken, email),
-      adminFetchJson<{ summary?: Summary }>("/api/admin/summary", getAccessToken, identityToken, email)
+      adminFetchJson<ChannelsResponse>(withFreshQuery("/api/admin/channels"), getAccessToken, identityToken, email),
+      adminFetchJson<{ summary?: Summary }>(withFreshQuery("/api/admin/summary"), getAccessToken, identityToken, email)
     ]);
     if (!res.ok) {
       setErr(res.error);
@@ -64,7 +69,7 @@ export default function AdminChannels() {
     return () => window.clearInterval(timer);
   }, [admin, load]);
   useEffect(() => {
-    fetch("/api/bot/config", { cache: "no-store" }).then((r) => r.json()).then(setBot).catch(() => {});
+    fetch(withFreshQuery("/api/bot/config"), { cache: "no-store" }).then((r) => r.json()).then(setBot).catch(() => {});
   }, []);
 
   async function act(id: string, action: "approve" | "reject") {
@@ -93,7 +98,7 @@ export default function AdminChannels() {
         channel; approve one here and the bot relays its calls to the platform Discord and eligible subscribers.
       </p>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-panel/70 p-3">
         <button
           onClick={() => load()}
           disabled={!admin}
@@ -104,7 +109,10 @@ export default function AdminChannels() {
         <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
           {waitingForOwnerToken ? "verifying owner session" : loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
         </span>
-        <span className="font-mono text-[10px] text-dim">{ADMIN_CHANNELS_UI_VERSION}{source ? ` · ${source}` : ""}</span>
+        <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">
+          {ADMIN_CHANNELS_UI_VERSION}
+        </span>
+        <span className="font-mono text-[10px] text-dim">{source ? source : "owner api pending"}</span>
         {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
 
@@ -114,7 +122,7 @@ export default function AdminChannels() {
         <div><span className="text-ink">Bot app</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
         <div><span className="text-ink">Command</span><br />{bot?.slashCommandConfigured ? `${bot.registrationCommand || "/register"} ready` : "missing slash scope"}</div>
         <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
-        <div><span className="text-ink">Live bot process</span><br />restart Render after bot code updates</div>
+        <div><span className="text-ink">Expected bot build</span><br />{bot?.botBuild || "slash-register-v1"}</div>
       </div>
       {bot && (!bot.slashCommandConfigured || !bot.registrationBridgeConfigured) && (
         <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
@@ -146,7 +154,18 @@ export default function AdminChannels() {
             Database summary sees {expectedPending} pending channel{expectedPending === 1 ? "" : "s"}, but this page received {pending.length}. API source: {source || "unknown"}. Hard refresh this page, then press Refresh; if it stays here, the deployed admin API is not returning the channel list.
           </p>
         )}
-        {loaded && !pending.length && !err && <p className="text-sm text-dim">No channels waiting for approval.</p>}
+        {loaded && !pending.length && !err && (
+          <div className="rounded-lg border border-edge bg-panel p-5">
+            <p className="font-bold text-ink">No pending rows reached this browser session.</p>
+            <p className="mt-1 text-sm text-dim">
+              If someone just ran /register, press Refresh. If this page does not show {ADMIN_CHANNELS_UI_VERSION},
+              hard refresh the browser tab because it is still running an old admin bundle.
+            </p>
+            <p className="mt-3 font-mono text-[11px] text-dim">
+              Bot command: {bot?.registrationCommand || "/register"} · bridge {bot?.registrationBridgeConfigured ? "online" : "not configured"} · source {source || "not loaded"}
+            </p>
+          </div>
+        )}
         {pending.map((c) => (
           <div key={c.id} className="rounded-lg border border-edge bg-panel p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">

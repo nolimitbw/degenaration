@@ -19,6 +19,7 @@ const INGEST_URL = process.env.INGEST_URL;              // e.g. https://degenara
 const BOT_SECRET = process.env.BOT_SHARED_SECRET;
 const REFRESH_MS = Number(process.env.CHANNELS_REFRESH_MS || 30000);
 const RELAY_CHANNEL_ID = process.env.RELAY_CHANNEL_ID || "";
+const BOT_BUILD = process.env.BOT_BUILD || "slash-register-v1";
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
@@ -108,6 +109,7 @@ async function syncRegisterCommand(guild) {
 
 client.once("ready", async () => {
   console.log(`[bot] logged in as ${client.user.tag}`);
+  console.log(`[bot] build ${BOT_BUILD}`);
   await Promise.allSettled(client.guilds.cache.map((guild) => syncRegisterCommand(guild)));
   await refresh();
   console.log(`[bot] watching ${Object.keys(approved).length} approved channel(s)`);

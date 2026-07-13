@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 const DEFAULT_BOT_CLIENT_ID = "1525315046303858748";
 const BOT_PERMISSIONS = "68608";
 const BOT_SCOPES = "bot applications.commands";
+const EXPECTED_BOT_BUILD = "slash-register-v1";
 
 export async function GET() {
   const clientId = process.env.DISCORD_BOT_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_BOT_CLIENT_ID || DEFAULT_BOT_CLIENT_ID;
@@ -17,6 +18,7 @@ export async function GET() {
     scopes: BOT_SCOPES.split(" "),
     slashCommandConfigured: BOT_SCOPES.split(" ").includes("applications.commands"),
     registrationCommand: "/register",
-    registrationBridgeConfigured: configured
+    registrationBridgeConfigured: configured,
+    botBuild: process.env.BOT_BUILD || EXPECTED_BOT_BUILD
   });
 }
