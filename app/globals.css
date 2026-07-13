@@ -251,6 +251,17 @@ body {
   pointer-events: none;
   will-change: transform, opacity;
 }
+.launch-bomb::before {
+  content: "";
+  position: absolute;
+  inset: 30% 20% 18%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.24), transparent 28%),
+    linear-gradient(0deg, rgb(var(--grape-rgb) / 0.5), transparent 72%);
+  filter: blur(20px);
+  opacity: 0.86;
+}
 .launch-bomb-core {
   position: absolute;
   width: 42%;
@@ -285,6 +296,19 @@ body {
   background: #ffbf5e;
   box-shadow: 0 0 24px #ffbf5e, 0 0 48px #ff2255;
 }
+.launch-bomb-spark {
+  position: absolute;
+  left: 58%;
+  bottom: 74%;
+  width: 22%;
+  height: 22%;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, #ffffff 0 12%, #ffd38a 13% 30%, rgb(var(--grape-rgb)) 48%, transparent 72%);
+  filter: blur(0.5px);
+  transform-origin: 50% 95%;
+  animation: fuse-flicker 680ms ease-in-out infinite alternate;
+}
 .launch-bomb-ring {
   position: absolute;
   inset: 8%;
@@ -302,6 +326,10 @@ body {
   0% { transform: scale(0.55); opacity: 0; }
   24% { opacity: 0.9; }
   100% { transform: scale(1.28); opacity: 0; }
+}
+@keyframes fuse-flicker {
+  0% { transform: scale(0.78) rotate(-10deg); opacity: 0.55; }
+  100% { transform: scale(1.16) rotate(8deg); opacity: 1; }
 }
 
 /* Reserve the accent for intentional emphasis, not a looping visual effect. */
@@ -415,9 +443,9 @@ body {
 @media (max-width: 767px) {
   .launch-video { object-position: 72% center; }
   .launch-video-scrim { background: rgba(5, 6, 10, 0.57); }
-  .launch-rocket-traveller { right: 1.25rem; bottom: 9.5rem; width: 4.4rem; }
+  .launch-rocket-traveller { right: 0.75rem; bottom: 8.5rem; width: 4.2rem; }
   .launch-rocket-trail { height: 4.8rem; width: 1.8rem; }
-  .launch-bomb { right: 1.25rem; bottom: 4rem; width: 7rem; }
+  .launch-bomb { right: 0.75rem; bottom: 4rem; width: 7.5rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -19,14 +19,14 @@ export default function Hero() {
           className="hero-kicker mx-auto mb-6 flex w-fit items-center gap-2 px-3 py-2 font-mono text-xs lg:mx-0"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-grape" />
-          <span className="text-haze">Measured Discord alpha</span>
+          <span className="text-haze">Live calls. Wallet-signed trades.</span>
         </motion.div>
 
-        <h1 className="text-5xl font-bold leading-[1.02] md:text-6xl">
-          <RevealText text="Trade the call." delay={0.15} />
+        <h1 className="max-w-3xl text-5xl font-bold leading-[0.98] md:text-7xl">
+          <RevealText text="Alpha without" delay={0.15} />
           <br />
           <span className="text-grape">
-            <RevealText text="Keep control." delay={0.46} />
+            <RevealText text="blind trust." delay={0.46} />
           </span>
         </h1>
 
@@ -34,10 +34,10 @@ export default function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9 }}
-          className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-haze lg:mx-0"
+          className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-haze md:text-lg lg:mx-0"
         >
-          Track caller performance, copy only the sources you trust, and sign every trade from
-          <span className="text-starlight"> your own wallet</span>.
+          Verify call sources, preview the route, then sign from your own wallet. No custody.
+          No hidden execution.
         </motion.p>
 
         <motion.div
@@ -47,13 +47,13 @@ export default function Hero() {
           className="mt-10 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
         >
           <Magnetic strength={0.5}>
-            <Link href="/calls" className="btn-cosmic group inline-flex min-h-12 items-center px-6 py-3 font-bold">
-              Browse Discord calls <span className="ml-2 inline-block transition group-hover:translate-x-1">-&gt;</span>
+            <Link href="/terminal" className="btn-cosmic group inline-flex min-h-12 items-center px-6 py-3 font-bold">
+              Open terminal <span className="ml-2 inline-block transition group-hover:translate-x-1">-&gt;</span>
             </Link>
           </Magnetic>
           <Magnetic strength={0.3}>
-            <Link href="/terminal" className="btn-ghost inline-flex min-h-12 items-center px-6 py-3 font-bold">
-              Open trading terminal
+            <Link href="/calls" className="btn-ghost inline-flex min-h-12 items-center px-6 py-3 font-bold">
+              Check call sources
             </Link>
           </Magnetic>
         </motion.div>
@@ -64,9 +64,9 @@ export default function Hero() {
           transition={{ delay: 1.2 }}
           className="hero-proof mx-auto mt-8 flex max-w-xl flex-wrap justify-center gap-x-7 gap-y-3 font-mono text-xs lg:mx-0 lg:justify-start"
         >
-          <div><dt>Calls</dt><dd>Tracked</dd></div>
+          <div><dt>Routes</dt><dd>Previewed</dd></div>
           <FeeStatus />
-          <div><dt>Custody</dt><dd>Never</dd></div>
+          <div><dt>Keys</dt><dd>Never held</dd></div>
         </motion.dl>
       </div>
     </section>
