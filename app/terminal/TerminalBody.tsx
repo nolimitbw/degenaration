@@ -43,6 +43,7 @@ export default function TerminalBody() {
   const [mint, setMint] = useState(params.get("mint") || "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
   const cleanMint = mint.trim();
   const latestMintRef = useRef(cleanMint);
+  const previewSeqRef = useRef(0);
   const [mode, setMode] = useState<Mode>("buy");
   const [amount, setAmount] = useState(Number(params.get("amount")) > 0 ? Number(params.get("amount")) : 0.5);
   const [sellPct, setSellPct] = useState(100);
@@ -146,8 +147,10 @@ export default function TerminalBody() {
   // Any trade input change invalidates the displayed quote until the next load/preview.
   useEffect(() => { setQuote(null); }, [cleanMint, amount, slippage, mode]);
   useEffect(() => {
+    previewSeqRef.current++;
     setPreviewOpen(false);
     setPreview(null);
+    setPreviewLoading(false);
     setBal(null);
     setBalanceMint(null);
   }, [cleanMint]);
@@ -158,10 +161,15 @@ export default function TerminalBody() {
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     if (!amountOk) { toast("Enter a buy amount between 0 and 100 SOL", "err"); return; }
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
+    const seq = ++previewSeqRef.current;
+    const targetMint = cleanMint;
+    const targetAmount = amount;
+    const targetSlippageBps = slippageBps;
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
-    const s = await fetch(`/api/simulate?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippageBps}`)
+    const s = await fetch(`/api/simulate?in=${SOL}&out=${targetMint}&amount=${Math.floor(targetAmount * 1e9)}&slippageBps=${targetSlippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Simulation failed — try again." }));
-    setPreview({ side: "buy", mint: cleanMint, amountSol: amount, slippageBps, ...s }); setPreviewLoading(false);
+    if (seq !== previewSeqRef.current || targetMint !== latestMintRef.current) return;
+    setPreview({ side: "buy", mint: targetMint, amountSol: targetAmount, slippageBps: targetSlippageBps, ...s }); setPreviewLoading(false);
   }
 
   // SELL preview: quote token->SOL for the chosen % of the live balance
@@ -170,15 +178,21 @@ export default function TerminalBody() {
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     if (!liveBal || liveBal.uiAmount <= 0) { toast("You don't hold this token", "err"); return; }
+    const seq = ++previewSeqRef.current;
+    const targetMint = cleanMint;
+    const targetSellPct = sellPct;
+    const targetSlippageBps = slippageBps;
+    const targetBalance = liveBal;
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
-    const rawTotal = BigInt(liveBal.rawAmount || "0");
-    const rawAmt = (rawTotal * BigInt(Math.round((sellPct / 100) * 10000))) / BigInt(10000);
-    if (rawAmt <= BigInt(0)) { setPreview({ side: "sell", mint: cleanMint, sellPct, error: "Amount too small" }); setPreviewLoading(false); return; }
-    const q = await fetch(`/api/quote?in=${cleanMint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${slippageBps}`)
+    const rawTotal = BigInt(targetBalance.rawAmount || "0");
+    const rawAmt = (rawTotal * BigInt(Math.round((targetSellPct / 100) * 10000))) / BigInt(10000);
+    if (rawAmt <= BigInt(0)) { setPreview({ side: "sell", mint: targetMint, sellPct: targetSellPct, error: "Amount too small" }); setPreviewLoading(false); return; }
+    const q = await fetch(`/api/quote?in=${targetMint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${targetSlippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Quote failed — try again." }));
+    if (seq !== previewSeqRef.current || targetMint !== latestMintRef.current) return;
     const solOut = q.outAmount ? Number(q.outAmount) / 1e9 : null;
-    const sellUi = liveBal.uiAmount * (sellPct / 100);
-    setPreview({ side: "sell", mint: cleanMint, sellPct, slippageBps, ...q, solOut, sellUi }); setPreviewLoading(false);
+    const sellUi = targetBalance.uiAmount * (targetSellPct / 100);
+    setPreview({ side: "sell", mint: targetMint, sellPct: targetSellPct, slippageBps: targetSlippageBps, ...q, solOut, sellUi }); setPreviewLoading(false);
   }
 
   async function confirmTrade() {
@@ -190,10 +204,20 @@ export default function TerminalBody() {
     if (preview.side === "buy" && (!amountOk || preview.amountSol !== amount)) { toast("Amount changed — preview again", "err"); return; }
     if (preview.side === "sell" && (!liveBal || preview.sellPct !== sellPct)) { toast("Sell amount changed — preview again", "err"); return; }
     setExecuting(true);
+    const execution = {
+      side: preview.side as "buy" | "sell",
+      mint: preview.mint as string,
+      amountSol: Number(preview.amountSol),
+      sellPct: Number(preview.sellPct),
+      slippageBps: Number(preview.slippageBps),
+      priceUsd: livePrice?.priceUsd,
+      symbol: livePrice?.symbol,
+      mev
+    };
     const retries = autoRetry ? 3 : 1;
     for (let attempt = 1; attempt <= retries; attempt++) {
-      if (preview?.side === "sell") {
-        const r = await executeSell({ mint: cleanMint, pct: sellPct / 100, slippageBps, priceUsd: livePrice?.priceUsd, symbol: livePrice?.symbol, mev: mev });
+      if (execution.side === "sell") {
+        const r = await executeSell({ mint: execution.mint, pct: execution.sellPct / 100, slippageBps: execution.slippageBps, priceUsd: execution.priceUsd, symbol: execution.symbol, mev: execution.mev });
         if (r.ok) {
           setExecuting(false);
           toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -205,7 +229,7 @@ export default function TerminalBody() {
         setExecuting(false);
         toast(r.error || "Sell failed", "err");
       } else {
-        const r = await executeBuy({ mint: cleanMint, solAmount: amount, slippageBps, priceUsd: livePrice?.priceUsd, symbol: livePrice?.symbol, mev: mev });
+        const r = await executeBuy({ mint: execution.mint, solAmount: execution.amountSol, slippageBps: execution.slippageBps, priceUsd: execution.priceUsd, symbol: execution.symbol, mev: execution.mev });
         if (r.ok) {
           setExecuting(false);
           toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -433,11 +457,11 @@ export default function TerminalBody() {
       </div>
 
       {previewOpen && (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4" onClick={() => setPreviewOpen(false)}>
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4" onClick={() => { if (!executing) setPreviewOpen(false); }}>
           <div className="w-full max-w-md rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{preview?.side === "sell" ? "Sell preview" : "Buy preview"}</h3>
-              <button onClick={() => setPreviewOpen(false)} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink">x</button>
+              <button onClick={() => { if (!executing) setPreviewOpen(false); }} disabled={executing} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink disabled:cursor-not-allowed disabled:opacity-40">x</button>
             </div>
             {previewLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-dim"><span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-toxic" /> Fetching quote…</div>
