@@ -86,6 +86,7 @@ export default function TerminalBody() {
   const livePrice = tokenLoaded ? price : null;
   const liveBal = balanceMint === cleanMint ? bal : null;
   const validPresetAmounts = AMOUNTS.filter((a) => Number.isFinite(a) && a > 0 && a <= 100);
+  const tradeLocked = previewLoading || executing;
 
   useEffect(() => { latestMintRef.current = cleanMint; }, [cleanMint]);
 
@@ -237,6 +238,21 @@ export default function TerminalBody() {
     toast(failure, "err");
   }
 
+  function closePreview() {
+    if (executing) return;
+    setPreviewOpen(false);
+    setExecutionStatus(null);
+  }
+
+  function previewAgain() {
+    if (executing || previewLoading) return;
+    const side = preview?.side ?? mode;
+    setPreview(null);
+    setExecutionStatus(null);
+    if (side === "sell") runSellPreview();
+    else runBuyPreview();
+  }
+
   const chg = livePrice?.change24h;
   const priceLabel = livePrice?.priceUsd ? `$${livePrice.priceUsd}` : tokenLoaded ? "No price" : "Load a token";
   const feeBps = Number(quote?.platformFeeBps ?? preview?.platformFeeBps ?? 0) || 0;
@@ -257,9 +273,9 @@ export default function TerminalBody() {
           <p className="mt-1 text-xs text-dim">Market buys, sells, and limit orders. Every execution requires your wallet signature.</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
-          <input value={mint} onChange={(e) => setMint(e.target.value)} placeholder="Token mint address"
-            className="min-h-11 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic sm:w-80" />
-          <button onClick={load} disabled={loading || !mintOk} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+          <input value={mint} onChange={(e) => setMint(e.target.value)} disabled={tradeLocked} placeholder="Token mint address"
+            className="min-h-11 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50 sm:w-80" />
+          <button onClick={load} disabled={loading || tradeLocked || !mintOk} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
             {loading ? "Loading" : "Load"}
           </button>
         </div>
@@ -332,7 +348,7 @@ export default function TerminalBody() {
         <div className="rounded-lg border border-edge bg-panel p-5">
           <div className="grid grid-cols-3 rounded-md border border-edge p-1 font-mono text-xs">
             {(["buy", "sell", "limit"] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)} disabled={executing || previewLoading}
+              <button key={m} onClick={() => setMode(m)} disabled={tradeLocked}
                 className={`rounded py-2 font-bold uppercase transition ${
                   mode === m
                     ? m === "sell" ? "bg-hotpink text-white" : "bg-toxic text-white"
@@ -355,8 +371,8 @@ export default function TerminalBody() {
                 <span className="font-mono text-[11px] uppercase text-dim">Sell amount</span>
                 <div className="mt-1 grid grid-cols-4 gap-1">
                   {SELL_PCTS.map((p) => (
-                    <button key={p} onClick={() => setSellPct(p)}
-                      className={`rounded border py-2 font-mono text-xs font-bold transition ${sellPct === p ? "border-hotpink bg-hotpink/15 text-hotpink" : "border-edge text-dim hover:text-ink"}`}>{p}%</button>
+                    <button key={p} onClick={() => setSellPct(p)} disabled={tradeLocked}
+                      className={`rounded border py-2 font-mono text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${sellPct === p ? "border-hotpink bg-hotpink/15 text-hotpink" : "border-edge text-dim hover:text-ink"}`}>{p}%</button>
                   ))}
                 </div>
                 {liveBal && liveBal.uiAmount > 0 && (
@@ -368,14 +384,14 @@ export default function TerminalBody() {
             <>
               <label className="mt-4 block">
                 <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
-                <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)}
-                  className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+                <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} disabled={tradeLocked}
+                  className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50" />
                 {!amountOk && <span className="mt-1 block font-mono text-[10px] text-hotpink">Use an amount above 0 and at most 100 SOL.</span>}
               </label>
               <div className="mt-2 grid grid-cols-4 gap-1">
                 {validPresetAmounts.map((a) => (
-                  <button key={a} onClick={() => setAmount(a)}
-                    className="rounded border border-edge py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">{a}</button>
+                  <button key={a} onClick={() => setAmount(a)} disabled={tradeLocked}
+                    className="rounded border border-edge py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic disabled:cursor-not-allowed disabled:opacity-50">{a}</button>
                 ))}
               </div>
             </>
@@ -383,8 +399,8 @@ export default function TerminalBody() {
 
           <label className="mt-4 block">
             <span className="font-mono text-[11px] uppercase text-dim">Max slippage %</span>
-            <input type="number" value={slippage} onChange={(e) => setSlippage(+e.target.value)}
-              className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+            <input type="number" value={slippage} onChange={(e) => setSlippage(+e.target.value)} disabled={tradeLocked}
+              className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50" />
             {!slippageOk && <span className="mt-1 block font-mono text-[10px] text-hotpink">Use slippage between 0.01% and 20%.</span>}
           </label>
 
@@ -392,14 +408,14 @@ export default function TerminalBody() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="font-mono text-[11px] uppercase text-dim">Trigger</span>
-                <select value={limitTrigger} onChange={(e) => setLimitTrigger(e.target.value as any)} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic">
+                <select value={limitTrigger} onChange={(e) => setLimitTrigger(e.target.value as any)} disabled={tradeLocked} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50">
                   <option value="below">price ≤</option><option value="above">price ≥</option>
                 </select>
               </label>
               <label className="block">
                 <span className="font-mono text-[11px] uppercase text-dim">Target $</span>
-                <input type="number" step="any" value={limitTarget || ""} onChange={(e) => setLimitTarget(+e.target.value)}
-                  className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+                <input type="number" step="any" value={limitTarget || ""} onChange={(e) => setLimitTarget(+e.target.value)} disabled={tradeLocked}
+                  className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50" />
               </label>
             </div>
           )}
@@ -449,16 +465,22 @@ export default function TerminalBody() {
       </div>
 
       {previewOpen && (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4" onClick={() => { if (!executing) setPreviewOpen(false); }}>
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 p-4" onClick={closePreview}>
           <div className="w-full max-w-md rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{preview?.side === "sell" ? "Sell preview" : "Buy preview"}</h3>
-              <button onClick={() => { if (!executing) setPreviewOpen(false); }} disabled={executing} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink disabled:cursor-not-allowed disabled:opacity-40">x</button>
+              <button onClick={closePreview} disabled={executing} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink disabled:cursor-not-allowed disabled:opacity-40">x</button>
             </div>
             {previewLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-dim"><span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-toxic" /> Fetching quote…</div>
             ) : preview?.error ? (
-              <p className="mt-4 font-mono text-sm text-hotpink">{preview.error}</p>
+              <div className="mt-4 space-y-3">
+                <p className="font-mono text-sm text-hotpink">{preview.error}</p>
+                <button onClick={previewAgain} disabled={previewLoading || executing}
+                  className="w-full rounded-md border border-toxic/60 py-2.5 text-sm font-bold text-toxic transition hover:bg-toxic/10 disabled:opacity-50">
+                  Preview again
+                </button>
+              </div>
             ) : preview?.side === "sell" ? (
               <div className="mt-4 space-y-2 font-mono text-sm">
                 <div className="flex justify-between"><span className="text-dim">You sell</span><span>{preview.sellUi?.toLocaleString(undefined, { maximumFractionDigits: 4 })} {livePrice?.symbol}</span></div>
