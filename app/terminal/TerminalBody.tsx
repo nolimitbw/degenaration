@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Candles from "@/components/Candles";
 import { usePrivy } from "@privy-io/react-auth";
@@ -41,6 +41,8 @@ async function fetchJson<T = any>(url: string, ms = 9000): Promise<T | null> {
 export default function TerminalBody() {
   const params = useSearchParams();
   const [mint, setMint] = useState(params.get("mint") || "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263");
+  const cleanMint = mint.trim();
+  const latestMintRef = useRef(cleanMint);
   const [mode, setMode] = useState<Mode>("buy");
   const [amount, setAmount] = useState(Number(params.get("amount")) > 0 ? Number(params.get("amount")) : 0.5);
   const [sellPct, setSellPct] = useState(100);
@@ -48,6 +50,7 @@ export default function TerminalBody() {
   const [mev, setMev] = useState(true);
   const [autoRetry, setAutoRetry] = useState(true);
   const [price, setPrice] = useState<any>(null);
+  const [loadedMint, setLoadedMint] = useState<string | null>(null);
   const [quote, setQuote] = useState<any>(null);
   const [candles, setCandles] = useState<any[]>([]);
   const [holders, setHolders] = useState<any[]>([]);
@@ -55,6 +58,7 @@ export default function TerminalBody() {
   const [tf] = useState<"minute" | "hour" | "day">("hour");
   const [loading, setLoading] = useState(false);
   const [bal, setBal] = useState<{ uiAmount: number; rawAmount: string; decimals: number } | null>(null);
+  const [balanceMint, setBalanceMint] = useState<string | null>(null);
   // unified trade preview modal (buy or sell)
   const [preview, setPreview] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -68,7 +72,6 @@ export default function TerminalBody() {
   const { presets: AMOUNTS } = useQuickBuyPresets();
   const toast = useToast();
   const pubkey = getSolanaAddress(user);
-  const cleanMint = mint.trim();
   const mintOk = MINT_RE.test(cleanMint);
   const walletId = getSolanaWalletId(user);
   const delegated = hasDelegatedSolanaWallet(user);
@@ -76,13 +79,22 @@ export default function TerminalBody() {
   const slippageOk = Number.isFinite(slippage) && slippage > 0 && slippage <= 20;
   const slippageBps = Math.round(slippage * 100);
   const canCreateLimit = mintOk && amountOk && slippageOk && limitTarget > 0 && (!authenticated || (walletId && delegated));
+  const tokenLoaded = mintOk && loadedMint === cleanMint;
+  const livePrice = tokenLoaded ? price : null;
+  const liveBal = balanceMint === cleanMint ? bal : null;
+  const validPresetAmounts = AMOUNTS.filter((a) => Number.isFinite(a) && a > 0 && a <= 100);
+
+  useEffect(() => { latestMintRef.current = cleanMint; }, [cleanMint]);
 
   const loadBalance = useCallback(async () => {
     const currentMint = mint.trim();
-    if (!pubkey || !MINT_RE.test(currentMint)) { setBal(null); return; }
+    if (!pubkey || !MINT_RE.test(currentMint)) { setBal(null); setBalanceMint(null); return; }
+    setBal(null);
+    setBalanceMint(null);
     const b = await fetch(`/api/token-balance?owner=${pubkey}&mint=${currentMint}&net=${getNet()}`).then((r) => r.json()).catch(() => null);
-    if (b && !b.error) setBal({ uiAmount: b.uiAmount, rawAmount: b.rawAmount, decimals: b.decimals });
-    else setBal(null);
+    if (currentMint !== latestMintRef.current) return;
+    if (b && !b.error) { setBal({ uiAmount: b.uiAmount, rawAmount: b.rawAmount, decimals: b.decimals }); setBalanceMint(currentMint); }
+    else { setBal(null); setBalanceMint(null); }
   }, [pubkey, mint]);
 
   async function createLimit() {
@@ -91,7 +103,7 @@ export default function TerminalBody() {
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
     if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before creating limits", "err"); return; }
-    const { error } = await createLimitOrder({ mint: cleanMint, symbol: price?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippageBps, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
+    const { error } = await createLimitOrder({ mint: cleanMint, symbol: livePrice?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippageBps, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created — see Limit Orders");
   }
@@ -100,7 +112,13 @@ export default function TerminalBody() {
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     setLoading(true);
+    setLoadedMint(null);
+    setPrice(null);
+    setQuote(null);
+    setCandles([]);
+    setHolders([]);
     try {
+      const targetMint = cleanMint;
       const quoteUrl = amountOk ? `/api/quote?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippageBps}` : null;
       const [p, oh, hd, q] = await Promise.all([
         fetchJson(`/api/price?mint=${cleanMint}`),
@@ -108,7 +126,9 @@ export default function TerminalBody() {
         fetchJson(`/api/holders?mint=${cleanMint}`),
         quoteUrl ? fetchJson(quoteUrl) : Promise.resolve(null)
       ]);
+      if (targetMint !== latestMintRef.current) return;
       setPrice(p);
+      setLoadedMint(targetMint);
       setCandles(oh?.candles ?? []);
       setHolders(hd?.holders ?? []);
       setQuote(q && !q.error ? q : null);
@@ -125,6 +145,12 @@ export default function TerminalBody() {
   useEffect(() => { loadBalance(); }, [loadBalance]);
   // Any trade input change invalidates the displayed quote until the next load/preview.
   useEffect(() => { setQuote(null); }, [cleanMint, amount, slippage, mode]);
+  useEffect(() => {
+    setPreviewOpen(false);
+    setPreview(null);
+    setBal(null);
+    setBalanceMint(null);
+  }, [cleanMint]);
 
   // BUY preview: simulate the SOL->token swap, then confirm & sign
   async function runBuyPreview() {
@@ -135,7 +161,7 @@ export default function TerminalBody() {
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
     const s = await fetch(`/api/simulate?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Simulation failed — try again." }));
-    setPreview({ side: "buy", ...s }); setPreviewLoading(false);
+    setPreview({ side: "buy", mint: cleanMint, amountSol: amount, slippageBps, ...s }); setPreviewLoading(false);
   }
 
   // SELL preview: quote token->SOL for the chosen % of the live balance
@@ -143,24 +169,31 @@ export default function TerminalBody() {
     if (!authenticated) { login(); return; }
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
-    if (!bal || bal.uiAmount <= 0) { toast("You don't hold this token", "err"); return; }
+    if (!liveBal || liveBal.uiAmount <= 0) { toast("You don't hold this token", "err"); return; }
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
-    const rawTotal = BigInt(bal.rawAmount || "0");
+    const rawTotal = BigInt(liveBal.rawAmount || "0");
     const rawAmt = (rawTotal * BigInt(Math.round((sellPct / 100) * 10000))) / BigInt(10000);
-    if (rawAmt <= BigInt(0)) { setPreview({ side: "sell", error: "Amount too small" }); setPreviewLoading(false); return; }
+    if (rawAmt <= BigInt(0)) { setPreview({ side: "sell", mint: cleanMint, sellPct, error: "Amount too small" }); setPreviewLoading(false); return; }
     const q = await fetch(`/api/quote?in=${cleanMint}&out=${SOL}&amount=${rawAmt.toString()}&slippageBps=${slippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Quote failed — try again." }));
     const solOut = q.outAmount ? Number(q.outAmount) / 1e9 : null;
-    const sellUi = bal.uiAmount * (sellPct / 100);
-    setPreview({ side: "sell", ...q, solOut, sellUi }); setPreviewLoading(false);
+    const sellUi = liveBal.uiAmount * (sellPct / 100);
+    setPreview({ side: "sell", mint: cleanMint, sellPct, slippageBps, ...q, solOut, sellUi }); setPreviewLoading(false);
   }
 
   async function confirmTrade() {
+    if (!authenticated) { login(); return; }
+    if (!preview || preview.error) { toast("Preview the trade first", "err"); return; }
+    if (!mintOk || !slippageOk) { toast("Fix the trade inputs first", "err"); return; }
+    if (preview.mint !== cleanMint) { toast("Token changed — preview again", "err"); return; }
+    if (preview.slippageBps !== slippageBps) { toast("Slippage changed — preview again", "err"); return; }
+    if (preview.side === "buy" && (!amountOk || preview.amountSol !== amount)) { toast("Amount changed — preview again", "err"); return; }
+    if (preview.side === "sell" && (!liveBal || preview.sellPct !== sellPct)) { toast("Sell amount changed — preview again", "err"); return; }
     setExecuting(true);
     const retries = autoRetry ? 3 : 1;
     for (let attempt = 1; attempt <= retries; attempt++) {
       if (preview?.side === "sell") {
-        const r = await executeSell({ mint: cleanMint, pct: sellPct / 100, slippageBps, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        const r = await executeSell({ mint: cleanMint, pct: sellPct / 100, slippageBps, priceUsd: livePrice?.priceUsd, symbol: livePrice?.symbol, mev: mev });
         if (r.ok) {
           setExecuting(false);
           toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -172,7 +205,7 @@ export default function TerminalBody() {
         setExecuting(false);
         toast(r.error || "Sell failed", "err");
       } else {
-        const r = await executeBuy({ mint: cleanMint, solAmount: amount, slippageBps, priceUsd: price?.priceUsd, symbol: price?.symbol, mev: mev });
+        const r = await executeBuy({ mint: cleanMint, solAmount: amount, slippageBps, priceUsd: livePrice?.priceUsd, symbol: livePrice?.symbol, mev: mev });
         if (r.ok) {
           setExecuting(false);
           toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
@@ -187,13 +220,13 @@ export default function TerminalBody() {
     }
   }
 
-  const chg = price?.change24h;
-  const priceLabel = price?.priceUsd ? `$${price.priceUsd}` : "Load a token";
+  const chg = livePrice?.change24h;
+  const priceLabel = livePrice?.priceUsd ? `$${livePrice.priceUsd}` : tokenLoaded ? "No price" : "Load a token";
   const feeBps = Number(quote?.platformFeeBps ?? preview?.platformFeeBps ?? 0) || 0;
   const feeLabel = feeBps > 0 ? `${(feeBps / 100).toFixed(0)}% platform` : "No platform fee";
-  const quoteLabel = mode === "buy" && price?.priceUsd && price?.solPrice
-    ? `${(amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${price?.symbol ?? "tokens"}`
-    : quote?.outAmount ? `${formatBaseUnits(quote.outAmount, quote.outputDecimals, 2)} ${price?.symbol ?? "tokens"}` : "Preview required";
+  const quoteLabel = mode === "buy" && livePrice?.priceUsd && livePrice?.solPrice
+    ? `${(amount * livePrice.solPrice / livePrice.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${livePrice?.symbol ?? "tokens"}`
+    : quote?.outAmount ? `${formatBaseUnits(quote.outAmount, quote.outputDecimals, 2)} ${livePrice?.symbol ?? "tokens"}` : "Preview required";
 
   return (
     <>
@@ -221,9 +254,9 @@ export default function TerminalBody() {
           <div className="rounded-lg border border-edge bg-panel p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {price?.image ? <img src={price.image} alt="" className="h-11 w-11 rounded-full" /> : <div className="grid h-11 w-11 place-items-center rounded-full bg-edge font-mono text-xs">{(price?.symbol ?? mint).slice(0, 2)}</div>}
+                {livePrice?.image ? <img src={livePrice.image} alt="" className="h-11 w-11 rounded-full" /> : <div className="grid h-11 w-11 place-items-center rounded-full bg-edge font-mono text-xs">{(livePrice?.symbol ?? mint).slice(0, 2)}</div>}
                 <div>
-                  <p className="font-mono text-sm font-bold">{price?.symbol ?? mint.slice(0, 6)} <span className="text-dim">{price?.name ? `· ${price.name}` : ""}</span></p>
+                  <p className="font-mono text-sm font-bold">{livePrice?.symbol ?? mint.slice(0, 6)} <span className="text-dim">{livePrice?.name ? `· ${livePrice.name}` : ""}</span></p>
                   <p className="mt-0.5 font-mono text-2xl font-bold">{priceLabel}</p>
                 </div>
               </div>
@@ -231,7 +264,7 @@ export default function TerminalBody() {
                 <p className={chg >= 0 ? "text-up" : "text-hotpink"}>
                   {chg != null ? `${chg >= 0 ? "+" : ""}${chg.toFixed(1)}% 24h` : "—"}
                 </p>
-                <p className="text-dim">Liq {fmtUsd(Number(price?.liquidityUsd) || null)} · {price?.dex ?? "—"}</p>
+                <p className="text-dim">Liq {fmtUsd(Number(livePrice?.liquidityUsd) || null)} · {livePrice?.dex ?? "—"}</p>
               </div>
             </div>
             <div className="mt-4 grid gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-3">
@@ -246,15 +279,15 @@ export default function TerminalBody() {
               ))}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-edge pt-3 font-mono text-[11px] sm:grid-cols-4">
-              <div><p className="text-dim">FDV</p><p className="text-ink">{fmtUsd(Number(price?.fdv) || null)}</p></div>
-              <div><p className="text-dim">24h Vol</p><p className="text-ink">{fmtUsd(Number(price?.volume24h) || null)}</p></div>
-              <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{price?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{price?.sells24h ?? "—"}</span></p></div>
-              <div><p className="text-dim">Socials</p><p className="flex gap-2">{(price?.socials || []).slice(0, 3).map((x: any) => (<a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:underline">{x.type?.slice(0, 2)}</a>))}{!(price?.socials || []).length && <span className="text-dim">—</span>}</p></div>
+              <div><p className="text-dim">FDV</p><p className="text-ink">{fmtUsd(Number(livePrice?.fdv) || null)}</p></div>
+              <div><p className="text-dim">24h Vol</p><p className="text-ink">{fmtUsd(Number(livePrice?.volume24h) || null)}</p></div>
+              <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{livePrice?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{livePrice?.sells24h ?? "—"}</span></p></div>
+              <div><p className="text-dim">Socials</p><p className="flex gap-2">{(livePrice?.socials || []).slice(0, 3).map((x: any) => (<a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:underline">{x.type?.slice(0, 2)}</a>))}{!(livePrice?.socials || []).length && <span className="text-dim">—</span>}</p></div>
             </div>
             {chartTab === "chart" && <div className="mt-3">
-              {price?.pairAddress ? (
-                <iframe key={price.pairAddress}
-                  src={`https://dexscreener.com/${price.chainId || "solana"}/${price.pairAddress}?embed=1&theme=dark&trades=0&info=0`}
+              {livePrice?.pairAddress ? (
+                <iframe key={livePrice.pairAddress}
+                  src={`https://dexscreener.com/${livePrice.chainId || "solana"}/${livePrice.pairAddress}?embed=1&theme=dark&trades=0&info=0`}
                   className="h-[420px] w-full rounded-md border border-edge" title="chart" />
               ) : candles.length ? (<Candles data={candles} />) : (
                 <div className="grid h-72 place-items-center rounded-md border border-edge bg-void text-sm text-dim">Load a token to see its live DexScreener chart.</div>
@@ -268,11 +301,11 @@ export default function TerminalBody() {
             )}
             {chartTab === "info" && (
               <div className="mt-3 space-y-2 rounded-md border border-edge bg-void p-4 font-mono text-xs">
-                <p className="text-dim">Name: <span className="text-ink">{price?.name ?? "—"}</span></p>
-                <p className="text-dim">Symbol: <span className="text-ink">{price?.symbol ?? "—"}</span></p>
-                <p className="text-dim">FDV: <span className="text-ink">{price?.fdv ? "$" + Math.round(price.fdv).toLocaleString() : "—"}</span></p>
+                <p className="text-dim">Name: <span className="text-ink">{livePrice?.name ?? "—"}</span></p>
+                <p className="text-dim">Symbol: <span className="text-ink">{livePrice?.symbol ?? "—"}</span></p>
+                <p className="text-dim">FDV: <span className="text-ink">{livePrice?.fdv ? "$" + Math.round(livePrice.fdv).toLocaleString() : "—"}</span></p>
                 <p className="text-dim">Mint: <span className="break-all text-ink">{cleanMint}</span></p>
-                <p className="text-dim">Links: {(price?.websites || []).concat((price?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 text-cyber hover:underline">↗</a>))}{!(price?.websites || []).length && !(price?.socials || []).length && <span className="text-ink">—</span>}</p>
+                <p className="text-dim">Links: {(livePrice?.websites || []).concat((livePrice?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 text-cyber hover:underline">↗</a>))}{!(livePrice?.websites || []).length && !(livePrice?.socials || []).length && <span className="text-ink">—</span>}</p>
               </div>
             )}
           </div>
@@ -295,7 +328,7 @@ export default function TerminalBody() {
           {authenticated && (
             <div className="mt-3 flex items-center justify-between rounded-md border border-edge bg-void px-3 py-2 font-mono text-[11px]">
               <span className="text-dim">Your balance</span>
-              <span className="text-ink">{bal ? `${bal.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${price?.symbol ?? ""}` : "—"}</span>
+              <span className="text-ink">{liveBal ? `${liveBal.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${livePrice?.symbol ?? ""}` : "—"}</span>
             </div>
           )}
 
@@ -309,8 +342,8 @@ export default function TerminalBody() {
                       className={`rounded border py-2 font-mono text-xs font-bold transition ${sellPct === p ? "border-hotpink bg-hotpink/15 text-hotpink" : "border-edge text-dim hover:text-ink"}`}>{p}%</button>
                   ))}
                 </div>
-                {bal && bal.uiAmount > 0 && (
-                  <p className="mt-1.5 font-mono text-[11px] text-dim">≈ {(bal.uiAmount * sellPct / 100).toLocaleString(undefined, { maximumFractionDigits: 4 })} {price?.symbol ?? "tokens"}</p>
+                {liveBal && liveBal.uiAmount > 0 && (
+                  <p className="mt-1.5 font-mono text-[11px] text-dim">≈ {(liveBal.uiAmount * sellPct / 100).toLocaleString(undefined, { maximumFractionDigits: 4 })} {livePrice?.symbol ?? "tokens"}</p>
                 )}
               </div>
             </>
@@ -323,7 +356,7 @@ export default function TerminalBody() {
                 {!amountOk && <span className="mt-1 block font-mono text-[10px] text-hotpink">Use an amount above 0 and at most 100 SOL.</span>}
               </label>
               <div className="mt-2 grid grid-cols-4 gap-1">
-                {AMOUNTS.map((a) => (
+                {validPresetAmounts.map((a) => (
                   <button key={a} onClick={() => setAmount(a)}
                     className="rounded border border-edge py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">{a}</button>
                 ))}
@@ -373,9 +406,9 @@ export default function TerminalBody() {
             </div>
           )}
 
-          {mode === "buy" && (price?.priceUsd || quote?.outAmount) && (
+          {mode === "buy" && (livePrice?.priceUsd || quote?.outAmount) && (
             <p className="mt-4 rounded-md border border-edge bg-void px-3 py-2 font-mono text-[11px] text-toxic">
-              ≈ {price?.priceUsd && price?.solPrice ? (amount * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : formatBaseUnits(quote.outAmount, quote.outputDecimals, 2)} {price?.symbol ?? "tokens"} · {feeBps > 0 ? `${feeBps / 100}% fee applied` : "fee wallet not configured"}
+              ≈ {livePrice?.priceUsd && livePrice?.solPrice ? (amount * livePrice.solPrice / livePrice.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : formatBaseUnits(quote.outAmount, quote.outputDecimals, 2)} {livePrice?.symbol ?? "tokens"} · {feeBps > 0 ? `${feeBps / 100}% fee applied` : "fee wallet not configured"}
             </p>
           )}
 
@@ -385,9 +418,9 @@ export default function TerminalBody() {
               {!authenticated ? "Connect wallet for limit" : !walletId || !delegated ? "Enable auto-trading first" : "Create limit order"}
             </button>
           ) : mode === "sell" ? (
-            <button onClick={runSellPreview} disabled={previewLoading || (authenticated && (!mintOk || !slippageOk || !bal || bal.uiAmount <= 0))}
+            <button onClick={runSellPreview} disabled={previewLoading || (authenticated && (!mintOk || !slippageOk || !liveBal || liveBal.uiAmount <= 0))}
               className="mt-4 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
-              {!slippageOk ? "Fix slippage" : !authenticated ? "Connect wallet to sell" : !bal || bal.uiAmount <= 0 ? "No balance to sell" : `Sell ${sellPct}%`}
+              {!slippageOk ? "Fix slippage" : !authenticated ? "Connect wallet to sell" : !liveBal || liveBal.uiAmount <= 0 ? "No balance to sell" : `Sell ${sellPct}%`}
             </button>
           ) : (
             <button onClick={runBuyPreview} disabled={previewLoading || !mintOk || !amountOk || !slippageOk}
@@ -412,7 +445,7 @@ export default function TerminalBody() {
               <p className="mt-4 font-mono text-sm text-hotpink">{preview.error}</p>
             ) : preview?.side === "sell" ? (
               <div className="mt-4 space-y-2 font-mono text-sm">
-                <div className="flex justify-between"><span className="text-dim">You sell</span><span>{preview.sellUi?.toLocaleString(undefined, { maximumFractionDigits: 4 })} {price?.symbol}</span></div>
+                <div className="flex justify-between"><span className="text-dim">You sell</span><span>{preview.sellUi?.toLocaleString(undefined, { maximumFractionDigits: 4 })} {livePrice?.symbol}</span></div>
                 <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{preview.solOut != null ? `${preview.solOut.toFixed(4)} SOL` : "—"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct != null ? `${Math.abs(preview.priceImpactPct).toFixed(2)}%` : "—"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.platformFeeBps / 100}%` : "not configured"}</span></div>
@@ -425,7 +458,7 @@ export default function TerminalBody() {
             ) : preview ? (
               <div className="mt-4 space-y-2 font-mono text-sm">
                 <div className="flex justify-between"><span className="text-dim">You pay</span><span>{preview.inAmountSol} SOL</span></div>
-                <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{price?.priceUsd && price?.solPrice ? (preview.inAmountSol * price.solPrice / price.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : formatBaseUnits(preview.outAmount, preview.outputDecimals, 2)} {price?.symbol}</span></div>
+                <div className="flex justify-between"><span className="text-dim">You receive (est.)</span><span className="text-toxic">{livePrice?.priceUsd && livePrice?.solPrice ? (preview.inAmountSol * livePrice.solPrice / livePrice.priceUsd).toLocaleString(undefined, { maximumFractionDigits: 2 }) : formatBaseUnits(preview.outAmount, preview.outputDecimals, 2)} {livePrice?.symbol}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Min received</span><span>{formatBaseUnits(preview.minReceived, preview.outputDecimals)}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct.toFixed(2)}%</span></div>
                 <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.feeSol.toFixed(4)} SOL` : "not configured"}</span></div>
