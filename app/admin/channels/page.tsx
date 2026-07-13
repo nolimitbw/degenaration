@@ -12,7 +12,7 @@ type Channel = {
 type Summary = { pendingChannels?: number; approvedChannels?: number };
 type ChannelsResponse = { channels?: Channel[]; source?: string; normalizedFrom?: string; rpcCount?: number; rpcError?: string };
 type BotConfig = { clientId?: string; slashCommandConfigured?: boolean; registrationCommand?: string; registrationBridgeConfigured?: boolean; botBuild?: string };
-const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v4";
+const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v5";
 
 function withFreshQuery(path: string) {
   const joiner = path.includes("?") ? "&" : "?";
@@ -35,11 +35,6 @@ export default function AdminChannels() {
 
   const load = useCallback(async () => {
     if (!admin) {
-      setLoaded(false);
-      return;
-    }
-    if (!identityToken) {
-      setErr(null);
       setLoaded(false);
       return;
     }
@@ -86,7 +81,7 @@ export default function AdminChannels() {
   const pending = channels.filter((c) => c.status === "pending");
   const decided = channels.filter((c) => c.status !== "pending");
   const newest = channels[0];
-  const waitingForOwnerToken = admin && !identityToken;
+  const waitingForOwnerToken = admin && !identityToken && !loaded;
   const expectedPending = Number(summary?.pendingChannels ?? pending.length);
 
   return (
