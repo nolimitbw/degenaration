@@ -49,7 +49,6 @@ export default function TerminalBody() {
   const [sellPct, setSellPct] = useState(100);
   const [slippage, setSlippage] = useState(3);
   const [mev, setMev] = useState(true);
-  const [autoRetry, setAutoRetry] = useState(true);
   const [price, setPrice] = useState<any>(null);
   const [loadedMint, setLoadedMint] = useState<string | null>(null);
   const [quote, setQuote] = useState<any>(null);
@@ -65,6 +64,7 @@ export default function TerminalBody() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [executionStatus, setExecutionStatus] = useState<string | null>(null);
   const [limitTarget, setLimitTarget] = useState(0);
   const [limitTrigger, setLimitTrigger] = useState<"below" | "above">("below");
   const { user, authenticated, login, getAccessToken } = usePrivy();
@@ -78,8 +78,10 @@ export default function TerminalBody() {
   const delegated = hasDelegatedSolanaWallet(user);
   const amountOk = Number.isFinite(amount) && amount > 0 && amount <= 100;
   const slippageOk = Number.isFinite(slippage) && slippage > 0 && slippage <= 20;
+  const limitTargetOk = Number.isFinite(limitTarget) && limitTarget > 0;
   const slippageBps = Math.round(slippage * 100);
-  const canCreateLimit = mintOk && amountOk && slippageOk && limitTarget > 0 && (!authenticated || (walletId && delegated));
+  const limitDraftOk = mintOk && amountOk && slippageOk && limitTargetOk;
+  const canCreateLimit = limitDraftOk && (!authenticated || (walletId && delegated));
   const tokenLoaded = mintOk && loadedMint === cleanMint;
   const livePrice = tokenLoaded ? price : null;
   const liveBal = balanceMint === cleanMint ? bal : null;
@@ -165,6 +167,7 @@ export default function TerminalBody() {
     const targetMint = cleanMint;
     const targetAmount = amount;
     const targetSlippageBps = slippageBps;
+    setExecutionStatus(null);
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
     const s = await fetch(`/api/simulate?in=${SOL}&out=${targetMint}&amount=${Math.floor(targetAmount * 1e9)}&slippageBps=${targetSlippageBps}`)
       .then((r) => r.json()).catch(() => ({ error: "Simulation failed — try again." }));
@@ -183,6 +186,7 @@ export default function TerminalBody() {
     const targetSellPct = sellPct;
     const targetSlippageBps = slippageBps;
     const targetBalance = liveBal;
+    setExecutionStatus(null);
     setPreviewOpen(true); setPreviewLoading(true); setPreview(null);
     const rawTotal = BigInt(targetBalance.rawAmount || "0");
     const rawAmt = (rawTotal * BigInt(Math.round((targetSellPct / 100) * 10000))) / BigInt(10000);
@@ -204,6 +208,7 @@ export default function TerminalBody() {
     if (preview.side === "buy" && (!amountOk || preview.amountSol !== amount)) { toast("Amount changed — preview again", "err"); return; }
     if (preview.side === "sell" && (!liveBal || preview.sellPct !== sellPct)) { toast("Sell amount changed — preview again", "err"); return; }
     setExecuting(true);
+    setExecutionStatus("Building a wallet-signed transaction from this preview...");
     const execution = {
       side: preview.side as "buy" | "sell",
       mint: preview.mint as string,
@@ -214,34 +219,22 @@ export default function TerminalBody() {
       symbol: livePrice?.symbol,
       mev
     };
-    const retries = autoRetry ? 3 : 1;
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      if (execution.side === "sell") {
-        const r = await executeSell({ mint: execution.mint, pct: execution.sellPct / 100, slippageBps: execution.slippageBps, priceUsd: execution.priceUsd, symbol: execution.symbol, mev: execution.mev });
-        if (r.ok) {
-          setExecuting(false);
-          toast("Sell sent — " + (r.sig?.slice(0, 8) ?? ""));
-          setPreviewOpen(false);
-          setTimeout(loadBalance, 4000);
-          return;
-        }
-        if (attempt < retries) { toast(`Retry ${attempt}/${retries - 1}…`, "info"); continue; }
-        setExecuting(false);
-        toast(r.error || "Sell failed", "err");
-      } else {
-        const r = await executeBuy({ mint: execution.mint, solAmount: execution.amountSol, slippageBps: execution.slippageBps, priceUsd: execution.priceUsd, symbol: execution.symbol, mev: execution.mev });
-        if (r.ok) {
-          setExecuting(false);
-          toast("Buy sent — " + (r.sig?.slice(0, 8) ?? ""));
-          setPreviewOpen(false);
-          setTimeout(loadBalance, 4000);
-          return;
-        }
-        if (attempt < retries) { toast(`Retry ${attempt}/${retries - 1}…`, "info"); continue; }
-        setExecuting(false);
-        toast(r.error || "Buy failed", "err");
-      }
+    const r = execution.side === "sell"
+      ? await executeSell({ mint: execution.mint, pct: execution.sellPct / 100, slippageBps: execution.slippageBps, priceUsd: execution.priceUsd, symbol: execution.symbol, mev: execution.mev })
+      : await executeBuy({ mint: execution.mint, solAmount: execution.amountSol, slippageBps: execution.slippageBps, priceUsd: execution.priceUsd, symbol: execution.symbol, mev: execution.mev });
+
+    setExecuting(false);
+    if (r.ok) {
+      toast(`${execution.side === "sell" ? "Sell" : "Buy"} sent — ` + (r.sig?.slice(0, 8) ?? ""));
+      setPreviewOpen(false);
+      setExecutionStatus(null);
+      setTimeout(loadBalance, 4000);
+      return;
     }
+    const failure = r.error || `${execution.side === "sell" ? "Sell" : "Buy"} failed`;
+    setExecutionStatus(failure);
+    setPreview((current: any) => current ? { ...current, error: `${failure}. Preview again before retrying.` } : current);
+    toast(failure, "err");
   }
 
   const chg = livePrice?.change24h;
@@ -339,11 +332,11 @@ export default function TerminalBody() {
         <div className="rounded-lg border border-edge bg-panel p-5">
           <div className="grid grid-cols-3 rounded-md border border-edge p-1 font-mono text-xs">
             {(["buy", "sell", "limit"] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)}
+              <button key={m} onClick={() => setMode(m)} disabled={executing || previewLoading}
                 className={`rounded py-2 font-bold uppercase transition ${
                   mode === m
                     ? m === "sell" ? "bg-hotpink text-white" : "bg-toxic text-white"
-                    : "text-dim hover:text-ink"
+                    : "text-dim hover:text-ink disabled:hover:text-dim"
                 }`}>{m}</button>
             ))}
           </div>
@@ -419,11 +412,10 @@ export default function TerminalBody() {
           {mode !== "sell" && (
             <div className="mt-4 space-y-2 text-sm">
               {[
-                { l: "MEV protection", v: mev, set: setMev },
-                { l: "Auto-retry", v: autoRetry, set: setAutoRetry }
+                { l: "MEV protection", v: mev, set: setMev }
               ].map((o) => (
                 <label key={o.l} className="flex items-center gap-2 text-dim">
-                  <input type="checkbox" checked={o.v} onChange={(e) => o.set(e.target.checked)} className="accent-toxic" />
+                  <input type="checkbox" checked={o.v} onChange={(e) => o.set(e.target.checked)} disabled={executing || previewLoading} className="accent-toxic disabled:opacity-50" />
                   {o.l}
                 </label>
               ))}
@@ -437,9 +429,9 @@ export default function TerminalBody() {
           )}
 
           {mode === "limit" ? (
-            <button onClick={createLimit} disabled={authenticated && !canCreateLimit}
+            <button onClick={createLimit} disabled={!limitDraftOk || (authenticated && !canCreateLimit)}
               className="mt-4 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-              {!authenticated ? "Connect wallet for limit" : !walletId || !delegated ? "Enable auto-trading first" : "Create limit order"}
+              {!mintOk ? "Fix token mint" : !amountOk ? "Fix amount" : !slippageOk ? "Fix slippage" : !limitTargetOk ? "Set target price" : !authenticated ? "Connect wallet for limit" : !walletId || !delegated ? "Enable auto-trading first" : "Create limit order"}
             </button>
           ) : mode === "sell" ? (
             <button onClick={runSellPreview} disabled={previewLoading || (authenticated && (!mintOk || !slippageOk || !liveBal || liveBal.uiAmount <= 0))}
@@ -474,6 +466,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">Price impact</span><span className={preview.priceImpactPct > 10 ? "text-hotpink" : ""}>{preview.priceImpactPct != null ? `${Math.abs(preview.priceImpactPct).toFixed(2)}%` : "—"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.platformFeeBps / 100}%` : "not configured"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
+                {executionStatus && <p className={`rounded-md border px-3 py-2 text-[11px] ${executing ? "border-edge bg-void text-dim" : "border-hotpink/40 bg-hotpink/5 text-hotpink"}`}>{executionStatus}</p>}
                 <button onClick={confirmTrade} disabled={executing}
                   className="mt-2 w-full rounded-md bg-hotpink py-3 font-bold text-white shadow-pink transition hover:brightness-110 disabled:opacity-50">
                   {executing ? "Awaiting signature…" : "Confirm sell & sign"}
@@ -488,6 +481,7 @@ export default function TerminalBody() {
                 <div className="flex justify-between"><span className="text-dim">Platform fee</span><span>{preview.platformFeeBps ? `${preview.feeSol.toFixed(4)} SOL` : "not configured"}</span></div>
                 <div className="flex justify-between"><span className="text-dim">Route</span><span className="text-dim">{(preview.route || []).join(" → ") || "—"}</span></div>
                 {preview.warn && <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-[11px] text-hotpink">{preview.warn}</p>}
+                {executionStatus && <p className={`rounded-md border px-3 py-2 text-[11px] ${executing ? "border-edge bg-void text-dim" : "border-hotpink/40 bg-hotpink/5 text-hotpink"}`}>{executionStatus}</p>}
                 <button onClick={confirmTrade} disabled={executing}
                   className="mt-2 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
                   {executing ? "Awaiting signature…" : "Confirm buy & sign"}
