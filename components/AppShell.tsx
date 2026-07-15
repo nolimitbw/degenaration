@@ -4,6 +4,28 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import {
+  Bell,
+  Bot,
+  ChartNoAxesCombined,
+  ChevronDown,
+  CircleDollarSign,
+  CircleDot,
+  Compass,
+  Flame,
+  ListOrdered,
+  Menu,
+  Radar,
+  RadioTower,
+  ServerCog,
+  Settings,
+  ShieldCheck,
+  SquareTerminal,
+  Star,
+  WalletCards,
+  X,
+  type LucideIcon
+} from "lucide-react";
 import Ticker from "./Ticker";
 import Search from "./Search";
 
@@ -33,20 +55,22 @@ const PRIMARY = [
 ];
 
 // Secondary surfaces grouped under a Tools dropdown.
-const TOOLS = [
-  { href: "/terminal", label: "Trade Terminal", desc: "Buy & sell any token instantly", icon: "▤" },
-  { href: "/orders", label: "Limit Orders", desc: "Auto buy/sell at your price", icon: "◪" },
-  { href: "/calls", label: "Discord Calls", desc: "Copy trades from call groups", icon: "◎" },
-  { href: "/watchlist", label: "Watchlist", desc: "Your starred tokens", icon: "☆" },
-  { href: "/alerts", label: "Alerts", desc: "Price & wallet notifications", icon: "◔" },
-  { href: "/dashboard", label: "Portfolio", desc: "PnL and trade history", icon: "◱" },
-  { href: "/apply", label: "List your server", desc: "Add your call group", icon: "▣" }
+type ToolItem = { href: string; label: string; desc: string; icon: LucideIcon };
+
+const TOOLS: ToolItem[] = [
+  { href: "/terminal", label: "Trade Terminal", desc: "Buy and sell any token instantly", icon: SquareTerminal },
+  { href: "/orders", label: "Limit Orders", desc: "Auto buy or sell at your price", icon: ListOrdered },
+  { href: "/calls", label: "Discord Calls", desc: "Copy trades from call groups", icon: RadioTower },
+  { href: "/watchlist", label: "Watchlist", desc: "Your starred tokens", icon: Star },
+  { href: "/alerts", label: "Price Alerts", desc: "Live browser price notifications", icon: Bell },
+  { href: "/dashboard", label: "Portfolio", desc: "PnL and trade history", icon: ChartNoAxesCombined },
+  { href: "/apply", label: "List your server", desc: "Add your Discord call group", icon: ServerCog }
 ];
 
-const ADMIN_TOOLS = [
-  { href: "/admin", label: "Admin", desc: "Owner console", icon: "⚙" },
-  { href: "/admin/channels", label: "Call channels", desc: "Approve Discord channels", icon: "◎" },
-  { href: "/admin/commissions", label: "Commissions", desc: "Platform fee ledger", icon: "$" }
+const ADMIN_TOOLS: ToolItem[] = [
+  { href: "/admin", label: "Admin", desc: "Owner console", icon: ShieldCheck },
+  { href: "/admin/channels", label: "Call channels", desc: "Approve Discord channels", icon: Bot },
+  { href: "/admin/commissions", label: "Commissions", desc: "Platform fee ledger", icon: CircleDollarSign }
 ];
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -65,51 +89,73 @@ function SolPrice() {
   }, []);
   return (
     <span className="flex items-center gap-1.5 font-mono text-[11px] text-dim">
-      <span className="text-toxic">◎ SOL</span>
+      <span className="flex items-center gap-1 text-toxic"><CircleDot aria-hidden="true" size={12} strokeWidth={1.8} /> SOL</span>
       <span className="text-ink">{px != null ? `$${px.toFixed(2)}` : "…"}</span>
     </span>
   );
 }
 
-function ToolsMenu({ items, path }: { items: typeof TOOLS; path: string }) {
+function isActivePath(path: string, href: string) {
+  return path === href || path.startsWith(`${href}/`);
+}
+
+function ToolsMenu({ items, path }: { items: ToolItem[]; path: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
-  const active = items.some((i) => path === i.href);
+  const active = items.some((i) => isActivePath(path, i.href));
   return (
     <div ref={ref} className="relative">
       <button
+        ref={buttonRef}
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
           active || open ? "text-toxic" : "text-dim hover:text-ink"
         }`}
       >
-        Tools <span className={`text-[10px] transition ${open ? "rotate-180" : ""}`}>▾</span>
+        Tools <ChevronDown aria-hidden="true" size={14} className={`transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg border border-edge bg-panel p-1.5 shadow-card">
-          {items.map((i) => (
+        <div role="menu" className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg border border-edge bg-panel p-1.5 shadow-card">
+          {items.map((i) => {
+            const Icon = i.icon;
+            return (
             <Link
               key={i.href}
               href={i.href}
+              role="menuitem"
               onClick={() => setOpen(false)}
               className={`flex items-start gap-3 rounded-md px-3 py-2.5 transition hover:bg-edge/50 ${
-                path === i.href ? "bg-toxic/10" : ""
+                isActivePath(path, i.href) ? "bg-toxic/10" : ""
               }`}
             >
-              <span className={`mt-0.5 text-base ${path === i.href ? "text-toxic" : "text-dim"}`}>{i.icon}</span>
+              <Icon aria-hidden="true" size={18} strokeWidth={1.8} className={`mt-0.5 shrink-0 ${isActivePath(path, i.href) ? "text-toxic" : "text-dim"}`} />
               <span className="min-w-0">
-                <span className={`block text-sm font-semibold ${path === i.href ? "text-toxic" : "text-ink"}`}>{i.label}</span>
+                <span className={`block text-sm font-semibold ${isActivePath(path, i.href) ? "text-toxic" : "text-ink"}`}>{i.label}</span>
                 <span className="block truncate text-[11px] text-dim">{i.desc}</span>
               </span>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -117,15 +163,15 @@ function ToolsMenu({ items, path }: { items: typeof TOOLS; path: string }) {
 }
 
 // Compact link for the bottom status bar; all route to real pages.
-function BottomLink({ href, label, icon, active }: { href: string; label: string; icon: string; active: boolean }) {
+function BottomLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium transition ${
+      className={`flex min-h-9 items-center gap-1.5 px-2 py-1 text-[11px] font-medium transition ${
         active ? "text-toxic" : "text-dim hover:text-ink"
       }`}
     >
-      <span>{icon}</span>
+      <Icon aria-hidden="true" size={14} strokeWidth={1.8} />
       <span className="hidden sm:inline">{label}</span>
     </Link>
   );
@@ -134,21 +180,45 @@ function BottomLink({ href, label, icon, active }: { href: string; label: string
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const previousPath = useRef(path);
   const tools = [...TOOLS, ...ADMIN_TOOLS];
   const allNav = [...PRIMARY, ...tools];
 
+  useEffect(() => {
+    if (previousPath.current !== path) {
+      setMobileOpen(false);
+      mainRef.current?.focus({ preventScroll: true });
+      previousPath.current = path;
+    }
+  }, [path]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen]);
+
   return (
     <div className="flex min-h-screen flex-col">
+      <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">
+        Skip to content
+      </a>
       {/* top nav */}
       <header className="sticky top-0 z-40 border-b border-edge glass">
         <div className="flex h-14 items-center gap-3 px-4 lg:px-6">
-          <button onClick={() => setMobileOpen(true)} className="text-lg text-dim lg:hidden" aria-label="Open menu">☰</button>
+          <button onClick={() => setMobileOpen(true)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink lg:hidden" aria-label="Open menu">
+            <Menu aria-hidden="true" size={21} />
+          </button>
           <Link href="/trenches" className="shrink-0 text-lg font-bold tracking-tight">
             DEGEN<span className="text-toxic text-glow-toxic">ARATION</span>
           </Link>
           <nav className="hidden items-center gap-0.5 lg:flex">
             {PRIMARY.map((n) => {
-              const active = path === n.href;
+              const active = isActivePath(path, n.href);
               return (
                 <Link
                   key={n.href}
@@ -168,7 +238,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:block"><Search /></div>
-            <Link href="/settings" className={`hidden rounded-md border border-edge px-2 py-1.5 text-sm sm:block ${path === "/settings" ? "text-toxic" : "text-dim hover:text-ink"}`} aria-label="Settings">⚙</Link>
+            <Link href="/settings" className={`hidden h-11 w-11 place-items-center rounded-md border border-edge transition sm:grid ${isActivePath(path, "/settings") ? "border-toxic/40 bg-toxic/10 text-toxic" : "text-dim hover:border-toxic/50 hover:text-ink"}`} aria-label="Settings">
+              <Settings aria-hidden="true" size={18} />
+            </Link>
             <WalletButton />
           </div>
         </div>
@@ -177,17 +249,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* mobile drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setMobileOpen(false)}>
+        <div className="fixed inset-0 z-[90] lg:hidden" onClick={() => setMobileOpen(false)}>
           <div className="absolute inset-0 bg-black/60" />
-          <div className="absolute left-0 top-0 h-full w-72 border-r border-edge bg-panel p-4" onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Navigation menu" className="absolute left-0 top-0 h-full w-72 border-r border-edge bg-panel p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <span className="text-lg font-bold">DEGEN<span className="text-toxic">ARATION</span></span>
-              <button onClick={() => setMobileOpen(false)} className="text-dim" aria-label="Close menu">✕</button>
+              <button onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink" aria-label="Close menu">
+                <X aria-hidden="true" size={20} />
+              </button>
             </div>
             <div className="mt-3"><Search /></div>
             <nav className="mt-4 flex flex-col gap-0.5">
               {allNav.map((n) => {
-                const active = path === n.href;
+                const active = isActivePath(path, n.href);
                 return (
                   <Link key={n.href} href={n.href} onClick={() => setMobileOpen(false)}
                     className={`rounded-md px-3 py-2.5 text-sm font-medium transition ${active ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-ink"}`}>
@@ -195,7 +269,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   </Link>
                 );
               })}
-              <Link href="/settings" onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-2.5 text-sm font-medium ${path === "/settings" ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-ink"}`}>Settings</Link>
+              <Link href="/settings" onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-2.5 text-sm font-medium ${isActivePath(path, "/settings") ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-ink"}`}>Settings</Link>
             </nav>
           </div>
         </div>
@@ -203,6 +277,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* main */}
       <motion.main
+        ref={mainRef}
+        id="main-content"
+        tabIndex={-1}
         key={path}
         initial={{ y: 8 }}
         animate={{ y: 0 }}
@@ -215,11 +292,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* bottom status bar */}
       <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-edge glass">
         <div className="flex h-9 items-center gap-1 px-3 text-[11px]">
-          <BottomLink href="/dashboard" label="Positions" icon="◱" active={path === "/dashboard"} />
-          <BottomLink href="/alerts" label="Alerts" icon="◔" active={path === "/alerts"} />
-          <BottomLink href="/tracker" label="Tracker" icon="◉" active={path === "/tracker"} />
-          <BottomLink href="/trenches" label="Trenches" icon="▴" active={path === "/trenches"} />
-          <BottomLink href="/explorer" label="Explorer" icon="◎" active={path === "/explorer"} />
+          <BottomLink href="/dashboard" label="Positions" icon={WalletCards} active={isActivePath(path, "/dashboard")} />
+          <BottomLink href="/alerts" label="Alerts" icon={Bell} active={isActivePath(path, "/alerts")} />
+          <BottomLink href="/tracker" label="Tracker" icon={Radar} active={isActivePath(path, "/tracker")} />
+          <BottomLink href="/trenches" label="Trenches" icon={Flame} active={isActivePath(path, "/trenches")} />
+          <BottomLink href="/explorer" label="Explorer" icon={Compass} active={isActivePath(path, "/explorer")} />
           <div className="ml-auto flex items-center gap-4">
             <SolPrice />
             <WalletStatus />

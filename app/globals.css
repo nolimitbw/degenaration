@@ -75,6 +75,11 @@ body {
   position: relative;
 }
 
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid rgb(var(--toxic-rgb));
+  outline-offset: 2px;
+}
+
 .grid-bg {
   background-image:
     linear-gradient(rgb(var(--toxic-rgb) / 0.06) 1px, transparent 1px),
@@ -256,52 +261,52 @@ body {
   position: absolute;
   inset: 30% 20% 18%;
   border-radius: 999px;
-  background:
-    radial-gradient(circle at 50% 100%, rgba(255, 255, 255, 0.24), transparent 28%),
-    linear-gradient(0deg, rgb(var(--grape-rgb) / 0.5), transparent 72%);
-  filter: blur(20px);
-  opacity: 0.86;
+  background: radial-gradient(circle at 50% 60%, rgb(var(--grape-rgb) / 0.62), transparent 66%);
+  filter: blur(24px);
+  opacity: 0.72;
 }
 .launch-bomb-core {
   position: absolute;
-  width: 42%;
+  width: 46%;
   aspect-ratio: 1;
   border-radius: 999px;
   background:
-    radial-gradient(circle at 36% 30%, #ffffff 0 10%, #ffbfd0 11% 21%, #ff2255 32%, #450713 70%);
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.42) 0 8%, transparent 9%),
+    radial-gradient(circle at 42% 38%, #353746 0 18%, #171821 52%, #06070b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.26);
   box-shadow:
-    0 0 30px rgb(var(--grape-rgb) / 0.9),
-    0 0 90px rgb(var(--grape-rgb) / 0.55),
-    0 0 160px rgba(255, 130, 78, 0.38);
+    inset -12px -16px 24px rgba(0, 0, 0, 0.72),
+    0 0 34px rgb(var(--grape-rgb) / 0.58),
+    0 0 100px rgb(var(--grape-rgb) / 0.28);
 }
 .launch-bomb-core::before {
   content: "";
   position: absolute;
-  left: 66%;
-  bottom: 76%;
-  width: 40%;
-  height: 30%;
-  border-top: 2px solid rgba(255, 255, 255, 0.8);
+  left: 64%;
+  bottom: 78%;
+  width: 50%;
+  height: 42%;
+  border-top: 3px solid #b9a88d;
   border-radius: 999px 999px 0 0;
-  transform: rotate(22deg);
+  transform: rotate(28deg);
 }
 .launch-bomb-core::after {
   content: "";
   position: absolute;
-  left: 94%;
-  bottom: 98%;
-  width: 18%;
+  left: 108%;
+  bottom: 111%;
+  width: 16%;
   aspect-ratio: 1;
   border-radius: 999px;
-  background: #ffbf5e;
-  box-shadow: 0 0 24px #ffbf5e, 0 0 48px #ff2255;
+  background: #ffd58a;
+  box-shadow: 0 0 18px #ffd58a, 0 0 42px #ff2255;
 }
 .launch-bomb-spark {
   position: absolute;
-  left: 58%;
-  bottom: 74%;
-  width: 22%;
-  height: 22%;
+  left: 68%;
+  bottom: 78%;
+  width: 17%;
+  height: 17%;
   border-radius: 999px;
   background:
     radial-gradient(circle, #ffffff 0 12%, #ffd38a 13% 30%, rgb(var(--grape-rgb)) 48%, transparent 72%);
