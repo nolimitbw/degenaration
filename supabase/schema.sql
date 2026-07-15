@@ -26,6 +26,12 @@ create table if not exists public.approved_groups (
   pnl_30d text,
   tag text,
   active boolean not null default true,
+  public_slug text,
+  referral_code text,
+  bio text,
+  avatar_url text,
+  discord_invite_url text,
+  server_application_id uuid,
   created_at timestamptz not null default now()
 );
 
@@ -103,6 +109,7 @@ create policy "public read groups" on public.approved_groups
   for select using (active = true);
 
 -- server_applications: anyone can submit; only inserts allowed publicly
+-- Production applies service-role-api-hardening.sql afterward and routes submissions through /api/apply.
 drop policy if exists "public apply" on public.server_applications;
 create policy "public apply" on public.server_applications
   for insert with check (true);

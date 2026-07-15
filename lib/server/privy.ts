@@ -43,7 +43,7 @@ export function serviceUrl() {
 
 export function rpcConfig() {
   const url = serviceUrl();
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_KEY;
   const secret = process.env.ADMIN_KEY;
   if (!url || !key || !secret) return null;
   return {

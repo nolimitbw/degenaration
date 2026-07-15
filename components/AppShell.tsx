@@ -203,7 +203,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="app-shell flex min-h-screen flex-col">
       <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">
         Skip to content
       </a>
@@ -214,7 +214,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Menu aria-hidden="true" size={21} />
           </button>
           <Link href="/trenches" className="shrink-0 text-lg font-bold tracking-tight">
-            DEGEN<span className="text-toxic text-glow-toxic">ARATION</span>
+            DEGEN<span className="text-brand">ARATION</span>
           </Link>
           <nav className="hidden items-center gap-0.5 lg:flex">
             {PRIMARY.map((n) => {
@@ -253,7 +253,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 bg-black/60" />
           <div role="dialog" aria-modal="true" aria-label="Navigation menu" className="absolute left-0 top-0 h-full w-72 border-r border-edge bg-panel p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <span className="text-lg font-bold">DEGEN<span className="text-toxic">ARATION</span></span>
+              <span className="text-lg font-bold">DEGEN<span className="text-brand">ARATION</span></span>
               <button onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink" aria-label="Close menu">
                 <X aria-hidden="true" size={20} />
               </button>

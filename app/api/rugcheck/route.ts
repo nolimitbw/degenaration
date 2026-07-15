@@ -13,12 +13,20 @@ export async function GET(req: NextRequest) {
   try {
     const ds = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
     const pair = (ds?.pairs ?? []).sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+    const liquidityUsd = pair ? Number(pair.liquidity?.usd) || 0 : null;
     if (!pair) reasons.push("no trading pair");
-    else if ((pair.liquidity?.usd || 0) < MIN_LIQ) reasons.push(`liquidity $${Math.round(pair.liquidity?.usd || 0)} < $${MIN_LIQ}`);
+    else if ((liquidityUsd || 0) < MIN_LIQ) reasons.push(`liquidity $${Math.round(liquidityUsd || 0)} < $${MIN_LIQ}`);
 
     const rc = await fetchWithTimeout(`https://api.rugcheck.xyz/v1/tokens/${mint}/report/summary`, { cache: "no-store" }).then(r => r.json()).catch(() => null);
-    if (rc?.score_normalised != null && Number.isFinite(rc.score_normalised) && rc.score_normalised > MAX_SCORE) reasons.push(`risk score ${rc.score_normalised}/100`);
+    const riskScore = Number.isFinite(Number(rc?.score_normalised)) ? Number(rc.score_normalised) : null;
+    if (riskScore != null && riskScore > MAX_SCORE) reasons.push(`risk score ${riskScore}/100`);
+    const providerRisks: Array<{ name: string; level: string; description: string | null }> = [];
     for (const risk of rc?.risks ?? []) {
+      if (typeof risk?.name === "string") providerRisks.push({
+        name: risk.name.slice(0, 120),
+        level: typeof risk.level === "string" ? risk.level.slice(0, 24) : "unknown",
+        description: typeof risk.description === "string" ? risk.description.slice(0, 240) : null
+      });
       if (["danger", "warn"].includes(risk.level) && /mint|freeze|honeypot/i.test(risk.name)) reasons.push(risk.name);
     }
 
@@ -36,7 +44,18 @@ export async function GET(req: NextRequest) {
       if (info.freezeAuthority) reasons.push("freeze authority not revoked");
     }
 
-    return NextResponse.json({ mint, ok: reasons.length === 0, reasons });
+    return NextResponse.json({
+      mint,
+      ok: reasons.length === 0,
+      reasons,
+      liquidityUsd,
+      pairUrl: typeof pair?.url === "string" ? pair.url : null,
+      riskScore,
+      authoritiesVerified: Boolean(info),
+      mintAuthorityRevoked: info ? !info.mintAuthority : null,
+      freezeAuthorityRevoked: info ? !info.freezeAuthority : null,
+      providerRisks
+    });
   } catch (e: any) {
     return NextResponse.json({ mint, ok: false, reasons: ["check failed: " + sanitizeError(e)] }, { status: 502 });
   }

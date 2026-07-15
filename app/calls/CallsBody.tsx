@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import { getCallSources, getMySubscriptions, saveSubscription, type CallSource } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
@@ -158,7 +159,9 @@ export default function CallsBody() {
             <div key={g.id} className={`gradient-border rounded-lg border p-5 transition ${on ? "border-toxic/60 shadow-toxic" : "border-edge"}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold">{g.name}</h3>
+                  <h3 className="font-bold">
+                    {g.publicSlug ? <Link href={`/source/${g.publicSlug}`} className="hover:text-toxic">{g.name}</Link> : g.name}
+                  </h3>
                   <p className="mt-0.5 font-mono text-xs text-dim">
                     {g.members ?? "—"} members · {g.metrics.calls} calls in the tracked window
                   </p>

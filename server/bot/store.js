@@ -8,6 +8,7 @@ const SITE_URL = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "h
 const BOT_SECRET = process.env.BOT_SHARED_SECRET;
 const REGISTER_URL = process.env.BOT_REGISTER_URL || (SITE_URL ? `${SITE_URL}/api/bot/register-channel` : "");
 const APPROVED_URL = process.env.BOT_APPROVED_CHANNELS_URL || (SITE_URL ? `${SITE_URL}/api/bot/approved-channels` : "");
+const STATUS_URL = process.env.BOT_GUILD_STATUS_URL || (SITE_URL ? `${SITE_URL}/api/bot/guild-status` : "");
 
 function H(extra) {
   return { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json", ...extra };
@@ -65,4 +66,13 @@ async function registerChannel({ guildId, guildName, guildMemberCount, channelId
   if (!response.ok) throw new Error(`channel registration failed (${response.status})`);
 }
 
-module.exports = { loadApprovedChannels, registerChannel };
+async function getGuildStatus(guildId) {
+  if (!STATUS_URL || !BOT_SECRET) throw new Error("guild status bridge not configured");
+  const url = new URL(STATUS_URL);
+  url.searchParams.set("guild_id", guildId);
+  const response = await fetch(url, { headers: { "x-bot-secret": BOT_SECRET } });
+  if (!response.ok) throw new Error(`guild status query failed (${response.status})`);
+  return response.json();
+}
+
+module.exports = { loadApprovedChannels, registerChannel, getGuildStatus };

@@ -71,7 +71,7 @@ export async function requireAdmin(req: NextRequest) {
 
 export function adminRpcConfig() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_KEY;
   const secret = process.env.ADMIN_KEY;
   if (!url || !key || !secret) return null;
   return {

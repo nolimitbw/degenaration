@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   }
 
   const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const KEY = process.env.SUPABASE_SERVICE_KEY;
   if (!SB || !KEY) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
   const response = await fetchWithTimeout(`${SB}/rest/v1/rpc/bot_approved_call_channels`, {

@@ -12,6 +12,7 @@ type Channel = {
 type Summary = { pendingChannels?: number; approvedChannels?: number };
 type ChannelsResponse = { channels?: Channel[]; source?: string; normalizedFrom?: string; rpcCount?: number; rpcError?: string };
 type BotConfig = { clientId?: string; slashCommandConfigured?: boolean; registrationCommand?: string; registrationBridgeConfigured?: boolean; botBuild?: string };
+type DecisionResult = { ok?: boolean; public_slug?: string; referral_code?: string };
 const ADMIN_CHANNELS_UI_VERSION = "channels-admin-v6";
 
 function withFreshQuery(path: string) {
@@ -32,6 +33,7 @@ export default function AdminChannels() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [source, setSource] = useState<string | null>(null);
   const [bot, setBot] = useState<BotConfig | null>(null);
+  const [approvedResult, setApprovedResult] = useState<DecisionResult | null>(null);
 
   const load = useCallback(async () => {
     if (!admin) {
@@ -69,11 +71,13 @@ export default function AdminChannels() {
 
   async function act(id: string, action: "approve" | "reject") {
     setBusy(id);
-    const res = await adminFetchJson("/api/admin/channels", getAccessToken, identityToken, email, {
+    setApprovedResult(null);
+    const res = await adminFetchJson<DecisionResult>("/api/admin/channels", getAccessToken, identityToken, email, {
       method: "POST",
       body: JSON.stringify({ id, action })
     });
     if (!res.ok) setErr(res.error || `${action} failed`);
+    else if (action === "approve" && res.data?.public_slug) setApprovedResult(res.data);
     await load();
     setBusy(null);
   }
@@ -112,12 +116,21 @@ export default function AdminChannels() {
       </div>
 
       {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
+      {approvedResult?.public_slug && (
+        <div className="mt-4 rounded-md border border-up/35 bg-up/5 px-4 py-3">
+          <p className="text-sm font-bold text-up">Channel approved and public profile created.</p>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 font-mono text-xs">
+            <a href={`/source/${approvedResult.public_slug}`} className="text-toxic hover:underline">Open profile</a>
+            {approvedResult.referral_code && <a href={`/r/${approvedResult.referral_code}`} className="text-toxic hover:underline">Open referral link</a>}
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-3 rounded-lg border border-edge bg-panel p-4 font-mono text-[11px] text-dim md:grid-cols-4">
         <div><span className="text-ink">Bot app</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
         <div><span className="text-ink">Command</span><br />{bot?.slashCommandConfigured ? `${bot.registrationCommand || "/register"} ready` : "missing slash scope"}</div>
         <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
-        <div><span className="text-ink">Expected bot build</span><br />{bot?.botBuild || "slash-register-v1"}</div>
+        <div><span className="text-ink">Expected bot build</span><br />{bot?.botBuild || "source-tools-v2"}</div>
       </div>
       {bot && (!bot.slashCommandConfigured || !bot.registrationBridgeConfigured) && (
         <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">

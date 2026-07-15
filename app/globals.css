@@ -75,6 +75,46 @@ body {
   position: relative;
 }
 
+/* Quiet, data-first workspace palette. The launch page keeps its own cinematic theme. */
+.app-shell {
+  --void: #080a0d;
+  --void-rgb: 8 10 13;
+  --panel: #0e1115;
+  --panel-rgb: 14 17 21;
+  --edge: #242a32;
+  --edge-rgb: 36 42 50;
+  --toxic: #38bdf8;
+  --toxic-rgb: 56 189 248;
+  --hotpink: #f15b70;
+  --hotpink-rgb: 241 91 112;
+  --cyber: #2dd4bf;
+  --cyber-rgb: 45 212 191;
+  --up: #42d392;
+  --up-rgb: 66 211 146;
+  --dim: #929ba8;
+  --dim-rgb: 146 155 168;
+  --ink: #f3f5f7;
+  --ink-rgb: 243 245 247;
+  --brand: #ee315d;
+  --brand-rgb: 238 49 93;
+  --shadow-toxic: 0 0 0 1px rgb(var(--toxic-rgb) / 0.22), 0 8px 20px -12px rgb(var(--toxic-rgb) / 0.32);
+  --shadow-pink: 0 0 0 1px rgb(var(--hotpink-rgb) / 0.22), 0 8px 20px -12px rgb(var(--hotpink-rgb) / 0.3);
+  color-scheme: dark;
+  background: var(--void);
+  color: var(--ink);
+}
+
+.app-shell .glass {
+  background: rgb(var(--panel-rgb) / 0.92);
+  backdrop-filter: blur(16px) saturate(105%);
+  -webkit-backdrop-filter: blur(16px) saturate(105%);
+}
+
+.app-shell ::selection {
+  background: rgb(var(--toxic-rgb) / 0.75);
+  color: #041014;
+}
+
 :where(a, button, input, select, textarea):focus-visible {
   outline: 2px solid rgb(var(--toxic-rgb));
   outline-offset: 2px;

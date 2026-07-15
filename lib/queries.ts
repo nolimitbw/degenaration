@@ -26,6 +26,8 @@ export type CallSource = {
   name: string;
   members: string | null;
   tag: string | null;
+  publicSlug: string | null;
+  referralCode: string | null;
   createdAt: string;
   metrics: CallSourceMetrics;
   recentCalls: Array<{
@@ -66,7 +68,16 @@ export async function submitApplication(input: {
   member_count: string;
   pitch: string;
 }) {
-  return supabase.from("server_applications").insert(input);
+  const response = await fetchWithTimeout("/api/apply", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input)
+  }).catch(() => null);
+  if (!response?.ok) {
+    const data = await response?.json().catch(() => null);
+    return { error: { message: data?.error || "application failed" } };
+  }
+  return { error: null };
 }
 
 // ---- user-scoped data (RLS enforces ownership) ----

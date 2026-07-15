@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const DEFAULT_BOT_CLIENT_ID = "1525315046303858748";
 const BOT_PERMISSIONS = "68608";
 const BOT_SCOPES = "bot applications.commands";
-const EXPECTED_BOT_BUILD = "slash-register-v1";
+const EXPECTED_BOT_BUILD = "source-tools-v2";
 
 export async function GET() {
   const clientId = process.env.DISCORD_BOT_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_BOT_CLIENT_ID || DEFAULT_BOT_CLIENT_ID;
@@ -18,6 +18,7 @@ export async function GET() {
     scopes: BOT_SCOPES.split(" "),
     slashCommandConfigured: BOT_SCOPES.split(" ").includes("applications.commands"),
     registrationCommand: "/register",
+    commands: ["/register", "/alpha", "/degen status", "/degen profile", "/degen referral", "/degen callers", "/degen channel-add", "/onboard", "/help"],
     registrationBridgeConfigured: configured,
     botBuild: process.env.BOT_BUILD || EXPECTED_BOT_BUILD
   });

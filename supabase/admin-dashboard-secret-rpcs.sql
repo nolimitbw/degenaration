@@ -193,3 +193,5 @@ grant execute on function public.admin_decide_server_application(text, uuid, tex
 grant execute on function public.admin_list_call_channels(text) to anon, authenticated;
 grant execute on function public.admin_decide_call_channel(text, uuid, text) to anon, authenticated;
 grant execute on function public.admin_dashboard_summary(text) to anon, authenticated;
+-- Run supabase/public-source-profiles.sql after this file so approval also assigns
+-- public profile and referral identities.
