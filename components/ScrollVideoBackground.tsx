@@ -20,28 +20,30 @@ export default function ScrollVideoBackground() {
   const bombScale = useTransform(scrollYProgress, [0.84, 0.95, 1], reduceMotion ? [1, 1, 1] : [0.54, 0.94, 1.08]);
 
   return (
-    <div className="launch-video-wrap" aria-hidden="true">
-      <motion.img
-        className="launch-video"
-        src="/images/rocket-launch-hero.png"
-        alt=""
-        decoding="async"
-        fetchPriority="high"
-        style={{ y, scale, opacity }}
-      />
-      <motion.div
-        className="launch-rocket-traveller"
-        style={{ x: rocketX, y: rocketY, rotate: rocketRotate, opacity: rocketOpacity, scale: rocketScale }}
-      >
-        <RocketGlyph size={72} />
-        <span className="launch-rocket-trail" />
-      </motion.div>
+    <>
+      <div className="launch-video-wrap" aria-hidden="true">
+        <motion.img
+          className="launch-video"
+          src="/images/rocket-launch-hero.png"
+          alt=""
+          decoding="async"
+          fetchPriority="high"
+          style={{ y, scale, opacity }}
+        />
+        <motion.div
+          className="launch-rocket-traveller"
+          style={{ x: rocketX, y: rocketY, rotate: rocketRotate, opacity: rocketOpacity, scale: rocketScale }}
+        >
+          <RocketGlyph size={72} />
+          <span className="launch-rocket-trail" />
+        </motion.div>
+        <div className="launch-video-scrim" />
+      </div>
       <motion.div className="launch-bomb" style={{ opacity: bombOpacity, y: bombY, scale: bombScale }}>
         <span className="launch-bomb-core" />
         <span className="launch-bomb-spark" />
         <span className="launch-bomb-ring" />
       </motion.div>
-      <div className="launch-video-scrim" />
-    </div>
+    </>
   );
 }

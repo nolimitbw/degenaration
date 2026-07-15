@@ -245,9 +245,10 @@ body {
   opacity: 0.86;
 }
 .launch-bomb {
-  position: absolute;
+  position: fixed;
   right: clamp(2rem, 9vw, 9rem);
   bottom: clamp(3rem, 12vh, 8rem);
+  z-index: 11;
   width: clamp(6rem, 14vw, 13rem);
   aspect-ratio: 1;
   display: grid;
