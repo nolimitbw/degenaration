@@ -7,6 +7,7 @@ import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@
 
 type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
 const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
+const CALLS_UI_VERSION = "calls-copy-v2";
 
 function settingsError(cfg: Settings) {
   if (!Number.isFinite(cfg.size) || cfg.size <= 0 || cfg.size > 100) return "Size must be between 0 and 100 SOL.";
@@ -33,6 +34,7 @@ export default function CallsBody() {
   const [settings, setSettings] = useState<Record<string, Settings>>({});
   const [saved, setSaved] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
   const toast = useToast();
 
   const pubkey = getSolanaAddress(user);
@@ -45,17 +47,18 @@ export default function CallsBody() {
     if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
     const c = s(id);
     const invalid = settingsError(c);
-    if (invalid) {
+    if (on && invalid) {
       setCopying((current) => current.filter((x) => x !== id));
       toast(invalid, "err");
       return;
     }
+    const payloadSettings = !on && invalid ? DEFAULTS : c;
     setSaving(id);
     const token = await getAccessToken();
     const { error } = await saveSubscription({
-      group_id: id, size_sol: c.size, tp1: c.tp1, tp1_sell: c.tp1sell,
-      tp2: c.tp2, tp2_sell: c.tp2sell, stop_loss: c.sl, slippage_bps: c.slippage * 100,
-      daily_cap_sol: c.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId
+      group_id: id, size_sol: payloadSettings.size, tp1: payloadSettings.tp1, tp1_sell: payloadSettings.tp1sell,
+      tp2: payloadSettings.tp2, tp2_sell: payloadSettings.tp2sell, stop_loss: payloadSettings.sl, slippage_bps: Math.round(payloadSettings.slippage * 100),
+      daily_cap_sol: payloadSettings.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId
     }, token);
     setSaving(null);
     if (error) {
@@ -73,13 +76,22 @@ export default function CallsBody() {
     const on = !copying.includes(id);
     if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
     const invalid = settingsError(s(id));
-    if (invalid) { toast(invalid, "err"); return; }
+    if (on && invalid) { toast(invalid, "err"); return; }
     setCopying(on ? [...copying, id] : copying.filter((x) => x !== id));
     persist(id, on);
   }
 
+  async function loadSources() {
+    setLoaded(false);
+    const g = await getCallSources().catch(() => []);
+    setGroups(g);
+    setLive(g.length > 0);
+    setLoaded(true);
+    setLastSync(new Date());
+  }
+
   useEffect(() => {
-    getCallSources().then((g) => { setGroups(g); setLive(g.length > 0); setLoaded(true); });
+    loadSources();
     if (!authenticated) return;
     getAccessToken().then((token) => getMySubscriptions(token)).then((subs) => {
       const enabled = subs.filter((s) => s.enabled).map((s) => s.group_id);
@@ -94,6 +106,7 @@ export default function CallsBody() {
       }
       if (Object.keys(saved).length) setSettings(saved);
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, getAccessToken]);
 
   const s = (id: string) => settings[id] ?? DEFAULTS;
@@ -107,11 +120,20 @@ export default function CallsBody() {
         <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${live ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>
           {live ? "● live from DB" : "○ none yet"}
         </span>
+        <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">{CALLS_UI_VERSION}</span>
       </div>
       <p className="mt-1 text-sm text-dim">
         Compare independently tracked results, then tune your rules per source. Every call is
         rug-checked before your wallet moves.
       </p>
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-panel/70 p-3">
+        <button onClick={loadSources} disabled={!loaded}
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic disabled:opacity-50">
+          {loaded ? "Refresh sources" : "Loading sources"}
+        </button>
+        <span className="font-mono text-[11px] text-dim">{groups.length} approved source{groups.length === 1 ? "" : "s"}</span>
+        {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
+      </div>
       {authenticated && pubkey && (!walletId || !delegated) && (
         <div className="mt-4 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
           <p className="text-sm font-bold text-ink">Enable 24/7 auto-trading before copying call groups.</p>
@@ -191,13 +213,23 @@ export default function CallsBody() {
                       className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-hotpink" />
                   </label>
                   <label className="block">
-                    <span className="font-mono text-[11px] uppercase text-dim">TP1: sell {cfg.tp1sell}% at</span>
+                    <span className="font-mono text-[11px] uppercase text-dim">TP1 target (x)</span>
                     <input type="number" value={cfg.tp1} onChange={(e) => set(g.id, { tp1: +e.target.value })}
                       className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
                   </label>
                   <label className="block">
-                    <span className="font-mono text-[11px] uppercase text-dim">TP2: sell {cfg.tp2sell}% at</span>
+                    <span className="font-mono text-[11px] uppercase text-dim">Sell at TP1 (%)</span>
+                    <input type="number" value={cfg.tp1sell} onChange={(e) => set(g.id, { tp1sell: +e.target.value })}
+                      className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+                  </label>
+                  <label className="block">
+                    <span className="font-mono text-[11px] uppercase text-dim">TP2 target (x)</span>
                     <input type="number" value={cfg.tp2} onChange={(e) => set(g.id, { tp2: +e.target.value })}
+                      className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+                  </label>
+                  <label className="block">
+                    <span className="font-mono text-[11px] uppercase text-dim">Sell at TP2 (%)</span>
+                    <input type="number" value={cfg.tp2sell} onChange={(e) => set(g.id, { tp2sell: +e.target.value })}
                       className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
                   </label>
                   <label className="block">
@@ -206,7 +238,7 @@ export default function CallsBody() {
                       className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-cyber" />
                   </label>
                   <label className="block">
-                    <span className="font-mono text-[11px] uppercase text-dim">Daily loss cap (SOL)</span>
+                    <span className="font-mono text-[11px] uppercase text-dim">Daily spend cap (SOL)</span>
                     <input type="number" step="0.5" value={cfg.dailyCap} onChange={(e) => set(g.id, { dailyCap: +e.target.value })}
                       className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-hotpink" />
                   </label>
