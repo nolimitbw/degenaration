@@ -62,7 +62,7 @@ const TOOLS: ToolItem[] = [
   { href: "/orders", label: "Limit Orders", desc: "Auto buy or sell at your price", icon: ListOrdered },
   { href: "/calls", label: "Discord Calls", desc: "Copy trades from call groups", icon: RadioTower },
   { href: "/watchlist", label: "Watchlist", desc: "Your starred tokens", icon: Star },
-  { href: "/alerts", label: "Price Alerts", desc: "Live browser price notifications", icon: Bell },
+  { href: "/alerts", label: "Price Alerts", desc: "Notifications while the alerts tab is open", icon: Bell },
   { href: "/dashboard", label: "Portfolio", desc: "PnL and trade history", icon: ChartNoAxesCombined },
   { href: "/apply", label: "List your server", desc: "Add your Discord call group", icon: ServerCog }
 ];

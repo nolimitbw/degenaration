@@ -49,8 +49,8 @@ export default function Alerts() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-bold">Price alerts <span className="font-mono text-xs text-toxic">live</span></h1>
-      <p className="mt-1 text-sm text-dim">Get a browser notification when a token crosses your target. Checked live every 20s.</p>
+      <h1 className="text-2xl font-bold">Price alerts <span className="font-mono text-xs text-toxic">tab active</span></h1>
+      <p className="mt-1 text-sm text-dim">Get a browser notification when a token crosses your target. Checked every 20s while this page is open.</p>
 
       <div className="mt-5 flex flex-wrap gap-2">
         <input value={mint} onChange={e => setMint(e.target.value)} placeholder="Token mint" className="flex-1 min-w-[200px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
