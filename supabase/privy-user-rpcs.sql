@@ -172,7 +172,7 @@ begin
   into v_rows
   from (
     select id, mint, symbol, trigger, target_usd, amount_sol, slippage_bps,
-      status, created_at, sig
+      user_pubkey, status, created_at, sig
     from public.limit_orders
     where privy_user_id = p_privy_user_id
     order by created_at desc
@@ -240,7 +240,7 @@ begin
   set status = case when p_action = 'filled' then 'filled' else 'cancelled' end,
     sig = case when p_action = 'filled' then nullif(p_sig, '') else sig end,
     filled_at = case when p_action = 'filled' then now() else filled_at end
-  where id = p_id and privy_user_id = p_privy_user_id;
+  where id = p_id and privy_user_id = p_privy_user_id and status = 'open';
 
   if not found then
     return jsonb_build_object('ok', false, 'error', 'not found', 'status', 404);

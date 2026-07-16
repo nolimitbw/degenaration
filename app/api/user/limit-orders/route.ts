@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
 import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
+import { verifySwapTransaction } from "@/lib/server/trade-verification";
 
 const num = (v: unknown, min = 0, max = 10_000) => {
   const n = Number(v);
@@ -65,11 +66,28 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : "";
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "invalid id" }, { status: 400 });
+  const action = body?.action === "filled" ? "filled" : "cancelled";
+  const sig = typeof body?.sig === "string" ? body.sig.slice(0, 120) : "";
+  if (action === "filled") {
+    const orders = await callPrivyRpc<any[]>("app_user_list_limit_orders", { p_privy_user_id: user.privyUserId });
+    if (!orders.ok) return NextResponse.json({ error: orders.error }, { status: orders.status });
+    const order = Array.isArray(orders.data) ? orders.data.find((item) => item?.id === id && item?.status === "open") : null;
+    if (!order) return NextResponse.json({ error: "open order not found" }, { status: 404 });
+    const verified = await verifySwapTransaction({
+      rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || process.env.NEXT_PUBLIC_MAINNET_RPC || "https://solana-rpc.publicnode.com",
+      signature: sig,
+      userPubkey: order.user_pubkey,
+      mint: order.mint,
+      side: "buy",
+      feeAccount: process.env.PLATFORM_FEE_ACCOUNT || null
+    });
+    if (!verified.ok) return NextResponse.json({ error: verified.error }, { status: verified.error?.includes("confirmed") ? 409 : 400 });
+  }
   const result = await callPrivyRpc("app_user_update_limit_order", {
     p_privy_user_id: user.privyUserId,
     p_id: id,
-    p_action: body?.action === "filled" ? "filled" : "cancelled",
-    p_sig: typeof body?.sig === "string" ? body.sig.slice(0, 120) : ""
+    p_action: action,
+    p_sig: sig
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
