@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: degenaration-worker
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: WORKER_NET
+        value: mainnet
+      - key: DELEGATED_SIGNING
+        value: "off"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: MAINNET_RPC
+        sync: false
+      - key: PRIVY_APP_ID
+        sync: false
+      - key: PRIVY_APP_SECRET
+        sync: false
+      - key: PRIVY_AUTHORIZATION_KEY
+        sync: false
+      - key: PLATFORM_FEE_ACCOUNT
+        sync: false
