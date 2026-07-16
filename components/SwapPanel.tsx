@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useSendTransaction } from "@privy-io/react-auth/solana";
-import { Connection, VersionedTransaction } from "@solana/web3.js";
-import { supabase } from "@/lib/supabase";
-import { getRpc, getNet } from "@/lib/net";
+import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { getBase58Decoder } from "@solana/kit";
+import { fetchWithTimeout } from "@/lib/server/guard";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
 const SOL = "So11111111111111111111111111111111111111112";
@@ -18,39 +17,49 @@ type Status = "idle" | "quoting" | "signing" | "done" | "error";
  * never holds keys — the user's wallet signs every transaction.
  */
 export default function SwapPanel() {
-  const { authenticated, user, login } = usePrivy();
-  const { sendTransaction } = useSendTransaction();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
   const [amount, setAmount] = useState(0.01);
   const [status, setStatus] = useState<Status>("idle");
   const [sig, setSig] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const pubkey = getSolanaAddress(user);
+  const wallet = wallets.find((candidate) => candidate.address === pubkey);
 
   async function run() {
     if (!authenticated || !pubkey) { login(); return; }
+    if (!walletsReady) { setErr("Your wallet is still loading. Try again in a moment."); setStatus("error"); return; }
+    if (!wallet) { setErr("Your Solana wallet is unavailable. Reconnect it and try again."); setStatus("error"); return; }
     setErr(null); setSig(null);
     try {
       setStatus("quoting");
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/swap", {
+      const token = await getAccessToken();
+      const res = await fetchWithTimeout("/api/swap", {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          ...(session?.access_token ? { authorization: `Bearer ${session.access_token}` } : {})
+          ...(token ? { authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ inputMint: SOL, outputMint: BONK, amount: Math.floor(amount * 1e9), userPublicKey: pubkey })
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction) throw new Error(res.error || "could not build swap");
 
       const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
-      const tx = VersionedTransaction.deserialize(raw);
 
       setStatus("signing");
-      const connection = new Connection(getRpc(), "confirmed");
-      const receipt: any = await sendTransaction({ transaction: tx, connection });
+      const receipt = await signAndSendTransaction({ transaction: raw, wallet, chain: "solana:mainnet" });
 
-      setSig(receipt?.signature ?? null);
+      const signature = getBase58Decoder().decode(receipt.signature);
+      setSig(signature);
+      if (token) {
+        await fetchWithTimeout("/api/record-trade", {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ mint: BONK, side: "buy", solAmount: amount, sig: signature, kind: "manual", userPubkey: pubkey })
+        }).catch(() => {});
+      }
       setStatus("done");
     } catch (e: any) {
       setErr(e.message || "signing cancelled"); setStatus("error");

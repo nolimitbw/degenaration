@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { PrivyProvider } from "@privy-io/react-auth";
+import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
+
+const rpcUrl = process.env.NEXT_PUBLIC_MAINNET_RPC || "https://solana-rpc.publicnode.com";
+const rpcSubscriptionsUrl = process.env.NEXT_PUBLIC_MAINNET_WS || rpcUrl.replace(/^http/, "ws");
 
 function usePrefersDark() {
   const [dark, setDark] = useState(false);
@@ -24,7 +28,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         appearance: { theme: dark ? "dark" : "light", accentColor: "#ff2255" },
         embeddedWallets: { solana: { createOnLogin: "users-without-wallets" } },
-        loginMethods: ["email", "google", "wallet"]
+        loginMethods: ["email", "google", "wallet"],
+        solana: {
+          rpcs: {
+            "solana:mainnet": {
+              rpc: createSolanaRpc(rpcUrl),
+              rpcSubscriptions: createSolanaRpcSubscriptions(rpcSubscriptionsUrl)
+            }
+          }
+        }
       }}
     >
       {children}

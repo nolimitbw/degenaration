@@ -1,8 +1,9 @@
 "use client";
 import { useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useSendTransaction } from "@privy-io/react-auth/solana";
-import { getRpc, getNet } from "./net";
+import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { getBase58Decoder } from "@solana/kit";
+import { getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { getSolanaAddress } from "./solanaWallet";
 import { executeSell as extensionSell } from "./execute";
@@ -20,13 +21,16 @@ type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
  */
 export function useExecuteSell() {
   const { authenticated, user, getAccessToken } = usePrivy();
-  const { sendTransaction } = useSendTransaction();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
   const embeddedAddr = getSolanaAddress(user);
+  const privyWallet = wallets.find((wallet) => wallet.address === embeddedAddr);
 
   return useCallback(async function executeSell(args: SellArgs): Promise<Result> {
     if (!authenticated) return { ok: false, error: "Connect a wallet to sell" };
+    if (embeddedAddr && !walletsReady) return { ok: false, error: "Your wallet is still loading. Try again in a moment." };
     // No Privy embedded Solana wallet -> use an extension wallet (mirrors useExecuteBuy).
-    if (!embeddedAddr) return extensionSell({ ...args, authToken: await getAccessToken() });
+    if (!embeddedAddr || !privyWallet) return extensionSell({ ...args, authToken: await getAccessToken() });
     const pct = Math.min(1, Math.max(0, args.pct));
     if (pct <= 0) return { ok: false, error: "Pick a sell amount" };
     try {
@@ -47,12 +51,9 @@ export function useExecuteSell() {
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction) return { ok: false, error: res.error || "could not build swap" };
 
-      const web3 = await import("@solana/web3.js");
       const buf = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
-      const tx = web3.VersionedTransaction.deserialize(buf);
-      const connection = new web3.Connection(getRpc(), "confirmed");
-      const receipt: any = await sendTransaction({ transaction: tx, connection });
-      const sig = receipt?.signature ?? undefined;
+      const receipt = await signAndSendTransaction({ transaction: buf, wallet: privyWallet, chain: "solana:mainnet" });
+      const sig = getBase58Decoder().decode(receipt.signature);
 
       const soldUi = (bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount));
       const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
@@ -70,5 +71,5 @@ export function useExecuteSell() {
       if (/embedded/i.test(sanitizeError(e) || "")) return extensionSell({ ...args, authToken: await getAccessToken() });
       return { ok: false, error: sanitizeError(e) || "signing cancelled" };
     }
-  }, [authenticated, embeddedAddr, getAccessToken, sendTransaction]);
+  }, [authenticated, embeddedAddr, getAccessToken, privyWallet, signAndSendTransaction, walletsReady]);
 }

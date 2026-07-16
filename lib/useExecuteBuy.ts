@@ -1,8 +1,9 @@
 "use client";
 import { useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import { useSendTransaction } from "@privy-io/react-auth/solana";
-import { getRpc, getNet } from "./net";
+import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { getBase58Decoder } from "@solana/kit";
+import { getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { executeBuy as extensionBuy } from "./execute";
 import { getSolanaAddress } from "./solanaWallet";
@@ -20,12 +21,15 @@ type Result = { ok: boolean; sig?: string; error?: string };
  */
 export function useExecuteBuy() {
   const { authenticated, user, getAccessToken } = usePrivy();
-  const { sendTransaction } = useSendTransaction();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
   const embeddedAddr = getSolanaAddress(user);
+  const privyWallet = wallets.find((wallet) => wallet.address === embeddedAddr);
 
   return useCallback(async function executeBuy(args: BuyArgs): Promise<Result> {
+    if (authenticated && embeddedAddr && !walletsReady) return { ok: false, error: "Your wallet is still loading. Try again in a moment." };
     // No embedded wallet -> use an extension wallet (existing path).
-    if (!authenticated || !embeddedAddr) return extensionBuy({ ...args, authToken: await getAccessToken() });
+    if (!authenticated || !embeddedAddr || !privyWallet) return extensionBuy({ ...args, authToken: await getAccessToken() });
 
     try {
       const token = await getAccessToken();
@@ -36,12 +40,9 @@ export function useExecuteBuy() {
       }).then((r) => r.json());
       if (res.error || !res.swapTransaction)         return { ok: false, error: res.error || "could not build swap" };
 
-      const web3 = await import("@solana/web3.js");
       const raw = Uint8Array.from(atob(res.swapTransaction), (c) => c.charCodeAt(0));
-      const tx = web3.VersionedTransaction.deserialize(raw);
-      const connection = new web3.Connection(getRpc(), "confirmed");
-      const receipt: any = await sendTransaction({ transaction: tx, connection });
-      const sig = receipt?.signature ?? undefined;
+      const receipt = await signAndSendTransaction({ transaction: raw, wallet: privyWallet, chain: "solana:mainnet" });
+      const sig = getBase58Decoder().decode(receipt.signature);
 
       if (token) {
         await fetchWithTimeout("/api/record-trade", {
@@ -57,5 +58,5 @@ export function useExecuteBuy() {
       if (/embedded/i.test(sanitizeError(e) || "")) return extensionBuy({ ...args, authToken: await getAccessToken() });
       return { ok: false, error: sanitizeError(e) || "signing cancelled" };
     }
-  }, [authenticated, embeddedAddr, getAccessToken, sendTransaction]);
+  }, [authenticated, embeddedAddr, getAccessToken, privyWallet, signAndSendTransaction, walletsReady]);
 }
