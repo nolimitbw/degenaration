@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWithTimeout, rateLimit } from "@/lib/server/guard";
+import { botBridgeHeaders, getBotBridgeUrl } from "@/lib/server/bot-rpc";
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 120, windowMs: 60_000 });
@@ -10,14 +11,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_KEY;
-  if (!SB || !KEY) return NextResponse.json({ error: "server not configured" }, { status: 503 });
+  const bridgeUrl = getBotBridgeUrl();
+  if (!bridgeUrl) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
-  const response = await fetchWithTimeout(`${SB}/rest/v1/rpc/bot_approved_call_channels`, {
+  const response = await fetchWithTimeout(bridgeUrl, {
     method: "POST",
-    headers: { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" },
-    body: JSON.stringify({ p_secret: secret })
+    headers: botBridgeHeaders,
+    body: JSON.stringify({ operation: "approved_channels", p_secret: secret })
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) return NextResponse.json({ error: "approved channel query failed", status: response.status }, { status: 502 });

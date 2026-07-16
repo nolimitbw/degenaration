@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWithTimeout, rateLimit } from "@/lib/server/guard";
+import { botBridgeHeaders, getBotBridgeUrl } from "@/lib/server/bot-rpc";
 
 const cleanText = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) || null : null;
 
@@ -12,9 +13,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_KEY;
-  if (!SB || !KEY) return NextResponse.json({ error: "server not configured" }, { status: 503 });
+  const bridgeUrl = getBotBridgeUrl();
+  if (!bridgeUrl) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
@@ -23,10 +23,11 @@ export async function POST(req: NextRequest) {
   const channelId = cleanText(body?.channel_id, 64);
   if (!guildId || !channelId) return NextResponse.json({ error: "bad request" }, { status: 400 });
 
-  const response = await fetchWithTimeout(`${SB}/rest/v1/rpc/bot_register_call_channel`, {
+  const response = await fetchWithTimeout(bridgeUrl, {
     method: "POST",
-    headers: { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" },
+    headers: botBridgeHeaders,
     body: JSON.stringify({
+      operation: "register_channel",
       p_secret: secret,
       p_guild_id: guildId,
       p_guild_name: cleanText(body?.guild_name, 120),

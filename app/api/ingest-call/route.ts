@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, fetchWithTimeout } from "@/lib/server/guard";
+import { botBridgeHeaders, getBotBridgeUrl } from "@/lib/server/bot-rpc";
 
 const cleanText = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) || null : null;
 const positive = (value: unknown) => {
@@ -24,9 +25,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const SB = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_KEY;
-  if (!SB || !KEY) return NextResponse.json({ error: "server not configured" }, { status: 503 });
+  const bridgeUrl = getBotBridgeUrl();
+  if (!bridgeUrl) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
@@ -52,10 +52,11 @@ export async function POST(req: NextRequest) {
   // 2. Record the call through a security-definer RPC. The RPC verifies the bot
   // secret again, checks the channel is approved, and dedups by Discord message.
   try {
-    const res = await fetchWithTimeout(`${SB}/rest/v1/rpc/bot_ingest_discord_call`, {
+    const res = await fetchWithTimeout(bridgeUrl, {
       method: "POST",
-      headers: { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" },
+      headers: botBridgeHeaders,
       body: JSON.stringify({
+        operation: "ingest_call",
         p_secret: secret,
         p_channel_id: channelId,
         p_channel_name: cleanText(channelName, 100),
