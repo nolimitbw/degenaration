@@ -93,6 +93,10 @@ function bearer(token?: string | null): Record<string, string> {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
+function identity(token?: string | null): Record<string, string> {
+  return token ? { "privy-id-token": token } : {};
+}
+
 export async function getMySubscriptions(token?: string | null): Promise<Subscription[]> {
   if (token) {
     const data = await fetchWithTimeout("/api/user/subscriptions", { headers: bearer(token) })
@@ -108,11 +112,11 @@ export async function getMySubscriptions(token?: string | null): Promise<Subscri
 }
 
 /** Upsert a per-group subscription for the signed-in user. */
-export async function saveSubscription(sub: Partial<Subscription> & { group_id: string }, token?: string | null) {
+export async function saveSubscription(sub: Partial<Subscription> & { group_id: string }, token?: string | null, identityToken?: string | null) {
   if (token) {
     return fetchWithTimeout("/api/user/subscriptions", {
       method: "POST",
-      headers: { "content-type": "application/json", ...bearer(token) },
+      headers: { "content-type": "application/json", ...bearer(token), ...identity(identityToken) },
       body: JSON.stringify(sub)
     }).then(async (r) => {
       const data = await r.json().catch(() => ({}));
@@ -283,11 +287,11 @@ export type DbLimitOrder = {
 export async function createLimitOrder(o: {
   mint: string; symbol: string; trigger: "below" | "above"; target_usd: number;
   amount_sol: number; slippage_bps: number; user_pubkey: string; wallet_id?: string;
-}, token?: string | null) {
+}, token?: string | null, identityToken?: string | null) {
   if (token) {
     return fetchWithTimeout("/api/user/limit-orders", {
       method: "POST",
-      headers: { "content-type": "application/json", ...bearer(token) },
+      headers: { "content-type": "application/json", ...bearer(token), ...identity(identityToken) },
       body: JSON.stringify(o)
     }).then(async (r) => {
       const data = await r.json().catch(() => ({}));
@@ -363,11 +367,11 @@ export async function saveCopySub(sub: {
   leader_wallet: string; label?: string; size_sol: number; slippage_bps?: number;
   daily_cap_sol?: number; user_pubkey: string; wallet_id?: string;
   tp1?: number; tp1_sell?: number; tp2?: number; tp2_sell?: number; stop_loss?: number;
-}, token?: string | null) {
+}, token?: string | null, identityToken?: string | null) {
   if (token) {
     return fetchWithTimeout("/api/user/copy-subscriptions", {
       method: "POST",
-      headers: { "content-type": "application/json", ...bearer(token) },
+      headers: { "content-type": "application/json", ...bearer(token), ...identity(identityToken) },
       body: JSON.stringify(sub)
     }).then(async (r) => {
       const data = await r.json().catch(() => ({}));

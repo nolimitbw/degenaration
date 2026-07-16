@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
-import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
+import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
 
 const num = (v: unknown, min = 0, max = 10_000) => {
   const n = Number(v);
@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
   if (!walletId) {
     return NextResponse.json({ error: "enable 24/7 auto-trading before creating limit orders" }, { status: 400 });
   }
+  const ownership = await requirePrivyWallet(req, user.privyUserId, userPubkey, walletId);
+  if (!ownership.ok) return ownership.response;
 
   const payload = {
     privy_user_id: user.privyUserId,

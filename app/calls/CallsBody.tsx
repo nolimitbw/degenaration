@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { getCallSources, getMySubscriptions, saveSubscription, type CallSource } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { useAutomationStatus } from "@/lib/useAutomationStatus";
 
 type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
 const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
@@ -41,11 +42,13 @@ export default function CallsBody() {
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
   const delegated = hasDelegatedSolanaWallet(user);
+  const automation = useAutomationStatus();
 
   async function persist(id: string, on: boolean) {
     if (!authenticated) { login(); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
     if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    if (on && !automation.live) { toast("The 24/7 execution engine is not live", "err"); return; }
     const c = s(id);
     const invalid = settingsError(c);
     if (on && invalid) {
@@ -60,7 +63,7 @@ export default function CallsBody() {
       group_id: id, size_sol: payloadSettings.size, tp1: payloadSettings.tp1, tp1_sell: payloadSettings.tp1sell,
       tp2: payloadSettings.tp2, tp2_sell: payloadSettings.tp2sell, stop_loss: payloadSettings.sl, slippage_bps: Math.round(payloadSettings.slippage * 100),
       daily_cap_sol: payloadSettings.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId
-    }, token);
+    }, token, await getIdentityToken());
     setSaving(null);
     if (error) {
       setCopying((current) => on ? current.filter((x) => x !== id) : [...new Set([...current, id])]);
@@ -76,6 +79,7 @@ export default function CallsBody() {
     if (!pubkey) { toast("No wallet found", "err"); return; }
     const on = !copying.includes(id);
     if (on && (!walletId || !delegated)) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    if (on && !automation.live) { toast("The 24/7 execution engine is not live", "err"); return; }
     const invalid = settingsError(s(id));
     if (on && invalid) { toast(invalid, "err"); return; }
     setCopying(on ? [...copying, id] : copying.filter((x) => x !== id));

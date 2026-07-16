@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/server/guard";
-import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
+import { isMint, rateLimit } from "@/lib/server/guard";
+import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
 
 const isUuid = (value: unknown) => typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value);
 const strictNumeric = (v: unknown, min: number, max: number) => {
@@ -29,8 +29,14 @@ export async function POST(req: NextRequest) {
   if (!isUuid(groupId)) return NextResponse.json({ error: "invalid group" }, { status: 400 });
   const enabled = body?.enabled !== false;
   const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
+  const userPubkey = typeof body?.user_pubkey === "string" ? body.user_pubkey : "";
+  if (enabled && !isMint(userPubkey)) return NextResponse.json({ error: "invalid wallet" }, { status: 400 });
   if (enabled && !walletId) {
     return NextResponse.json({ error: "enable 24/7 auto-trading before copying call groups" }, { status: 400 });
+  }
+  if (enabled) {
+    const ownership = await requirePrivyWallet(req, user.privyUserId, userPubkey, walletId);
+    if (!ownership.ok) return ownership.response;
   }
   const size = strictNumeric(body?.size_sol, 0.001, 100);
   const dailyCap = strictNumeric(body?.daily_cap_sol, 0.001, 1000);
@@ -56,7 +62,7 @@ export async function POST(req: NextRequest) {
     slippage_bps: Math.round(slippageBps),
     daily_cap_sol: dailyCap,
     enabled,
-    user_pubkey: typeof body?.user_pubkey === "string" ? body.user_pubkey.slice(0, 80) : null,
+    user_pubkey: userPubkey || null,
     wallet_id: walletId || null
   };
 

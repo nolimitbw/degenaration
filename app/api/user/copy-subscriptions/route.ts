@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isMint, rateLimit, validSlippageBps } from "@/lib/server/guard";
-import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
+import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
 
 const strictNumeric = (v: unknown, min: number, max: number) => {
   const n = Number(v);
@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
   const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
   if (enabled && !walletId) {
     return NextResponse.json({ error: "enable 24/7 auto-trading before copying wallets" }, { status: 400 });
+  }
+  if (enabled) {
+    const ownership = await requirePrivyWallet(req, user.privyUserId, userPubkey, walletId);
+    if (!ownership.ok) return ownership.response;
   }
   const size = strictNumeric(body?.size_sol, 0.001, 100);
   const dailyCap = strictNumeric(body?.daily_cap_sol, 0.001, 1000);

@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { getNet } from "@/lib/net";
 import { fetchPortfolio, fetchBalance, fmtUsd, getMyCopySubs, saveCopySub, removeCopySub, type Portfolio, type CopySub } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { useAutomationStatus } from "@/lib/useAutomationStatus";
 
 type Tracked = { address: string; label: string };
 type SmartWallet = { address: string; catches: { symbol: string; mint: string; multiple: number }[]; catchCount: number; bestMultiple: number; avgMultiple: number };
@@ -68,6 +69,7 @@ export default function TrackerBody() {
   const address = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
   const delegated = hasDelegatedSolanaWallet(user);
+  const automation = useAutomationStatus();
 
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceChecked, setBalanceChecked] = useState(false);
@@ -97,18 +99,18 @@ export default function TrackerBody() {
 
   const isCopied = (a: string) => subs.some((s) => s.leader_wallet === a && s.enabled);
   const canCopy = authenticated && address && (balance ?? 0) > 0;
-  const canAutomate = canCopy && walletId && delegated;
+  const canAutomate = canCopy && walletId && delegated && automation.live;
 
   function openCopy(leader: string) {
     if (!authenticated) { login(); return; }
     if (!canCopy) { toast("Fund your wallet with SOL first — see /wallet", "err"); return; }
-    if (!canAutomate) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    if (!canAutomate) { toast(automation.live ? "Enable 24/7 auto-trading in Wallet first" : "The 24/7 execution engine is not live", "err"); return; }
     setSettings(DEFAULT_SETTINGS);
     setCopyFor(leader);
   }
   async function enableCopy(leader: string, lbl: string) {
     if (!address) { toast("No wallet found", "err"); return; }
-    if (!canAutomate) { toast("Enable 24/7 auto-trading in Wallet first", "err"); return; }
+    if (!canAutomate) { toast(automation.live ? "Enable 24/7 auto-trading in Wallet first" : "The 24/7 execution engine is not live", "err"); return; }
     const invalid = copySettingsError(settings);
     if (invalid) { toast(invalid, "err"); return; }
     setCopyBusy(leader);
@@ -116,7 +118,7 @@ export default function TrackerBody() {
       leader_wallet: leader, label: lbl, size_sol: settings.size, daily_cap_sol: settings.dailyCap,
       tp1: settings.tp1, tp1_sell: settings.tp1sell, tp2: settings.tp2, tp2_sell: settings.tp2sell, stop_loss: settings.sl,
       slippage_bps: Math.round(settings.slippage * 100), user_pubkey: address, wallet_id: walletId
-    }, await getAccessToken());
+    }, await getAccessToken(), await getIdentityToken());
     setCopyBusy(null);
     if (error) { toast(error.message || "Could not enable copy", "err"); return; }
     toast(`Copying ${lbl} — ${settings.size} SOL/trade`); setCopyFor(null); await refreshSubs();

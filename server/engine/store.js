@@ -7,6 +7,7 @@ const SB = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest\
 const KEY = process.env.SUPABASE_SERVICE_KEY;
 const RPC = process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
 const TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const { platformFeeSol } = require("./jupiter");
 
 function sbHeaders(extra) {
   return { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json", ...extra };
@@ -22,10 +23,12 @@ async function sbGet(path) {
   return body;
 }
 async function sbPatch(path, body) {
-  return fetch(`${SB}/rest/v1/${path}`, { method: "PATCH", headers: sbHeaders({ prefer: "return=minimal" }), body: JSON.stringify(body) });
+  const r = await fetch(`${SB}/rest/v1/${path}`, { method: "PATCH", headers: sbHeaders({ prefer: "return=minimal" }), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`Supabase PATCH ${path.split("?")[0]} failed (${r.status})`);
 }
 async function sbInsert(table, body) {
-  return fetch(`${SB}/rest/v1/${table}`, { method: "POST", headers: sbHeaders({ prefer: "return=minimal" }), body: JSON.stringify(body) });
+  const r = await fetch(`${SB}/rest/v1/${table}`, { method: "POST", headers: sbHeaders({ prefer: "return=minimal" }), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`Supabase INSERT ${table} failed (${r.status})`);
 }
 
 // ---- limit orders ----
@@ -51,7 +54,7 @@ const recordTrade = (evt) => sbInsert("trades", {
   mint: evt.mint,
   side: evt.side || "buy",
   sol_amount: evt.size || evt.sol_amount || null,
-  fee_sol: evt.fee_sol ?? ((evt.size || evt.sol_amount) ? Number(evt.size || evt.sol_amount) * 0.02 : null),
+  fee_sol: evt.fee_sol ?? platformFeeSol(evt.size || evt.sol_amount),
   tx_signature: evt.sig || null,
   kind: evt.kind || "copy"
 });

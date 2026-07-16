@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Candles from "@/components/Candles";
-import { usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { useExecuteSell } from "@/lib/useExecuteSell";
 import { createLimitOrder, fmtUsd } from "@/lib/queries";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 import { getNet } from "@/lib/net";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { useAutomationStatus } from "@/lib/useAutomationStatus";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const SELL_PCTS = [25, 50, 75, 100];
@@ -76,12 +77,13 @@ export default function TerminalBody() {
   const mintOk = MINT_RE.test(cleanMint);
   const walletId = getSolanaWalletId(user);
   const delegated = hasDelegatedSolanaWallet(user);
+  const automation = useAutomationStatus();
   const amountOk = Number.isFinite(amount) && amount > 0 && amount <= 100;
   const slippageOk = Number.isFinite(slippage) && slippage > 0 && slippage <= 20;
   const limitTargetOk = Number.isFinite(limitTarget) && limitTarget > 0;
   const slippageBps = Math.round(slippage * 100);
   const limitDraftOk = mintOk && amountOk && slippageOk && limitTargetOk;
-  const canCreateLimit = limitDraftOk && (!authenticated || (walletId && delegated));
+  const canCreateLimit = limitDraftOk && (!authenticated || (walletId && delegated && automation.live));
   const tokenLoaded = mintOk && loadedMint === cleanMint;
   const livePrice = tokenLoaded ? price : null;
   const liveBal = balanceMint === cleanMint ? bal : null;
@@ -107,7 +109,8 @@ export default function TerminalBody() {
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     if (!pubkey) { toast("No wallet found", "err"); return; }
     if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before creating limits", "err"); return; }
-    const { error } = await createLimitOrder({ mint: cleanMint, symbol: livePrice?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippageBps, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
+    if (!automation.live) { toast("The 24/7 execution engine is not live", "err"); return; }
+    const { error } = await createLimitOrder({ mint: cleanMint, symbol: livePrice?.symbol || cleanMint.slice(0, 6), trigger: limitTrigger, target_usd: limitTarget, amount_sol: amount, slippage_bps: slippageBps, user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken(), await getIdentityToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created — see Limit Orders");
   }

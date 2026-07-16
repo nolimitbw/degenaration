@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { fmtUsd, createLimitOrder, getMyLimitOrders, cancelLimitOrder, markOrderFilled, type DbLimitOrder } from "@/lib/queries";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { automationLabel, useAutomationStatus } from "@/lib/useAutomationStatus";
 
 const POLL_MS = 20000;
 const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -14,12 +15,13 @@ function triggerHit(order: DbLimitOrder, price?: number) {
   return order.trigger === "below" ? price <= order.target_usd : price >= order.target_usd;
 }
 
-function orderDraftError(mint: string, target: number, amount: number, slippage: number, walletId?: string | null, delegated?: boolean) {
+function orderDraftError(mint: string, target: number, amount: number, slippage: number, walletId?: string | null, delegated?: boolean, automationLive?: boolean) {
   if (!MINT_RE.test(mint.trim())) return "Paste a valid Solana token mint.";
   if (!Number.isFinite(target) || target <= 0) return "Enter a target price above zero.";
   if (!Number.isFinite(amount) || amount <= 0 || amount > 100) return "Order size must be between 0 and 100 SOL.";
   if (!Number.isFinite(slippage) || slippage <= 0 || slippage > 20) return "Slippage must be between 0.01% and 20%.";
   if (!walletId || !delegated) return "Enable 24/7 auto-trading before creating limit orders.";
+  if (!automationLive) return "The 24/7 execution engine is not live.";
   return null;
 }
 
@@ -43,6 +45,7 @@ export default function OrdersBody() {
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
   const delegated = hasDelegatedSolanaWallet(user);
+  const automation = useAutomationStatus();
 
   const refresh = useCallback(async () => {
     if (authenticated) setOrders(await getMyLimitOrders(await getAccessToken()));
@@ -86,17 +89,17 @@ export default function OrdersBody() {
 
   const create = async () => {
     if (!authenticated || !pubkey) { login(); return; }
-    const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated);
+    const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated, automation.live);
     if (draftError) { toast(draftError, "err"); return; }
     const cleanMint = mint.trim();
-    const { error } = await createLimitOrder({ mint: cleanMint, symbol: symbol || cleanMint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: Math.round(slippage * 100), user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken());
+    const { error } = await createLimitOrder({ mint: cleanMint, symbol: symbol || cleanMint.slice(0, 6), trigger, target_usd: target, amount_sol: amount, slippage_bps: Math.round(slippage * 100), user_pubkey: pubkey, wallet_id: walletId }, await getAccessToken(), await getIdentityToken());
     if (error) { toast(error.message || "Could not save order", "err"); return; }
     toast("Limit order created"); setMint(""); setSymbol(""); setTarget(0); refresh();
   };
 
   const open = orders.filter((o) => o.status === "open");
   const done = orders.filter((o) => o.status !== "open");
-  const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated);
+  const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated, automation.live);
 
   if (!authenticated) {
     return (
@@ -113,7 +116,7 @@ export default function OrdersBody() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">Limit Orders
-            <span className="rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic">LIVE</span>
+            <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] ${automation.live ? "border-toxic/40 text-toxic" : "border-edge text-dim"}`}>{automationLabel(automation)}</span>
           </h1>
           <p className="mt-1 text-sm text-dim">Auto-buy when a token hits your price. Saved to your account — the 24/7 engine runs them even when you are offline.</p>
         </div>

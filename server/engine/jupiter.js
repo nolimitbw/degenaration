@@ -18,6 +18,13 @@ const MAX_PRICE_IMPACT_PCT = 15;
 const FEE_ACCOUNT = process.env.PLATFORM_FEE_ACCOUNT;
 const APPLY_FEE = !!FEE_ACCOUNT;
 
+function platformFeeSol(solAmount) {
+  const amount = Number(solAmount);
+  return APPLY_FEE && Number.isFinite(amount) && amount > 0
+    ? amount * PLATFORM_FEE_BPS / 10_000
+    : 0;
+}
+
 async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) {
   const url = new URL(`${JUP}/quote`);
   url.searchParams.set("inputMint", inputMint);
@@ -61,4 +68,7 @@ const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
   getQuote({ inputMint: mint, outputMint: SOL_MINT, amountLamports: tokenAmountRaw, slippageBps })
     .then(quote => buildSwapTx({ quote, userPublicKey }).then(tx => ({ quote, tx })));
 
-module.exports = { getQuote, buildSwapTx, buyToken, sellToken, SOL_MINT, PLATFORM_FEE_BPS };
+module.exports = {
+  getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol,
+  SOL_MINT, PLATFORM_FEE_BPS, APPLY_FEE
+};

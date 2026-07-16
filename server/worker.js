@@ -10,6 +10,7 @@
  *      PLATFORM_FEE_ACCOUNT (optional platform fee), PRIVY_APP_ID/PRIVY_APP_SECRET (for signing).
  */
 require("dotenv").config();
+const http = require("http");
 const { getPrice } = require("./engine/prices");
 const { startLimitWatcher } = require("./engine/limits");
 const { startCopyWatcher } = require("./engine/copy");
@@ -20,6 +21,9 @@ const store = require("./engine/store");
 
 const SIGNING_READY = process.env.DELEGATED_SIGNING === "on";
 const NET = process.env.WORKER_NET || "mainnet";
+const PORT = Number(process.env.PORT || 10000);
+const startedAt = Date.now();
+const state = { events: 0, errors: 0, lastEventAt: null, lastError: null };
 
 /**
  * Sign+send a base64 tx with the user's Privy delegated session key (see engine/signer.js).
@@ -31,14 +35,56 @@ async function signAndSend(base64Tx, walletId) {
   return signer.signAndSend(base64Tx, walletId, NET);
 }
 
-function log(tag) { return (e) => console.log(`[${tag}]`, JSON.stringify(e)); }
+function log(tag) {
+  return (event) => {
+    state.events += 1;
+    state.lastEventAt = new Date().toISOString();
+    if (String(event?.type || "").includes("ERROR") || event?.type === "LOAD_ERROR") {
+      state.errors += 1;
+      state.lastError = String(event?.error || event?.type || "worker error").slice(0, 300);
+    }
+    console.log(`[${tag}]`, JSON.stringify(event));
+  };
+}
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
   console.error("[worker] missing SUPABASE_URL / SUPABASE_SERVICE_KEY — cannot load orders. Exiting.");
   process.exit(1);
 }
 
+if (!new Set(["mainnet", "devnet"]).has(NET)) {
+  console.error("[worker] WORKER_NET must be mainnet or devnet. Exiting.");
+  process.exit(1);
+}
+
+if (SIGNING_READY) {
+  const missing = ["PRIVY_APP_ID", "PRIVY_APP_SECRET", "PRIVY_AUTHORIZATION_KEY"]
+    .filter((name) => !process.env[name]);
+  if (missing.length) {
+    console.error(`[worker] delegated signing requested but missing ${missing.join(", ")}. Exiting.`);
+    process.exit(1);
+  }
+}
+
 console.log(`[worker] starting — signing ${SIGNING_READY ? "ENABLED" : "DISABLED (watch-only)"}`);
+
+http.createServer((req, res) => {
+  if (req.url !== "/" && req.url !== "/health") {
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "not found" }));
+    return;
+  }
+  res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+  res.end(JSON.stringify({
+    status: "ok",
+    mode: SIGNING_READY ? "live" : "watch-only",
+    signingEnabled: SIGNING_READY,
+    network: NET,
+    feeEnabled: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
+    uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+    ...state
+  }));
+}).listen(PORT, "0.0.0.0", () => console.log(`[worker] health listening on :${PORT}`));
 
 startLimitWatcher({
   loadOpenOrders: store.loadOpenOrders, loadProfileCaps: store.loadProfileCaps, getPrice, signAndSend,

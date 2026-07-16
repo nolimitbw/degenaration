@@ -46,6 +46,26 @@ test("fee applies on partial sells too", () => {
   const partial = 0.5 * 0.5; // sell 50% of a 0.5 SOL position
   assert.ok(Math.abs(feeFor(partial) - 0.005) < 1e-9);
 });
+const jupiterPath = require.resolve("../engine/jupiter");
+test("worker records zero commission when no fee account is configured", () => {
+  const previous = process.env.PLATFORM_FEE_ACCOUNT;
+  delete process.env.PLATFORM_FEE_ACCOUNT;
+  delete require.cache[jupiterPath];
+  const { platformFeeSol } = require("../engine/jupiter");
+  assert.strictEqual(platformFeeSol(1.2), 0);
+  if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
+  delete require.cache[jupiterPath];
+});
+test("worker records the configured commission when a fee account is present", () => {
+  const previous = process.env.PLATFORM_FEE_ACCOUNT;
+  process.env.PLATFORM_FEE_ACCOUNT = "F".repeat(44);
+  delete require.cache[jupiterPath];
+  const { platformFeeSol } = require("../engine/jupiter");
+  assert.ok(Math.abs(platformFeeSol(1.2) - 0.024) < 1e-9);
+  if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
+  else delete process.env.PLATFORM_FEE_ACCOUNT;
+  delete require.cache[jupiterPath];
+});
 
 console.log("rugcheck thresholds");
 const MIN_LIQ = 10000, MAX_SCORE = 60;
@@ -179,6 +199,27 @@ test("rejects a transaction that the claimed wallet did not sign", () => {
   });
   assert.strictEqual(result.ok, false);
   assert.match(result.error, /sign/);
+});
+
+console.log("delegated wallet ownership");
+const { ownsPrivyWallet } = require("../../lib/server/privy-wallet");
+const identityPayload = {
+  sub: "did:privy:owner",
+  linked_accounts: JSON.stringify([{
+    type: "wallet", chain_type: "solana", address: tradeWallet, id: "wallet-owner"
+  }])
+};
+test("accepts the authenticated user's linked Solana wallet", () => {
+  assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:owner", tradeWallet, "wallet-owner"), true);
+});
+test("rejects a different Privy user", () => {
+  assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:attacker", tradeWallet, "wallet-owner"), false);
+});
+test("rejects an unlinked wallet address", () => {
+  assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:owner", "X".repeat(44), "wallet-owner"), false);
+});
+test("rejects a substituted wallet id", () => {
+  assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:owner", tradeWallet, "wallet-attacker"), false);
 });
 
 console.log("");
