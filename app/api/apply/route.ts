@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchWithTimeout, rateLimit } from "@/lib/server/guard";
+import { rateLimit } from "@/lib/server/guard";
+import { callAppBridge } from "@/lib/server/app-bridge";
 
 const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
 
@@ -25,14 +26,13 @@ export async function POST(req: NextRequest) {
   const pitch = text(body?.pitch, 1000) || null;
   if (!serverName || !inviteLink || !ownerHandle) return NextResponse.json({ error: "invalid application" }, { status: 400 });
 
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY;
-  if (!url || !key) return NextResponse.json({ error: "server not configured" }, { status: 503 });
-  const response = await fetchWithTimeout(`${url}/rest/v1/server_applications`, {
-    method: "POST",
-    headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json", prefer: "return=minimal" },
-    body: JSON.stringify({ server_name: serverName, invite_link: inviteLink, owner_handle: ownerHandle, member_count: memberCount, pitch, status: "pending" })
+  const result = await callAppBridge("app_submit_server_application", {
+    p_server_name: serverName,
+    p_invite_link: inviteLink,
+    p_owner_handle: ownerHandle,
+    p_member_count: memberCount,
+    p_pitch: pitch
   });
-  if (!response.ok) return NextResponse.json({ error: "application could not be saved" }, { status: 502 });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true }, { status: 201 });
 }

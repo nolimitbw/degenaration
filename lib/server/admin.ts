@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import { fetchWithTimeout } from "@/lib/server/guard";
+import { callAppBridge } from "@/lib/server/app-bridge";
 
 const OWNER_EMAILS = (process.env.ADMIN_OWNER_EMAILS || process.env.NEXT_PUBLIC_ADMIN_OWNER_EMAILS || "Flipthatsol@gmail.com")
   .split(",")
@@ -69,29 +69,6 @@ export async function requireAdmin(req: NextRequest) {
   return { ok: true as const, email };
 }
 
-export function adminRpcConfig() {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_KEY;
-  const secret = process.env.ADMIN_KEY;
-  if (!url || !key || !secret) return null;
-  return {
-    url,
-    secret,
-    headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" }
-  };
-}
-
 export async function callAdminRpc<T>(name: string, body: Record<string, unknown>): Promise<{ ok: true; data: T } | { ok: false; status: number; error: string }> {
-  const cfg = adminRpcConfig();
-  if (!cfg) return { ok: false, status: 503, error: "admin database not configured" };
-  const response = await fetchWithTimeout(`${cfg.url}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: cfg.headers,
-    body: JSON.stringify({ p_secret: cfg.secret, ...body })
-  }).catch(() => null);
-  if (!response) return { ok: false, status: 502, error: "admin rpc failed" };
-  const data = await response.json().catch(() => null);
-  if (!response.ok) return { ok: false, status: 502, error: "admin rpc rejected" };
-  if (data?.ok === false) return { ok: false, status: Number(data.status) || 400, error: data.error || "admin action failed" };
-  return { ok: true, data };
+  return callAppBridge<T>(name, body);
 }

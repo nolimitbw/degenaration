@@ -130,6 +130,57 @@ test("preserves the peak while recording a lower current price", () => {
   assert.strictEqual(update.last_scanned_at, "2026-07-12T00:00:00.000Z");
 });
 
+console.log("verified trade ledger");
+const { SOL_MINT, analyzeSwapTransaction } = require("../../lib/server/trade-verification");
+const tradeSignature = "5".repeat(88);
+const tradeWallet = "W".repeat(44);
+const tradeMint = "M".repeat(44);
+const feeAccount = "F".repeat(44);
+const swapTransaction = {
+  transaction: {
+    signatures: [tradeSignature],
+    message: { accountKeys: [
+      { pubkey: tradeWallet, signer: true },
+      { pubkey: "T".repeat(44), signer: false },
+      { pubkey: feeAccount, signer: false }
+    ] }
+  },
+  meta: {
+    err: null,
+    logMessages: ["Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 invoke [1]"],
+    preTokenBalances: [
+      { accountIndex: 1, owner: tradeWallet, mint: tradeMint, uiTokenAmount: { amount: "0", decimals: 6 } },
+      { accountIndex: 2, mint: SOL_MINT, uiTokenAmount: { amount: "500000000", decimals: 9 } }
+    ],
+    postTokenBalances: [
+      { accountIndex: 1, owner: tradeWallet, mint: tradeMint, uiTokenAmount: { amount: "2500000", decimals: 6 } },
+      { accountIndex: 2, mint: SOL_MINT, uiTokenAmount: { amount: "510000000", decimals: 9 } }
+    ]
+  }
+};
+test("derives token amount and fee from confirmed balance deltas", () => {
+  const result = analyzeSwapTransaction(swapTransaction, {
+    signature: tradeSignature, userPubkey: tradeWallet, mint: tradeMint, side: "buy", feeAccount
+  });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.tokenAmount, 2.5);
+  assert.strictEqual(result.feeSol, 0.01);
+});
+test("rejects a forged trade side", () => {
+  const result = analyzeSwapTransaction(swapTransaction, {
+    signature: tradeSignature, userPubkey: tradeWallet, mint: tradeMint, side: "sell", feeAccount
+  });
+  assert.strictEqual(result.ok, false);
+  assert.match(result.error, /side/);
+});
+test("rejects a transaction that the claimed wallet did not sign", () => {
+  const result = analyzeSwapTransaction(swapTransaction, {
+    signature: tradeSignature, userPubkey: "X".repeat(44), mint: tradeMint, side: "buy", feeAccount
+  });
+  assert.strictEqual(result.ok, false);
+  assert.match(result.error, /sign/);
+});
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

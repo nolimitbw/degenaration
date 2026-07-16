@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { rateLimit, isMint, sanitizeError } from "@/lib/server/guard";
+import { rateLimit, isMint } from "@/lib/server/guard";
+import { callAppBridge } from "@/lib/server/app-bridge";
 import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
+import { verifySwapTransaction } from "@/lib/server/trade-verification";
 
 const toNum = (v: any): number | null => v != null ? Number(v) : null;
-const feeSolFrom = (v: any): number => process.env.PLATFORM_FEE_ACCOUNT ? (toNum(v) ?? 0) : 0;
+const kinds = new Set(["manual", "entry", "tp1", "tp2", "sl"]);
+type VerifiedTrade = { ok: true; side: "buy" | "sell"; feeSol: number; tokenAmount: number } | { ok: false; error: string };
 
 /**
  * POST /api/record-trade — records an executed swap (for portfolio, history, commissions).
@@ -19,21 +22,34 @@ export async function POST(req: NextRequest) {
 
   let b: any; try { b = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
   if (!isMint(b?.mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
-  if (b?.userPubkey != null && !isMint(b.userPubkey)) return NextResponse.json({ error: "invalid user pubkey" }, { status: 400 });
+  if (!isMint(b?.userPubkey)) return NextResponse.json({ error: "invalid user pubkey" }, { status: 400 });
+  const side = b.side === "sell" ? "sell" : "buy";
 
   const privy = await requirePrivyUser(req);
   if (privy.ok) {
+    const verified = await verifySwapTransaction({
+      rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || process.env.NEXT_PUBLIC_MAINNET_RPC || "https://solana-rpc.publicnode.com",
+      signature: b.sig,
+      userPubkey: b.userPubkey,
+      mint: b.mint,
+      side,
+      feeAccount: process.env.PLATFORM_FEE_ACCOUNT || null
+    }) as VerifiedTrade;
+    if (!verified.ok) {
+      const error = verified.error || "transaction verification failed";
+      return NextResponse.json({ error }, { status: error.includes("confirmed") ? 409 : 400 });
+    }
     const result = await callPrivyRpc("app_user_insert_trade", {
       p_privy_user_id: privy.privyUserId,
-      p_user_pubkey: b.userPubkey || "",
+      p_user_pubkey: b.userPubkey,
       p_mint: b.mint,
-      p_side: b.side === "sell" ? "sell" : "buy",
+      p_side: verified.side,
       p_sol_amount: toNum(b.solAmount),
-      p_token_amount: toNum(b.tokenAmount),
+      p_token_amount: verified.tokenAmount,
       p_price_usd: toNum(b.priceUsd),
-      p_fee_sol: feeSolFrom(b.feeSol),
+      p_fee_sol: verified.feeSol,
       p_tx_signature: b.sig || "",
-      p_kind: b.kind || "manual"
+      p_kind: kinds.has(b.kind) ? b.kind : "manual"
     });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
     return NextResponse.json({ ok: true });
@@ -48,12 +64,31 @@ export async function POST(req: NextRequest) {
   const { data: auth } = await supa.auth.getUser();
   if (!auth.user) return NextResponse.json({ error: "invalid session" }, { status: 401 });
 
-  const { error } = await supa.from("trades").insert({
-    user_id: auth.user.id, mint: b.mint, side: b.side === "sell" ? "sell" : "buy",
-    sol_amount: toNum(b.solAmount), token_amount: toNum(b.tokenAmount),
-    price_usd: toNum(b.priceUsd), fee_sol: feeSolFrom(b.feeSol),
-    tx_signature: b.sig || null, kind: b.kind || "manual"
+  const verified = await verifySwapTransaction({
+    rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || process.env.NEXT_PUBLIC_MAINNET_RPC || "https://solana-rpc.publicnode.com",
+    signature: b.sig,
+    userPubkey: b.userPubkey,
+    mint: b.mint,
+    side,
+    feeAccount: process.env.PLATFORM_FEE_ACCOUNT || null
+  }) as VerifiedTrade;
+  if (!verified.ok) {
+    const error = verified.error || "transaction verification failed";
+    return NextResponse.json({ error }, { status: error.includes("confirmed") ? 409 : 400 });
+  }
+
+  const result = await callAppBridge("app_supabase_insert_trade", {
+    p_user_id: auth.user.id,
+    p_user_pubkey: b.userPubkey,
+    p_mint: b.mint,
+    p_side: verified.side,
+    p_sol_amount: toNum(b.solAmount),
+    p_token_amount: verified.tokenAmount,
+    p_price_usd: toNum(b.priceUsd),
+    p_fee_sol: verified.feeSol,
+    p_tx_signature: b.sig,
+    p_kind: kinds.has(b.kind) ? b.kind : "manual"
   });
-  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 400 });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ ok: true });
 }
