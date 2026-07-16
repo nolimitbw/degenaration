@@ -9,7 +9,7 @@ export default function Hero() {
   return (
     <section
       id="top"
-      className="relative mx-auto grid min-h-dvh max-w-6xl grid-cols-1 items-center px-5 pb-16 pt-32 lg:grid-cols-2 lg:pt-24"
+      className="relative mx-auto grid min-h-[calc(100svh-8rem)] max-w-6xl grid-cols-1 items-center px-5 pb-16 pt-32 lg:grid-cols-2 lg:pt-24"
     >
       <div className="relative z-10 text-center lg:text-left">
         <motion.div

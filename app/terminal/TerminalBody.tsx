@@ -329,7 +329,7 @@ export default function TerminalBody() {
             {chartTab === "holders" && (
               <div className="mt-3 overflow-hidden rounded-md border border-edge">
                 <table className="w-full text-left text-xs"><thead className="bg-panel font-mono uppercase text-dim"><tr><th className="px-3 py-2">#</th><th className="px-3 py-2">Holder</th><th className="px-3 py-2">Amount</th><th className="px-3 py-2">%</th></tr></thead>
-                  <tbody>{holders.length ? holders.map((h) => (<tr key={h.address} className="border-t border-edge font-mono"><td className="px-3 py-2">{h.rank}</td><td className="px-3 py-2 text-cyber">{h.address.slice(0, 4)}…{h.address.slice(-4)}</td><td className="px-3 py-2">{Math.round(h.amount).toLocaleString()}</td><td className="px-3 py-2 text-toxic">{h.pct != null ? h.pct.toFixed(2) + "%" : "—"}</td></tr>)) : <tr><td colSpan={4} className="px-3 py-6 text-center text-dim">Load a token to see holders.</td></tr>}</tbody></table>
+                  <tbody>{holders.length ? holders.map((h) => (<tr key={h.address} className="border-t border-edge font-mono"><td className="px-3 py-2">{h.rank}</td><td className="px-3 py-2 text-cyber">{h.address.slice(0, 4)}…{h.address.slice(-4)}</td><td className="px-3 py-2">{Math.round(h.amount).toLocaleString()}</td><td className="px-3 py-2 text-toxic">{h.pct != null ? h.pct.toFixed(2) + "%" : "—"}</td></tr>)) : <tr><td colSpan={4} className="px-3 py-6 text-center text-dim">{tokenLoaded ? "Holder data is unavailable for this token." : "Load a token to see holders."}</td></tr>}</tbody></table>
               </div>
             )}
             {chartTab === "info" && (
