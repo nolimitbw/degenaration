@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { getMyProfile, saveProfileLimits } from "./queries";
 
 export const DEFAULT_QUICK_BUY_PRESETS = [0.1, 0.5, 1, 2];
@@ -13,12 +14,17 @@ const SYNC_EVENT = "degen-quick-buy-presets";
  * without a full context/provider.
  */
 export function useQuickBuyPresets() {
+  const { ready, authenticated, getAccessToken } = usePrivy();
   const [presets, setPresets] = useState<number[]>(DEFAULT_QUICK_BUY_PRESETS);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    if (!ready) return;
     let alive = true;
-    getMyProfile().then((p) => {
+    const profile = authenticated
+      ? getAccessToken().then((token) => getMyProfile(token))
+      : getMyProfile();
+    profile.then((p) => {
       if (!alive) return;
       if (p?.quick_buy_amounts?.length) setPresets(p.quick_buy_amounts);
       setLoaded(true);
@@ -26,18 +32,19 @@ export function useQuickBuyPresets() {
     const onSync = (e: any) => setPresets(e.detail);
     window.addEventListener(SYNC_EVENT, onSync);
     return () => { alive = false; window.removeEventListener(SYNC_EVENT, onSync); };
-  }, []);
+  }, [ready, authenticated, getAccessToken]);
 
   const save = useCallback(async (next: number[]) => {
     const cleaned = next.filter((n) => Number.isFinite(n) && n > 0);
     if (!cleaned.length) return { error: { message: "Enter at least one amount" } };
-    const { error } = await saveProfileLimits({ quick_buy_amounts: cleaned });
+    const token = authenticated ? await getAccessToken() : null;
+    const { error } = await saveProfileLimits({ quick_buy_amounts: cleaned }, token);
     if (!error) {
       setPresets(cleaned);
       window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: cleaned }));
     }
     return { error };
-  }, []);
+  }, [authenticated, getAccessToken]);
 
   return { presets, loaded, save };
 }

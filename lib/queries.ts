@@ -194,7 +194,13 @@ export async function rejectApplication(id: string) {
 
 export type Profile = { wallet_address: string | null; max_trade_sol: number; daily_cap_sol: number; risk_accepted: boolean; quick_buy_amounts: number[] };
 
-export async function getMyProfile(): Promise<Profile | null> {
+export async function getMyProfile(token?: string | null): Promise<Profile | null> {
+  if (token) {
+    const data = await fetchWithTimeout("/api/user/profile", { headers: bearer(token) })
+      .then((r) => r.ok ? r.json() : { profile: null })
+      .catch(() => ({ profile: null }));
+    return (data?.profile as Profile) ?? null;
+  }
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
   if (!uid) return null;
@@ -206,7 +212,17 @@ export async function getMyProfile(): Promise<Profile | null> {
   return (data as Profile) ?? null;
 }
 
-export async function saveProfileLimits(limits: Partial<{ max_trade_sol: number; daily_cap_sol: number; wallet_address: string; quick_buy_amounts: number[] }>) {
+export async function saveProfileLimits(limits: Partial<{ max_trade_sol: number; daily_cap_sol: number; wallet_address: string; quick_buy_amounts: number[] }>, token?: string | null) {
+  if (token) {
+    return fetchWithTimeout("/api/user/profile", {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...bearer(token) },
+      body: JSON.stringify(limits)
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      return r.ok ? { data, error: null } : { data: null, error: { message: data?.error || "could not save profile" } };
+    }).catch((e) => ({ data: null, error: { message: sanitizeError(e) } }));
+  }
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth.user?.id;
   if (!uid) return { error: { message: "not signed in" } };

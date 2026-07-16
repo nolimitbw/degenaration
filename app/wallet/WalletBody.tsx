@@ -13,7 +13,7 @@ const AutoTrade = dynamic(() => import("@/components/AutoTrade"), { ssr: false, 
 
 // Privy-dependent wallet hub (deposit, limits, auto-trade, swap). Lazily loaded by page.tsx.
 export default function WalletBody() {
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
   const toast = useToast();
   const address = getSolanaAddress(user);
 
@@ -26,8 +26,11 @@ export default function WalletBody() {
   const [savedLimits, setSavedLimits] = useState(false);
 
   useEffect(() => {
-    getMyProfile().then((p) => { if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); } });
-  }, [address]);
+    if (!authenticated) return;
+    getAccessToken().then((token) => getMyProfile(token)).then((p) => {
+      if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); }
+    }).catch(() => {});
+  }, [address, authenticated, getAccessToken]);
 
   async function loadBalance() {
     if (!address) return;
@@ -49,7 +52,10 @@ export default function WalletBody() {
   async function saveLimits() {
     if (!Number.isFinite(maxTrade) || maxTrade <= 0) { toast("Max per trade must be above 0 SOL", "err"); return; }
     if (!Number.isFinite(dailyCap) || dailyCap < maxTrade) { toast("Daily cap must be at least max per trade", "err"); return; }
-    const { error } = await saveProfileLimits({ max_trade_sol: maxTrade, daily_cap_sol: dailyCap, wallet_address: address });
+    const { error } = await saveProfileLimits(
+      { max_trade_sol: maxTrade, daily_cap_sol: dailyCap, wallet_address: address },
+      await getAccessToken()
+    );
     if (error) { toast("Could not save — sign in first", "err"); return; }
     setSavedLimits(true); toast("Trade limits saved"); setTimeout(() => setSavedLimits(false), 1500);
   }

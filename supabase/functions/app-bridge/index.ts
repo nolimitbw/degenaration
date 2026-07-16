@@ -24,7 +24,9 @@ const operations: Record<string, string[]> = {
   app_user_update_limit_order: ["p_secret", "p_privy_user_id", "p_id", "p_action", "p_sig"],
   app_user_list_copy_subscriptions: ["p_secret", "p_privy_user_id"],
   app_user_upsert_copy_subscription: ["p_secret", "p_privy_user_id", "p_payload"],
-  app_user_delete_copy_subscription: ["p_secret", "p_privy_user_id", "p_leader_wallet"]
+  app_user_delete_copy_subscription: ["p_secret", "p_privy_user_id", "p_leader_wallet"],
+  app_user_get_profile: ["p_secret", "p_privy_user_id"],
+  app_user_upsert_profile: ["p_secret", "p_privy_user_id", "p_payload"]
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {

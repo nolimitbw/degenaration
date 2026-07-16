@@ -31,7 +31,10 @@ async function sbInsert(table, body) {
 // ---- limit orders ----
 const loadOpenOrders = () => sbGet("limit_orders?status=eq.open&select=*");
 // Per-user trade caps (by Solana pubkey). Returns [{ max_trade_sol, daily_cap_sol }] or [].
-const loadProfileCaps = (pubkey) => sbGet(`profiles?wallet_address=eq.${pubkey}&select=max_trade_sol,daily_cap_sol`);
+const loadProfileCaps = async (pubkey) => {
+  const privy = await sbGet(`privy_profiles?wallet_address=eq.${pubkey}&select=max_trade_sol,daily_cap_sol`);
+  return privy.length ? privy : sbGet(`profiles?wallet_address=eq.${pubkey}&select=max_trade_sol,daily_cap_sol`);
+};
 const markFilled = (id, sig) => sbPatch(`limit_orders?id=eq.${id}`, { status: "filled", sig, filled_at: new Date().toISOString() });
 const markError = (id, msg) => sbPatch(`limit_orders?id=eq.${id}`, { last_error: String(msg).slice(0, 300) });
 
