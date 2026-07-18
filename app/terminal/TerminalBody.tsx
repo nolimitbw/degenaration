@@ -45,7 +45,7 @@ export default function TerminalBody() {
   const cleanMint = mint.trim();
   const latestMintRef = useRef(cleanMint);
   const previewSeqRef = useRef(0);
-  const [mode, setMode] = useState<Mode>("buy");
+  const [mode, setMode] = useState<Mode>(params.get("mode") === "sell" ? "sell" : params.get("mode") === "limit" ? "limit" : "buy");
   const [amount, setAmount] = useState(Number(params.get("amount")) > 0 ? Number(params.get("amount")) : 0.5);
   const [sellPct, setSellPct] = useState(100);
   const [slippage, setSlippage] = useState(3);
