@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   const since = days ? new Date(Date.now() - days * 86_400_000).toISOString() : null;
   const { data: groups, error: groupsError } = await supa
     .from("approved_groups")
-    .select("id,name,members,tag,public_slug,referral_code,created_at")
+    .select("id,name,members,tag,avatar_url,public_slug,referral_code,created_at")
     .eq("active", true)
     .order("created_at", { ascending: true });
   if (groupsError) return NextResponse.json({ sources: [], note: "no approved groups table yet" });
@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
       name: group.name,
       members: group.members,
       tag: group.tag,
+      avatarUrl: group.avatar_url,
       publicSlug: group.public_slug,
       referralCode: group.referral_code,
       createdAt: group.created_at,

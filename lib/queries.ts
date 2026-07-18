@@ -26,6 +26,7 @@ export type CallSource = {
   name: string;
   members: string | null;
   tag: string | null;
+  avatarUrl: string | null;
   publicSlug: string | null;
   referralCode: string | null;
   createdAt: string;

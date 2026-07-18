@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { Check, ExternalLink, Minus, Plus, RefreshCw, SlidersHorizontal, X } from "lucide-react";
+import { Bot, Check, ExternalLink, Minus, Plus, RefreshCw, Search, WalletCards } from "lucide-react";
 import { getCallSources, getMySubscriptions, saveSubscription, type CallSource } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
@@ -32,11 +32,12 @@ export default function CallsBody() {
   const [loaded, setLoaded] = useState(false);
   const [live, setLive] = useState(false);
   const [copying, setCopying] = useState<string[]>([]);
-  const [open, setOpen] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [timeframe, setTimeframe] = useState<"7d" | "30d" | "all">("7d");
+  const [sourceSearch, setSourceSearch] = useState("");
   const [settings, setSettings] = useState<Record<string, Settings>>({});
   const [saved, setSaved] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
-  const [lastSync, setLastSync] = useState<Date | null>(null);
   const toast = useToast();
 
   const pubkey = getSolanaAddress(user);
@@ -86,13 +87,13 @@ export default function CallsBody() {
     persist(id, on);
   }
 
-  async function loadSources() {
+  async function loadSources(nextTimeframe = timeframe) {
     setLoaded(false);
-    const g = await getCallSources().catch(() => []);
+    const g = await getCallSources(nextTimeframe).catch(() => []);
     setGroups(g);
+    setSelected((current) => current && g.some((group) => group.id === current) ? current : g[0]?.id ?? null);
     setLive(g.length > 0);
     setLoaded(true);
-    setLastSync(new Date());
   }
 
   useEffect(() => {
@@ -114,146 +115,78 @@ export default function CallsBody() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, getAccessToken]);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(null); };
-    document.addEventListener("keydown", close);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", close);
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
   const s = (id: string) => settings[id] ?? DEFAULTS;
   const set = (id: string, patch: Partial<Settings>) =>
     setSettings((prev) => ({ ...prev, [id]: { ...s(id), ...patch } }));
 
+  const activeGroup = groups.find((group) => group.id === selected) ?? null;
+  const visibleGroups = groups.filter((group) => group.name.toLowerCase().includes(sourceSearch.trim().toLowerCase()));
+
+  const cfg = activeGroup ? s(activeGroup.id) : DEFAULTS;
+  const invalidSettings = activeGroup ? settingsError(cfg) : null;
+  const active = activeGroup ? copying.includes(activeGroup.id) : false;
+
   return (
-    <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Bots</h1>
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase ${live ? "border-up/35 bg-up/5 text-up" : "border-edge text-dim"}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-up" : "bg-dim"}`} /> {live ? "Connected" : "No sources"}
-            </span>
-          </div>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-dim">
-            Follow approved Discord call sources and define independent execution rules for each server.
-          </p>
-        </div>
-        <button onClick={loadSources} disabled={!loaded}
-          className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 py-2 text-xs font-bold text-ink transition hover:border-toxic disabled:opacity-50">
-          <RefreshCw size={14} className={!loaded ? "animate-spin" : ""} /> {loaded ? "Refresh" : "Loading"}
-        </button>
-      </div>
-      <div className="mt-6 grid gap-px border border-edge bg-edge sm:grid-cols-3">
-        <HeaderMetric label="Approved sources" value={loaded ? String(groups.length) : "--"} />
-        <HeaderMetric label="Copying" value={authenticated ? String(copying.length) : "Connect wallet"} />
-        <HeaderMetric label="Last sync" value={lastSync ? lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--"} />
-      </div>
-      {authenticated && pubkey && (!walletId || !delegated) && (
-        <div className="mt-4 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
-          <p className="text-sm font-bold text-ink">Enable 24/7 auto-trading before copying call groups.</p>
-          <p className="mt-1 font-mono text-[11px] text-dim">The worker needs your Privy delegated Solana wallet id before it can execute calls while you are offline.</p>
-          <a href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Open Wallet</a>
+    <div className="overflow-hidden rounded-lg border border-edge bg-panel">
+      <header className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-edge px-4 py-3">
+        <div className="flex items-center gap-3"><Bot size={18} className="text-toxic" /><div><h1 className="text-sm font-bold">Discord source automations</h1><p className="font-mono text-[9px] uppercase text-dim">Wallet-signed execution profiles</p></div></div>
+        <div className="flex items-center gap-2"><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] uppercase ${live ? "border-up/35 text-up" : "border-edge text-dim"}`}><span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-up" : "bg-dim"}`} />{live ? "Sources online" : "No sources"}</span><button onClick={() => loadSources()} disabled={!loaded} aria-label="Refresh sources" title="Refresh sources" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim transition hover:border-toxic hover:text-ink disabled:opacity-50"><RefreshCw size={14} className={!loaded ? "animate-spin" : ""} /></button></div>
+      </header>
+
+      {loaded && groups.length === 0 ? (
+        <div className="grid min-h-[560px] place-items-center p-8 text-center"><div><p className="text-sm font-bold">No approved Discord sources</p><p className="mt-2 max-w-md text-xs leading-6 text-dim">Sources appear after a server owner registers a call channel and an administrator approves it.</p><Link href="/apply" className="mt-5 inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-xs font-bold text-[#17110c]">List a server</Link></div></div>
+      ) : (
+        <div className="grid xl:grid-cols-[minmax(0,1.05fr)_minmax(460px,.95fr)]">
+          <section className="border-b border-edge xl:border-b-0 xl:border-r">
+            {activeGroup ? <>
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-edge px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3"><SourceAvatar source={activeGroup} size="small" /><div className="min-w-0"><p className="font-mono text-[9px] uppercase text-toxic">Execution profile</p><h2 className="truncate text-base font-bold">{activeGroup.name}</h2><p className="mt-0.5 font-mono text-[10px] text-dim">{activeGroup.members ?? "--"} members · {activeGroup.metrics.calls} tracked calls</p></div></div>
+                <button onClick={() => toggle(activeGroup.id)} disabled={saving === activeGroup.id} className={`inline-flex min-h-9 items-center gap-2 rounded-md border px-3 font-mono text-[10px] uppercase transition ${active ? "border-up/40 bg-up/5 text-up" : "border-edge text-dim hover:text-ink"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-up" : "bg-dim"}`} />{active ? "Copying enabled" : "Copying paused"}</button>
+              </div>
+
+              <div className="space-y-5 p-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-md border border-edge bg-void px-3 py-3"><p className="font-mono text-[9px] uppercase text-dim">Execution wallet</p><div className="mt-2 flex items-center justify-between gap-3"><span className="truncate font-mono text-xs text-ink">{pubkey ? `${pubkey.slice(0, 6)}...${pubkey.slice(-5)}` : "Connect a wallet"}</span><WalletCards size={15} className={pubkey ? "text-toxic" : "text-dim"} /></div></div>
+                  <div className="rounded-md border border-edge bg-void px-3 py-3"><p className="font-mono text-[9px] uppercase text-dim">Offline execution</p><div className="mt-2 flex items-center justify-between gap-3"><span className="font-mono text-xs text-ink">{delegated && automation.live ? "Ready" : delegated ? "Engine paused" : "Delegation required"}</span><span className={`h-2 w-2 rounded-full ${delegated && automation.live ? "bg-up" : "bg-down"}`} /></div></div>
+                </div>
+
+                {authenticated && pubkey && (!walletId || !delegated) && <Link href="/wallet" className="flex items-center justify-between rounded-md border border-down/35 bg-down/5 px-3 py-2.5 text-xs text-ink"><span>Enable delegated trading before activating this profile.</span><span className="font-semibold text-down">Open wallet</span></Link>}
+
+                <div>
+                  <SectionTitle title="Position controls" description="Capital limits applied to every new source call." />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2"><NumberField label="Size per call" suffix="SOL" value={cfg.size} step={0.1} min={0.1} onChange={(value) => set(activeGroup.id, { size: value })} /><NumberField label="Daily spend cap" suffix="SOL" value={cfg.dailyCap} step={0.5} min={0.5} onChange={(value) => set(activeGroup.id, { dailyCap: value })} /></div>
+                </div>
+
+                <div>
+                  <SectionTitle title="Profit ladder" description="Take partial profit while keeping a runner position." />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2"><NumberField label="First target" suffix="x" value={cfg.tp1} step={0.5} min={1.5} onChange={(value) => set(activeGroup.id, { tp1: value })} /><NumberField label="Sell at first target" suffix="%" value={cfg.tp1sell} step={5} min={0} max={100} onChange={(value) => set(activeGroup.id, { tp1sell: value })} /><NumberField label="Second target" suffix="x" value={cfg.tp2} step={0.5} min={1.5} onChange={(value) => set(activeGroup.id, { tp2: value })} /><NumberField label="Sell at second target" suffix="%" value={cfg.tp2sell} step={5} min={0} max={100} onChange={(value) => set(activeGroup.id, { tp2sell: value })} /></div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-edge"><div className="h-full bg-up" style={{ width: `${Math.min(100, cfg.tp1sell + cfg.tp2sell)}%` }} /></div><div className="mt-1.5 flex justify-between font-mono text-[9px] text-dim"><span>{cfg.tp1sell + cfg.tp2sell}% exits</span><span>{Math.max(0, 100 - cfg.tp1sell - cfg.tp2sell)}% runner</span></div>
+                </div>
+
+                <div>
+                  <SectionTitle title="Risk controls" description="Hard exits and route tolerance for automated orders." />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2"><NumberField label="Stop loss" suffix="%" value={cfg.sl} step={5} min={1} max={100} onChange={(value) => set(activeGroup.id, { sl: value })} /><NumberField label="Max slippage" suffix="%" value={cfg.slippage} step={0.5} min={0.5} max={20} onChange={(value) => set(activeGroup.id, { slippage: value })} /></div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">{["Rug screening", "Mint authority", "Liquidity check"].map((item) => <div key={item} className="flex min-h-9 items-center gap-2 rounded-md border border-edge bg-void px-3 text-[10px] text-ink"><Check size={12} className="text-up" />{item}</div>)}</div>
+                </div>
+              </div>
+
+              <footer className="sticky bottom-9 z-10 flex flex-col gap-3 border-t border-edge bg-panel/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between"><p className={`font-mono text-[10px] ${invalidSettings ? "text-down" : "text-dim"}`}>{invalidSettings || (active ? "Saving updates the live execution profile." : "Profile is paused; settings can still be saved.")}</p><button onClick={() => persist(activeGroup.id, active)} disabled={saving === activeGroup.id || !!invalidSettings} className="min-h-10 min-w-40 rounded-md bg-toxic px-5 text-xs font-bold text-[#17110c] transition hover:brightness-110 disabled:opacity-50">{saving === activeGroup.id ? "Saving profile" : saved === activeGroup.id ? "Profile saved" : "Save execution profile"}</button></footer>
+            </> : <div className="grid min-h-[640px] place-items-center text-sm text-dim">Select a Discord source.</div>}
+          </section>
+
+          <aside className="bg-void/35">
+            <div className="border-b border-edge p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[9px] uppercase text-toxic">Source intelligence</p><h2 className="mt-1 text-base font-bold">Approved Discord servers</h2></div><div className="flex gap-1">{(["7d", "30d", "all"] as const).map((value) => <button key={value} onClick={() => { setTimeframe(value); loadSources(value); }} className={`min-h-8 rounded-md px-2.5 font-mono text-[9px] uppercase transition ${timeframe === value ? "bg-toxic text-[#17110c]" : "border border-edge text-dim hover:text-ink"}`}>{value}</button>)}</div></div>
+              {activeGroup && <div className="mt-4 grid grid-cols-5 gap-px bg-edge">{[["Calls", activeGroup.metrics.calls], ["Measured", activeGroup.metrics.measuredCalls], ["2x rate", activeGroup.metrics.hitRate == null ? "--" : `${activeGroup.metrics.hitRate.toFixed(0)}%`], ["Avg peak", activeGroup.metrics.avgPeakX == null ? "--" : `${activeGroup.metrics.avgPeakX.toFixed(2)}x`], ["Best", activeGroup.metrics.bestPeakX == null ? "--" : `${activeGroup.metrics.bestPeakX.toFixed(1)}x`]].map(([label, value]) => <div key={label} className="bg-panel px-2 py-3 text-center"><p className="font-mono text-sm font-bold text-ink">{value}</p><p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p></div>)}</div>}
+              <label className="mt-4 flex min-h-10 items-center gap-2 rounded-md border border-edge bg-panel px-3 focus-within:border-toxic"><Search size={14} className="text-dim" /><input value={sourceSearch} onChange={(event) => setSourceSearch(event.target.value)} placeholder="Search approved sources" className="min-w-0 flex-1 bg-transparent text-xs outline-none" /></label>
+            </div>
+            <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">{visibleGroups.map((group) => <button key={group.id} onClick={() => setSelected(group.id)} className={`overflow-hidden rounded-md border bg-panel text-left transition ${selected === group.id ? "border-toxic shadow-toxic" : "border-edge hover:border-toxic/60"}`}><SourceAvatar source={group} size="card" /><div className="p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-bold text-ink">{group.name}</p><p className="mt-1 font-mono text-[9px] text-dim">{group.members ?? "--"} members</p></div>{selected === group.id && <Check size={14} className="shrink-0 text-toxic" />}</div><div className="mt-3 flex items-center justify-between border-t border-edge pt-2 font-mono text-[9px]"><span className="text-dim">{group.metrics.calls} calls</span><span className={group.metrics.hitRate == null ? "text-dim" : "text-up"}>{group.metrics.hitRate == null ? "Measuring" : `${group.metrics.hitRate.toFixed(0)}% hit`}</span></div></div></button>)}</div>
+            {!visibleGroups.length && loaded && <p className="p-10 text-center text-xs text-dim">No approved sources match that search.</p>}
+            {activeGroup?.publicSlug && <div className="px-4 pb-5"><Link href={`/source/${activeGroup.publicSlug}`} className="inline-flex items-center gap-2 text-xs text-dim transition hover:text-toxic">Open public source profile <ExternalLink size={13} /></Link></div>}
+          </aside>
         </div>
       )}
-
-      {loaded && groups.length === 0 && (
-        <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
-          <p className="text-sm font-bold text-dim">No call groups yet</p>
-          <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Sources appear after their owners add the bot, register a calls channel, and it is approved. Nothing is seeded, so every performance figure is earned from recorded calls.</p>
-          <a href="/apply" className="mt-4 rounded-md border border-edge px-4 py-2 text-xs font-bold text-dim hover:border-toxic hover:text-toxic">List a server →</a>
-        </div>
-      )}
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {groups.map((g) => {
-          const on = copying.includes(g.id);
-          const cfg = s(g.id);
-          const invalidSettings = settingsError(cfg);
-          return (
-            <article key={g.id} className={`rounded-lg border bg-panel p-5 transition ${on ? "border-toxic/60 shadow-toxic" : "border-edge"}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h3 className="font-bold">
-                    {g.publicSlug ? <Link href={`/source/${g.publicSlug}`} className="hover:text-toxic">{g.name}</Link> : g.name}
-                  </h3>
-                  <p className="mt-0.5 font-mono text-xs text-dim">
-                    {g.members ?? "—"} members · {g.metrics.calls} calls in the tracked window
-                  </p>
-                </div>
-                <button onClick={() => toggle(g.id)} disabled={saving === g.id}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${on ? "bg-toxic" : "bg-edge"}`}
-                  aria-label={`${on ? "Pause" : "Enable"} copying for ${g.name}`}>
-                  <span className={`absolute top-1 h-5 w-5 rounded-full bg-void transition-all ${on ? "left-6" : "left-1"}`} />
-                </button>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-4">
-                <Metric label="2x hit rate" value={g.metrics.hitRate == null ? "Pending" : `${g.metrics.hitRate.toFixed(0)}%`} />
-                <Metric label="Avg peak" value={g.metrics.avgPeakX == null ? "Pending" : `${g.metrics.avgPeakX.toFixed(2)}x`} tone="text-up" />
-                <Metric label="Median peak" value={g.metrics.medianPeakX == null ? "Pending" : `${g.metrics.medianPeakX.toFixed(2)}x`} />
-                <Metric label="Best call" value={g.metrics.bestPeakX == null ? "Pending" : `${g.metrics.bestPeakX.toFixed(1)}x`} tone="text-toxic" />
-              </div>
-
-              <p className="mt-3 min-h-10 font-mono text-[10px] leading-5 text-dim/75">
-                {g.metrics.measuredCalls
-                  ? `${g.metrics.measuredCalls}/${g.metrics.calls} calls have an entry and live peak measurement. 2x hit rate means the call reached at least 2.00x from its recorded entry.`
-                  : "Metrics appear after the scanner records an entry price and checks the call against live market data."}
-              </p>
-
-              <div className="mt-4 flex gap-2">
-                <button onClick={() => setOpen(g.id)} className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md bg-toxic px-3 text-xs font-bold text-[#17110c] transition hover:brightness-110">
-                  <SlidersHorizontal size={14} /> Configure
-                </button>
-                {g.publicSlug && <Link href={`/source/${g.publicSlug}`} aria-label={`Open ${g.name} public profile`} title="Public profile" className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim transition hover:border-toxic hover:text-ink"><ExternalLink size={14} /></Link>}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      {open && groups.find((group) => group.id === open) && (() => {
-        const group = groups.find((item) => item.id === open)!;
-        const cfg = s(group.id);
-        const invalidSettings = settingsError(cfg);
-        const on = copying.includes(group.id);
-        return (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(null); }}>
-            <section role="dialog" aria-modal="true" aria-labelledby="bot-settings-title" className="max-h-[calc(100svh-3rem)] w-full max-w-4xl overflow-y-auto rounded-lg border border-edge bg-panel shadow-[0_30px_100px_rgba(0,0,0,.6)]">
-              <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-edge bg-panel/95 px-5 py-4 backdrop-blur">
-                <div><p className="font-mono text-[10px] uppercase text-toxic">Execution profile</p><h2 id="bot-settings-title" className="mt-1 text-lg font-bold">{group.name}</h2><p className="mt-1 text-xs text-dim">Rules apply only to new calls from this approved source.</p></div>
-                <button onClick={() => setOpen(null)} aria-label="Close settings" className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-edge text-dim transition hover:border-toxic hover:text-ink"><X size={17} /></button>
-              </header>
-              <div className="grid lg:grid-cols-[minmax(0,1fr)_260px]">
-                <div className="grid gap-4 p-5 sm:grid-cols-2">
-                  <NumberField label="Size per call" suffix="SOL" value={cfg.size} step={0.1} min={0.1} onChange={(value) => set(group.id, { size: value })} />
-                  <NumberField label="Daily spend cap" suffix="SOL" value={cfg.dailyCap} step={0.5} min={0.5} onChange={(value) => set(group.id, { dailyCap: value })} />
-                  <NumberField label="Take profit 1" suffix="x" value={cfg.tp1} step={0.5} min={1.5} onChange={(value) => set(group.id, { tp1: value })} />
-                  <NumberField label="Sell at TP1" suffix="%" value={cfg.tp1sell} step={5} min={0} max={100} onChange={(value) => set(group.id, { tp1sell: value })} />
-                  <NumberField label="Take profit 2" suffix="x" value={cfg.tp2} step={0.5} min={1.5} onChange={(value) => set(group.id, { tp2: value })} />
-                  <NumberField label="Sell at TP2" suffix="%" value={cfg.tp2sell} step={5} min={0} max={100} onChange={(value) => set(group.id, { tp2sell: value })} />
-                  <NumberField label="Stop loss" suffix="%" value={cfg.sl} step={5} min={1} max={100} onChange={(value) => set(group.id, { sl: value })} />
-                  <NumberField label="Max slippage" suffix="%" value={cfg.slippage} step={0.5} min={0.5} max={20} onChange={(value) => set(group.id, { slippage: value })} />
-                </div>
-                <aside className="border-t border-edge bg-void/55 p-5 lg:border-l lg:border-t-0">
-                  <p className="font-mono text-[10px] uppercase text-dim">Order summary</p>
-                  <dl className="mt-4 space-y-3 text-xs"><Summary label="Per call" value={`${cfg.size} SOL`} /><Summary label="Profit exits" value={`${cfg.tp1sell + cfg.tp2sell}%`} /><Summary label="Runner" value={`${Math.max(0, 100 - cfg.tp1sell - cfg.tp2sell)}%`} /><Summary label="Daily limit" value={`${cfg.dailyCap} SOL`} /></dl>
-                  <div className="mt-6 border-t border-edge pt-5"><p className="font-mono text-[10px] uppercase text-dim">Protection</p><div className="mt-3 space-y-2 text-xs text-ink">{["Rug risk screening", "Mint authority check", "Liquidity validation"].map((item) => <p key={item} className="flex items-center gap-2"><Check size={13} className="text-up" /> {item}</p>)}</div></div>
-                  {group.recentCalls.length > 0 && <div className="mt-6 border-t border-edge pt-5"><p className="font-mono text-[10px] uppercase text-dim">Latest calls</p>{group.recentCalls.slice(0, 3).map((call) => <div key={call.id} className="mt-3 flex items-center justify-between gap-2 font-mono text-[10px]"><span className="truncate">{call.symbol || call.mint?.slice(0, 7)}</span><span className="text-up">{call.peakX ? `${call.peakX.toFixed(2)}x` : "Scanning"}</span></div>)}</div>}
-                </aside>
-              </div>
-              <footer className="sticky bottom-0 flex flex-col gap-3 border-t border-edge bg-panel/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-                <p className={`font-mono text-[10px] ${invalidSettings ? "text-hotpink" : "text-dim"}`}>{invalidSettings || (on ? "Changes update the active copy profile." : "Copying is paused. Settings can still be saved.")}</p>
-                <div className="flex gap-2"><button onClick={() => setOpen(null)} className="min-h-10 rounded-md border border-edge px-4 text-xs font-bold text-dim transition hover:text-ink">Cancel</button><button onClick={() => persist(group.id, on)} disabled={saving === group.id || !!invalidSettings} className="min-h-10 min-w-36 rounded-md bg-toxic px-5 text-xs font-bold text-[#17110c] transition hover:brightness-110 disabled:opacity-50">{saving === group.id ? "Saving" : saved === group.id ? "Saved" : "Save profile"}</button></div>
-              </footer>
-            </section>
-          </div>
-        );
-      })()}
-    </>
+    </div>
   );
 }
 
@@ -272,19 +205,18 @@ function NumberField({ label, suffix, value, step, min = 0, max = 1000, onChange
   );
 }
 
-function HeaderMetric({ label, value }: { label: string; value: string }) {
-  return <div className="bg-panel px-4 py-3"><p className="font-mono text-[9px] uppercase text-dim">{label}</p><p className="mt-1 text-sm font-semibold text-ink">{value}</p></div>;
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between gap-3"><dt className="text-dim">{label}</dt><dd className="font-mono text-ink">{value}</dd></div>;
-}
-
-function Metric({ label, value, tone = "text-ink" }: { label: string; value: string; tone?: string }) {
+function SectionTitle({ title, description }: { title: string; description: string }) {
   return (
-    <div className="bg-void px-3 py-2.5">
-      <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
-      <p className={`mt-1 font-mono text-sm font-bold ${tone}`}>{value}</p>
+    <div className="flex flex-wrap items-end justify-between gap-2 border-b border-edge pb-2">
+      <h3 className="text-xs font-bold text-ink">{title}</h3>
+      <p className="font-mono text-[9px] text-dim">{description}</p>
     </div>
   );
+}
+
+function SourceAvatar({ source, size }: { source: CallSource; size: "small" | "card" }) {
+  const image = source.avatarUrl || (/degen.?aration/i.test(source.name) ? "/images/rocket-launch-hero.png" : null);
+  if (image) return <img src={image} alt="" className={size === "small" ? "h-11 w-11 shrink-0 rounded-md object-cover" : "aspect-[16/9] w-full object-cover"} />;
+  const initials = source.name.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
+  return <div className={`grid place-items-center bg-[linear-gradient(135deg,rgb(var(--toxic-rgb)/.28),rgb(var(--edge-rgb)/.35))] font-mono font-bold text-toxic ${size === "small" ? "h-11 w-11 shrink-0 rounded-md text-xs" : "aspect-[16/9] w-full text-2xl"}`}>{initials}</div>;
 }
