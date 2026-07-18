@@ -77,30 +77,32 @@ body {
 
 /* Quiet, data-first workspace palette. The launch page keeps its own cinematic theme. */
 .app-shell {
-  --void: #080a0d;
-  --void-rgb: 8 10 13;
-  --panel: #0e1115;
-  --panel-rgb: 14 17 21;
-  --edge: #242a32;
-  --edge-rgb: 36 42 50;
-  --toxic: #38bdf8;
-  --toxic-rgb: 56 189 248;
-  --hotpink: #f15b70;
-  --hotpink-rgb: 241 91 112;
-  --cyber: #2dd4bf;
-  --cyber-rgb: 45 212 191;
-  --up: #42d392;
-  --up-rgb: 66 211 146;
-  --dim: #929ba8;
-  --dim-rgb: 146 155 168;
-  --ink: #f3f5f7;
-  --ink-rgb: 243 245 247;
-  --brand: #ee315d;
-  --brand-rgb: 238 49 93;
+  --void: #0d0e0f;
+  --void-rgb: 13 14 15;
+  --panel: #151617;
+  --panel-rgb: 21 22 23;
+  --edge: #2b2a28;
+  --edge-rgb: 43 42 40;
+  --toxic: #b98b5d;
+  --toxic-rgb: 185 139 93;
+  --hotpink: #dd6b6b;
+  --hotpink-rgb: 221 107 107;
+  --cyber: #d0aa7c;
+  --cyber-rgb: 208 170 124;
+  --up: #4bbb83;
+  --up-rgb: 75 187 131;
+  --dim: #98948e;
+  --dim-rgb: 152 148 142;
+  --ink: #f1eee9;
+  --ink-rgb: 241 238 233;
+  --brand: #b98b5d;
+  --brand-rgb: 185 139 93;
   --shadow-toxic: 0 0 0 1px rgb(var(--toxic-rgb) / 0.22), 0 8px 20px -12px rgb(var(--toxic-rgb) / 0.32);
   --shadow-pink: 0 0 0 1px rgb(var(--hotpink-rgb) / 0.22), 0 8px 20px -12px rgb(var(--hotpink-rgb) / 0.3);
   color-scheme: dark;
   background: var(--void);
+  background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
+  background-size: 32px 32px;
   color: var(--ink);
 }
 
@@ -211,26 +213,52 @@ body {
    app/dashboard pages keep their existing light styling)
    ============================================================ */
 .degen-home {
-  --bg-0: #07080c;
-  --grape: #ff2255;
-  --grape-rgb: 255 34 85;
-  --magenta: #ff5577;
-  --azure: #ff3366;
-  --ember: #fff5f7;
-  --ember-rgb: 255 245 247;
-  --ink: #ffffff;
-  --ink-rgb: 255 255 255;
-  --haze: #ccccd6;
-  --haze-rgb: 204 204 214;
+  --void: #0d0e0f;
+  --void-rgb: 13 14 15;
+  --panel: #151617;
+  --panel-rgb: 21 22 23;
+  --edge: #2b2a28;
+  --edge-rgb: 43 42 40;
+  --toxic: #b98b5d;
+  --toxic-rgb: 185 139 93;
+  --hotpink: #dd6b6b;
+  --hotpink-rgb: 221 107 107;
+  --up: #4bbb83;
+  --up-rgb: 75 187 131;
+  --ink: #f1eee9;
+  --ink-rgb: 241 238 233;
+  --dim: #98948e;
+  --dim-rgb: 152 148 142;
   color-scheme: dark;
   position: relative;
   min-height: 100vh;
   color: var(--ink);
   overflow-x: clip;
-  background: var(--bg-0);
+  background: var(--void);
+  background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 .degen-home ::selection { background: rgb(var(--grape-rgb) / 0.9); color: #0a0204; }
 .degen-home .text-haze { color: var(--haze); }
+
+.home-hero { position: relative; }
+.home-hero::before {
+  content: "";
+  position: absolute;
+  inset: 6rem 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(var(--toxic-rgb) / .48), transparent);
+}
+.home-chart-grid {
+  background-image: linear-gradient(rgb(var(--edge-rgb) / .5) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--edge-rgb) / .5) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.home-band { background: rgb(var(--panel-rgb) / .42); }
+.terminal-preview { border-radius: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
 
 /* Full-page launch art stays crisp without an enlarged, low-resolution video crop. */
 .launch-video-wrap {

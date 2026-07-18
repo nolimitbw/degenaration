@@ -10,12 +10,12 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://degenaration.vercel.app"),
-  title: { default: "Degenaration — On-chain trading terminal & alpha copy-trading", template: "%s · Degenaration" },
+  title: { default: "Degenaration | Solana Trading Terminal", template: "%s | Degenaration" },
   description:
     "Discover, analyze and copy the best Solana alpha — live trenches, token screener, pro charts, ranked call groups, wallet tracker and non-custodial auto-trading. Your keys, your coins.",
   keywords: ["Solana", "memecoin", "trading terminal", "copy trading", "DexScreener", "alpha", "trenches", "non-custodial"],
   openGraph: {
-    title: "Degenaration — On-chain trading terminal & alpha copy-trading",
+    title: "Degenaration | Solana Trading Terminal",
     description: "Live trenches, token screener, pro charts, ranked alpha groups, wallet tracker and non-custodial auto-trading on Solana.",
     url: "https://degenaration.vercel.app", siteName: "Degenaration", type: "website"
   },

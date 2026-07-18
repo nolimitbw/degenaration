@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Live trenches, token screener, pro charts and non-custodial auto-trading on Solana.",
     start_url: "/",
     display: "standalone",
-    background_color: "#08090c",
-    theme_color: "#ff2255",
+    background_color: "#0d0e0f",
+    theme_color: "#b98b5d",
     icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }]
   };
 }

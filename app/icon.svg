@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#07070b"/><text x="16" y="22" font-family="monospace" font-size="18" font-weight="bold" text-anchor="middle" fill="#a3ff12">D</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="10" fill="#0d0e0f"/>
+  <path d="M25 8h17l14 14v20L42 56H25V42h12l5-5V27l-5-5H25V8Z" fill="#f1eee9"/>
+  <path d="M7 12h11v11H7V12Zm4 17h17v11H11V29ZM7 46h11v11H7V46Z" fill="#b98b5d"/>
+  <path d="M29 26h7l3 3v6l-3 3h-7V26Z" fill="#0d0e0f"/>
+</svg>

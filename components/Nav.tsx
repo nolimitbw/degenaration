@@ -2,14 +2,16 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import Magnetic from "@/components/Magnetic";
 import Logo from "@/components/Logo";
+import { Menu, X } from "lucide-react";
 
 const LINKS = [
-  { label: "Home", href: "#top" },
-  { label: "Discord sources", href: "#groups" },
-  { label: "How It Works", href: "#how" },
-  { label: "FAQ", href: "/docs" }
+  { label: "Terminal", href: "/terminal" },
+  { label: "Trades", href: "/trades" },
+  { label: "Search", href: "/search" },
+  { label: "Bots", href: "/bots" },
+  { label: "Affiliate", href: "/affiliate" },
+  { label: "Portfolio", href: "/portfolio" }
 ];
 
 export default function Nav() {
@@ -28,15 +30,10 @@ export default function Nav() {
       initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-      className="fixed inset-x-0 top-12 z-[70] flex justify-center px-4"
+      className="fixed inset-x-0 top-10 z-[70] border-b border-edge bg-void/90 backdrop-blur-xl"
     >
       <motion.nav
-        animate={{ y: scrolled ? 0 : [0, -3, 0] }}
-        transition={scrolled ? { duration: 0.3 } : { duration: 6, repeat: Infinity, ease: "easeInOut" }}
-        className={`glass-cosmic flex items-center gap-2 rounded-full transition-all duration-300 ${
-          scrolled ? "px-3 py-1.5 shadow-[0_10px_40px_-12px_rgb(var(--toxic-rgb)/.5)]" : "px-4 py-2.5"
-        }`}
-        style={{ backdropFilter: scrolled ? "blur(22px) saturate(160%)" : "blur(14px) saturate(140%)" }}
+        className={`mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 transition-shadow duration-300 ${scrolled ? "shadow-[0_12px_30px_-24px_rgba(0,0,0,.9)]" : ""}`}
       >
         <Link href="#top" className={`transition-all ${scrolled ? "text-base" : "text-lg"}`}>
           <Logo />
@@ -44,32 +41,28 @@ export default function Nav() {
 
         <div className="mx-2 hidden items-center gap-1 md:flex">
           {LINKS.map((l) => (
-            <a
+            <Link
               key={l.label}
               href={l.href}
-              className="rounded-full px-3 py-1.5 text-sm text-haze transition hover:bg-white/5 hover:text-starlight"
+              className="px-3 py-2 text-sm text-dim transition hover:text-ink"
             >
               {l.label}
-            </a>
+            </Link>
           ))}
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/login" className="btn-ghost px-3 py-1.5 text-sm font-semibold">Connect Wallet</Link>
-          <Magnetic strength={0.5}>
-            <Link href="/terminal" className={`btn-cosmic font-bold transition-all ${scrolled ? "px-4 py-1.5 text-sm" : "px-5 py-2 text-sm"}`}>
-              Launch app
-            </Link>
-          </Magnetic>
+          <Link href="/login" className="rounded-md border border-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-toxic">Connect Wallet</Link>
+          <Link href="/terminal" className="rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open terminal</Link>
         </div>
 
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Menu"
           aria-expanded={open}
-          className="btn-ghost ml-1 grid h-9 w-9 place-items-center md:hidden"
+          className="ml-auto grid h-10 w-10 place-items-center rounded-md border border-edge text-dim md:hidden"
         >
-          <span className={`menu-icon ${open ? "menu-icon-open" : ""}`} aria-hidden="true"><i /><i /><i /></span>
+          {open ? <X aria-hidden="true" size={19} /> : <Menu aria-hidden="true" size={19} />}
         </button>
       </motion.nav>
 
@@ -77,16 +70,16 @@ export default function Nav() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-cosmic absolute top-16 w-[min(92vw,22rem)] rounded-2xl p-3 md:hidden"
+          className="absolute inset-x-4 top-16 border border-edge bg-panel p-3 shadow-2xl md:hidden"
         >
           {LINKS.map((l) => (
-            <a key={l.label} href={l.href} onClick={() => setOpen(false)} className="block rounded-xl px-4 py-3 text-sm text-haze hover:bg-white/5 hover:text-starlight">
+            <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className="block rounded-md px-4 py-3 text-sm text-dim hover:bg-edge/40 hover:text-ink">
               {l.label}
-            </a>
+            </Link>
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <Link href="/login" onClick={() => setOpen(false)} className="btn-ghost px-3 py-2.5 text-center text-sm font-semibold">Connect Wallet</Link>
-            <Link href="/terminal" onClick={() => setOpen(false)} className="btn-cosmic px-3 py-2.5 text-center text-sm font-bold">Launch app</Link>
+            <Link href="/login" onClick={() => setOpen(false)} className="rounded-md border border-edge px-3 py-2.5 text-center text-sm font-semibold">Connect Wallet</Link>
+            <Link href="/terminal" onClick={() => setOpen(false)} className="rounded-md bg-toxic px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open terminal</Link>
           </div>
         </motion.div>
       )}

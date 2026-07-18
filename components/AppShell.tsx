@@ -16,11 +16,9 @@ import {
   ListOrdered,
   Menu,
   Radar,
-  RadioTower,
   ServerCog,
   Settings,
   ShieldCheck,
-  SquareTerminal,
   Star,
   WalletCards,
   X,
@@ -28,6 +26,7 @@ import {
 } from "lucide-react";
 import Ticker from "./Ticker";
 import Search from "./Search";
+import Logo from "./Logo";
 
 // Load the wallet button (and its heavy Privy bundle) only on the client, after paint.
 // Keeps ~800KB of signing code off the critical path so data pages open instantly.
@@ -47,23 +46,23 @@ const WalletStatus = dynamic(() => import("./WalletStatus"), {
 
 // Primary nav — always visible on desktop (Trojan-style top bar).
 const PRIMARY = [
-  { href: "/trenches", label: "Trenches" },
-  { href: "/explorer", label: "Explorer" },
-  { href: "/holdings", label: "Holdings" },
-  { href: "/tracker", label: "Tracker" },
-  { href: "/alpha", label: "Alpha" }
+  { href: "/terminal", label: "Terminal" },
+  { href: "/trades", label: "Trades" },
+  { href: "/search", label: "Search" },
+  { href: "/bots", label: "Bots" },
+  { href: "/affiliate", label: "Affiliate" },
+  { href: "/portfolio", label: "Portfolio" }
 ];
 
 // Secondary surfaces grouped under a Tools dropdown.
 type ToolItem = { href: string; label: string; desc: string; icon: LucideIcon };
 
 const TOOLS: ToolItem[] = [
-  { href: "/terminal", label: "Trade Terminal", desc: "Buy and sell any token instantly", icon: SquareTerminal },
   { href: "/orders", label: "Limit Orders", desc: "Auto buy or sell at your price", icon: ListOrdered },
-  { href: "/calls", label: "Discord Calls", desc: "Copy trades from call groups", icon: RadioTower },
   { href: "/watchlist", label: "Watchlist", desc: "Your starred tokens", icon: Star },
   { href: "/alerts", label: "Price Alerts", desc: "Notifications while the alerts tab is open", icon: Bell },
-  { href: "/dashboard", label: "Portfolio", desc: "PnL and trade history", icon: ChartNoAxesCombined },
+  { href: "/tracker", label: "Wallet Tracker", desc: "Follow wallet activity", icon: Radar },
+  { href: "/alpha", label: "Call Leaderboard", desc: "Measured caller performance", icon: ChartNoAxesCombined },
   { href: "/apply", label: "List your server", desc: "Add your Discord call group", icon: ServerCog }
 ];
 
@@ -209,26 +208,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </a>
       {/* top nav */}
       <header className="sticky top-0 z-40 border-b border-edge glass">
-        <div className="flex h-14 items-center gap-3 px-4 lg:px-6">
+        <div className="mx-auto flex h-16 max-w-[1800px] items-center gap-3 px-4 lg:px-6">
           <button onClick={() => setMobileOpen(true)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink lg:hidden" aria-label="Open menu">
             <Menu aria-hidden="true" size={21} />
           </button>
-          <Link href="/trenches" className="shrink-0 text-lg font-bold tracking-tight">
-            DEGEN<span className="text-brand">ARATION</span>
+          <Link href="/terminal" className="mr-4 shrink-0" aria-label="Degenaration terminal">
+            <Logo />
           </Link>
-          <nav className="hidden items-center gap-0.5 lg:flex">
+          <nav className="hidden h-full items-center gap-0.5 lg:flex">
             {PRIMARY.map((n) => {
               const active = isActivePath(path, n.href);
               return (
                 <Link
                   key={n.href}
                   href={n.href}
-                  className={`relative rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  className={`relative flex h-full items-center px-3 text-sm font-medium transition ${
                     active ? "text-toxic" : "text-dim hover:text-ink"
                   }`}
                 >
                   {active && (
-                    <motion.span layoutId="nav-active" className="absolute inset-0 -z-10 rounded-md bg-toxic/10 ring-1 ring-toxic/25" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
+                    <motion.span layoutId="nav-active" className="absolute inset-x-3 bottom-0 h-0.5 bg-toxic" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
                   )}
                   {n.label}
                 </Link>
@@ -253,7 +252,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 bg-black/60" />
           <div role="dialog" aria-modal="true" aria-label="Navigation menu" className="absolute left-0 top-0 h-full w-72 border-r border-edge bg-panel p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <span className="text-lg font-bold">DEGEN<span className="text-brand">ARATION</span></span>
+              <Logo />
               <button onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink" aria-label="Close menu">
                 <X aria-hidden="true" size={20} />
               </button>
@@ -284,7 +283,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         initial={{ y: 8 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 pb-16 lg:px-6"
+        className="mx-auto w-full max-w-[1800px] flex-1 px-4 py-5 pb-16 lg:px-6"
       >
         {children}
       </motion.main>
@@ -292,11 +291,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* bottom status bar */}
       <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-edge glass">
         <div className="flex h-9 items-center gap-1 px-3 text-[11px]">
-          <BottomLink href="/dashboard" label="Positions" icon={WalletCards} active={isActivePath(path, "/dashboard")} />
+          <BottomLink href="/portfolio" label="Portfolio" icon={WalletCards} active={isActivePath(path, "/portfolio")} />
           <BottomLink href="/alerts" label="Alerts" icon={Bell} active={isActivePath(path, "/alerts")} />
           <BottomLink href="/tracker" label="Tracker" icon={Radar} active={isActivePath(path, "/tracker")} />
           <BottomLink href="/trenches" label="Trenches" icon={Flame} active={isActivePath(path, "/trenches")} />
-          <BottomLink href="/explorer" label="Explorer" icon={Compass} active={isActivePath(path, "/explorer")} />
+          <BottomLink href="/search" label="Search" icon={Compass} active={isActivePath(path, "/search")} />
           <div className="ml-auto flex items-center gap-4">
             <SolPrice />
             <WalletStatus />

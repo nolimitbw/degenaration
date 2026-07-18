@@ -7,7 +7,7 @@ import { getSolanaAddress } from "@/lib/solanaWallet";
 
 // The Privy-dependent portfolio body. Lazily loaded by app/dashboard/page.tsx so the
 // wallet SDK stays off the route's first-load JS and the shell paints instantly.
-export default function DashboardBody() {
+export default function DashboardBody({ view = "portfolio" }: { view?: "portfolio" | "trades" }) {
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const address = getSolanaAddress(user);
   const [balance, setBalance] = useState<number | null>(null);
@@ -22,8 +22,8 @@ export default function DashboardBody() {
   if (!authenticated) {
     return (
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
-        <h1 className="text-xl font-bold">Your portfolio</h1>
-        <p className="mt-2 text-sm text-dim">Connect your wallet to see your real balance, positions and trade history.</p>
+        <h1 className="text-xl font-bold">{view === "trades" ? "Your trades" : "Your portfolio"}</h1>
+        <p className="mt-2 text-sm text-dim">Connect your wallet to see your real {view === "trades" ? "trade history" : "balance, positions and trade history"}.</p>
         <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic">Connect wallet</button>
       </div>
     );
@@ -31,10 +31,10 @@ export default function DashboardBody() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Portfolio</h1>
+      <h1 className="text-2xl font-bold">{view === "trades" ? "Trades" : "Portfolio"}</h1>
       <p className="mt-1 text-sm text-dim">Live from your wallet on-chain. Nothing here is simulated.</p>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+      {view === "portfolio" && <div className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">Wallet balance</p>
           <p className="mt-2 font-mono text-2xl font-bold">{balance != null ? balance.toFixed(3) : "…"} <span className="text-base text-dim">SOL</span></p>
@@ -47,9 +47,9 @@ export default function DashboardBody() {
           <p className="text-xs uppercase text-dim">Fees paid</p>
           <p className="mt-2 font-mono text-2xl font-bold">{feesPaid.toFixed(3)} SOL</p>
         </div>
-      </div>
+      </div>}
 
-      <h2 className="mt-10 text-lg font-bold">Trade history</h2>
+      <h2 className={`${view === "portfolio" ? "mt-10" : "mt-6"} text-lg font-bold`}>Trade history</h2>
       <div className="mt-3 rounded-lg border border-edge">
         {!trades ? (
           <p className="p-8 text-center text-sm text-dim">Loading…</p>

@@ -121,15 +121,14 @@ export default function CallsBody() {
   return (
     <>
       <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold">Discord Calls</h1>
+        <h1 className="text-2xl font-bold">Bots</h1>
         <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[11px] ${live ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>
           {live ? "● live from DB" : "○ none yet"}
         </span>
         <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">{CALLS_UI_VERSION}</span>
       </div>
       <p className="mt-1 text-sm text-dim">
-        Compare independently tracked results, then tune your rules per source. Every call is
-        rug-checked before your wallet moves.
+        Build source-copy automations from independently tracked Discord calls, then tune the execution rules for each server.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-panel/70 p-3">
         <button onClick={loadSources} disabled={!loaded}
