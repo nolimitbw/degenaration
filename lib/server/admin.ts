@@ -64,7 +64,22 @@ export async function requireAdmin(req: NextRequest) {
     return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
   }
 
-  const email = emailFromIdPayload(identity) || emailFromIdPayload(access);
+  // Access tokens prove the Privy user id but intentionally omit linked-account data.
+  // Admin email authorization requires Privy's signed identity-token claims.
+  if (!identity) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "owner_identity_token_required" }, { status: 428 })
+    };
+  }
+
+  const email = emailFromIdPayload(identity);
+  if (!email) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "owner_identity_email_missing" }, { status: 428 })
+    };
+  }
   if (!OWNER_EMAILS.includes(email)) return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
   return { ok: true as const, email };
 }

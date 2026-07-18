@@ -36,6 +36,8 @@ export async function adminHeaders(getAccessToken: () => Promise<string | null>,
 }
 
 export function adminErrorMessage(error: string | undefined, status?: number) {
+  if (error === "owner_identity_token_required") return "Owner verification is not enabled in Privy. Enable Return user data in an identity token, then sign in again.";
+  if (error === "owner_identity_email_missing") return "The verified Privy session does not include a linked email. Sign out, then sign in with the owner Google account again.";
   if (error === "forbidden") return "Owner API rejected this session. Sign out and use the owner Google account.";
   if (error === "unauthorized") return "Owner session expired. Sign in with the owner Google account again.";
   return error || `request failed${status ? ` (${status})` : ""}`;
