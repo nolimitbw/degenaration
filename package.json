@@ -36,6 +36,7 @@
     "typescript": "^5"
   },
   "overrides": {
+    "axios": "1.18.0",
     "postcss": "$postcss",
     "viem": "2.55.2",
     "ws": "8.21.1"
