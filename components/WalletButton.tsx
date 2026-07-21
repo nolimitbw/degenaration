@@ -1,5 +1,6 @@
 "use client";
 import { usePrivy } from "@privy-io/react-auth";
+import { Wallet } from "lucide-react";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
 export default function WalletButton() {
@@ -9,5 +10,5 @@ export default function WalletButton() {
     return <button onClick={login} className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white">Connect wallet</button>;
   const sol = getSolanaAddress(user);
   const short = sol ? `${sol.slice(0, 4)}…${sol.slice(-4)}` : ((user as any)?.email?.address ?? "account");
-  return <button onClick={logout} className="rounded-md border border-toxic/60 px-3 py-1.5 font-mono text-xs text-toxic">◈ {short}</button>;
+  return <button onClick={logout} title="Wallet account" className="inline-flex items-center gap-1.5 rounded-md border border-toxic/60 px-3 py-1.5 font-mono text-xs text-toxic"><Wallet aria-hidden="true" size={13} /> {short}</button>;
 }

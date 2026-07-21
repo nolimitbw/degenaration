@@ -56,7 +56,7 @@ export default function TerminalBody() {
   const [candles, setCandles] = useState<any[]>([]);
   const [holders, setHolders] = useState<any[]>([]);
   const [chartTab, setChartTab] = useState<"chart" | "holders" | "info">("chart");
-  const [tf] = useState<"minute" | "hour" | "day">("hour");
+  const [tf, setTf] = useState<"minute" | "hour" | "day">("hour");
   const [loading, setLoading] = useState(false);
   const [bal, setBal] = useState<{ uiAmount: number; rawAmount: string; decimals: number } | null>(null);
   const [balanceMint, setBalanceMint] = useState<string | null>(null);
@@ -115,7 +115,7 @@ export default function TerminalBody() {
     toast("Limit order created — see Limit Orders");
   }
 
-  async function load() {
+  async function load(nextTimeframe = tf) {
     if (!mintOk) { toast("Enter a valid Solana token mint", "err"); return; }
     if (!slippageOk) { toast("Use slippage between 0.01% and 20%", "err"); return; }
     setLoading(true);
@@ -129,7 +129,7 @@ export default function TerminalBody() {
       const quoteUrl = amountOk ? `/api/quote?in=${SOL}&out=${cleanMint}&amount=${Math.floor(amount * 1e9)}&slippageBps=${slippageBps}` : null;
       const [p, oh, hd, q] = await Promise.all([
         fetchJson(`/api/price?mint=${cleanMint}`),
-        fetchJson(`/api/ohlcv?mint=${cleanMint}&tf=${tf}`),
+        fetchJson(`/api/ohlcv?mint=${cleanMint}&tf=${nextTimeframe}`),
         fetchJson(`/api/holders?mint=${cleanMint}`),
         quoteUrl ? fetchJson(quoteUrl) : Promise.resolve(null)
       ]);
@@ -229,7 +229,10 @@ export default function TerminalBody() {
 
     setExecuting(false);
     if (r.ok) {
-      toast(`${execution.side === "sell" ? "Sell" : "Buy"} sent — ` + (r.sig?.slice(0, 8) ?? ""));
+      toast(
+        r.warning || `${execution.side === "sell" ? "Sell" : "Buy"} sent - ${(r.sig?.slice(0, 8) ?? "")}`,
+        r.warning ? "info" : "ok"
+      );
       setPreviewOpen(false);
       setExecutionStatus(null);
       setTimeout(loadBalance, 4000);
@@ -278,7 +281,7 @@ export default function TerminalBody() {
         <div className="flex w-full gap-2 sm:w-auto">
           <input value={mint} onChange={(e) => setMint(e.target.value)} disabled={tradeLocked} placeholder="Token mint address"
             className="min-h-11 min-w-0 flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50 sm:w-80" />
-          <button onClick={load} disabled={loading || tradeLocked || !mintOk} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+          <button onClick={() => void load()} disabled={loading || tradeLocked || !mintOk} className="min-h-11 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
             {loading ? "Loading" : "Load"}
           </button>
         </div>
@@ -320,14 +323,24 @@ export default function TerminalBody() {
               <div><p className="text-dim">Buys/Sells</p><p><span className="text-toxic">{livePrice?.buys24h ?? "—"}</span><span className="text-dim">/</span><span className="text-hotpink">{livePrice?.sells24h ?? "—"}</span></p></div>
               <div><p className="text-dim">Socials</p><p className="flex gap-2">{(livePrice?.socials || []).slice(0, 3).map((x: any) => (<a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:underline">{x.type?.slice(0, 2)}</a>))}{!(livePrice?.socials || []).length && <span className="text-dim">—</span>}</p></div>
             </div>
-            {chartTab === "chart" && <div className="mt-3">
-              {livePrice?.pairAddress ? (
-                <iframe key={livePrice.pairAddress}
-                  src={`https://dexscreener.com/${livePrice.chainId || "solana"}/${livePrice.pairAddress}?embed=1&theme=dark&trades=0&info=0`}
-                  className="h-[420px] w-full rounded-md border border-edge" title="chart" />
-              ) : candles.length ? (<Candles data={candles} />) : (
-                <div className="grid h-72 place-items-center rounded-md border border-edge bg-void text-sm text-dim">Load a token to see its live DexScreener chart.</div>
-              )}
+            {chartTab === "chart" && <div className="mt-3 overflow-hidden rounded-md border border-edge bg-void">
+              <div className="flex min-h-10 items-center justify-between border-b border-edge px-3">
+                <span className="font-mono text-[9px] uppercase text-dim">Live OHLCV</span>
+                <div className="flex gap-1">
+                  {(["minute", "hour", "day"] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => { setTf(value); void load(value); }}
+                      disabled={loading || tradeLocked}
+                      className={`min-h-7 px-2 font-mono text-[9px] uppercase transition ${tf === value ? "bg-toxic text-[#17110c]" : "border border-edge text-dim hover:text-ink"}`}
+                    >
+                      {value === "minute" ? "1m" : value === "hour" ? "1h" : "1d"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Candles data={candles} className="h-[420px] border-0" />
             </div>}
             {chartTab === "holders" && (
               <div className="mt-3 overflow-hidden rounded-md border border-edge">

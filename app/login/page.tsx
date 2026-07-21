@@ -1,13 +1,14 @@
 "use client";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LogIn, ShieldAlert } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 
 export default function Login() {
   const router = useRouter();
   const { ready, authenticated, login } = usePrivy();
-  const [email, setEmail] = useState("");
   const [agree, setAgree] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -15,20 +16,15 @@ export default function Login() {
   useEffect(() => {
     if (authenticated && ready && !redirecting) {
       setRedirecting(true);
-      router.replace("/trenches");
+      router.replace("/terminal");
     }
   }, [authenticated, ready, router, redirecting]);
 
-  // Privy v2's login() opens the modal configured in Providers.tsx (Google + email + wallet).
-  // Passing a { provider } shape is invalid in v2, so both entry points open the same modal.
-  function handleGoogle() {
-    if (!agree) { setMsg("Please accept the risk disclosure."); return; }
-    setMsg(null);
-    login();
-  }
-
-  function handleEmail() {
-    if (!agree) { setMsg("Please accept the risk disclosure."); return; }
+  function continueToPrivy() {
+    if (!agree) {
+      setMsg("Accept the risk disclosure before continuing.");
+      return;
+    }
     setMsg(null);
     login();
   }
@@ -40,24 +36,18 @@ export default function Login() {
           DEGEN<span className="text-toxic text-glow-toxic">ARATION</span>
         </Link>
         <div className="rounded-lg border border-edge bg-panel p-6">
-          <button onClick={handleGoogle}
-            className="w-full rounded-md border border-edge bg-void py-3 text-sm font-bold transition hover:border-cyber">
-            Continue with Google
-          </button>
-          <div className="my-4 flex items-center gap-3 text-[11px] font-mono text-dim">
-            <span className="h-px flex-1 bg-edge" /> OR <span className="h-px flex-1 bg-edge" />
+          <div className="flex items-start gap-3 rounded-md border border-edge bg-void p-4">
+            <ShieldAlert size={18} className="mt-0.5 shrink-0 text-hotpink" />
+            <p className="text-xs leading-5 text-dim">Memecoin trading can result in rapid, total loss. Manual swaps use real mainnet funds and are irreversible.</p>
           </div>
-          <input type="email" placeholder="email@degen.gg" value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-edge bg-void px-4 py-3 text-sm outline-none transition focus:border-toxic" />
           <label className="mt-4 flex items-start gap-2 text-xs text-dim">
-            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 accent-toxic" />
-            I understand memecoin trading is extremely high risk and I can lose my entire balance.
+            <input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} className="mt-0.5 accent-toxic" />
+            <span>I understand the risk and want to open the secure sign-in options.</span>
           </label>
-          <button onClick={handleEmail} disabled={!email || !agree}
-            className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
-            Continue with email →
+          <button onClick={continueToPrivy} disabled={!ready || redirecting} className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-toxic px-4 font-bold text-[#17110c] shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+            <LogIn size={17} /> {redirecting ? "Opening terminal" : "Continue to sign in"}
           </button>
+          <p className="mt-3 text-center font-mono text-[10px] text-dim">Google, email, and supported wallet options appear in the Privy dialog.</p>
           {msg && <p className="mt-4 text-center text-xs text-hotpink">{msg}</p>}
         </div>
       </div>

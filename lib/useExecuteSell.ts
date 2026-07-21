@@ -7,11 +7,12 @@ import { getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
 import { getSolanaAddress } from "./solanaWallet";
 import { executeSell as extensionSell } from "./execute";
+import { recordTradeWithRetry } from "./recordTrade";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
 type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
-type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
+type Result = { ok: boolean; sig?: string; error?: string; warning?: string; soldUi?: number };
 
 /**
  * Sell a percentage (0-1) of the user's on-chain balance of `mint` back to SOL.
@@ -57,14 +58,10 @@ export function useExecuteSell() {
 
       const soldUi = (bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount));
       const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
-      if (token) {
-        await fetchWithTimeout("/api/record-trade", {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: embeddedAddr })
-        }).catch(() => {});
-      }
-      return { ok: true, sig, soldUi };
+      const warning = token
+        ? await recordTradeWithRetry({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: embeddedAddr }, token)
+        : null;
+      return { ok: true, sig, soldUi, warning: warning || undefined };
     } catch (e: any) {
       // External (non-embedded) Solana wallet: Privy's embedded-only sender can't sign it —
       // fall back to adapter signing so Phantom/Solflare/Backpack users can also sell.

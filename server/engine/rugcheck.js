@@ -8,13 +8,13 @@ async function rugCheck(mint) {
   const reasons = [];
 
   // 1) DexScreener: pair exists + liquidity
-  const ds = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`).then(r => r.json()).catch(() => null);
+  const ds = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { signal: AbortSignal.timeout(8_000) }).then(r => r.json()).catch(() => null);
   const pair = ds?.pairs?.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
   if (!pair) reasons.push("no trading pair found");
   else if ((pair.liquidity?.usd || 0) < MIN_LIQUIDITY_USD) reasons.push(`liquidity $${Math.round(pair.liquidity?.usd || 0)} < $${MIN_LIQUIDITY_USD}`);
 
   // 2) RugCheck.xyz community report
-  const rc = await fetch(`https://api.rugcheck.xyz/v1/tokens/${mint}/report/summary`).then(r => r.json()).catch(() => null);
+  const rc = await fetch(`https://api.rugcheck.xyz/v1/tokens/${mint}/report/summary`, { signal: AbortSignal.timeout(8_000) }).then(r => r.json()).catch(() => null);
   if (rc) {
     if (rc.score_normalised != null && rc.score_normalised > 60) reasons.push(`rugcheck risk score ${rc.score_normalised}/100`);
     for (const risk of rc.risks || []) {
@@ -33,7 +33,8 @@ async function rugCheck(mint) {
   const acct = await fetch(rpc, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [mint, { encoding: "jsonParsed" }] })
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [mint, { encoding: "jsonParsed" }] }),
+    signal: AbortSignal.timeout(8_000)
   }).then(r => r.json()).catch(() => null);
   const info = acct?.result?.value?.data?.parsed?.info;
   if (!info) {

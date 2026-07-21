@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "node server/test/run.js",
+    "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.35.1",

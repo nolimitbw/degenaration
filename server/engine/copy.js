@@ -47,7 +47,7 @@ function startCopyWatcher(deps, pollMs = 10000) {
     return rec.amount;
   }
 
-  const tick = async () => {
+  const runTick = async () => {
     let wallets = [];
     try { wallets = await loadTrackedWallets(); } catch (e) { onEvent({ type: "LOAD_ERROR", error: e.message }); }
 
@@ -84,7 +84,11 @@ function startCopyWatcher(deps, pollMs = 10000) {
       }
     }
     primed = true;
-    setTimeout(tick, pollMs);
+  };
+  const tick = async () => {
+    try { await runTick(); }
+    catch (e) { onEvent({ type: "TICK_ERROR", error: e.message }); }
+    finally { setTimeout(tick, pollMs); }
   };
   tick();
 }

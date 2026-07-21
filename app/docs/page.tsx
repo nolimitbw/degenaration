@@ -1,13 +1,13 @@
 import Link from "next/link";
 
 const FAQ = [
-  { q: "What is Degenaration?", a: "An on-chain Solana trading terminal that lets you discover tokens, follow ranked alpha call groups, track top wallets, and auto-trade — all non-custodially. Your keys never leave your control." },
-  { q: "Is it custodial? Who holds my funds?", a: "You do. Your wallet is either an embedded wallet secured to your login or your own Phantom/Solflare. The platform receives only a trade-only, spend-capped, revocable permission — it can never withdraw your funds." },
-  { q: "How does auto-trading work?", a: "You subscribe to vetted Discord call groups or tracked wallets and set your rules (position size, take-profit ladder, stop-loss, slippage, daily loss cap). When a call fires, the engine rug-checks the token, then executes the swap from your wallet within your limits." },
+  { q: "What is Degenaration?", a: "A Solana market terminal for live token research, measured Discord call sources, wallet tracking, wallet-signed swaps, and persistent limit-order preparation." },
+  { q: "Who holds my funds?", a: "Your wallet provider does. Manual swaps require your wallet signature. Optional Privy delegation can let the configured worker request signatures while you are offline; it is powerful, revocable access and is not itself a cryptographic trade-only policy." },
+  { q: "How does automation work?", a: "Before supported limit or Discord entry work is claimed, the database atomically checks the saved wallet, max-per-trade limit, source cap, and wallet daily cap. Automated signing remains disabled until the published devnet release gates pass. Wallet-copy and automated position exits are currently paused." },
   { q: "What does it cost?", a: "Free to join. When the platform fee wallet is configured, the execution fee is shown in the trade preview before you sign. If fees are off, the terminal says so." },
-  { q: "Is this live or testnet?", a: "Live on Solana mainnet with real funds. Trades are real and irreversible — only deposit what you can afford to lose and always DYOR." },
-  { q: "How are call groups ranked?", a: "By real on-chain performance — total return, hit rate, median return and best call — not screenshots. See the Alpha leaderboard." },
-  { q: "Is it safe?", a: "Non-custodial by design, with rug-checks (liquidity, mint/freeze authority, honeypot), rate-limited APIs, input validation, and no private keys stored anywhere. An independent security review is planned while mainnet use remains high-risk and self-directed." }
+  { q: "Is this live or testnet?", a: "Manual wallet-signed swaps use Solana mainnet and real funds. Trades are irreversible. The unattended worker remains signing-disabled while automation is verified." },
+  { q: "How are call groups ranked?", a: "From ingested call timestamps and live market measurements such as measured-call count, hit rate, median peak, average peak, and best call. Sparse profiles remain marked as measuring instead of showing invented results." },
+  { q: "Is it safe?", a: "No memecoin trading system is safe from loss. Degenaration adds provider timeouts, input validation, token checks, atomic execution claims, spend reservations, and revocable delegation, but provider, contract, wallet, and market risk remain. An independent security review has not yet been completed." }
 ];
 
 export default function Docs() {

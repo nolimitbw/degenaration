@@ -30,7 +30,7 @@ export default function Nav() {
       initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-      className="fixed inset-x-0 top-10 z-[70] border-b border-edge bg-void/90 backdrop-blur-xl"
+      className="sticky inset-x-0 top-0 z-[70] border-b border-edge bg-void/90 backdrop-blur-xl"
     >
       <motion.nav
         className={`mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 transition-shadow duration-300 ${scrolled ? "shadow-[0_12px_30px_-24px_rgba(0,0,0,.9)]" : ""}`}

@@ -4,14 +4,15 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { getBase58Decoder } from "@solana/kit";
 import { getNet } from "./net";
-import { fetchWithTimeout, sanitizeError } from "./server/guard";
+import { sanitizeError } from "./server/guard";
 import { executeBuy as extensionBuy } from "./execute";
 import { getSolanaAddress } from "./solanaWallet";
+import { recordTradeWithRetry } from "./recordTrade";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
 type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean };
-type Result = { ok: boolean; sig?: string; error?: string };
+type Result = { ok: boolean; sig?: string; error?: string; warning?: string };
 
 /**
  * Returns an executeBuy that signs with the user's Privy EMBEDDED wallet (the wallet
@@ -44,14 +45,10 @@ export function useExecuteBuy() {
       const receipt = await signAndSendTransaction({ transaction: raw, wallet: privyWallet, chain: "solana:mainnet" });
       const sig = getBase58Decoder().decode(receipt.signature);
 
-      if (token) {
-        await fetchWithTimeout("/api/record-trade", {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-          body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: embeddedAddr })
-        }).catch(() => {});
-      }
-      return { ok: true, sig };
+      const warning = token
+        ? await recordTradeWithRetry({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: embeddedAddr }, token)
+        : null;
+      return { ok: true, sig, warning: warning || undefined };
     } catch (e: any) {
       // The linked Solana wallet is EXTERNAL (Phantom/Solflare/Backpack), not a Privy
       // embedded wallet, so useSendTransaction rejects it — fall back to adapter signing.

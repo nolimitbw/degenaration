@@ -1,6 +1,7 @@
 "use client";
 import { getRpc, getNet } from "./net";
 import { fetchWithTimeout, sanitizeError } from "./server/guard";
+import { recordTradeWithRetry } from "./recordTrade";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
@@ -21,7 +22,7 @@ export function pickProvider(): Provider | null {
 
 type BuyArgs = { mint: string; solAmount: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean; authToken?: string | null };
 type SellArgs = { mint: string; pct: number; slippageBps: number; priceUsd?: number | null; symbol?: string; mev?: boolean; authToken?: string | null };
-type Result = { ok: boolean; sig?: string; error?: string; soldUi?: number };
+type Result = { ok: boolean; sig?: string; error?: string; warning?: string; soldUi?: number };
 
 export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Result> {
   const wallet = provider || pickProvider();
@@ -45,14 +46,10 @@ export async function executeBuy(args: BuyArgs, provider?: Provider): Promise<Re
     const signed = await wallet.signAndSendTransaction(tx);
     const sig = signed?.signature ?? signed;
 
-    if (args.authToken) {
-      await fetch("/api/record-trade", {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${args.authToken}` },
-        body: JSON.stringify({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: pubkey })
-      }).catch(() => {});
-    }
-    return { ok: true, sig };
+    const warning = args.authToken
+      ? await recordTradeWithRetry({ mint: args.mint, side: "buy", solAmount: args.solAmount, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: pubkey }, args.authToken)
+      : null;
+    return { ok: true, sig, warning: warning || undefined };
   } catch (e: any) {
     return { ok: false, error: sanitizeError(e) || "signing cancelled" };
   }
@@ -95,14 +92,10 @@ export async function executeSell(args: SellArgs, provider?: Provider): Promise<
 
     const soldUi = bal.decimals > 0 ? Number(amount) / 10 ** bal.decimals : Number(amount);
     const solOut = res.outAmount ? Number(res.outAmount) / 1e9 : undefined;
-    if (args.authToken) {
-      await fetchWithTimeout("/api/record-trade", {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${args.authToken}` },
-        body: JSON.stringify({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: pubkey })
-      }).catch(() => {});
-    }
-    return { ok: true, sig, soldUi };
+    const warning = args.authToken
+      ? await recordTradeWithRetry({ mint: args.mint, side: "sell", solAmount: solOut, priceUsd: args.priceUsd, sig, kind: "manual", userPubkey: pubkey }, args.authToken)
+      : null;
+    return { ok: true, sig, soldUi, warning: warning || undefined };
   } catch (e: any) {
     return { ok: false, error: sanitizeError(e) || "signing cancelled" };
   }

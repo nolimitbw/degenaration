@@ -5,7 +5,13 @@ const PLATFORM_FEE_BPS = 200;
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type WorkerHealth = { status?: string; mode?: string; signingEnabled?: boolean; network?: string };
+type WorkerHealth = {
+  status?: string;
+  mode?: string;
+  signingEnabled?: boolean;
+  copyTradingEnabled?: boolean;
+  network?: string;
+};
 
 async function workerHealth(): Promise<WorkerHealth | null> {
   const raw = process.env.AUTOMATION_WORKER_URL?.trim();
@@ -32,6 +38,7 @@ export async function GET() {
   const worker = await workerHealth();
   const automationLive = worker?.status === "ok" && worker.mode === "live"
     && worker.signingEnabled === true && worker.network === "mainnet";
+  const copyTradingLive = automationLive && worker?.copyTradingEnabled === true;
   return NextResponse.json(
     {
       platformFeeBps: feeWalletConfigured ? PLATFORM_FEE_BPS : 0,
@@ -40,6 +47,7 @@ export async function GET() {
       automation: {
         configured: workerConfigured,
         live: automationLive,
+        copyLive: copyTradingLive,
         mode: worker?.mode || (workerConfigured ? "unreachable" : "not-configured"),
         network: worker?.network || null
       }

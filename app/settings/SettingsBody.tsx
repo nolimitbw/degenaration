@@ -1,133 +1,90 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
+import { Copy, ExternalLink, LogIn, LogOut, ShieldCheck, WalletCards } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
-import { supabase } from "@/lib/supabase";
-import { getSolanaAddress } from "@/lib/solanaWallet";
+import { getSolanaAddress, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
-// Account settings. Supabase sections (password/2FA) apply to email/password accounts;
-// the wallet card covers Privy (Google/email) users who sign in with an embedded wallet.
 export default function SettingsBody() {
-  const { authenticated, user, logout } = usePrivy();
-  const [email, setEmail] = useState<string | null>(null);
-  const [uid, setUid] = useState<string | null>(null);
-  const [joined, setJoined] = useState<string | null>(null);
-  const [pw, setPw] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-  const [qr, setQr] = useState<string | null>(null);
-  const [factorId, setFactorId] = useState<string | null>(null);
-  const [code, setCode] = useState("");
+  const { ready, authenticated, user, login, logout } = usePrivy();
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const walletAddr = getSolanaAddress(user);
-  const privyEmail = (user as any)?.email?.address as string | undefined;
+  const wallet = getSolanaAddress(user);
+  const delegated = hasDelegatedSolanaWallet(user);
+  const linked = ((user as any)?.linkedAccounts ?? []) as Array<any>;
+  const email = (user as any)?.email?.address
+    ?? linked.find((account) => account?.type === "email")?.address
+    ?? null;
+  const joined = (user as any)?.createdAt
+    ? new Date((user as any).createdAt).toLocaleDateString()
+    : null;
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
-      setUid(data.user?.id ?? null);
-      setJoined(data.user?.created_at ? new Date(data.user.created_at).toLocaleDateString() : null);
-    });
-  }, []);
-
-  async function changePassword() {
-    setMsg(null);
-    if (pw.length < 8) { setMsg("Password must be at least 8 characters."); return; }
-    const { error } = await supabase.auth.updateUser({ password: pw });
-    setMsg(error ? error.message : "Password updated."); setPw("");
+  async function copyWallet() {
+    if (!wallet) return;
+    try {
+      await navigator.clipboard.writeText(wallet);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
   }
 
-  async function enroll2FA() {
-    setMsg(null);
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
-    if (error) { setMsg(error.message); return; }
-    setQr(data.totp.qr_code); setFactorId(data.id);
+  async function signOut() {
+    setBusy(true);
+    try { await logout(); } finally { setBusy(false); }
   }
 
-  async function verify2FA() {
-    if (!factorId) return;
-    const { data: ch, error: e1 } = await supabase.auth.mfa.challenge({ factorId });
-    if (e1) { setMsg(e1.message); return; }
-    const { error: e2 } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
-    setMsg(e2 ? e2.message : "Two-factor authentication enabled."); if (!e2) { setQr(null); setCode(""); }
-  }
-
-  async function signOutAll() {
-    await supabase.auth.signOut({ scope: "global" });
-    logout();
-    setMsg("Signed out of all sessions.");
-  }
-
-  async function copyAddr() {
-    if (!walletAddr) return;
-    try { await navigator.clipboard.writeText(walletAddr); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
+  if (!authenticated) {
+    return (
+      <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
+        <ShieldCheck size={28} className="mx-auto text-toxic" />
+        <h1 className="mt-4 text-xl font-bold">Account settings</h1>
+        <p className="mt-2 text-sm text-dim">Sign in through Privy to review your account, wallet, and delegation state.</p>
+        <button onClick={login} disabled={!ready} className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-toxic px-4 font-bold text-[#17110c] disabled:opacity-50"><LogIn size={17} /> Sign in</button>
+      </div>
+    );
   }
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Account settings</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 className="text-2xl font-bold">Account settings</h1><p className="mt-1 text-sm text-dim">Privy identity, linked accounts, and wallet access state.</p></div>
+        <span className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-[10px] uppercase text-dim">Privy session active</span>
+      </div>
 
-      <div className="mt-6 max-w-2xl space-y-6">
-        {authenticated && walletAddr && (
-          <section className="rounded-lg border border-edge bg-panel p-5">
-            <h2 className="font-bold">Wallet</h2>
-            <p className="mt-1 text-xs text-dim">Your non-custodial embedded wallet. Only you can sign transactions with it.</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <code className="flex-1 min-w-[220px] truncate rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">{walletAddr}</code>
-              <button onClick={copyAddr} className="rounded-md border border-edge px-3 py-2 text-xs font-bold transition hover:border-toxic hover:text-toxic">{copied ? "Copied" : "Copy"}</button>
-              <a href={`https://solscan.io/account/${walletAddr}`} target="_blank" rel="noreferrer" className="rounded-md border border-edge px-3 py-2 text-xs font-bold text-cyber transition hover:border-cyber">Solscan ↗</a>
-            </div>
-            {privyEmail && <p className="mt-2 font-mono text-[11px] text-dim">Signed in as {privyEmail}</p>}
-          </section>
-        )}
-
+      <div className="mt-6 grid max-w-5xl gap-5 lg:grid-cols-2">
         <section className="rounded-lg border border-edge bg-panel p-5">
-          <h2 className="font-bold">Profile</h2>
-          <div className="mt-3 grid grid-cols-2 gap-4 font-mono text-sm md:grid-cols-3">
-            <div><p className="text-[11px] uppercase text-dim">Email</p><p className="mt-0.5 truncate">{email ?? privyEmail ?? "—"}</p></div>
-            <div><p className="text-[11px] uppercase text-dim">User ID</p><p className="mt-0.5 truncate">{uid?.slice(0, 8) ?? "—"}…</p></div>
-            <div><p className="text-[11px] uppercase text-dim">Joined</p><p className="mt-0.5">{joined ?? "—"}</p></div>
-          </div>
+          <div className="flex items-center gap-2"><ShieldCheck size={17} className="text-toxic" /><h2 className="font-bold">Identity</h2></div>
+          <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
+            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Email</dt><dd className="mt-1 truncate text-sm">{email ?? "Not linked"}</dd></div>
+            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Joined</dt><dd className="mt-1 text-sm">{joined ?? "Unavailable"}</dd></div>
+            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Privy user</dt><dd className="mt-1 truncate font-mono text-xs">{user?.id ?? "Unavailable"}</dd></div>
+            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Linked accounts</dt><dd className="mt-1 text-sm">{linked.length}</dd></div>
+          </dl>
         </section>
 
-        {email && (
-          <section className="rounded-lg border border-edge bg-panel p-5">
-            <h2 className="font-bold">Change password</h2>
-            <p className="mt-1 text-xs text-dim">For email/password accounts.</p>
-            <div className="mt-3 flex gap-2">
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="New password"
-                className="flex-1 rounded-md border border-edge bg-void px-3 py-2 text-sm outline-none focus:border-toxic" />
-              <button onClick={changePassword} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Update</button>
-            </div>
-          </section>
-        )}
-
-        {email && (
-          <section className="rounded-lg border border-edge bg-panel p-5">
-            <h2 className="font-bold">Two-factor authentication (2FA)</h2>
-            <p className="mt-1 text-xs text-dim">Add an authenticator app for an extra layer of security.</p>
-            {!qr ? (
-              <button onClick={enroll2FA} className="mt-3 rounded-md border border-edge px-4 py-2 text-sm font-bold transition hover:border-toxic hover:text-toxic">Enable 2FA</button>
-            ) : (
-              <div className="mt-3">
-                <img src={qr} alt="2FA QR code" className="h-40 w-40 rounded bg-white p-2" />
-                <p className="mt-2 text-xs text-dim">Scan with your authenticator, then enter the 6-digit code:</p>
-                <div className="mt-2 flex gap-2">
-                  <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" maxLength={6}
-                    className="w-32 rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic" />
-                  <button onClick={verify2FA} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white">Verify</button>
-                </div>
+        <section className="rounded-lg border border-edge bg-panel p-5">
+          <div className="flex items-center gap-2"><WalletCards size={17} className="text-toxic" /><h2 className="font-bold">Solana wallet</h2></div>
+          <p className="mt-1 text-xs text-dim">The key is secured by your wallet provider. Delegated access is managed separately in Wallet.</p>
+          {wallet ? (
+            <div className="mt-4">
+              <code className="block truncate rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-xs">{wallet}</code>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={copyWallet} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-toxic"><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
+                <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-toxic"><ExternalLink size={14} /> Solscan</a>
+                <span className={`inline-flex min-h-10 items-center rounded-md border px-3 font-mono text-[10px] uppercase ${delegated ? "border-toxic/40 text-toxic" : "border-edge text-dim"}`}>Delegation {delegated ? "granted" : "off"}</span>
               </div>
-            )}
-          </section>
-        )}
-
-        <section className="rounded-lg border border-edge bg-panel p-5">
-          <h2 className="font-bold">Sessions</h2>
-          <p className="mt-1 text-xs text-dim">Sign out everywhere if you suspect unauthorized access.</p>
-          <button onClick={signOutAll} className="mt-3 rounded-md border border-hotpink/50 px-4 py-2 text-sm font-bold text-hotpink hover:bg-hotpink/10">Sign out all sessions</button>
+            </div>
+          ) : <p className="mt-4 rounded-md border border-edge bg-void p-4 text-sm text-dim">No Solana wallet is linked to this Privy account.</p>}
         </section>
 
-        {msg && <p className="font-mono text-xs text-toxic">{msg}</p>}
+        <section className="rounded-lg border border-edge bg-panel p-5 lg:col-span-2">
+          <h2 className="font-bold">Session</h2>
+          <p className="mt-1 text-xs text-dim">Sign out of this browser. Revoke delegated wallet access separately from the Wallet screen before signing out when you no longer need unattended execution.</p>
+          <button onClick={signOut} disabled={busy} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-hotpink/50 px-4 text-sm font-bold text-hotpink transition hover:bg-hotpink/10 disabled:opacity-50"><LogOut size={16} /> {busy ? "Signing out" : "Sign out"}</button>
+        </section>
       </div>
     </>
   );

@@ -23,6 +23,7 @@ export async function PATCH(req: NextRequest) {
   if (!body || typeof body !== "object") return NextResponse.json({ error: "invalid profile" }, { status: 400 });
 
   const payload: Record<string, unknown> = {};
+  let riskAccepted: boolean | null = null;
   if ("wallet_address" in body) {
     if (typeof body.wallet_address !== "string" || !MINT_RE.test(body.wallet_address)) {
       return NextResponse.json({ error: "invalid wallet" }, { status: 400 });
@@ -46,12 +47,25 @@ export async function PATCH(req: NextRequest) {
     }
     payload.quick_buy_amounts = values;
   }
-  if (!Object.keys(payload).length) return NextResponse.json({ error: "no profile changes" }, { status: 400 });
+  if ("risk_accepted" in body) {
+    if (typeof body.risk_accepted !== "boolean") return NextResponse.json({ error: "invalid risk acceptance" }, { status: 400 });
+    riskAccepted = body.risk_accepted;
+  }
+  if (!Object.keys(payload).length && riskAccepted == null) return NextResponse.json({ error: "no profile changes" }, { status: 400 });
 
-  const result = await callPrivyRpc("app_user_upsert_profile", {
-    p_privy_user_id: user.privyUserId,
-    p_payload: payload
-  });
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (Object.keys(payload).length) {
+    const result = await callPrivyRpc("app_user_upsert_profile", {
+      p_privy_user_id: user.privyUserId,
+      p_payload: payload
+    });
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  if (riskAccepted != null) {
+    const result = await callPrivyRpc("app_user_set_risk_acceptance", {
+      p_privy_user_id: user.privyUserId,
+      p_accepted: riskAccepted
+    });
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  }
   return NextResponse.json({ ok: true });
 }

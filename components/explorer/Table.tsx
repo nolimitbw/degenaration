@@ -17,7 +17,7 @@ export default function Table({ rows, loading, onPick }: { rows: Tok[]; loading:
           {loading && Array.from({ length: 10 }).map((_, i) => <Skel key={i} />)}
           {!loading && !rows.length && <tr className="border-t border-edge"><td colSpan={11} className="px-4 py-12 text-center text-sm text-dim">No tokens found</td></tr>}
           {!loading && rows.map((t) => (
-            <tr key={t.address} className="cursor-pointer border-t border-edge transition hover:bg-panel/40" onClick={() => onPick(t)}>
+            <tr key={t.address} className="border-t border-edge transition hover:bg-panel/40">
               <td className="px-4 py-3"><div className="flex items-center gap-2">{t.image ? <img src={t.image} alt="" className="h-7 w-7 rounded-full" /> : <div className="h-7 w-7 rounded-full bg-edge" />}<div><p className="font-mono font-bold">{t.symbol}</p><p className="font-mono text-[10px] text-dim">{t.name?.slice(0,16)}</p></div></div></td>
               <td className="px-4 py-3 font-mono"><FlashValue value={t.priceUsd}>{t.priceUsd != null ? `$${t.priceUsd}` : "—"}</FlashValue></td>
               <td className="px-4 py-3 font-mono text-dim">{fmtAge(t.ageMs)}</td>

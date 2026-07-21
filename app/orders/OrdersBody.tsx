@@ -1,8 +1,7 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
-import { fmtUsd, createLimitOrder, getMyLimitOrders, cancelLimitOrder, markOrderFilled, type DbLimitOrder } from "@/lib/queries";
-import { useExecuteBuy } from "@/lib/useExecuteBuy";
+import { fmtUsd, createLimitOrder, getMyLimitOrders, cancelLimitOrder, type DbLimitOrder } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { automationLabel, useAutomationStatus } from "@/lib/useAutomationStatus";
@@ -28,19 +27,15 @@ function orderDraftError(mint: string, target: number, amount: number, slippage:
 // Privy + trade-execution body for limit orders. Lazily loaded by app/orders/page.tsx.
 export default function OrdersBody() {
   const { authenticated, user, login, getAccessToken } = usePrivy();
-  const executeBuy = useExecuteBuy();
   const toast = useToast();
   const [orders, setOrders] = useState<DbLimitOrder[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
-  const [auto, setAuto] = useState(false);
   const [mint, setMint] = useState("");
   const [symbol, setSymbol] = useState("");
   const [trigger, setTrigger] = useState<"below" | "above">("below");
   const [target, setTarget] = useState(0);
   const [amount, setAmount] = useState(0.5);
   const [slippage, setSlippage] = useState(3);
-  const firing = useRef<Set<string>>(new Set());
-  const [firingIds, setFiringIds] = useState<string[]>([]);
 
   const pubkey = getSolanaAddress(user);
   const walletId = getSolanaWalletId(user);
@@ -52,21 +47,7 @@ export default function OrdersBody() {
   }, [authenticated, getAccessToken]);
   useEffect(() => { refresh(); }, [refresh]);
 
-  const runExec = useCallback(async (o: DbLimitOrder) => {
-    if (firing.current.has(o.id)) return;
-    if (!authenticated || !pubkey) { login(); return; }
-    if (!walletId || !delegated) { toast("Enable 24/7 auto-trading in Wallet before executing limits", "err"); return; }
-    if (!triggerHit(o, prices[o.mint])) { toast("This limit is not ready yet", "err"); return; }
-    firing.current.add(o.id);
-    setFiringIds((ids) => [...ids, o.id]);
-    const r = await executeBuy({ mint: o.mint, solAmount: o.amount_sol, slippageBps: o.slippage_bps, symbol: o.symbol ?? undefined });
-    firing.current.delete(o.id);
-    setFiringIds((ids) => ids.filter((id) => id !== o.id));
-    if (r.ok) { await markOrderFilled(o.id, r.sig, await getAccessToken()); toast(`Limit filled — ${o.symbol}`); refresh(); }
-    else toast(r.error || "Execution failed", "err");
-  }, [authenticated, pubkey, walletId, delegated, prices, login, toast, refresh, executeBuy, getAccessToken]);
-
-  // client watcher: prices + optional execute while the tab is open (worker handles offline)
+  // The browser only displays trigger state. The worker owns execution and its atomic claim.
   useEffect(() => {
     let alive = true;
     const tick = async () => {
@@ -76,16 +57,12 @@ export default function OrdersBody() {
         if (!alive) return;
         const price = p?.priceUsd ? Number(p.priceUsd) : 0;
         if (price) setPrices((prev) => ({ ...prev, [m]: price }));
-        for (const o of open.filter((x) => x.mint === m)) {
-          const hit = o.trigger === "below" ? price && price <= o.target_usd : price && price >= o.target_usd;
-          if (hit && auto) runExec(o);
-        }
       }
     };
     tick();
     const iv = setInterval(tick, POLL_MS);
     return () => { alive = false; clearInterval(iv); };
-  }, [orders, auto, runExec]);
+  }, [orders]);
 
   const create = async () => {
     if (!authenticated || !pubkey) { login(); return; }
@@ -97,8 +74,8 @@ export default function OrdersBody() {
     toast("Limit order created"); setMint(""); setSymbol(""); setTarget(0); refresh();
   };
 
-  const open = orders.filter((o) => o.status === "open");
-  const done = orders.filter((o) => o.status !== "open");
+  const active = orders.filter((o) => o.status === "open" || o.status === "processing");
+  const done = orders.filter((o) => o.status !== "open" && o.status !== "processing");
   const draftError = orderDraftError(mint, target, amount, slippage, walletId, delegated, automation.live);
 
   if (!authenticated) {
@@ -120,10 +97,7 @@ export default function OrdersBody() {
           </h1>
           <p className="mt-1 text-sm text-dim">Auto-buy when a token hits your price. Saved to your account — the 24/7 engine runs them even when you are offline.</p>
         </div>
-        <label className="flex items-center gap-2 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs text-dim">
-          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="accent-toxic" />
-          Also execute in this tab
-        </label>
+        <span className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs text-dim">Database-claimed execution</span>
       </div>
       {pubkey && (!walletId || !delegated) && (
         <div className="mt-5 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
@@ -147,11 +121,11 @@ export default function OrdersBody() {
       </div>
 
       <div className="mt-6 space-y-2">
-        {!open.length && <p className="text-sm text-dim">No open orders. Create one above, or from the token drawer.</p>}
-        {open.map((o) => {
+        {!active.length && <p className="text-sm text-dim">No open orders. Create one above, or from the token drawer.</p>}
+        {active.map((o) => {
           const price = prices[o.mint];
-          const ready = triggerHit(o, price);
-          const executing = firingIds.includes(o.id);
+          const processing = o.status === "processing";
+          const ready = !processing && triggerHit(o, price);
           return (
             <div key={o.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4 ${ready ? "border-toxic/60 bg-toxic/5" : "border-edge bg-panel"}`}>
               <div>
@@ -160,15 +134,8 @@ export default function OrdersBody() {
               </div>
               <div className="flex items-center gap-2">
                 {ready && <span className="rounded-full bg-toxic/20 px-2 py-0.5 font-mono text-[10px] font-bold text-toxic">READY</span>}
-                <button
-                  onClick={() => runExec(o)}
-                  disabled={!ready || executing || !walletId || !delegated}
-                  title={ready ? "Execute this ready limit order" : "Waiting for the trigger price"}
-                  className="rounded-md bg-toxic px-3 py-1.5 text-xs font-bold text-white shadow-toxic transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {executing ? "Executing..." : ready ? "Execute" : "Waiting"}
-                </button>
-                <button onClick={async () => { try { await cancelLimitOrder(o.id, await getAccessToken()); refresh(); } catch {} }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>
+                <span className={`rounded-md border px-3 py-1.5 font-mono text-xs ${ready || processing ? "border-toxic/50 text-toxic" : "border-edge text-dim"}`}>{processing ? "Processing" : ready ? "Queued" : "Waiting"}</span>
+                {!processing && <button onClick={async () => { try { await cancelLimitOrder(o.id, await getAccessToken()); refresh(); } catch {} }} className="font-mono text-[11px] text-hotpink hover:underline">cancel</button>}
               </div>
             </div>
           );
@@ -180,8 +147,8 @@ export default function OrdersBody() {
           <h2 className="font-mono text-xs uppercase text-dim">History</h2>
           <div className="mt-2 space-y-1">
             {done.map((o) => (
-              <div key={o.id} className="flex items-center justify-between rounded-md border border-edge px-4 py-2 font-mono text-[11px]">
-                <span>{o.symbol} · {o.amount_sol} SOL</span>
+              <div key={o.id} className="flex items-start justify-between gap-4 rounded-md border border-edge px-4 py-2 font-mono text-[11px]">
+                <span>{o.symbol} · {o.amount_sol} SOL{o.last_error ? <span className="mt-1 block max-w-xl text-hotpink">{o.last_error}</span> : null}</span>
                 <span className={o.status === "filled" ? "text-toxic" : "text-dim"}>{o.status}{o.sig ? ` · ${o.sig.slice(0, 8)}…` : ""}</span>
               </div>
             ))}

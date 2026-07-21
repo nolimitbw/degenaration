@@ -6,6 +6,7 @@ type AutomationStatus = {
   loading: boolean;
   configured: boolean;
   live: boolean;
+  copyLive: boolean;
   mode: string;
   network: string | null;
 };
@@ -14,6 +15,7 @@ const initial: AutomationStatus = {
   loading: true,
   configured: false,
   live: false,
+  copyLive: false,
   mode: "checking",
   network: null
 };
@@ -31,6 +33,7 @@ export function useAutomationStatus() {
           loading: false,
           configured: automation.configured === true,
           live: automation.live === true,
+          copyLive: automation.copyLive === true,
           mode: typeof automation.mode === "string" ? automation.mode : "unavailable",
           network: typeof automation.network === "string" ? automation.network : null
         });

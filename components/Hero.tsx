@@ -7,7 +7,7 @@ import LiveMarketTerminal from "@/components/LiveMarketTerminal";
 
 export default function Hero() {
   return (
-    <section className="home-hero mx-auto max-w-7xl px-5 pb-16 pt-28">
+    <section className="home-hero mx-auto max-w-7xl px-5 pb-16 pt-16">
       <div>
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className="flex flex-col justify-between gap-7 pb-9 lg:flex-row lg:items-end">
           <div>

@@ -217,7 +217,7 @@ export async function getMyProfile(token?: string | null): Promise<Profile | nul
   return (data as Profile) ?? null;
 }
 
-export async function saveProfileLimits(limits: Partial<{ max_trade_sol: number; daily_cap_sol: number; wallet_address: string; quick_buy_amounts: number[] }>, token?: string | null) {
+export async function saveProfileLimits(limits: Partial<{ max_trade_sol: number; daily_cap_sol: number; wallet_address: string; quick_buy_amounts: number[]; risk_accepted: boolean }>, token?: string | null) {
   if (token) {
     return fetchWithTimeout("/api/user/profile", {
       method: "PATCH",
@@ -283,7 +283,10 @@ export function fmtAmt(n: number): string {
 // ---- limit orders (persisted to Supabase; the 24/7 worker executes them) ----
 export type DbLimitOrder = {
   id: string; mint: string; symbol: string | null; trigger: "below" | "above";
-  target_usd: number; amount_sol: number; slippage_bps: number; status: string; created_at: string; sig: string | null;
+  target_usd: number; amount_sol: number; slippage_bps: number;
+  status: "open" | "processing" | "filled" | "failed" | "cancelled";
+  created_at: string; sig: string | null; last_error?: string | null;
+  claimed_at?: string | null; attempt_count?: number;
 };
 export async function createLimitOrder(o: {
   mint: string; symbol: string; trigger: "below" | "above"; target_usd: number;

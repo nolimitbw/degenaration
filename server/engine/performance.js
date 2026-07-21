@@ -77,8 +77,9 @@ async function refreshCallPerformance(deps) {
 
 function startPerformanceScanner(deps, pollMs = 300_000) {
   const tick = async () => {
-    await refreshCallPerformance(deps);
-    setTimeout(tick, pollMs);
+    try { await refreshCallPerformance(deps); }
+    catch (error) { deps.onEvent?.({ type: "PERFORMANCE_TICK_ERROR", error: error.message }); }
+    finally { setTimeout(tick, pollMs); }
   };
   tick();
 }

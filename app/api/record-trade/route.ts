@@ -51,7 +51,12 @@ export async function POST(req: NextRequest) {
       p_tx_signature: b.sig || "",
       p_kind: kinds.has(b.kind) ? b.kind : "manual"
     });
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+    if (!result.ok) {
+      if (result.status === 409 && result.error === "transaction already recorded") {
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -89,6 +94,11 @@ export async function POST(req: NextRequest) {
     p_tx_signature: b.sig,
     p_kind: kinds.has(b.kind) ? b.kind : "manual"
   });
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (!result.ok) {
+    if (result.status === 409 && result.error === "transaction already recorded") {
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
   return NextResponse.json({ ok: true });
 }

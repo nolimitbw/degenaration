@@ -20,6 +20,7 @@ const signer = require("./engine/signer");
 const store = require("./engine/store");
 
 const SIGNING_READY = process.env.DELEGATED_SIGNING === "on";
+const COPY_TRADING_READY = SIGNING_READY && process.env.COPY_TRADING === "on";
 const NET = process.env.WORKER_NET || "mainnet";
 const PORT = Number(process.env.PORT || 10000);
 const startedAt = Date.now();
@@ -79,6 +80,7 @@ http.createServer((req, res) => {
     status: "ok",
     mode: SIGNING_READY ? "live" : "watch-only",
     signingEnabled: SIGNING_READY,
+    copyTradingEnabled: COPY_TRADING_READY,
     network: NET,
     feeEnabled: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
@@ -86,23 +88,30 @@ http.createServer((req, res) => {
   }));
 }).listen(PORT, "0.0.0.0", () => console.log(`[worker] health listening on :${PORT}`));
 
-startLimitWatcher({
-  loadOpenOrders: store.loadOpenOrders, loadProfileCaps: store.loadProfileCaps, getPrice, signAndSend,
-  markFilled: store.markFilled, markError: store.markError, recordTrade: store.recordTrade, onEvent: log("limit")
-});
+if (SIGNING_READY) {
+  startLimitWatcher({
+    loadOpenOrders: store.loadOpenOrders, getPrice, signAndSend,
+    claimOrder: store.claimLimitOrder, finishOrder: store.finishLimitOrder,
+    recordTrade: store.recordTrade, onEvent: log("limit")
+  });
 
-startCopyWatcher({
-  loadTrackedWallets: store.loadTrackedWallets, loadSubscribers: store.loadSubscribers,
-  getHoldings: store.getHoldings, signAndSend, bumpDailySpent: store.bumpDailySpent,
-  recordCopy: store.recordCopy, onEvent: log("copy")
-});
+  // Discord group calls -> mirror to each group's subscribers.
+  startCallWatcher({
+    loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
+    claimCallExecution: store.claimCallExecution, finishCallExecution: store.finishCallExecution,
+    completeCall: store.completeCall, markCallExecuted: store.markCallExecuted, signAndSend,
+    recordCopy: store.recordCopy, onEvent: log("call")
+  });
+}
 
-// Discord group calls -> mirror to each group's subscribers.
-startCallWatcher({
-  loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
-  markCallExecuted: store.markCallExecuted, signAndSend, bumpGroupSpent: store.bumpGroupSpent,
-  recordCopy: store.recordCopy, onEvent: log("call")
-});
+// Wallet-diff copy detection needs its own explicit gate until transaction cursors are durable.
+if (COPY_TRADING_READY) {
+  startCopyWatcher({
+    loadTrackedWallets: store.loadTrackedWallets, loadSubscribers: store.loadSubscribers,
+    getHoldings: store.getHoldings, signAndSend, bumpDailySpent: store.bumpDailySpent,
+    recordCopy: store.recordCopy, onEvent: log("copy")
+  });
+}
 
 // This scanner measures source accuracy independently of whether anyone copied a call.
 startPerformanceScanner({

@@ -63,7 +63,7 @@ export default function Trenches() {
     setBuyingKey(key);
     try {
       const r = await executeBuy({ mint: t.address, solAmount: amt, slippageBps: DEFAULT_SLIPPAGE_BPS, priceUsd: t.priceUsd, symbol: t.symbol });
-      if (r.ok) toast(`Bought ${amt} SOL of ${t.symbol ?? "token"} — ${r.sig?.slice(0, 8) ?? ""}`);
+      if (r.ok) toast(r.warning || `Bought ${amt} SOL of ${t.symbol ?? "token"} - ${r.sig?.slice(0, 8) ?? ""}`, r.warning ? "info" : "ok");
       else toast(r.error || "Buy failed", "err");
     } finally {
       buyingRef.current = false;

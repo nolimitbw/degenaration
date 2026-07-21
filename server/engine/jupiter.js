@@ -32,7 +32,9 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
   url.searchParams.set("amount", String(amountLamports));
   url.searchParams.set("slippageBps", String(slippageBps));
   if (APPLY_FEE) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
-  const q = await fetch(url).then(r => r.json());
+  const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!response.ok) throw new Error(`quote failed (${response.status})`);
+  const q = await response.json();
   if (q.error) throw new Error(`quote failed: ${q.error}`);
   const impact = Math.abs(Number(q.priceImpactPct));
   if (Number.isFinite(impact) && impact > MAX_PRICE_IMPACT_PCT) {
@@ -54,10 +56,14 @@ async function buildSwapTx({ quote, userPublicKey }) {
   const res = await fetch(`${JUP}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(swapBody)
-  }).then(r => r.json());
-  if (res.error) throw new Error(`swap build failed: ${res.error}`);
-  return res.swapTransaction; // base64 unsigned tx
+    body: JSON.stringify(swapBody),
+    signal: AbortSignal.timeout(10_000)
+  });
+  if (!res.ok) throw new Error(`swap build failed (${res.status})`);
+  const body = await res.json();
+  if (body.error) throw new Error(`swap build failed: ${body.error}`);
+  if (!body.swapTransaction) throw new Error("swap build returned no transaction");
+  return body.swapTransaction; // base64 unsigned tx
 }
 
 const buyToken = (mint, solAmount, userPublicKey, slippageBps = 300) =>

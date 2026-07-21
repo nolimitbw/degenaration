@@ -16,52 +16,59 @@ function evaluateLimit(order, price) {
  *  loadOpenOrders() -> [{ id, user_pubkey, mint, symbol, trigger, target_usd, amount_sol, slippage_bps }]
  *  getPrice(mint) -> number|null
  *  signAndSend(base64Tx, userPubkey) -> signature   (Privy delegated key)
- *  markFilled(id, sig) / markError(id, msg)          (persist result, e.g. Supabase)
+ *  claimOrder(id) / finishOrder(id, token, status, sig, error)
  *  recordTrade(evt) / onEvent(evt)
  */
 function startLimitWatcher(deps, pollMs = 8000) {
-  const { loadOpenOrders, loadProfileCaps = async () => [], getPrice, signAndSend, markFilled, markError, recordTrade = async () => {}, onEvent = () => {} } = deps;
+  const { loadOpenOrders, getPrice, signAndSend, claimOrder, finishOrder, recordTrade = async () => {}, onEvent = () => {} } = deps;
   const inflight = new Set();
 
-  const tick = async () => {
+  const runTick = async () => {
     let orders = [];
     try { orders = await loadOpenOrders(); } catch (e) { onEvent({ type: "LOAD_ERROR", error: e.message }); }
     // price once per unique mint
     const priceByMint = {};
     for (const mint of [...new Set(orders.map((o) => o.mint))]) priceByMint[mint] = await getPrice(mint);
-    // per-user max-per-trade cap, fetched once per pubkey per tick.
-    // -1 signals a fetch error (trade rejected), null means no cap configured.
-    const capByUser = {};
-    async function maxTrade(pubkey) {
-      if (!(pubkey in capByUser)) {
-        try { const r = await loadProfileCaps(pubkey); capByUser[pubkey] = r?.[0]?.max_trade_sol ?? null; }
-        catch (e) { capByUser[pubkey] = -1; onEvent({ type: "CAP_LOAD_ERROR", pubkey, error: e.message }); }
-      }
-      return capByUser[pubkey];
-    }
-
     for (const o of orders) {
       const price = priceByMint[o.mint];
       if (!evaluateLimit(o, price) || inflight.has(o.id)) continue;
-      // Safety cap: never execute a single order larger than the user's configured max per trade.
-      const cap = await maxTrade(o.user_pubkey);
-      if (cap === -1) { await markError(o.id, "could not load trade cap"); onEvent({ type: "CAP_LOAD_FAILED", order: o }); continue; }
-      if (cap != null && o.amount_sol > cap) { await markError(o.id, `amount ${o.amount_sol} exceeds max-per-trade ${cap}`); onEvent({ type: "CAP", order: o, cap }); continue; }
       inflight.add(o.id);
+      let claimed;
+      try { claimed = await claimOrder(o.id); }
+      catch (e) { inflight.delete(o.id); onEvent({ type: "CLAIM_ERROR", order: o, error: e.message }); continue; }
+      if (!claimed?.ok || !claimed?.claim_token) {
+        inflight.delete(o.id);
+        onEvent({ type: "CLAIM_SKIPPED", order: o, error: claimed?.error || "order unavailable" });
+        continue;
+      }
+      const order = { ...o, ...(claimed.order || {}) };
+      let sig = null;
       try {
-        const { tx } = await buyToken(o.mint, o.amount_sol, o.user_pubkey, o.slippage_bps || 300);
-        const sig = await signAndSend(tx, o.wallet_id); // walletId signs; user_pubkey built the tx
-        await markFilled(o.id, sig);
-        await recordTrade({ mint: o.mint, user: o.user_pubkey, privy_user_id: o.privy_user_id, size: o.amount_sol, sig, kind: "limit" });
-        onEvent({ type: "FILLED", order: o, price, sig });
+        const { tx } = await buyToken(order.mint, order.amount_sol, order.user_pubkey, order.slippage_bps || 300);
+        sig = await signAndSend(tx, order.wallet_id); // walletId signs; user_pubkey built the tx
+        const finished = await finishOrder(order.id, claimed.claim_token, "filled", sig, null);
+        if (!finished?.ok) throw new Error(finished?.error || "could not persist filled order");
+        try {
+          await recordTrade({ mint: order.mint, user: order.user_pubkey, privy_user_id: order.privy_user_id, size: order.amount_sol, sig, kind: "limit" });
+        } catch (e) {
+          onEvent({ type: "RECORD_ERROR", order, sig, error: e.message });
+        }
+        onEvent({ type: "FILLED", order, price, sig });
       } catch (e) {
-        await markError(o.id, e.message);
-        onEvent({ type: "EXEC_ERROR", order: o, error: e.message });
+        if (!sig) {
+          try { await finishOrder(order.id, claimed.claim_token, "failed", null, e.message); }
+          catch (finishError) { onEvent({ type: "FINISH_ERROR", order, error: finishError.message }); }
+        }
+        onEvent({ type: sig ? "PERSIST_ERROR" : "EXEC_ERROR", order, sig, error: e.message });
       } finally {
         inflight.delete(o.id);
       }
     }
-    setTimeout(tick, pollMs);
+  };
+  const tick = async () => {
+    try { await runTick(); }
+    catch (e) { onEvent({ type: "TICK_ERROR", error: e.message }); }
+    finally { setTimeout(tick, pollMs); }
   };
   tick();
 }

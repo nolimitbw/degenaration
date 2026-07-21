@@ -6,6 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useToast } from "@/components/Toast";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
+import { X } from "lucide-react";
 import Candles from "./Candles";
 
 const SOL = "So11111111111111111111111111111111111111112";
@@ -18,7 +19,6 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
   const [price, setPrice] = useState<any>(null);
   const [rug, setRug] = useState<any>(null);
   const [conc, setConc] = useState<number | null>(null);
-  const [pool, setPool] = useState<string | null>(null);
   const [candles, setCandles] = useState<any[]>([]);
   const [amount, setAmount] = useState(0.5);
   const [slippage, setSlippage] = useState(3);
@@ -26,7 +26,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setSim(null); setPrice(null); setRug(null); setConc(null); setPool(null); setCandles([]);
+    setSim(null); setPrice(null); setRug(null); setConc(null); setCandles([]);
     if (!token) return;
     const mint = token.address;
     fetch(`/api/price?mint=${mint}`).then((r) => r.json()).then(setPrice).catch(() => {});
@@ -35,7 +35,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
       const top = (d?.holders ?? []).slice(0, 10).reduce((s: number, h: any) => s + (h.pct || 0), 0);
       setConc(top || null);
     }).catch(() => {});
-    fetch(`/api/ohlcv?mint=${mint}&tf=hour`).then((r) => r.json()).then((d) => { setPool(d?.pool ?? null); setCandles(d?.candles ?? []); }).catch(() => {});
+    fetch(`/api/ohlcv?mint=${mint}&tf=hour`).then((r) => r.json()).then((d) => setCandles(d?.candles ?? [])).catch(() => {});
   }, [token]);
 
   useEffect(() => {
@@ -58,7 +58,10 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
     if (amount <= 0) { toast("Enter a buy amount", "err"); return; }
     setBusy(true);
     const r = await executeBuy({ mint: token.address, solAmount: amount, slippageBps: slippage * 100, priceUsd: price?.priceUsd, symbol: token.symbol, mev: true });
-    if (r.ok) { toast("Trade sent — " + (r.sig?.slice(0, 8) ?? "")); onClose(); }
+    if (r.ok) {
+      toast(r.warning || "Trade sent - " + (r.sig?.slice(0, 8) ?? ""), r.warning ? "info" : "ok");
+      onClose();
+    }
     else toast(r.error || "Trade failed", "err");
     setBusy(false);
   }
@@ -83,7 +86,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
               <p className="font-mono text-[11px] text-dim">{token.name} · {fmtAge(token.ageMs)}</p>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-dim hover:text-ink">x</button>
+          <button onClick={onClose} aria-label="Close" title="Close" className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-edge/40 hover:text-ink"><X aria-hidden="true" size={17} /></button>
         </div>
 
         {/* links */}
@@ -96,11 +99,7 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
         )}
 
         <div className="mt-4">
-          {pool ? (
-            <iframe key={pool} src={`https://www.geckoterminal.com/solana/pools/${pool}?embed=1&info=0&swaps=0&grayscale=0&light_chart=0`} className="h-72 w-full rounded-md border border-edge" title="chart" />
-          ) : price?.pairAddress ? (
-            <iframe key={price.pairAddress} src={`https://dexscreener.com/${price.chainId || "solana"}/${price.pairAddress}?embed=1&theme=dark&trades=0&info=0`} className="h-72 w-full rounded-md border border-edge" title="chart" />
-          ) : candles.length > 0 ? (
+          {candles.length > 0 ? (
             <Candles data={candles} />
           ) : price ? (
             <div className="grid h-72 place-items-center rounded-md border border-edge bg-void text-sm text-dim">No chart data yet — check back in a few minutes.</div>

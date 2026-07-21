@@ -64,9 +64,9 @@ export default function WalletBody() {
     return (
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <h1 className="text-xl font-bold">Connect your wallet</h1>
-        <p className="mt-2 text-sm text-dim">Sign in to create your non-custodial Solana wallet or connect Phantom / Solflare / Backpack.</p>
-        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110">Connect wallet</button>
-        <p className="mt-3 font-mono text-[11px] text-dim">Trade-only permission · spending caps · revocable · we never hold your keys</p>
+        <p className="mt-2 text-sm text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
+        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-[#17110c] shadow-toxic transition hover:brightness-110">Connect wallet</button>
+        <p className="mt-3 font-mono text-[11px] text-dim">Wallet keys remain with your wallet provider. Delegated access is optional and revocable.</p>
       </div>
     );
   }
@@ -76,7 +76,7 @@ export default function WalletBody() {
   return (
     <>
       <h1 className="text-2xl font-bold">Wallet</h1>
-      <p className="mt-1 text-sm text-dim">Fund your non-custodial wallet and set trade-only limits. We can trade within these caps — never withdraw.</p>
+      <p className="mt-1 text-sm text-dim">Fund your wallet and set application-level limits for supported automation claims.</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -109,8 +109,8 @@ export default function WalletBody() {
             </div>
           </div>
           <div className="gradient-border rounded-lg border border-edge p-5">
-            <h2 className="font-bold">Trade permission</h2>
-            <p className="mt-1 text-xs text-dim">Hard limits on what the auto-trader can spend. Change or revoke anytime.</p>
+            <h2 className="font-bold">Automation limits</h2>
+            <p className="mt-1 text-xs text-dim">The database reserves these limits atomically before the worker requests a signature.</p>
             <label className="mt-4 block">
               <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
               <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-toxic" />
@@ -120,7 +120,7 @@ export default function WalletBody() {
               <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-toxic" />
             </label>
             <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110">{savedLimits ? "✓ Saved" : "Save limits"}</button>
-            <p className="mt-3 font-mono text-[11px] text-dim">Grant or revoke auto-trading access in the panel below.</p>
+            <p className="mt-3 font-mono text-[11px] text-dim">Limits are application controls. Manage the separate Privy delegation below.</p>
           </div>
           <AutoTrade />
           <SwapPanel />

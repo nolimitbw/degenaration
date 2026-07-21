@@ -99,18 +99,18 @@ export default function TrackerBody() {
 
   const isCopied = (a: string) => subs.some((s) => s.leader_wallet === a && s.enabled);
   const canCopy = authenticated && address && (balance ?? 0) > 0;
-  const canAutomate = canCopy && walletId && delegated && automation.live;
+  const canAutomate = canCopy && walletId && delegated && automation.copyLive;
 
   function openCopy(leader: string) {
     if (!authenticated) { login(); return; }
     if (!canCopy) { toast("Fund your wallet with SOL first — see /wallet", "err"); return; }
-    if (!canAutomate) { toast(automation.live ? "Enable 24/7 auto-trading in Wallet first" : "The 24/7 execution engine is not live", "err"); return; }
+    if (!canAutomate) { toast(automation.copyLive ? "Enable delegated access in Wallet first" : "Wallet-copy execution is paused", "err"); return; }
     setSettings(DEFAULT_SETTINGS);
     setCopyFor(leader);
   }
   async function enableCopy(leader: string, lbl: string) {
     if (!address) { toast("No wallet found", "err"); return; }
-    if (!canAutomate) { toast(automation.live ? "Enable 24/7 auto-trading in Wallet first" : "The 24/7 execution engine is not live", "err"); return; }
+    if (!canAutomate) { toast(automation.copyLive ? "Enable delegated access in Wallet first" : "Wallet-copy execution is paused", "err"); return; }
     const invalid = copySettingsError(settings);
     if (invalid) { toast(invalid, "err"); return; }
     setCopyBusy(leader);
@@ -178,8 +178,8 @@ export default function TrackerBody() {
       {/* gate: must be connected before tracking/copying anything */}
       {!authenticated ? (
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
-          <p className="text-sm font-bold text-dim">Connect your wallet to track or copy-trade</p>
-          <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Sign in to see the smart-money leaderboard, follow any wallet, and set up copy trading.</p>
+          <p className="text-sm font-bold text-dim">Connect your wallet to track wallets</p>
+          <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Sign in to see the smart-money leaderboard, follow any wallet, and review the current copy-execution status.</p>
           <button onClick={login} className="mt-4 rounded-md bg-toxic px-6 py-2.5 text-sm font-bold text-white shadow-toxic">Connect wallet</button>
         </div>
       ) : !balanceChecked ? (
@@ -197,9 +197,9 @@ export default function TrackerBody() {
           )}
           {canCopy && !canAutomate && (
             <div className="mt-6 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
-              <p className="text-sm font-bold text-ink">Enable 24/7 auto-trading before copy trading.</p>
-              <p className="mt-1 font-mono text-[11px] text-dim">The worker needs your delegated Privy Solana wallet id before copied wallets can execute while you are offline.</p>
-              <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Open Wallet</Link>
+              <p className="text-sm font-bold text-ink">{automation.copyLive ? "Delegated access is required for wallet copy." : "Wallet-copy execution is paused."}</p>
+              <p className="mt-1 font-mono text-[11px] text-dim">{automation.copyLive ? "Open Wallet to manage delegated access and application-level spend limits." : "Tracking remains live. Copy execution stays unavailable until durable transaction-cursor checks pass."}</p>
+              {automation.copyLive && <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-[#17110c] shadow-toxic">Open Wallet</Link>}
             </div>
           )}
 
@@ -233,7 +233,7 @@ export default function TrackerBody() {
                         {isCopied(s.address) ? (
                           <button onClick={() => disableCopy(s.address)} disabled={copyBusy === s.address} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10 disabled:opacity-60">{copyBusy === s.address ? "Stopping..." : "● Copying · stop"}</button>
                         ) : (
-                          <button onClick={() => openCopy(s.address)} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30">Copy trades</button>
+                          <button onClick={() => openCopy(s.address)} disabled={!automation.copyLive} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30 disabled:cursor-not-allowed disabled:opacity-50">{automation.copyLive ? "Copy trades" : "Copy paused"}</button>
                         )}
                         <button onClick={() => add(s.address, s.catches[0]?.symbol)} className="font-mono text-[11px] text-dim hover:text-ink">+ track</button>
                       </div>
@@ -305,7 +305,7 @@ export default function TrackerBody() {
                         {isCopied(w.address) ? (
                           <button onClick={() => disableCopy(w.address)} disabled={copyBusy === w.address} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10 disabled:opacity-60">{copyBusy === w.address ? "Stopping..." : "● Copying · stop"}</button>
                         ) : (
-                          <button onClick={() => openCopy(w.address)} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30">Copy trades</button>
+                          <button onClick={() => openCopy(w.address)} disabled={!automation.copyLive} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30 disabled:cursor-not-allowed disabled:opacity-50">{automation.copyLive ? "Copy trades" : "Copy paused"}</button>
                         )}
                         <button onClick={() => remove(w.address)} disabled={copyBusy === w.address} className="font-mono text-[11px] text-hotpink hover:underline disabled:opacity-60">{isCopied(w.address) ? "stop & remove" : "remove"}</button>
                       </div>

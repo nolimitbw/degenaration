@@ -72,7 +72,7 @@ export default function CallsBody() {
       return;
     }
     setCopying((current) => on ? [...new Set([...current, id])] : current.filter((x) => x !== id));
-    setSaved(id); toast(on ? "Copying this group — saved" : "Copying paused"); setTimeout(() => setSaved(null), 1500);
+    setSaved(id); toast(on ? "Call auto-buy profile enabled" : "Call auto-buy paused"); setTimeout(() => setSaved(null), 1500);
   }
 
   function toggle(id: string) {
@@ -141,7 +141,7 @@ export default function CallsBody() {
             {activeGroup ? <>
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-edge px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3"><SourceAvatar source={activeGroup} size="small" /><div className="min-w-0"><p className="font-mono text-[9px] uppercase text-toxic">Execution profile</p><h2 className="truncate text-base font-bold">{activeGroup.name}</h2><p className="mt-0.5 font-mono text-[10px] text-dim">{activeGroup.members ?? "--"} members · {activeGroup.metrics.calls} tracked calls</p></div></div>
-                <button onClick={() => toggle(activeGroup.id)} disabled={saving === activeGroup.id} className={`inline-flex min-h-9 items-center gap-2 rounded-md border px-3 font-mono text-[10px] uppercase transition ${active ? "border-up/40 bg-up/5 text-up" : "border-edge text-dim hover:text-ink"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-up" : "bg-dim"}`} />{active ? "Copying enabled" : "Copying paused"}</button>
+                <button onClick={() => toggle(activeGroup.id)} disabled={saving === activeGroup.id} className={`inline-flex min-h-9 items-center gap-2 rounded-md border px-3 font-mono text-[10px] uppercase transition ${active ? "border-up/40 bg-up/5 text-up" : "border-edge text-dim hover:text-ink"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-up" : "bg-dim"}`} />{active ? "Auto-buy enabled" : "Auto-buy paused"}</button>
               </div>
 
               <div className="space-y-5 p-5">
@@ -153,24 +153,14 @@ export default function CallsBody() {
                 {authenticated && pubkey && (!walletId || !delegated) && <Link href="/wallet" className="flex items-center justify-between rounded-md border border-down/35 bg-down/5 px-3 py-2.5 text-xs text-ink"><span>Enable delegated trading before activating this profile.</span><span className="font-semibold text-down">Open wallet</span></Link>}
 
                 <div>
-                  <SectionTitle title="Position controls" description="Capital limits applied to every new source call." />
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2"><NumberField label="Size per call" suffix="SOL" value={cfg.size} step={0.1} min={0.1} onChange={(value) => set(activeGroup.id, { size: value })} /><NumberField label="Daily spend cap" suffix="SOL" value={cfg.dailyCap} step={0.5} min={0.5} onChange={(value) => set(activeGroup.id, { dailyCap: value })} /></div>
-                </div>
-
-                <div>
-                  <SectionTitle title="Profit ladder" description="Take partial profit while keeping a runner position." />
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2"><NumberField label="First target" suffix="x" value={cfg.tp1} step={0.5} min={1.5} onChange={(value) => set(activeGroup.id, { tp1: value })} /><NumberField label="Sell at first target" suffix="%" value={cfg.tp1sell} step={5} min={0} max={100} onChange={(value) => set(activeGroup.id, { tp1sell: value })} /><NumberField label="Second target" suffix="x" value={cfg.tp2} step={0.5} min={1.5} onChange={(value) => set(activeGroup.id, { tp2: value })} /><NumberField label="Sell at second target" suffix="%" value={cfg.tp2sell} step={5} min={0} max={100} onChange={(value) => set(activeGroup.id, { tp2sell: value })} /></div>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-edge"><div className="h-full bg-up" style={{ width: `${Math.min(100, cfg.tp1sell + cfg.tp2sell)}%` }} /></div><div className="mt-1.5 flex justify-between font-mono text-[9px] text-dim"><span>{cfg.tp1sell + cfg.tp2sell}% exits</span><span>{Math.max(0, 100 - cfg.tp1sell - cfg.tp2sell)}% runner</span></div>
-                </div>
-
-                <div>
-                  <SectionTitle title="Risk controls" description="Hard exits and route tolerance for automated orders." />
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2"><NumberField label="Stop loss" suffix="%" value={cfg.sl} step={5} min={1} max={100} onChange={(value) => set(activeGroup.id, { sl: value })} /><NumberField label="Max slippage" suffix="%" value={cfg.slippage} step={0.5} min={0.5} max={20} onChange={(value) => set(activeGroup.id, { slippage: value })} /></div>
+                  <SectionTitle title="Entry controls" description="Atomic source and wallet limits are checked before each claim." />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3"><NumberField label="Size per call" suffix="SOL" value={cfg.size} step={0.1} min={0.1} onChange={(value) => set(activeGroup.id, { size: value })} /><NumberField label="Source daily cap" suffix="SOL" value={cfg.dailyCap} step={0.5} min={0.5} onChange={(value) => set(activeGroup.id, { dailyCap: value })} /><NumberField label="Max slippage" suffix="%" value={cfg.slippage} step={0.5} min={0.5} max={20} onChange={(value) => set(activeGroup.id, { slippage: value })} /></div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">{["Rug screening", "Mint authority", "Liquidity check"].map((item) => <div key={item} className="flex min-h-9 items-center gap-2 rounded-md border border-edge bg-void px-3 text-[10px] text-ink"><Check size={12} className="text-up" />{item}</div>)}</div>
+                  <p className="mt-3 rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-[10px] text-dim">Entry execution only. Automated take-profit and stop-loss exits remain unavailable until persistent position reconciliation is verified.</p>
                 </div>
               </div>
 
-              <footer className="sticky bottom-9 z-10 flex flex-col gap-3 border-t border-edge bg-panel/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between"><p className={`font-mono text-[10px] ${invalidSettings ? "text-down" : "text-dim"}`}>{invalidSettings || (active ? "Saving updates the live execution profile." : "Profile is paused; settings can still be saved.")}</p><button onClick={() => persist(activeGroup.id, active)} disabled={saving === activeGroup.id || !!invalidSettings} className="min-h-10 min-w-40 rounded-md bg-toxic px-5 text-xs font-bold text-[#17110c] transition hover:brightness-110 disabled:opacity-50">{saving === activeGroup.id ? "Saving profile" : saved === activeGroup.id ? "Profile saved" : "Save execution profile"}</button></footer>
+              <footer className="sticky bottom-9 z-10 flex flex-col gap-3 border-t border-edge bg-panel/95 px-5 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between"><p className={`font-mono text-[10px] ${invalidSettings ? "text-down" : "text-dim"}`}>{invalidSettings || (active ? "Saving updates the live entry profile." : "Entry profile is paused; settings can still be saved.")}</p><button onClick={() => persist(activeGroup.id, active)} disabled={saving === activeGroup.id || !!invalidSettings} className="min-h-10 min-w-40 rounded-md bg-toxic px-5 text-xs font-bold text-[#17110c] transition hover:brightness-110 disabled:opacity-50">{saving === activeGroup.id ? "Saving profile" : saved === activeGroup.id ? "Profile saved" : "Save entry profile"}</button></footer>
             </> : <div className="grid min-h-[640px] place-items-center text-sm text-dim">Select a Discord source.</div>}
           </section>
 

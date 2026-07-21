@@ -3,10 +3,11 @@
  * picking the deepest-liquidity pair.
  */
 async function getPrice(mint) {
-  const j = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" })
+  const j = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store", signal: AbortSignal.timeout(8_000) })
     .then((r) => r.json()).catch(() => null);
   const pair = (j?.pairs ?? []).sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
-  return pair ? (Number(pair.priceUsd) ?? null) : null;
+  const price = Number(pair?.priceUsd);
+  return Number.isFinite(price) && price > 0 ? price : null;
 }
 
 module.exports = { getPrice };

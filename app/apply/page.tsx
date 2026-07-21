@@ -121,7 +121,7 @@ export default function Apply() {
                 className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 text-sm outline-none transition focus:border-toxic" />
             </label>
             {err && <p className="text-xs text-hotpink">{err}</p>}
-            <button disabled={busy} className="w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+            <button type="submit" disabled={busy} className="w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
               {busy ? "Submitting…" : "Submit application →"}
             </button>
             <p className="text-center font-mono text-[11px] text-dim">Revenue share available for high-performing groups</p>

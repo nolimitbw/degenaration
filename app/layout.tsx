@@ -12,14 +12,14 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://degenaration.vercel.app"),
   title: { default: "Degenaration | Solana Trading Terminal", template: "%s | Degenaration" },
   description:
-    "Discover, analyze and copy the best Solana alpha — live trenches, token screener, pro charts, ranked call groups, wallet tracker and non-custodial auto-trading. Your keys, your coins.",
-  keywords: ["Solana", "memecoin", "trading terminal", "copy trading", "DexScreener", "alpha", "trenches", "non-custodial"],
+    "Discover and analyze Solana markets, review measured Discord call sources, track wallets, and preview wallet-signed trades in one terminal.",
+  keywords: ["Solana", "memecoin", "trading terminal", "token research", "Discord calls", "wallet tracker"],
   openGraph: {
     title: "Degenaration | Solana Trading Terminal",
-    description: "Live trenches, token screener, pro charts, ranked alpha groups, wallet tracker and non-custodial auto-trading on Solana.",
+    description: "Live Solana market research, measured Discord call sources, wallet tracking, and wallet-signed trade previews.",
     url: "https://degenaration.vercel.app", siteName: "Degenaration", type: "website"
   },
-  twitter: { card: "summary_large_image", title: "Degenaration", description: "On-chain trading terminal & alpha copy-trading on Solana." }
+  twitter: { card: "summary_large_image", title: "Degenaration", description: "Solana market research and wallet-signed trading terminal." }
 };
 
 // Render pages on-demand instead of pre-rendering at build time. These are interactive
