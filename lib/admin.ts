@@ -7,12 +7,11 @@ const OWNER_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_OWNER_EMAILS || "Flipthatsol
   .filter(Boolean);
 
 export function emailFromPrivyUser(user: any): string | null {
-  const direct = user?.email?.address;
   const google = user?.google?.email;
   const linked = Array.isArray(user?.linkedAccounts)
-    ? user.linkedAccounts.find((account: any) => account?.type === "email" || account?.type === "google_oauth")
+    ? user.linkedAccounts.find((account: any) => account?.type === "google_oauth")
     : null;
-  return String(direct || google || linked?.address || linked?.email || "").trim().toLowerCase() || null;
+  return String(google || linked?.email || "").trim().toLowerCase() || null;
 }
 
 export function isOwnerEmail(email: string | null | undefined) {
@@ -37,7 +36,8 @@ export async function adminHeaders(getAccessToken: () => Promise<string | null>,
 
 export function adminErrorMessage(error: string | undefined, status?: number) {
   if (error === "owner_identity_token_required") return "Owner verification is not enabled in Privy. Enable Return user data in an identity token, then sign in again.";
-  if (error === "owner_identity_email_missing") return "The verified Privy session does not include a linked email. Sign out, then sign in with the owner Google account again.";
+  if (error === "owner_google_identity_required") return "This session does not include a verified Google account. Sign out, then use Continue with Google for the owner account.";
+  if (error === "owner_role_sync_failed") return "Owner identity was verified, but the admin role could not be synchronized. Try again in a moment.";
   if (error === "forbidden") return "Owner API rejected this session. Sign out and use the owner Google account.";
   if (error === "unauthorized") return "Owner session expired. Sign in with the owner Google account again.";
   return error || `request failed${status ? ` (${status})` : ""}`;

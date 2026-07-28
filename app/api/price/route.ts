@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const TRUSTED_QUOTES = new Set([SOL_MINT, USDC_MINT]);
 
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
@@ -14,13 +16,20 @@ export async function GET(req: NextRequest) {
     const r = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${targets}`, { cache: "no-store" });
     const j = await r.json();
 
-    let solPrice = 0;
-    for (const p of j?.pairs ?? []) {
-      if (p.baseToken?.address === SOL_MINT) solPrice = Number(p.priceUsd) || 0;
-    }
-
-    const pairs = (j?.pairs ?? []).filter((p: any) => p.baseToken?.address !== SOL_MINT);
-    const pair = pairs.sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+    const allPairs = Array.isArray(j?.pairs) ? j.pairs : [];
+    const deepest = (pairs: any[]) => [...pairs].sort(
+      (a, b) => Number(b?.liquidity?.usd || 0) - Number(a?.liquidity?.usd || 0)
+    )[0];
+    const solPair = deepest(allPairs.filter((pair: any) =>
+      pair.baseToken?.address === SOL_MINT && pair.quoteToken?.address === USDC_MINT
+    ));
+    const solPrice = Number(solPair?.priceUsd) || 0;
+    const pair = mint === SOL_MINT
+      ? solPair
+      : deepest(allPairs.filter((candidate: any) =>
+          candidate.baseToken?.address === mint
+          && TRUSTED_QUOTES.has(candidate.quoteToken?.address)
+        ));
     if (!pair) return NextResponse.json({ mint, priceUsd: null, solPrice, liquidityUsd: 0, found: false });
     const h24 = pair.txns?.h24 ?? {};
     return NextResponse.json({

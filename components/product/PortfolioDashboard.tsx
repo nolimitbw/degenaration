@@ -1,0 +1,369 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { usePrivy } from "@privy-io/react-auth";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  BarChart3,
+  Copy,
+  Download,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Share2,
+  ShieldAlert,
+  WalletCards,
+  X
+} from "lucide-react";
+import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
+import { useToast } from "@/components/Toast";
+import { getSolanaAddress } from "@/lib/solanaWallet";
+import { fetchPortfolio, fmtUsd, type Portfolio } from "@/lib/queries";
+import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch } from "@/lib/product-api";
+import { getNet } from "@/lib/net";
+
+type Period = "7d" | "30d" | "3m";
+type View = "overview" | "positions" | "trades" | "movements";
+
+export type PortfolioSummary = {
+  period: Period;
+  performance: {
+    sampleSize?: number;
+    netPnlLamports?: number | string | null;
+    realizedPnlLamports?: number | string | null;
+    volumeLamports?: number | string | null;
+    networkFeesLamports?: number | string | null;
+    platformFeesLamports?: number | string | null;
+    creatorFeesLamports?: number | string | null;
+    maxDrawdownBps?: number | null;
+    winRateBps?: number | null;
+    metrics?: Record<string, any> | null;
+    asOf?: string;
+  } | null;
+  positions: Array<any>;
+  executions: Array<any>;
+  cashMovements: Array<any>;
+  legacyTrades: Array<any>;
+};
+
+export default function PortfolioDashboard() {
+  const { authenticated, user, login, getAccessToken } = usePrivy();
+  const toast = useToast();
+  const walletAddress = getSolanaAddress(user);
+  const [period, setPeriod] = useState<Period>("30d");
+  const [view, setView] = useState<View>("overview");
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [walletPortfolio, setWalletPortfolio] = useState<Portfolio | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [share, setShare] = useState<{ type: "portfolio" | "position"; id?: string } | null>(null);
+  const [botFilter, setBotFilter] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const bot = params.get("bot") || "";
+    const requestedView = params.get("view");
+    setBotFilter(/^[0-9a-f-]{36}$/i.test(bot) ? bot : "");
+    if (requestedView === "positions" || requestedView === "trades" || requestedView === "movements") {
+      setView(requestedView);
+    } else if (bot) {
+      setView("positions");
+    }
+  }, []);
+
+  const load = useCallback(() => {
+    if (!authenticated) {
+      setSummary(null);
+      setWalletPortfolio(null);
+      return;
+    }
+    setLoading(true);
+    Promise.all([
+      productFetch<PortfolioSummary>(`/api/product/portfolio?period=${period}`, { getAccessToken }),
+      walletAddress ? fetchPortfolio(walletAddress, getNet()) : Promise.resolve(null)
+    ])
+      .then(([product, chain]) => {
+        setSummary(product);
+        setWalletPortfolio(chain);
+      })
+      .catch((reason) => toast(reason instanceof Error ? reason.message : "Could not load portfolio", "err"))
+      .finally(() => setLoading(false));
+  }, [authenticated, getAccessToken, period, toast, walletAddress]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openPositions = summary?.positions.filter((position) => ["opening", "open", "closing"].includes(position.status)) || [];
+  const visiblePositions = botFilter ? (summary?.positions || []).filter((position) => position.botId === botFilter) : (summary?.positions || []);
+  const visibleExecutions = botFilter ? (summary?.executions || []).filter((execution) => execution.botId === botFilter) : (summary?.executions || []);
+  const filteredBotName = visiblePositions[0]?.botName || visibleExecutions[0]?.botName;
+  const allocated = openPositions.reduce((total, position) => total + lamportsToSol(position.costLamports), 0);
+  const realized = lamportsToSol(summary?.performance?.realizedPnlLamports);
+  const netPnl = lamportsToSol(summary?.performance?.netPnlLamports);
+  const fees = lamportsToSol(summary?.performance?.networkFeesLamports) + lamportsToSol(summary?.performance?.platformFeesLamports) + lamportsToSol(summary?.performance?.creatorFeesLamports);
+  const executionBuys = summary?.executions.filter((execution) => execution.side === "buy").length || 0;
+  const executionSells = summary?.executions.filter((execution) => execution.side === "sell").length || 0;
+  const lastExecution = summary?.executions[0]?.created_at || summary?.legacyTrades[0]?.created_at;
+  const uniqueTokens = new Set([...(summary?.executions || []).map((execution) => execution.mint), ...(summary?.legacyTrades || []).map((trade) => trade.mint)]).size;
+  const availableSol = walletPortfolio?.sol ?? 0;
+  const totalUsd = walletPortfolio?.totalUsd ?? 0;
+  const totalSolEquivalent = walletPortfolio?.solPrice ? totalUsd / walletPortfolio.solPrice : availableSol;
+
+  if (!authenticated) {
+    return (
+      <>
+        <PageHeader eyebrow="Balances and performance" title="Portfolio" description="One reconciled view of balances, bot positions, executions, and wallet movements." />
+        <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel p-8 text-center">
+          <div className="max-w-md"><WalletCards className="mx-auto text-toxic" size={26} /><h2 className="mt-4 text-base font-semibold text-ink">Connect to view your portfolio</h2><p className="mt-2 text-sm leading-6 text-dim">Private performance and bot execution records are scoped to your verified Privy account.</p><button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c]">Connect account</button></div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Balances and performance"
+        title="Portfolio"
+        description="On-chain wallet balances alongside reconciled bot positions, executions, fees, and cash movements."
+        actions={
+          <>
+            <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
+            <button type="button" onClick={() => setDepositOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowDownToLine size={15} /> Deposit</button>
+            <button type="button" onClick={() => setWithdrawOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]"><ArrowUpFromLine size={15} /> Withdraw</button>
+          </>
+        }
+      />
+
+      <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
+        <div className="grid gap-px bg-edge lg:grid-cols-[1.35fr_repeat(4,1fr)]">
+          <div className="bg-panel p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="field-label">Total portfolio value</p><span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase text-dim"><span className="h-1.5 w-1.5 rounded-full bg-up" /> Solana · paper</span></div>
+            <p className="mt-3 font-mono text-3xl font-semibold text-ink">{totalSolEquivalent.toFixed(3)} <span className="text-base text-dim">SOL</span></p>
+            <p className="mt-1 font-mono text-xs text-dim">{fmtUsd(totalUsd)}</p>
+          </div>
+          <BalanceMetric label="Available" value={`${availableSol.toFixed(3)} SOL`} detail="Wallet balance" />
+          <BalanceMetric label="Allocated" value={`${allocated.toFixed(3)} SOL`} detail={`${openPositions.length} open positions`} />
+          <BalanceMetric label="Realized PnL" value={`${realized >= 0 ? "+" : ""}${realized.toFixed(3)} SOL`} detail={period.toUpperCase()} tone={realized >= 0 ? "positive" : "negative"} />
+          <BalanceMetric label="Net PnL" value={`${netPnl >= 0 ? "+" : ""}${netPnl.toFixed(3)} SOL`} detail="After recorded fees" tone={netPnl >= 0 ? "positive" : "negative"} />
+        </div>
+      </section>
+
+      <nav className="mt-5 flex gap-1 overflow-x-auto border-b border-edge" aria-label="Portfolio views">
+        {[
+          ["overview", "Overview"],
+          ["positions", `Positions ${openPositions.length}`],
+          ["trades", `Trades ${(summary?.executions.length || 0) + (summary?.legacyTrades.length || 0)}`],
+          ["movements", "Deposits & withdrawals"]
+        ].map(([value, label]) => (
+          <button key={value} type="button" onClick={() => setView(value as View)} className={`relative min-h-11 shrink-0 px-4 text-sm font-medium ${view === value ? "text-ink" : "text-dim hover:text-ink"}`}>{label}{view === value && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-toxic" />}</button>
+        ))}
+      </nav>
+
+      {botFilter && (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border border-toxic/30 bg-toxic/5 px-4 py-3">
+          <p className="text-xs text-dim">Showing records for <span className="font-semibold text-ink">{filteredBotName || "the selected bot"}</span>.</p>
+          <Link href="/portfolio?view=positions" className="text-xs font-semibold text-toxic">Clear filter</Link>
+        </div>
+      )}
+
+      {loading && !summary && <div className="mt-5 grid min-h-72 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
+      {summary && view === "overview" && (
+        <>
+          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <section className="overflow-hidden rounded-md border border-edge bg-panel">
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4"><div><h2 className="text-sm font-semibold text-ink">Portfolio performance</h2><p className="mt-1 text-[11px] text-dim">Equity time series excludes deposits and withdrawals from trading return.</p></div><Segmented value={period} onChange={setPeriod} label="Portfolio period" options={[{ value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "3m", label: "3M" }]} /></header>
+              <PortfolioPerformanceChart performance={summary.performance} />
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-5 py-4"><p className="text-[11px] text-dim">As of {formatWhen(summary.performance?.asOf)}</p><button type="button" onClick={() => setShare({ type: "portfolio" })} disabled={!summary.performance} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-35"><Share2 size={14} /> Share performance</button></div>
+            </section>
+            <section className="overflow-hidden rounded-md border border-edge bg-panel">
+              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Statistics</h2></header>
+              <dl className="divide-y divide-edge px-5">
+                <StatRow label="Total swaps" value={String((summary.executions.length || 0) + (summary.legacyTrades.length || 0))} />
+                <StatRow label="Buys / sells" value={`${executionBuys} / ${executionSells}`} />
+                <StatRow label="Network + creator + platform fees" value={`${fees.toFixed(4)} SOL`} />
+                <StatRow label="Unique tokens" value={String(uniqueTokens)} />
+                <StatRow label="Win rate" value={formatPercentBps(summary.performance?.winRateBps)} />
+                <StatRow label="Maximum drawdown" value={formatPercentBps(summary.performance?.maxDrawdownBps)} />
+                <StatRow label="Last swap" value={formatWhen(lastExecution)} />
+                <StatRow label="Risk-flagged tokens" value={String(summary.performance?.metrics?.riskFlaggedTokens ?? 0)} />
+              </dl>
+            </section>
+          </div>
+
+          <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
+            <header className="flex items-center justify-between border-b border-edge px-5 py-4"><div><h2 className="text-sm font-semibold text-ink">Wallet holdings</h2><p className="mt-1 text-[11px] text-dim">Current SPL balances priced from the most liquid available market pair.</p></div><span className="font-mono text-[9px] text-dim">{walletPortfolio?.count || 0} priced tokens</span></header>
+            <WalletHoldings portfolio={walletPortfolio} />
+          </section>
+        </>
+      )}
+
+      {summary && view === "positions" && <PositionsTable positions={visiblePositions} onShare={(id) => setShare({ type: "position", id })} />}
+      {summary && view === "trades" && <TradesTable executions={visibleExecutions} legacy={botFilter ? [] : summary.legacyTrades} />}
+      {summary && view === "movements" && <MovementsTable rows={summary.cashMovements} />}
+
+      {depositOpen && <DepositModal wallet={walletAddress || ""} onClose={() => setDepositOpen(false)} />}
+      {withdrawOpen && <UnavailableWithdrawal onClose={() => setWithdrawOpen(false)} />}
+      {share && <PnlShareModal subject={share} period={period} getAccessToken={getAccessToken} onClose={() => setShare(null)} />}
+    </>
+  );
+}
+
+function BalanceMetric({ label, value, detail, tone = "default" }: { label: string; value: string; detail: string; tone?: "default" | "positive" | "negative" }) {
+  const color = tone === "positive" ? "text-up" : tone === "negative" ? "text-down" : "text-ink";
+  return <div className="bg-panel p-5"><p className="field-label">{label}</p><p className={`mt-3 font-mono text-lg font-semibold ${color}`}>{value}</p><p className="mt-1 text-[10px] text-dim">{detail}</p></div>;
+}
+
+function PortfolioPerformanceChart({ performance }: { performance: PortfolioSummary["performance"] }) {
+  const rows = Array.isArray(performance?.metrics?.equitySeries) ? performance?.metrics?.equitySeries : [];
+  const values = rows.map((row: any) => Number(row.equityLamports || 0) / 1e9).filter(Number.isFinite);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const span = Math.max(max - min, 0.000001);
+  const points = rows.map((row: any, index: number) => {
+    const x = rows.length <= 1 ? 50 : 24 + index / (rows.length - 1) * 512;
+    const value = Number(row.equityLamports || 0) / 1e9;
+    const y = 150 - (value - min) / span * 112;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <div className="relative h-72 p-5">
+      <svg viewBox="0 0 560 190" className="h-full w-full" role="img" aria-label={rows.length ? `Portfolio equity chart with ${rows.length} observations` : "Portfolio equity history unavailable"}>
+        {[30, 70, 110, 150].map((y) => <line key={y} x1="20" y1={y} x2="540" y2={y} stroke="rgb(var(--edge-rgb))" />)}
+        {rows.length > 1 && <><polygon points={`24,160 ${points} 536,160`} fill="rgb(var(--toxic-rgb) / .08)" /><polyline points={points} fill="none" stroke="rgb(var(--toxic-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></>}
+      </svg>
+      {rows.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><BarChart3 className="mx-auto text-toxic" size={22} /><p className="mt-3 text-sm font-semibold text-ink">No reconciled equity series yet</p><p className="mt-1 max-w-sm text-[11px] leading-5 text-dim">The chart appears after performance snapshots are computed from confirmed trades and wallet movements. No synthetic curve is shown.</p></div></div>}
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-start justify-between gap-4 py-3"><dt className="text-[11px] text-dim">{label}</dt><dd className="max-w-[58%] text-right font-mono text-[10px] leading-4 text-ink">{value}</dd></div>;
+}
+
+function WalletHoldings({ portfolio }: { portfolio: Portfolio | null }) {
+  if (!portfolio) return <p className="px-5 py-10 text-center text-xs text-dim">Wallet market data is unavailable.</p>;
+  if (!portfolio.positions.length) return <p className="px-5 py-10 text-center text-xs text-dim">No priced SPL holdings above the dust threshold.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] text-left">
+        <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">24H</th><th className="px-4 py-3">Liquidity</th></tr></thead>
+        <tbody>{portfolio.positions.map((position) => <tr key={position.mint} className="border-t border-edge text-xs"><td className="px-4 py-4"><div className="flex items-center gap-3">{position.image ? <img src={position.image} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-edge font-mono text-[9px] text-toxic">{(position.symbol || "?").slice(0, 2)}</span>}<div><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 font-mono text-[9px] text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-5)}</p></div></div></td><td className="px-4 py-4 font-mono text-ink">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td><td className="px-4 py-4 font-mono text-ink">{fmtUsd(position.priceUsd)}</td><td className="px-4 py-4 font-mono text-ink">{fmtUsd(position.valueUsd)}</td><td className={`px-4 py-4 font-mono ${(position.change24h || 0) >= 0 ? "text-up" : "text-down"}`}>{position.change24h == null ? "--" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(2)}%`}</td><td className="px-4 py-4 font-mono text-dim">{fmtUsd(position.liquidityUsd)}</td></tr>)}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function PositionsTable({ positions, onShare }: { positions: any[]; onShare: (id: string) => void }) {
+  return (
+    <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
+      <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Bot positions</h2><p className="mt-1 text-[11px] text-dim">Configuration and source attribution remain attached to the position snapshot.</p></header>
+      {positions.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No bot positions yet.</p> : (
+        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Bot</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Invested</th><th className="px-4 py-3">Realized PnL</th><th className="px-4 py-3">Fees</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">Actions</th></tr></thead><tbody>{positions.map((position) => <tr key={position.id} className="border-t border-edge text-xs"><td className="px-4 py-4"><p className="font-mono text-ink">{position.mint.slice(0, 7)}...{position.mint.slice(-5)}</p></td><td className="px-4 py-4 text-ink">{position.botName || "Unassigned bot"}</td><td className="px-4 py-4"><StatusPill status={position.status} /></td><td className="px-4 py-4 font-mono text-ink">{formatSol(position.costLamports)}</td><td className={`px-4 py-4 font-mono ${Number(position.realizedPnlLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(position.realizedPnlLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(position.feesLamports)}</td><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(position.opened_at)}</td><td className="px-4 py-4"><div className="flex gap-2"><button type="button" onClick={() => onShare(position.id)} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><Share2 size={13} /> Share</button><Link href={`/portfolio/positions/${position.id}`} className="inline-flex min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink">Details</Link></div></td></tr>)}</tbody></table></div>
+      )}
+    </section>
+  );
+}
+
+function TradesTable({ executions, legacy }: { executions: any[]; legacy: any[] }) {
+  const rows = [...executions.map((row) => ({ ...row, source: "bot" })), ...legacy.map((row) => ({ ...row, source: "legacy", grossNotionalLamports: row.solAmount == null ? null : String(Math.round(Number(row.solAmount) * 1e9)), networkFeeLamports: row.feeSol == null ? null : String(Math.round(Number(row.feeSol) * 1e9)), status: row.reconciliationStatus || "legacy" }))].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return (
+    <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
+      <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Trade history</h2><p className="mt-1 text-[11px] text-dim">Confirmed, pending, failed, and legacy execution records remain visible.</p></header>
+      {rows.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No trade records yet.</p> : (
+        <div className="overflow-x-auto"><table className="w-full min-w-[1120px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Token</th><th className="px-4 py-3">Side / kind</th><th className="px-4 py-3">Notional</th><th className="px-4 py-3">Network fee</th><th className="px-4 py-3">Platform fee</th><th className="px-4 py-3">Creator fee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Transaction</th></tr></thead><tbody>{rows.map((row) => <tr key={`${row.source}-${row.id}`} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(row.created_at)}</td><td className="px-4 py-4 font-mono text-ink">{row.mint.slice(0, 7)}...{row.mint.slice(-5)}</td><td className="px-4 py-4"><p className={`font-mono uppercase ${row.side === "buy" ? "text-up" : "text-toxic"}`}>{row.side}</p><p className="mt-1 text-[9px] text-dim">{row.kind || "swap"}</p></td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.grossNotionalLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.networkFeeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.platformFeeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.creatorFeeLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{row.txSignature ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-toxic">Solscan <ExternalLink size={12} /></a> : <span className="text-dim">--</span>}</td></tr>)}</tbody></table></div>
+      )}
+    </section>
+  );
+}
+
+function MovementsTable({ rows }: { rows: any[] }) {
+  return (
+    <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
+      <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Deposit and withdrawal history</h2><p className="mt-1 text-[11px] text-dim">Detected wallet movements are reconciled against Solana transaction signatures.</p></header>
+      {rows.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No reconciled wallet movements yet.</p> : (
+        <div className="overflow-x-auto"><table className="w-full min-w-[840px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Signature</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(row.observed_at)}</td><td className="px-4 py-4 capitalize text-ink">{row.type}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.amountLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.networkFeeLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{row.txSignature ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="text-toxic">View</a> : "--"}</td></tr>)}</tbody></table></div>
+      )}
+    </section>
+  );
+}
+
+function DepositModal({ wallet, onClose }: { wallet: string; onClose: () => void }) {
+  const toast = useToast();
+  async function copy() {
+    try { await navigator.clipboard.writeText(wallet); toast("Deposit address copied"); } catch { toast("Could not copy address", "err"); }
+  }
+  return (
+    <Modal title="Deposit SOL or SPL tokens" onClose={onClose}>
+      <div className="rounded-md border border-toxic/30 bg-toxic/5 p-4 text-xs leading-5 text-dim">Send only Solana network assets to this address. Verify the address in your wallet before confirming a transfer.</div>
+      <div className="mt-4 rounded-md border border-edge bg-void p-4"><p className="field-label">Your Solana address</p><p className="mt-2 break-all font-mono text-xs text-ink">{wallet || "No wallet connected"}</p><button type="button" onClick={copy} disabled={!wallet} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Copy size={14} /> Copy address</button></div>
+    </Modal>
+  );
+}
+
+function UnavailableWithdrawal({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="Withdraw funds" onClose={onClose}>
+      <div className="flex gap-3 rounded-md border border-toxic/35 bg-toxic/5 p-4"><ShieldAlert className="shrink-0 text-toxic" size={18} /><div><p className="text-sm font-semibold text-ink">Withdrawals are disabled in paper mode</p><p className="mt-1 text-xs leading-5 text-dim">No transaction will be constructed while the real-fund release gate is off. This prevents a button from implying that funds can move when execution is not enabled.</p></div></div>
+      <Link href="/wallet" className="mt-4 inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink">Review wallet security</Link>
+    </Modal>
+  );
+}
+
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={onClose}><div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}><header className="flex items-center justify-between border-b border-edge p-5"><h2 className="text-lg font-semibold text-ink">{title}</h2><button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close"><X size={15} /></button></header><div className="p-5">{children}</div></div></div>;
+}
+
+function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: { type: "portfolio" | "position"; id?: string }; period: Period; getAccessToken: () => Promise<string | null>; onClose: () => void }) {
+  const toast = useToast();
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let objectUrl = "";
+    getAccessToken().then(async (token) => {
+      const query = new URLSearchParams({ type: subject.type, period });
+      if (subject.id) query.set("id", subject.id);
+      const response = await fetch(`/api/product/pnl-card?${query}`, { headers: token ? { authorization: `Bearer ${token}` } : {} });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Card is not available");
+      }
+      objectUrl = URL.createObjectURL(await response.blob());
+      setUrl(objectUrl);
+    }).catch((reason) => setError(reason instanceof Error ? reason.message : "Card unavailable"));
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [getAccessToken, period, subject.id, subject.type]);
+
+  async function download() {
+    if (!url) return;
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `degenaration-${subject.type}-pnl.png`;
+    anchor.click();
+  }
+
+  async function shareNative() {
+    if (!url) return;
+    const blob = await fetch(url).then((response) => response.blob());
+    const file = new File([blob], `degenaration-${subject.type}-pnl.png`, { type: "image/png" });
+    try {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "DegenAration PnL" });
+      else {
+        await navigator.clipboard.writeText("https://degenaration.vercel.app");
+        toast("Share link copied");
+      }
+    } catch {}
+  }
+
+  return (
+    <div className="fixed inset-0 z-[110] grid place-items-center bg-black/80 p-4" onClick={onClose}>
+      <div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}>
+        <header className="flex items-center justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-toxic">Authoritative PnL card</p><h2 className="mt-2 text-lg font-semibold text-ink">Share performance</h2></div><button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close share preview"><X size={15} /></button></header>
+        <div className="grid min-h-96 place-items-center bg-void p-5">{url ? <img src={url} alt="DegenAration PnL share card" className="max-h-[62vh] w-full rounded-md object-contain" /> : error ? <div className="max-w-md text-center"><ShieldAlert className="mx-auto text-toxic" /><p className="mt-3 text-sm font-semibold text-ink">Card unavailable</p><p className="mt-2 text-xs leading-5 text-dim">{error}</p></div> : <Loader2 className="animate-spin text-toxic" />}</div>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={download} disabled={!url} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink disabled:opacity-40"><Download size={14} /> Download PNG</button><button type="button" onClick={shareNative} disabled={!url} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c] disabled:opacity-40"><Share2 size={14} /> Share</button></footer>
+      </div>
+    </div>
+  );
+}

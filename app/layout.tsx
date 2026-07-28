@@ -10,16 +10,16 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://degenaration.vercel.app"),
-  title: { default: "Degenaration | Solana Trading Terminal", template: "%s | Degenaration" },
+  title: { default: "DegenAration | Solana Bot Automation", template: "%s | DegenAration" },
   description:
-    "Discover and analyze Solana markets, review measured Discord call sources, track wallets, and preview wallet-signed trades in one terminal.",
-  keywords: ["Solana", "memecoin", "trading terminal", "token research", "Discord calls", "wallet tracker"],
+    "Build Solana automation from reviewed Discord sources or live KOL market rules, then track positions, fees, creator commissions, and payouts.",
+  keywords: ["Solana", "memecoin", "trading bots", "Discord calls", "KOL bot", "wallet portfolio"],
   openGraph: {
-    title: "Degenaration | Solana Trading Terminal",
-    description: "Live Solana market research, measured Discord call sources, wallet tracking, and wallet-signed trade previews.",
-    url: "https://degenaration.vercel.app", siteName: "Degenaration", type: "website"
+    title: "DegenAration | Solana Bot Automation",
+    description: "Discord and KOL bot automation with measured performance, bounded risk, creator commissions, and portfolio evidence.",
+    url: "https://degenaration.vercel.app", siteName: "DegenAration", type: "website"
   },
-  twitter: { card: "summary_large_image", title: "Degenaration", description: "Solana market research and wallet-signed trading terminal." }
+  twitter: { card: "summary_large_image", title: "DegenAration", description: "Solana Discord and KOL bot automation with measured risk and portfolio evidence." }
 };
 
 // Render pages on-demand instead of pre-rendering at build time. These are interactive

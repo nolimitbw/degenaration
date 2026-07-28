@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/server/guard";
+import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import { callAdminRpc, requireAdmin } from "@/lib/server/admin";
 
 export async function GET(req: NextRequest) {
-  const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
+  const limited = await distributedRateLimit(req, { limit: 60, windowSeconds: 60 });
   if (limited) return limited;
   const admin = await requireAdmin(req);
   if (!admin.ok) return admin.response;
+  if (admin.legacy) return NextResponse.json({ error: "verified owner session required" }, { status: 403 });
 
   const result = await callAdminRpc("admin_dashboard_summary", {});
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });

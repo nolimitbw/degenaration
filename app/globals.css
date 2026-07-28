@@ -77,7 +77,72 @@ body {
   position: relative;
 }
 
-/* Quiet, data-first workspace palette. The launch page keeps its own cinematic theme. */
+button:not(:disabled),
+[role="button"],
+a[href],
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.field-label {
+  display: block;
+  color: rgb(var(--dim-rgb));
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.field-control {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid rgb(var(--edge-rgb));
+  border-radius: 6px;
+  background: rgb(var(--void-rgb));
+  color: rgb(var(--ink-rgb));
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.field-control:hover:not(:disabled) {
+  border-color: rgb(var(--dim-rgb) / 0.72);
+}
+
+.field-control:focus,
+.field-control:focus-within {
+  border-color: rgb(var(--toxic-rgb));
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--toxic-rgb) / 0.12);
+}
+
+.field-control::placeholder,
+.field-control input::placeholder,
+.field-control textarea::placeholder {
+  color: rgb(var(--dim-rgb) / 0.68);
+}
+
+/* Quiet, data-first workspace palette. */
 .app-shell {
   --void: #0d0e0f;
   --void-rgb: 13 14 15;
@@ -211,10 +276,7 @@ body {
   ::-webkit-scrollbar-thumb:hover { background: #4b4742; }
 }
 
-/* ============================================================
-   Degen cosmic home theme  (scoped to .degen-home only, so the
-   app/dashboard pages keep their existing light styling)
-   ============================================================ */
+/* Public product workspace. */
 .degen-home {
   --void: #0d0e0f;
   --void-rgb: 13 14 15;

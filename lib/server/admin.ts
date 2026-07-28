@@ -41,13 +41,17 @@ function emailFromIdPayload(payload: any) {
   const linkedRaw = payload?.linked_accounts;
   let linked: any[] = [];
   try { linked = typeof linkedRaw === "string" ? JSON.parse(linkedRaw) : Array.isArray(linkedRaw) ? linkedRaw : []; } catch {}
-  const account = linked.find((item) => item?.type === "email" || item?.type === "google_oauth");
-  return String(account?.address || account?.email || payload?.email || "").trim().toLowerCase();
+  const account = linked.find((item) => item?.type === "google_oauth");
+  const email = String(account?.email || "").trim().toLowerCase();
+  const subject = String(account?.subject || "").trim();
+  return email && subject ? { email, subject } : null;
 }
 
 export async function requireAdmin(req: NextRequest) {
   const legacyKey = process.env.ADMIN_KEY;
-  if (legacyKey && req.headers.get("x-admin-key") === legacyKey) return { ok: true as const, email: "legacy-admin-key" };
+  if (legacyKey && req.headers.get("x-admin-key") === legacyKey) {
+    return { ok: true as const, email: "legacy-admin-key", privyUserId: "legacy-admin-key", legacy: true as const };
+  }
 
   const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   const idToken = req.headers.get("x-privy-id-token")?.trim() || req.cookies.get("privy-id-token")?.value;
@@ -73,15 +77,35 @@ export async function requireAdmin(req: NextRequest) {
     };
   }
 
-  const email = emailFromIdPayload(identity);
-  if (!email) {
+  const google = emailFromIdPayload(identity);
+  if (!google) {
     return {
       ok: false as const,
-      response: NextResponse.json({ error: "owner_identity_email_missing" }, { status: 428 })
+      response: NextResponse.json({ error: "owner_google_identity_required" }, { status: 428 })
     };
   }
-  if (!OWNER_EMAILS.includes(email)) return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
-  return { ok: true as const, email };
+  if (!OWNER_EMAILS.includes(google.email)) {
+    return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
+  }
+
+  const privyUserId = String(verified.sub);
+  const synced = await callAppBridge<{ isAdmin?: boolean }>("app_sync_verified_identity", {
+    p_privy_user_id: privyUserId,
+    p_provider: "google_oauth",
+    p_provider_subject: google.subject,
+    p_email: google.email,
+    p_email_verified: true
+  });
+  if (!synced.ok) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "owner_role_sync_failed" }, { status: 503 })
+    };
+  }
+  if (!synced.data?.isAdmin) {
+    return { ok: false as const, response: NextResponse.json({ error: "forbidden" }, { status: 403 }) };
+  }
+  return { ok: true as const, email: google.email, privyUserId, legacy: false as const };
 }
 
 export async function callAdminRpc<T>(name: string, body: Record<string, unknown>): Promise<{ ok: true; data: T } | { ok: false; status: number; error: string }> {

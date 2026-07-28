@@ -6,9 +6,6 @@ import Logo from "@/components/Logo";
 import { Menu, X } from "lucide-react";
 
 const LINKS = [
-  { label: "Terminal", href: "/terminal" },
-  { label: "Trades", href: "/trades" },
-  { label: "Search", href: "/search" },
   { label: "Bots", href: "/bots" },
   { label: "Affiliate", href: "/affiliate" },
   { label: "Portfolio", href: "/portfolio" }
@@ -39,7 +36,7 @@ export default function Nav() {
           <Logo />
         </Link>
 
-        <div className="mx-2 hidden items-center gap-1 md:flex">
+        <div className="ml-auto hidden items-center gap-1 md:flex">
           {LINKS.map((l) => (
             <Link
               key={l.label}
@@ -51,9 +48,9 @@ export default function Nav() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="ml-3 hidden items-center gap-2 md:flex">
           <Link href="/login" className="rounded-md border border-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-toxic">Connect Wallet</Link>
-          <Link href="/terminal" className="rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open terminal</Link>
+          <Link href="/bots" className="rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open app</Link>
         </div>
 
         <button
@@ -79,7 +76,7 @@ export default function Nav() {
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <Link href="/login" onClick={() => setOpen(false)} className="rounded-md border border-edge px-3 py-2.5 text-center text-sm font-semibold">Connect Wallet</Link>
-            <Link href="/terminal" onClick={() => setOpen(false)} className="rounded-md bg-toxic px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open terminal</Link>
+            <Link href="/bots" onClick={() => setOpen(false)} className="rounded-md bg-toxic px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open app</Link>
           </div>
         </motion.div>
       )}

@@ -15,6 +15,9 @@ export async function POST(req: NextRequest) {
 
   const admin = await requireAdmin(req);
   if (!admin.ok) return admin.response;
+  if (admin.legacy) {
+    return NextResponse.json({ error: "verified owner session required" }, { status: 403 });
+  }
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }

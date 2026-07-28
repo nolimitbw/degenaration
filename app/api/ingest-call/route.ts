@@ -1,12 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { rateLimit, isMint, fetchWithTimeout } from "@/lib/server/guard";
 import { botBridgeHeaders, getBotBridgeUrl } from "@/lib/server/bot-rpc";
+import { isBotRequest, isDiscordSnowflake } from "@/lib/server/bot-auth";
+import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 
 const cleanText = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) || null : null;
 const positive = (value: unknown) => {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : null;
 };
+const EVENT_TYPES = new Set(["create", "edit", "delete"]);
+const TOKEN_PROGRAMS = new Set([
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+]);
+
+async function verifySolanaMint(mint: string) {
+  const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
+  try {
+    const response = await fetchWithTimeout(rpcUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "degenaration-mint-validation",
+        method: "getAccountInfo",
+        params: [mint, { encoding: "jsonParsed", commitment: "confirmed" }]
+      })
+    }, 7_000);
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.error) return { ok: false as const, unavailable: true };
+    const account = payload?.result?.value;
+    return {
+      ok: Boolean(
+        account &&
+        TOKEN_PROGRAMS.has(account.owner) &&
+        account.data?.parsed?.type === "mint"
+      ),
+      unavailable: false
+    };
+  } catch {
+    return { ok: false as const, unavailable: true };
+  }
+}
+
+function confidenceBps(value: unknown) {
+  if (value === "slash-command") return 10_000;
+  if (value === "message-edit") return 8_000;
+  if (value === "message") return 9_000;
+  return 7_500;
+}
 
 /**
  * POST /api/ingest-call  — the Discord bot posts detected calls here.
@@ -20,23 +65,44 @@ export async function POST(req: NextRequest) {
   const limited = rateLimit(req, { limit: 120, windowMs: 60_000 });
   if (limited) return limited;
 
-  const secret = process.env.BOT_SHARED_SECRET;
-  if (!secret || req.headers.get("x-bot-secret") !== secret) {
+  if (!isBotRequest(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const distributed = await distributedRateLimit(req, {
+    limit: 120,
+    windowSeconds: 60,
+    scope: "discord:ingest-signal",
+    subject: "discord-bot",
+    skipLocal: true
+  });
+  if (distributed) return distributed;
 
+  const secret = process.env.BOT_SHARED_SECRET!;
   const bridgeUrl = getBotBridgeUrl();
   if (!bridgeUrl) return NextResponse.json({ error: "server not configured" }, { status: 503 });
 
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
   const { channelId, channelName, mint, messageId, caller, confidence } = body ?? {};
-  if (!channelId || typeof channelId !== "string") return NextResponse.json({ error: "channelId required" }, { status: 400 });
-  if (!isMint(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
+  const eventType = EVENT_TYPES.has(body?.eventType) ? body.eventType : "create";
+  const eventVersion = cleanText(body?.eventVersion, 64) || (eventType === "create" ? "original" : null);
+  const editedAt = body?.editedAt && Number.isFinite(Date.parse(body.editedAt)) ? new Date(body.editedAt).toISOString() : null;
+  if (!isDiscordSnowflake(channelId) || !isDiscordSnowflake(messageId)) {
+    return NextResponse.json({ error: "invalid Discord channel or message" }, { status: 400 });
+  }
+  if (!eventVersion) return NextResponse.json({ error: "event version required" }, { status: 400 });
+  if (eventType !== "delete" && !isMint(mint)) {
+    return NextResponse.json({ error: "invalid mint" }, { status: 400 });
+  }
+  if (eventType !== "delete") {
+    const validation = await verifySolanaMint(mint);
+    if (validation.unavailable) return NextResponse.json({ error: "mint validation temporarily unavailable" }, { status: 503 });
+    if (!validation.ok) return NextResponse.json({ error: "address is not a Solana token mint" }, { status: 422 });
+  }
 
   // 1. Enrich with live price data before sending the normalized call to Supabase.
   let symbol: string | null = null, calledMcap: number | null = null, calledPrice: number | null = null, calledLiquidity: number | null = null;
-  try {
+  if (eventType !== "delete") try {
     const px = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" }).then((r) => r.json());
     const pair = (px?.pairs ?? [])
       .filter((item: any) => item?.chainId === "solana" && item?.baseToken?.address === mint)
@@ -49,6 +115,10 @@ export async function POST(req: NextRequest) {
     }
   } catch { /* enrichment is best-effort */ }
 
+  const contentHash = createHash("sha256")
+    .update([channelId, messageId, eventVersion, eventType, mint || ""].join(":"))
+    .digest("hex");
+
   // 2. Record the call through a security-definer RPC. The RPC verifies the bot
   // secret again, checks the channel is approved, and dedups by Discord message.
   try {
@@ -56,7 +126,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: botBridgeHeaders,
       body: JSON.stringify({
-        operation: "ingest_call",
+        operation: "ingest_signal_v2",
         p_secret: secret,
         p_channel_id: channelId,
         p_channel_name: cleanText(channelName, 100),
@@ -67,7 +137,13 @@ export async function POST(req: NextRequest) {
         p_called_liquidity_usd: calledLiquidity,
         p_message_id: cleanText(messageId, 64),
         p_caller: cleanText(caller, 100),
-        p_confidence: cleanText(confidence, 16)
+        p_confidence: cleanText(confidence, 32),
+        p_event_type: eventType,
+        p_event_version: eventVersion,
+        p_edited_at: editedAt,
+        p_parser_version: "discord-v3",
+        p_confidence_bps: confidenceBps(confidence),
+        p_content_hash: contentHash
       })
     });
     const data = await res.json().catch(() => null);

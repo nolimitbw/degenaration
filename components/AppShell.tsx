@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -8,171 +9,69 @@ import {
   Bell,
   Bot,
   ChartNoAxesCombined,
-  ChevronDown,
-  CircleDollarSign,
-  CircleDot,
-  Compass,
-  Flame,
-  ListOrdered,
   Menu,
-  Radar,
-  ServerCog,
-  Settings,
   ShieldCheck,
-  Star,
   WalletCards,
-  X,
-  type LucideIcon
+  X
 } from "lucide-react";
-import Ticker from "./Ticker";
-import Search from "./Search";
-import Logo from "./Logo";
+import Logo from "@/components/Logo";
+import { useIsAdmin } from "@/lib/admin";
 
-// Load the wallet button (and its heavy Privy bundle) only on the client, after paint.
-// Keeps ~800KB of signing code off the critical path so data pages open instantly.
-const WalletButton = dynamic(() => import("./WalletButton"), {
+const WalletButton = dynamic(() => import("@/components/WalletButton"), {
   ssr: false,
-  loading: () => <div className="h-8 w-28 animate-pulse rounded-md bg-edge/40" />
+  loading: () => <div className="h-10 w-28 animate-pulse rounded-md bg-edge/50" />
 });
 
-const WalletStatus = dynamic(() => import("./WalletStatus"), {
+const WalletStatus = dynamic(() => import("@/components/WalletStatus"), {
   ssr: false,
-  loading: () => (
-    <span className="flex items-center gap-1.5 font-mono text-[11px] text-dim">
-      <span className="h-1.5 w-1.5 rounded-full bg-dim/60" /> Checking
-    </span>
-  )
+  loading: () => <span className="text-xs text-dim">Checking wallet</span>
 });
 
-// Primary nav — always visible on desktop (Trojan-style top bar).
-const PRIMARY = [
-  { href: "/terminal", label: "Terminal" },
-  { href: "/trades", label: "Trades" },
-  { href: "/search", label: "Search" },
-  { href: "/bots", label: "Bots" },
-  { href: "/affiliate", label: "Affiliate" },
-  { href: "/portfolio", label: "Portfolio" }
+const NAV = [
+  { href: "/bots", label: "Bots", icon: Bot },
+  { href: "/affiliate", label: "Affiliate", icon: ChartNoAxesCombined },
+  { href: "/portfolio", label: "Portfolio", icon: WalletCards }
 ];
-
-// Secondary surfaces grouped under a Tools dropdown.
-type ToolItem = { href: string; label: string; desc: string; icon: LucideIcon };
-
-const TOOLS: ToolItem[] = [
-  { href: "/orders", label: "Limit Orders", desc: "Auto buy or sell at your price", icon: ListOrdered },
-  { href: "/watchlist", label: "Watchlist", desc: "Your starred tokens", icon: Star },
-  { href: "/alerts", label: "Price Alerts", desc: "Notifications while the alerts tab is open", icon: Bell },
-  { href: "/tracker", label: "Wallet Tracker", desc: "Follow wallet activity", icon: Radar },
-  { href: "/alpha", label: "Call Leaderboard", desc: "Measured caller performance", icon: ChartNoAxesCombined },
-  { href: "/apply", label: "List your server", desc: "Add your Discord call group", icon: ServerCog }
-];
-
-const ADMIN_TOOLS: ToolItem[] = [
-  { href: "/admin", label: "Admin", desc: "Owner console", icon: ShieldCheck },
-  { href: "/admin/channels", label: "Call channels", desc: "Approve Discord channels", icon: Bot },
-  { href: "/admin/commissions", label: "Commissions", desc: "Platform fee ledger", icon: CircleDollarSign }
-];
-
-const SOL_MINT = "So11111111111111111111111111111111111111112";
-
-function SolPrice() {
-  const [px, setPx] = useState<number | null>(null);
-  useEffect(() => {
-    const load = () =>
-      fetch(`/api/price?mint=${SOL_MINT}`)
-        .then((r) => r.json())
-        .then((d) => setPx(d?.priceUsd ?? null))
-        .catch(() => {});
-    load();
-    const iv = setInterval(load, 30000);
-    return () => clearInterval(iv);
-  }, []);
-  return (
-    <span className="flex items-center gap-1.5 font-mono text-[11px] text-dim">
-      <span className="flex items-center gap-1 text-toxic"><CircleDot aria-hidden="true" size={12} strokeWidth={1.8} /> SOL</span>
-      <span className="text-ink">{px != null ? `$${px.toFixed(2)}` : "…"}</span>
-    </span>
-  );
-}
 
 function isActivePath(path: string, href: string) {
   return path === href || path.startsWith(`${href}/`);
 }
 
-function ToolsMenu({ items, path }: { items: ToolItem[]; path: string }) {
+function Notifications() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const close = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
     };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKeyDown);
-    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
-  const active = items.some((i) => isActivePath(path, i.href));
+
   return (
     <div ref={ref} className="relative">
       <button
-        ref={buttonRef}
-        onClick={() => setOpen((o) => !o)}
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="relative grid h-10 w-10 place-items-center rounded-md border border-edge text-dim transition hover:border-toxic/60 hover:text-ink"
+        aria-label="Notifications"
         aria-expanded={open}
-        aria-haspopup="menu"
-        className={`flex min-h-11 items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-          active || open ? "text-toxic" : "text-dim hover:text-ink"
-        }`}
       >
-        Tools <ChevronDown aria-hidden="true" size={14} className={`transition ${open ? "rotate-180" : ""}`} />
+        <Bell aria-hidden="true" size={17} />
+        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-toxic" />
       </button>
       {open && (
-        <div role="menu" className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg border border-edge bg-panel p-1.5 shadow-card">
-          {items.map((i) => {
-            const Icon = i.icon;
-            return (
-            <Link
-              key={i.href}
-              href={i.href}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={`flex items-start gap-3 rounded-md px-3 py-2.5 transition hover:bg-edge/50 ${
-                isActivePath(path, i.href) ? "bg-toxic/10" : ""
-              }`}
-            >
-              <Icon aria-hidden="true" size={18} strokeWidth={1.8} className={`mt-0.5 shrink-0 ${isActivePath(path, i.href) ? "text-toxic" : "text-dim"}`} />
-              <span className="min-w-0">
-                <span className={`block text-sm font-semibold ${isActivePath(path, i.href) ? "text-toxic" : "text-ink"}`}>{i.label}</span>
-                <span className="block truncate text-[11px] text-dim">{i.desc}</span>
-              </span>
-            </Link>
-            );
-          })}
+        <div className="absolute right-0 top-12 z-50 w-80 rounded-md border border-edge bg-panel p-4 shadow-2xl">
+          <p className="text-sm font-semibold text-ink">Execution safeguards active</p>
+          <p className="mt-1 text-xs leading-5 text-dim">
+            New automation runs in paper mode until the owner enables a reviewed execution environment.
+          </p>
+          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-toxic hover:text-cyber">
+            Review bot status
+          </Link>
         </div>
       )}
     </div>
-  );
-}
-
-// Compact link for the bottom status bar; all route to real pages.
-function BottomLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: LucideIcon; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      className={`flex min-h-9 items-center gap-1.5 px-2 py-1 text-[11px] font-medium transition ${
-        active ? "text-toxic" : "text-dim hover:text-ink"
-      }`}
-    >
-      <Icon aria-hidden="true" size={14} strokeWidth={1.8} />
-      <span className="hidden sm:inline">{label}</span>
-    </Link>
   );
 }
 
@@ -181,8 +80,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const previousPath = useRef(path);
-  const tools = [...TOOLS, ...ADMIN_TOOLS];
-  const allNav = [...PRIMARY, ...tools];
+  const { admin } = useIsAdmin();
 
   useEffect(() => {
     if (previousPath.current !== path) {
@@ -194,112 +92,142 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!mobileOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [mobileOpen]);
 
   return (
-    <div className="app-shell flex min-h-screen flex-col">
-      <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white transition focus:translate-y-0">
+    <div className="app-shell min-h-screen">
+      <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
         Skip to content
       </a>
-      {/* top nav */}
-      <header className="sticky top-0 z-40 border-b border-edge glass">
-        <div className="mx-auto flex h-16 max-w-[1800px] items-center gap-3 px-4 lg:px-6">
-          <button onClick={() => setMobileOpen(true)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink lg:hidden" aria-label="Open menu">
-            <Menu aria-hidden="true" size={21} />
+
+      <header className="sticky top-0 z-40 border-b border-edge bg-void/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-3 px-4 lg:px-6">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim lg:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu aria-hidden="true" size={19} />
           </button>
-          <Link href="/terminal" className="mr-4 shrink-0" aria-label="Degenaration terminal">
+          <Link href="/bots" className="shrink-0" aria-label="DegenAration bots">
             <Logo />
           </Link>
-          <nav className="hidden h-full items-center gap-0.5 lg:flex">
-            {PRIMARY.map((n) => {
-              const active = isActivePath(path, n.href);
+
+          <nav className="ml-8 hidden h-full items-center gap-1 lg:flex" aria-label="Primary navigation">
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const active = isActivePath(path, href);
               return (
                 <Link
-                  key={n.href}
-                  href={n.href}
-                  className={`relative flex h-full items-center px-3 text-sm font-medium transition ${
-                    active ? "text-toxic" : "text-dim hover:text-ink"
+                  key={href}
+                  href={href}
+                  className={`relative flex h-full min-w-28 items-center justify-center gap-2 px-4 text-sm font-medium transition ${
+                    active ? "text-ink" : "text-dim hover:text-ink"
                   }`}
                 >
+                  <Icon aria-hidden="true" size={16} strokeWidth={1.8} className={active ? "text-toxic" : ""} />
+                  {label}
                   {active && (
-                    <motion.span layoutId="nav-active" className="absolute inset-x-3 bottom-0 h-0.5 bg-toxic" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
+                    <motion.span
+                      layoutId="app-nav-active"
+                      className="absolute inset-x-3 bottom-0 h-0.5 bg-toxic"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    />
                   )}
-                  {n.label}
                 </Link>
               );
             })}
-            <ToolsMenu items={tools} path={path} />
           </nav>
+
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:block"><Search /></div>
-            <Link href="/settings" className={`hidden h-11 w-11 place-items-center rounded-md border border-edge transition sm:grid ${isActivePath(path, "/settings") ? "border-toxic/40 bg-toxic/10 text-toxic" : "text-dim hover:border-toxic/50 hover:text-ink"}`} aria-label="Settings">
-              <Settings aria-hidden="true" size={18} />
-            </Link>
+            <div className="hidden items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[10px] uppercase text-dim sm:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-up" />
+              Solana
+              <span className="text-ink">Paper</span>
+            </div>
+            {admin && (
+              <Link
+                href="/admin"
+                className={`grid h-10 w-10 place-items-center rounded-md border transition ${
+                  isActivePath(path, "/admin") ? "border-toxic/60 bg-toxic/10 text-toxic" : "border-edge text-dim hover:text-ink"
+                }`}
+                aria-label="Owner console"
+                title="Owner console"
+              >
+                <ShieldCheck aria-hidden="true" size={17} />
+              </Link>
+            )}
+            <Notifications />
             <WalletButton />
           </div>
         </div>
-        <Ticker />
       </header>
 
-      {/* mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[90] lg:hidden" onClick={() => setMobileOpen(false)}>
-          <div className="absolute inset-0 bg-black/60" />
-          <div role="dialog" aria-modal="true" aria-label="Navigation menu" className="absolute left-0 top-0 h-full w-72 border-r border-edge bg-panel p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 bg-black/70" />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
+            className="absolute left-0 top-0 h-full w-[min(88vw,340px)] border-r border-edge bg-panel p-5"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <Logo />
-              <button onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-edge/40 hover:text-ink" aria-label="Close menu">
-                <X aria-hidden="true" size={20} />
+              <button type="button" onClick={() => setMobileOpen(false)} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim" aria-label="Close navigation">
+                <X aria-hidden="true" size={19} />
               </button>
             </div>
-            <div className="mt-3"><Search /></div>
-            <nav className="mt-4 flex flex-col gap-0.5">
-              {allNav.map((n) => {
-                const active = isActivePath(path, n.href);
-                return (
-                  <Link key={n.href} href={n.href} onClick={() => setMobileOpen(false)}
-                    className={`rounded-md px-3 py-2.5 text-sm font-medium transition ${active ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-ink"}`}>
-                    {n.label}
-                  </Link>
-                );
-              })}
-              <Link href="/settings" onClick={() => setMobileOpen(false)} className={`rounded-md px-3 py-2.5 text-sm font-medium ${isActivePath(path, "/settings") ? "bg-toxic/10 text-toxic" : "text-dim hover:bg-edge/40 hover:text-ink"}`}>Settings</Link>
+            <nav className="mt-8 grid gap-1">
+              {NAV.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-medium ${
+                    isActivePath(path, href) ? "bg-toxic/10 text-ink" : "text-dim"
+                  }`}
+                >
+                  <Icon aria-hidden="true" size={18} className={isActivePath(path, href) ? "text-toxic" : ""} />
+                  {label}
+                </Link>
+              ))}
+              {admin && (
+                <Link href="/admin" className="mt-4 flex min-h-12 items-center gap-3 border-t border-edge px-3 pt-4 text-sm font-medium text-dim">
+                  <ShieldCheck aria-hidden="true" size={18} />
+                  Owner console
+                </Link>
+              )}
             </nav>
-          </div>
+            <div className="absolute inset-x-5 bottom-5 border-t border-edge pt-4">
+              <WalletStatus />
+            </div>
+          </aside>
         </div>
       )}
 
-      {/* main */}
       <motion.main
         ref={mainRef}
         id="main-content"
         tabIndex={-1}
         key={path}
-        initial={{ y: 8 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-        className="mx-auto w-full max-w-[1800px] flex-1 px-4 py-5 pb-16 lg:px-6"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+        className="mx-auto w-full max-w-[1680px] px-4 py-6 lg:px-6 lg:py-8"
       >
         {children}
       </motion.main>
 
-      {/* bottom status bar */}
-      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-edge glass">
-        <div className="flex h-9 items-center gap-1 px-3 text-[11px]">
-          <BottomLink href="/portfolio" label="Portfolio" icon={WalletCards} active={isActivePath(path, "/portfolio")} />
-          <BottomLink href="/alerts" label="Alerts" icon={Bell} active={isActivePath(path, "/alerts")} />
-          <BottomLink href="/tracker" label="Tracker" icon={Radar} active={isActivePath(path, "/tracker")} />
-          <BottomLink href="/trenches" label="Trenches" icon={Flame} active={isActivePath(path, "/trenches")} />
-          <BottomLink href="/search" label="Search" icon={Compass} active={isActivePath(path, "/search")} />
-          <div className="ml-auto flex items-center gap-4">
-            <SolPrice />
-            <WalletStatus />
-          </div>
+      <footer className="border-t border-edge px-4 py-3">
+        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-dim">
+          <span>Automation workspace</span>
+          <span>Paper mode active. Real-fund execution is disabled.</span>
         </div>
       </footer>
     </div>
