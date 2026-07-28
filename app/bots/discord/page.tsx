@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BadgeCheck,
   Bot,
+  Plus,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -22,7 +23,7 @@ import {
   StatusPill
 } from "@/components/product/Primitives";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
-import { safeDiscordImage, safeDiscordInvite } from "@/lib/external-url";
+import { safeDiscordBotInstall, safeDiscordImage, safeDiscordInvite } from "@/lib/external-url";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -42,6 +43,7 @@ export default function DiscordMarketplacePage() {
   const [sources, setSources] = useState<DiscordSource[] | null>(null);
   const [minimumSampleSize, setMinimumSampleSize] = useState(5);
   const [error, setError] = useState("");
+  const [installUrl, setInstallUrl] = useState("/apply");
 
   const load = useCallback(() => {
     setError("");
@@ -60,6 +62,11 @@ export default function DiscordMarketplacePage() {
   }, [period, sort]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    productFetch<{ invite?: string }>("/api/bot/config")
+      .then((config) => setInstallUrl(safeDiscordBotInstall(config.invite) || "/apply"))
+      .catch(() => setInstallUrl("/apply"));
+  }, []);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -77,12 +84,16 @@ export default function DiscordMarketplacePage() {
         description="Measured community calls, transparent sample sizes, and configurable execution controls. Only approved channels can produce eligible signals."
         actions={
           <>
+            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-toxic/40 px-4 text-sm font-semibold text-toxic transition hover:bg-toxic/10">
+              <Bot aria-hidden="true" size={16} />
+              Add bot to server
+            </a>
             <Link href="/affiliate?tab=discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
               <Users aria-hidden="true" size={16} />
               List a server
             </Link>
             <Link href="/bots/discord/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
-              <Bot aria-hidden="true" size={16} />
+              <Plus aria-hidden="true" size={16} />
               New Discord bot
             </Link>
           </>
