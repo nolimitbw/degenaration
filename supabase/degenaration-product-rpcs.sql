@@ -1436,7 +1436,7 @@ begin
     raise exception 'unauthorized' using errcode = '42501';
   end if;
 
-  select coalesce(jsonb_agg(to_jsonb(x) order by x.display_name), '[]'::jsonb)
+  select coalesce(jsonb_agg(to_jsonb(x) order by x."displayName"), '[]'::jsonb)
   into v_rows
   from (
     select
