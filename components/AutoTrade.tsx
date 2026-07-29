@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Info } from "lucide-react";
 import { usePrivy, useDelegatedActions } from "@privy-io/react-auth";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress } from "@/lib/solanaWallet";
@@ -43,13 +44,23 @@ export default function AutoTrade() {
         <h2 className="font-bold">Delegated automation access</h2>
         <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${delegated ? "bg-gold-400/20 text-gold-400" : "bg-edge text-dim"}`}>{delegated ? "GRANTED" : "OFF"}</span>
       </div>
-      <p className="mt-1 text-xs text-dim">
-        Delegation lets the configured worker request wallet signatures while you are offline.
-        Your saved per-trade and daily limits are checked before any automated entry runs.
-        The underlying delegation is powerful and is not itself a trade-only policy, so keep it off unless needed and revoke it anytime.
-        Privy secures the wallet key; Degenaration does not store it.
-      </p>
-      <p className={`mt-3 font-mono text-[10px] ${automation.live ? "text-up" : "text-dim"}`}>Engine: {automationLabel(automation)}</p>
+      <p className="mt-1 text-xs text-dim">Lets your bots trade while you are offline. You can revoke it at any time.</p>
+
+      {/* Progressive disclosure: the full explanation lives behind a control rather than
+          as four sentences under the heading (spec 6.1, 6.3, 17.4). */}
+      <details className="group mt-3">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-semibold text-gold-400">
+          <Info size={13} aria-hidden="true" />
+          How automation access works
+        </summary>
+        <div className="mt-2 space-y-2 rounded-md border border-edge bg-void px-3 py-2.5 text-[11px] leading-5 text-dim">
+          <p>Granting access lets the worker request a signature from your wallet without you being present. Your saved per-trade and daily caps are checked before any entry runs.</p>
+          <p>This access is broad — it is not restricted to trading alone — so leave it off unless you need it, and revoke it when you are done.</p>
+          <p>Your wallet key stays with Privy. DegenAration never stores it.</p>
+        </div>
+      </details>
+
+      <p className={`mt-3 font-mono text-[10px] ${automation.live ? "text-up" : "text-dim"}`}>{automationLabel(automation)}</p>
       {delegated ? (
         <button onClick={disable} disabled={busy} className="mt-4 w-full rounded-md border border-danger/50 py-2.5 text-sm font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50">{busy ? "…" : "Revoke delegated access"}</button>
       ) : (

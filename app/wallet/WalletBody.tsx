@@ -77,7 +77,7 @@ export default function WalletBody() {
   return (
     <>
       <h1 className="text-2xl font-bold">Wallet</h1>
-      <p className="mt-1 text-sm text-dim">Fund your wallet and set application-level limits for supported automation claims.</p>
+      <p className="mt-1 text-sm text-dim">Fund your automation wallet and manage spending limits.</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -121,7 +121,7 @@ export default function WalletBody() {
               <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-gold-400" />
             </label>
             <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110">{savedLimits ? <span className="inline-flex items-center justify-center gap-2"><Check size={14} aria-hidden="true" /> Saved</span> : "Save limits"}</button>
-            <p className="mt-3 font-mono text-[11px] text-dim">Limits are application controls. Manage the separate Privy delegation below.</p>
+            
           </div>
           <AutoTrade />
           <SwapPanel />
