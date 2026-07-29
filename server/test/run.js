@@ -205,6 +205,94 @@ test("worker records the configured commission when a fee account is present", (
   delete require.cache[jupiterPath];
 });
 
+// Fixture-driven verification of the outcome and aggregation layer (§22.3). This does
+// NOT prove the live pipeline journals anything — that needs database access, see
+// OPEN_BLOCKERS B-4. It proves the maths a journaled call feeds into is correct, and
+// that an unmeasured source is reported honestly rather than filled in.
+console.log("performance journal outcomes (spec 9.5 / 9.6 / 22.3)");
+const outcomes = require("../../lib/call-outcomes");
+const call = (peak, latest, at) => ({
+  called_price_usd: 1, peak_price_usd: peak, latest_price_usd: latest,
+  called_at: at || "2026-07-01T00:00:00Z"
+});
+
+test("classifies +50%, 2x and 5x outcomes into the right buckets", () => {
+  assert.strictEqual(outcomes.outcomeBucket(call(1.2, 1.2)), "under50");
+  assert.strictEqual(outcomes.outcomeBucket(call(1.5, 1.5)), "plus50");
+  assert.strictEqual(outcomes.outcomeBucket(call(2, 2)), "twoX");
+  assert.strictEqual(outcomes.outcomeBucket(call(5, 5)), "fiveX");
+  assert.strictEqual(outcomes.outcomeBucket(call(9, 9)), "fiveX");
+});
+test("an unmeasured call has no bucket rather than defaulting to the worst one", () => {
+  assert.strictEqual(outcomes.outcomeBucket({ called_price_usd: 1 }), null);
+  assert.strictEqual(outcomes.outcomeBucket({}), null);
+});
+test("maximum drawdown is integer basis points from the peak", () => {
+  assert.strictEqual(outcomes.maxDrawdownBps(call(2, 1)), 5000);   // -50% off peak
+  assert.strictEqual(outcomes.maxDrawdownBps(call(4, 3)), 2500);
+  assert.strictEqual(outcomes.maxDrawdownBps(call(2, 2)), 0);      // never drew down
+});
+test("drawdown is null when unmeasured, not zero", () => {
+  // Zero would claim "never drew down", which is a different fact from "not measured".
+  assert.strictEqual(outcomes.maxDrawdownBps({ called_price_usd: 1 }), null);
+});
+test("distribution counts each measured call exactly once", () => {
+  const dist = outcomes.outcomeDistribution([call(1.1, 1.1), call(1.6, 1.6), call(3, 3), call(6, 6), {}]);
+  assert.deepStrictEqual(dist, { under50: 1, plus50: 1, twoX: 1, fiveX: 1 });
+});
+test("aggregates win rate, median, average and drawdown over a period", () => {
+  const agg = outcomes.sourceAggregate([call(2, 1), call(3, 3), call(0.5, 0.5), call(4, 2), call(1.5, 1.5)]);
+  assert.strictEqual(agg.eligibleCalls, 5);
+  assert.strictEqual(agg.measuredCalls, 5);
+  assert.strictEqual(agg.measured, true);
+  assert.strictEqual(agg.winRate, 80);                 // 4 of 5 above 1x
+  assert.strictEqual(agg.medianReturnX, 2);
+  assert.strictEqual(agg.maxDrawdownBps, 5000);        // worst single drawdown
+});
+test("below the minimum sample a source is not measured", () => {
+  const agg = outcomes.sourceAggregate([call(2, 2), call(3, 3)], { minimumSampleSize: 5 });
+  assert.strictEqual(agg.measured, false);
+  assert.strictEqual(agg.measuredCalls, 2);
+  // The real count is still reported so the UI can say "2 of 5 measured".
+  assert.strictEqual(agg.eligibleCalls, 2);
+});
+test("a source with no measured calls reports nulls, never zeros", () => {
+  const agg = outcomes.sourceAggregate([{}, {}]);
+  assert.strictEqual(agg.measured, false);
+  assert.strictEqual(agg.winRate, null);
+  assert.strictEqual(agg.medianReturnX, null);
+  assert.strictEqual(agg.averageReturnX, null);
+  assert.strictEqual(agg.maxDrawdownBps, null);
+});
+test("eligible and measured counts stay distinct", () => {
+  const agg = outcomes.sourceAggregate([call(2, 2), {}, {}]);
+  assert.strictEqual(agg.eligibleCalls, 3);
+  assert.strictEqual(agg.measuredCalls, 1);
+});
+test("last call timestamp is the most recent one", () => {
+  const agg = outcomes.sourceAggregate([
+    call(2, 2, "2026-07-01T00:00:00Z"),
+    call(2, 2, "2026-07-29T00:00:00Z"),
+    call(2, 2, "2026-07-15T00:00:00Z")
+  ]);
+  assert.strictEqual(agg.lastCallAt, "2026-07-29T00:00:00Z");
+});
+test("cross-posted duplicates collapse to one signal", () => {
+  const events = [
+    { sourceId: "s1", channelId: "c1", mint: "M" },
+    { sourceId: "s1", channelId: "c1", mint: "M" },  // repost
+    { sourceId: "s1", channelId: "c2", mint: "M" },  // different channel
+    { sourceId: "s2", channelId: "c1", mint: "M" }   // different source
+  ];
+  assert.strictEqual(outcomes.dedupeSignals(events).length, 3);
+});
+test("an edited message keeps the original signal identity", () => {
+  const first = { sourceId: "s1", channelId: "c1", mint: "M", messageId: "m1" };
+  const edited = { sourceId: "s1", channelId: "c1", mint: "M", messageId: "m1", edited: true };
+  assert.strictEqual(outcomes.deduplicationKey(first), outcomes.deduplicationKey(edited));
+  assert.strictEqual(outcomes.dedupeSignals([first, edited]).length, 1);
+});
+
 console.log("user withdrawals (spec 12 / 22.2)");
 const wd = require("../../lib/withdrawal");
 const OWNER = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
