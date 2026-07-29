@@ -19,7 +19,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 7 | Exactly one `/register`; stale scopes cleared | §15 | PARTIAL | `b65e069`; root cause fixed + `npm run check:discord-commands` clean; **unobserved against a live Discord application** |
 | 8 | Affiliate never indefinitely loading | §16 | PASS | `cb4abb3`; allSettled + timeout + retry + stale banner; browser-verified, no console errors |
 | 9 | Portfolio/KOL empty + error states | §16, §17 | PASS | `f31f106`; Portfolio had the identical blank-page defect — fixed with allSettled + timeout + retry + stale banner; KOL splits failure from empty |
-| 10 | Semantic gold/white/black token layer | §5.2 | PARTIAL | `cb4abb3`; semantic layer added, `gold` mismatch fixed; legacy names still consumed by ~40 files |
+| 10 | Semantic gold/white/black token layer | §5.2 | PASS | `3a08002`; 650 class references across 66 files migrated; legacy Tailwind aliases removed; screenshot parity confirms zero visual change |
 | 11 | `DegenBackdrop` global background | §5.3 | PASS | `d95eda1`; 5 layers verified via computed styles; body/html layering fixed |
 | 12 | SVG icon system, no glyph icons | §5.6 | PASS | `f2823fb`, `0fba6d7`; pictograms replaced with Lucide; 7 original product glyphs in `components/icons/`, each wired into a real surface; browser-verified |
 | 13 | Concise public copy; internal strings removed | §6, §11.4, §23 | PASS | `f2823fb`, `cb4abb3`; `npm run check:visible-copy` clean across 186 files; browser-verified |
@@ -29,7 +29,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 17 | Repository skills | §4.2 | PASS | `.agents/skills/degenaration-{financial-integrity,ui,performance-journal,release-audit}/SKILL.md` |
 | 18 | Launch documentation set | §4.3 | PASS | All 9 written under `docs/launch/` |
 | 19 | Visual regression evidence | §22.6 | PARTIAL | `docs/launch/RELEASE_EVIDENCE.md`; no horizontal overflow at 375/768/1440, home + affiliate observed; **no captured screenshot set — most routes need an authenticated session with data** |
-| 20 | Release gates | §24 | PARTIAL | `npm run check` exit 0 covers typecheck, 70 tests, fee invariants, command registry, copy, build. Lint, e2e, migration dry run, RLS tests not run |
+| 20 | Release gates | §24 | PARTIAL | `npm run check` exit 0 covers typecheck, 70 tests, fee + journal invariants, command registry, copy, build. **Lint needs an ESLint dependency — see B-5.** e2e, migration dry run, and RLS tests need a database |
 
 ## Readiness
 

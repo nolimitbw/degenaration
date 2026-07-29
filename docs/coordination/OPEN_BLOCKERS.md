@@ -42,6 +42,20 @@ distinguish "no messages arrived" from "messages arrived but the parser rejected
 Required action: Supabase read access (or exported counts per stage for the two guilds).
 Status: **BLOCKED — needs database access.** Do not replace `--` with fabricated values.
 
+## B-5 — Lint gate needs a dependency decision
+
+Release gate §24 lists lint. This repository has no ESLint config, no ESLint dependency,
+and no lint script. Adding one is a new external dependency, which the repository rules
+require the owner to approve, and enabling it on an existing 66-file codebase will
+surface a backlog of pre-existing findings that must be triaged rather than bulk-ignored.
+
+It was not added unilaterally. Type safety is already enforced by strict `tsc`, and the
+suite additionally gates fee invariants, the journal contract, Discord command
+uniqueness, and public copy.
+
+Required action: owner decides whether to adopt `eslint` + `eslint-config-next`.
+Status: **BLOCKED — owner decision.**
+
 ## Resolved / not blockers
 
 - **Wallet model for withdrawals.** Determined from code rather than escalated: the
