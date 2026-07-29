@@ -5,7 +5,11 @@
  */
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
+// Canonical rate lives in lib/fee-model.js. The worker deploys with rootDir: server
+// (render.yaml), so lib/ is not present at runtime and cannot be imported here. The
+// value is mirrored instead, and server/test/run.js fails if the two ever drift.
 const PLATFORM_FEE_BPS = 200;
+const LAMPORTS_PER_SOL = 1000000000;
 // Auto-trades are UNATTENDED, so a catastrophic-impact fill (thin liquidity vs trade size)
 // would rek the user before they could react. Reject it — matches the frontend /api/swap
 // guard so manual and automated trades share the same protection.
@@ -18,11 +22,28 @@ const MAX_PRICE_IMPACT_PCT = 15;
 const FEE_ACCOUNT = process.env.PLATFORM_FEE_ACCOUNT;
 const APPLY_FEE = !!FEE_ACCOUNT;
 
+/** Exact integer fee on a lamport notional. This is the ledger-facing calculation. */
+function platformFeeLamports(notionalLamports) {
+  if (!APPLY_FEE) return BigInt(0);
+  let lamports;
+  try {
+    lamports = typeof notionalLamports === "bigint" ? notionalLamports : BigInt(notionalLamports);
+  } catch {
+    return BigInt(0);
+  }
+  if (lamports <= BigInt(0)) return BigInt(0);
+  return (lamports * BigInt(PLATFORM_FEE_BPS)) / BigInt(10000);
+}
+
+/**
+ * SOL-denominated fee for display and existing callers. Computed through the exact
+ * integer path above; do not reintroduce floating-point rate math here.
+ */
 function platformFeeSol(solAmount) {
   const amount = Number(solAmount);
-  return APPLY_FEE && Number.isFinite(amount) && amount > 0
-    ? amount * PLATFORM_FEE_BPS / 10_000
-    : 0;
+  if (!APPLY_FEE || !Number.isFinite(amount) || amount <= 0) return 0;
+  const fee = platformFeeLamports(BigInt(Math.round(amount * LAMPORTS_PER_SOL)));
+  return Number(fee) / LAMPORTS_PER_SOL;
 }
 
 async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) {
@@ -75,6 +96,6 @@ const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
     .then(quote => buildSwapTx({ quote, userPublicKey }).then(tx => ({ quote, tx })));
 
 module.exports = {
-  getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol,
+  getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports,
   SOL_MINT, PLATFORM_FEE_BPS, APPLY_FEE
 };

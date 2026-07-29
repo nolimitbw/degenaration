@@ -7,24 +7,34 @@ Single place to learn the current state before either agent starts work.
 - **Active agent:** Claude Code (primary implementer)
 - **Codex status:** unavailable — usage limit, resets 2026-08-05. Recorded per §26A as
   `Codex review unavailable due to usage limit`. Implementation continues without waiting.
-- **Active work area:** Phase 1 complete. Phase 2 (financial correctness) is next.
+- **Active work area:** Phase 2 slice 1 (fee centralization) complete. Slice 2 is next.
 - **Migrations run:** none yet.
-- **Commands run:** `npm run check` — passed at baseline (typecheck + 41 server tests +
-  production build, exit 0) before any edits.
+- **Commands run:** `npm run check` — exit 0 at baseline *and* after slice 1
+  (typecheck + 54 server tests + fee-ledger invariants + production build).
+
+## Decision log
+
+**Worker cannot import `lib/`.** `render.yaml` deploys the worker with `rootDir: server`,
+so `server/engine/jupiter.js` has no access to `lib/fee-model.js` at runtime. The rate is
+mirrored there deliberately and guarded by the test "worker fee rate never drifts from the
+canonical fee model", which fails the suite if the two values ever disagree. Do not
+"fix" this by adding a cross-directory import — it would break the deployed worker.
 
 ## Exact next action
 
-Phase 2, slice 1 — centralize the platform fee:
+Phase 2, slice 2 — persist the allocation to the ledger:
 
-1. Create a single fee module exporting `PLATFORM_FEE_BPS = 200`,
-   `DISCORD_CREATOR_BPS = 70`, `KOL_CREATOR_BPS = 20`,
-   `REFERRAL_SHARE_BPS_OF_PLATFORM_FEE = 1000`, with integer lamport/bps helpers and
-   defined rounding.
-2. Replace the four duplicate declarations and one bare literal listed in
-   `docs/launch/RELEASE_CHECKLIST.md` F-1.
-3. Remove the floating-point fee computation at `app/api/simulate/route.ts:34`.
-4. Add deterministic fee vectors per §22.1 and wire `scripts/verify-fee-ledger.mjs`.
-5. Run `npm run check`, commit the slice, update `IMPLEMENTATION_STATUS.md`.
+1. Find the existing commission/ledger write path
+   (`supabase/degenaration-authoritative-commission-accrual.sql`,
+   `lib/recordTrade.ts`) and inspect the current accrual columns.
+2. Add a forward-safe migration for the fee-config snapshot, creator allocation, and
+   referral allocation per §13.5 / §21, preserving existing data.
+3. Write allocations through `allocatePlatformFee()` with an idempotency key per
+   execution leg; store the bps snapshot alongside every entry.
+4. Extend `scripts/verify-fee-ledger.mjs` to assert persisted debits equal credits.
+5. Run `npm run check`, commit, update `IMPLEMENTATION_STATUS.md`.
+
+Then slice 3: self-service user withdrawal (F-3), which is the other release blocker.
 
 ## Ownership notes (check before editing these areas)
 

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-const PLATFORM_FEE_BPS = 200;
+import { configuredPlatformFeeBps, formatBpsPercent } from "@/lib/fee-model";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -33,7 +32,8 @@ async function workerHealth(): Promise<WorkerHealth | null> {
 }
 
 export async function GET() {
-  const feeWalletConfigured = Boolean(process.env.PLATFORM_FEE_ACCOUNT);
+  const platformFeeBps = configuredPlatformFeeBps();
+  const feeWalletConfigured = platformFeeBps > 0;
   const workerConfigured = Boolean(process.env.AUTOMATION_WORKER_URL?.trim());
   const worker = await workerHealth();
   const automationLive = worker?.status === "ok" && worker.mode === "live"
@@ -41,9 +41,9 @@ export async function GET() {
   const copyTradingLive = automationLive && worker?.copyTradingEnabled === true;
   return NextResponse.json(
     {
-      platformFeeBps: feeWalletConfigured ? PLATFORM_FEE_BPS : 0,
+      platformFeeBps,
       feeWalletConfigured,
-      feeLabel: feeWalletConfigured ? `${PLATFORM_FEE_BPS / 100}%` : "Off",
+      feeLabel: feeWalletConfigured ? formatBpsPercent(platformFeeBps) : "Off",
       automation: {
         configured: workerConfigured,
         live: automationLive,

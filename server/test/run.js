@@ -37,16 +37,102 @@ test("does not misfire on two addresses (ambiguous)", () => {
   assert.strictEqual(parseCall(two), null);
 });
 
-console.log("fee math (configured platform fee)");
-const PLATFORM_FEE_BPS = 200;
-function feeFor(sol) { return sol * (PLATFORM_FEE_BPS / 10000); }
-test("configured fee of 0.5 SOL = 0.01", () => assert.ok(Math.abs(feeFor(0.5) - 0.01) < 1e-9));
-test("configured fee of 1.2 SOL = 0.024", () => assert.ok(Math.abs(feeFor(1.2) - 0.024) < 1e-9));
-test("fee applies on partial sells too", () => {
-  const partial = 0.5 * 0.5; // sell 50% of a 0.5 SOL position
-  assert.ok(Math.abs(feeFor(partial) - 0.005) < 1e-9);
+console.log("fee model (integer lamport arithmetic, spec 13 / 22.1)");
+const feeModel = require("../../lib/fee-model");
+const SOL = BigInt(1000000000);
+const HUNDRED_SOL = SOL * BigInt(100);
+const lam = (n) => BigInt(n);
+
+test("200 bps on a confirmed buy leg", () => {
+  assert.strictEqual(feeModel.bpsOf(HUNDRED_SOL, 200), SOL * BigInt(2));
+});
+test("200 bps on the later sell leg (round trip charges each leg)", () => {
+  const buy = feeModel.bpsOf(HUNDRED_SOL, 200);
+  const sell = feeModel.bpsOf(HUNDRED_SOL, 200);
+  assert.strictEqual(buy + sell, SOL * BigInt(4));
+});
+test("Discord creator takes 70 bps FROM the 200 bps fee, retained is 130 bps", () => {
+  const a = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "discord" });
+  assert.strictEqual(a.platformFeeLamports, SOL * BigInt(2));
+  assert.strictEqual(a.creatorLamports, feeModel.bpsOf(HUNDRED_SOL, 70));
+  assert.strictEqual(a.retainedLamports, feeModel.bpsOf(HUNDRED_SOL, 130));
+  assert.ok(feeModel.isBalancedAllocation(a));
+});
+test("KOL creator takes 20 bps FROM the fee, retained is 180 bps", () => {
+  const a = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "kol" });
+  assert.strictEqual(a.creatorLamports, feeModel.bpsOf(HUNDRED_SOL, 20));
+  assert.strictEqual(a.retainedLamports, feeModel.bpsOf(HUNDRED_SOL, 180));
+  assert.ok(feeModel.isBalancedAllocation(a));
+});
+test("user is never charged 2.00% + creator share", () => {
+  const discord = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "discord" });
+  const none = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL });
+  assert.strictEqual(discord.platformFeeLamports, none.platformFeeLamports);
+});
+test("referral pays 10% of the COLLECTED FEE, not of volume", () => {
+  const a = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, referralEligible: true });
+  assert.strictEqual(a.referralLamports, feeModel.bpsOf(a.platformFeeLamports, 1000));
+  assert.strictEqual(a.referralLamports, SOL / BigInt(5)); // 0.2 SOL = 10% of 2 SOL
+});
+test("no referral means no referral allocation", () => {
+  const a = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL });
+  assert.strictEqual(a.referralLamports, BigInt(0));
+});
+test("creator + referral combined still balances to the collected fee", () => {
+  const a = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "discord", referralEligible: true });
+  assert.strictEqual(a.creatorLamports + a.referralLamports + a.retainedLamports, a.platformFeeLamports);
+  assert.ok(feeModel.isBalancedAllocation(a));
+});
+test("referral is funded from retained revenue, never from the creator share", () => {
+  const withRef = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "discord", referralEligible: true });
+  const noRef = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "discord" });
+  assert.strictEqual(withRef.creatorLamports, noRef.creatorLamports);
+  assert.ok(withRef.retainedLamports < noRef.retainedLamports);
+});
+test("rounds down at the smallest unit and still balances", () => {
+  assert.strictEqual(feeModel.bpsOf(lam(1), 200), BigInt(0));
+  assert.strictEqual(feeModel.bpsOf(lam(50), 200), BigInt(1));
+  const a = feeModel.allocatePlatformFee({ notionalLamports: lam(12345), sourceKind: "discord", referralEligible: true });
+  assert.ok(feeModel.isBalancedAllocation(a));
+});
+test("zero collected fee allocates nothing to anyone", () => {
+  const a = feeModel.allocatePlatformFee({ notionalLamports: HUNDRED_SOL, sourceKind: "discord", referralEligible: true, feeBps: 0 });
+  assert.strictEqual(a.platformFeeLamports, BigInt(0));
+  assert.strictEqual(a.creatorLamports, BigInt(0));
+  assert.strictEqual(a.referralLamports, BigInt(0));
+});
+test("rejects floating-point and negative lamport input instead of rounding it", () => {
+  assert.throws(() => feeModel.toLamports(1.5));
+  assert.throws(() => feeModel.toLamports(-1));
+  assert.throws(() => feeModel.toLamports(NaN));
+});
+test("fee is off until PLATFORM_FEE_ACCOUNT is configured", () => {
+  assert.strictEqual(feeModel.configuredPlatformFeeBps({}), 0);
+  assert.strictEqual(feeModel.configuredPlatformFeeBps({ PLATFORM_FEE_ACCOUNT: "F".repeat(44) }), 200);
+});
+test("fee label renders as 2.00%", () => {
+  assert.strictEqual(feeModel.formatBpsPercent(200), "2.00%");
 });
 const jupiterPath = require.resolve("../engine/jupiter");
+test("worker fee rate never drifts from the canonical fee model", () => {
+  // The worker deploys with rootDir: server, so it cannot import lib/fee-model.js and
+  // mirrors the rate instead. This guard fails the build if the two ever disagree.
+  delete require.cache[jupiterPath];
+  const worker = require("../engine/jupiter");
+  assert.strictEqual(worker.PLATFORM_FEE_BPS, feeModel.PLATFORM_FEE_BPS);
+  delete require.cache[jupiterPath];
+});
+test("worker fee uses exact integer lamport arithmetic", () => {
+  const previous = process.env.PLATFORM_FEE_ACCOUNT;
+  process.env.PLATFORM_FEE_ACCOUNT = "F".repeat(44);
+  delete require.cache[jupiterPath];
+  const { platformFeeLamports } = require("../engine/jupiter");
+  assert.strictEqual(platformFeeLamports(HUNDRED_SOL), feeModel.bpsOf(HUNDRED_SOL, 200));
+  assert.strictEqual(platformFeeLamports(lam(1)), BigInt(0));
+  if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
+  else delete process.env.PLATFORM_FEE_ACCOUNT;
+  delete require.cache[jupiterPath];
+});
 test("worker records zero commission when no fee account is configured", () => {
   const previous = process.env.PLATFORM_FEE_ACCOUNT;
   delete process.env.PLATFORM_FEE_ACCOUNT;

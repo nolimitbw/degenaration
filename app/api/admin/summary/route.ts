@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import { callAdminRpc, requireAdmin } from "@/lib/server/admin";
+import { configuredPlatformFeeBps } from "@/lib/fee-model";
 
 export async function GET(req: NextRequest) {
   const limited = await distributedRateLimit(req, { limit: 60, windowSeconds: 60 });
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     {
       summary: {
         ...(result.data as Record<string, unknown>),
-        platformFeeBps: process.env.PLATFORM_FEE_ACCOUNT ? 200 : 0,
+        platformFeeBps: configuredPlatformFeeBps(),
         feeWalletConfigured: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
         publicFeeWallet: process.env.NEXT_PUBLIC_PLATFORM_FEE_ACCOUNT || process.env.PLATFORM_FEE_ACCOUNT || null,
         withdrawalsConfigured: Boolean(process.env.ADMIN_WALLETS || process.env.PLATFORM_FEE_ACCOUNT)

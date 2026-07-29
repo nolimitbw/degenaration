@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
+import { configuredPlatformFeeBps } from "@/lib/fee-model";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const PLATFORM_FEE_BPS = 200;
 const MAX_PRICE_IMPACT_PCT = 15; // reject swaps with insane price impact
 
 export async function POST(req: NextRequest) {
@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
   const mevEnabled = mev !== false;
 
   const feeAccount = process.env.PLATFORM_FEE_ACCOUNT;
-  const applyFee = !!feeAccount;
+  const platformFeeBps = configuredPlatformFeeBps();
+  const applyFee = platformFeeBps > 0;
 
   try {
     const qurl = new URL(`${JUP}/quote`);
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     qurl.searchParams.set("outputMint", outputMint);
     qurl.searchParams.set("amount", String(amount));
     qurl.searchParams.set("slippageBps", String(slippageBps));
-    if (applyFee) qurl.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+    if (applyFee) qurl.searchParams.set("platformFeeBps", String(platformFeeBps));
     const quote = await fetchWithTimeout(qurl, { cache: "no-store" }).then((r) => r.json());
     if (quote.error) return NextResponse.json({ error: quote.error }, { status: 400 });
 
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       swapTransaction: swap.swapTransaction, outAmount: quote.outAmount,
-      priceImpactPct: quote.priceImpactPct, platformFeeBps: applyFee ? PLATFORM_FEE_BPS : 0, feeAccountSet: applyFee
+      priceImpactPct: quote.priceImpactPct, platformFeeBps, feeAccountSet: applyFee
     });
   } catch (e: any) {
     return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
