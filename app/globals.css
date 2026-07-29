@@ -109,8 +109,16 @@
 
 html { scroll-behavior: smooth; }
 
+/* The canvas colour lives on html so there is never a flash before paint. body is
+   transparent so the fixed DegenBackdrop (z-index -10) shows through it. body keeps
+   position: relative but no z-index, so it does not create a stacking context and the
+   negative-z backdrop still resolves against the root. */
+html {
+  background: var(--canvas);
+}
+
 body {
-  background: var(--void);
+  background: transparent;
   color: var(--ink);
   overflow-x: hidden;
   position: relative;
