@@ -30,6 +30,18 @@ Spec §12 and §13 describe real-money behavior. Development and automated tests
 authorization and controlled review; it will not be enabled autonomously.
 Status: **BLOCKED — owner decision, by design.**
 
+## B-4 — No live database access to diagnose the two silent Discord sources
+
+Requirement 6 (§9.8) asks why two approved Discord sources show no measured performance.
+The schema exists (`raw_signals`, `parsed_signals`, `signal_deliveries`,
+`performance_snapshots`), so the question is which pipeline stage produces nothing —
+ingestion, parsing, eligibility, baseline pricing, sampling, or aggregation. Answering
+it honestly requires querying the live database; source inspection alone cannot
+distinguish "no messages arrived" from "messages arrived but the parser rejected them".
+
+Required action: Supabase read access (or exported counts per stage for the two guilds).
+Status: **BLOCKED — needs database access.** Do not replace `--` with fabricated values.
+
 ## Resolved / not blockers
 
 - **Wallet model for withdrawals.** Determined from code rather than escalated: the
