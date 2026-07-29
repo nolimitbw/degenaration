@@ -154,7 +154,7 @@ export default function KolStrategyDetailsPage() {
           <div className="space-y-5">
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
               <header className="flex flex-wrap items-start gap-4 border-b border-edge p-5">
-                <span className="grid h-14 w-14 place-items-center rounded-md border border-toxic/30 bg-toxic/10 font-mono text-base font-semibold text-toxic">{strategy.name.slice(0, 2).toUpperCase()}</span>
+                <span className="grid h-14 w-14 place-items-center rounded-md border border-gold-400/30 bg-gold-400/10 font-mono text-base font-semibold text-gold-400">{strategy.name.slice(0, 2).toUpperCase()}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold text-ink">{strategy.name}</h2><StatusPill status={strategy.insufficientHistory ? "tracking" : "reviewed"} /></div>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-dim">{strategy.description || "No public strategy description was provided."}</p>
@@ -203,13 +203,13 @@ export default function KolStrategyDetailsPage() {
 
           <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
             <header className="border-b border-edge p-5">
-              <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[9px] uppercase text-toxic">Subscriber setup</p><h2 className="mt-2 text-base font-semibold text-ink">Your copy controls</h2></div>{subscription && <StatusPill status={subscription.status} />}</div>
+              <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[9px] uppercase text-gold-400">Subscriber setup</p><h2 className="mt-2 text-base font-semibold text-ink">Your copy controls</h2></div>{subscription && <StatusPill status={subscription.status} />}</div>
             </header>
             <div className="space-y-4 p-5">
               <div className="rounded-md border border-edge bg-void p-3">
                 <p className="field-label">Execution wallet</p>
-                <div className="mt-2 flex items-center gap-2"><WalletCards size={15} className={walletAddress ? "text-toxic" : "text-dim"} /><span className="truncate font-mono text-xs text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</span></div>
-                <p className={`mt-1 text-[10px] ${delegated ? "text-up" : "text-toxic"}`}>{delegated ? "Delegated execution enabled" : "Delegation required"}</p>
+                <div className="mt-2 flex items-center gap-2"><WalletCards size={15} className={walletAddress ? "text-gold-400" : "text-dim"} /><span className="truncate font-mono text-xs text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</span></div>
+                <p className={`mt-1 text-[10px] ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required"}</p>
               </div>
               <CopyField label="Buy amount" value={buyAmount} onChange={setBuyAmount} suffix="SOL" step={0.1} />
               <CopyField label="Maximum capital" value={maximumCapital} onChange={setMaximumCapital} suffix="SOL" step={0.5} />

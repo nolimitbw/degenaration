@@ -106,7 +106,7 @@ export default function BotManagerPage() {
             icon={Bot}
             title="Connect to manage your bots"
             description="Your bot configurations are private and only returned for the authenticated Privy user."
-            action={<button type="button" onClick={login} className="min-h-10 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">Connect account</button>}
+            action={<button type="button" onClick={login} className="min-h-10 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Connect account</button>}
           />
         </div>
       </AppShell>
@@ -120,7 +120,7 @@ export default function BotManagerPage() {
         title="My Bots"
         description="Pause entries immediately, create immutable configuration versions, and preserve financial history when archiving."
         actions={
-          <Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
+          <Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
             <Plus aria-hidden="true" size={16} />
             New {kind === "discord" ? "Discord" : "KOL"} bot
           </Link>
@@ -132,25 +132,25 @@ export default function BotManagerPage() {
         <Segmented value={kind} onChange={setKind} label="Bot kind" options={[{ value: "discord", label: "Discord Bots" }, { value: "kol", label: "KOL Bots" }]} />
         <div className="flex flex-wrap gap-4 font-mono text-[10px] text-dim">
           <span><strong className="text-up">{counts.active}</strong> active</span>
-          <span><strong className="text-toxic">{counts.paused}</strong> paused</span>
+          <span><strong className="text-gold-400">{counts.paused}</strong> paused</span>
           <span><strong className="text-ink">{counts.drafts}</strong> drafts</span>
         </div>
         <button type="button" onClick={load} className="ml-auto grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh bots">
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>
-      <p className="mt-3 rounded-md border border-toxic/30 bg-toxic/5 px-4 py-3 text-xs leading-5 text-dim">
+      <p className="mt-3 rounded-md border border-gold-400/30 bg-gold-400/5 px-4 py-3 text-xs leading-5 text-dim">
         Drafts remain editable on {AUTOMATED_MAINNET_RELEASE.label}. {AUTOMATED_MAINNET_RELEASE.reason}
       </p>
 
       <div className="mt-5">
-        {bots == null && <div className="grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
+        {bots == null && <div className="grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>}
         {bots?.length === 0 && (
           <EmptyState
             icon={Bot}
             title={`No ${kind === "discord" ? "Discord" : "KOL"} bots yet`}
             description={kind === "discord" ? "Choose an approved Discord source and save your first execution profile." : "Build a scanner-driven strategy and save it as a private draft or submit it for review."}
-            action={<Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">Create bot</Link>}
+            action={<Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-10 items-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Create bot</Link>}
           />
         )}
         {!!bots?.length && (
@@ -192,13 +192,13 @@ export default function BotManagerPage() {
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-1">
                           {isBusy ? (
-                            <span className="grid h-9 w-9 place-items-center"><Loader2 size={15} className="animate-spin text-toxic" /></span>
+                            <span className="grid h-9 w-9 place-items-center"><Loader2 size={15} className="animate-spin text-gold-400" /></span>
                           ) : (
                             <>
                               <Link href={editHref} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Edit ${bot.name}`} title="Edit"><Edit3 size={14} /></Link>
                               <Link href={`/portfolio?bot=${bot.id}&view=positions`} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`View ${bot.name} positions`} title="Positions"><Eye size={14} /></Link>
                               {bot.status === "active" ? (
-                                <button type="button" onClick={() => saveBot(bot, "paused")} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-toxic" aria-label={`Pause ${bot.name}`} title="Pause entries"><Pause size={14} /></button>
+                                <button type="button" onClick={() => saveBot(bot, "paused")} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-gold-400" aria-label={`Pause ${bot.name}`} title="Pause entries"><Pause size={14} /></button>
                               ) : bot.status !== "archived" && (
                                 <button
                                   type="button"

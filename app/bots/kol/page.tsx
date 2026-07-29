@@ -69,7 +69,7 @@ export default function KolMarketplacePage() {
         title="KOL Strategies"
         description="Copy public strategies built and tracked on DegenAration."
         actions={
-          <Link href="/bots/kol/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
+          <Link href="/bots/kol/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
             <Bot aria-hidden="true" size={16} />
             Create KOL bot
           </Link>
@@ -89,7 +89,7 @@ export default function KolMarketplacePage() {
             { value: "3m", label: "3M" }
           ]}
         />
-        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-toxic">
+        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search strategies" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-dim/70" />
         </label>
@@ -147,7 +147,7 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
   return (
     <article className="overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex items-start gap-4 border-b border-edge p-5">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-toxic/30 bg-toxic/10 font-mono text-sm font-semibold text-toxic">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-gold-400/30 bg-gold-400/10 font-mono text-sm font-semibold text-gold-400">
           {strategy.name.slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
@@ -176,7 +176,7 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
           <span className="inline-flex items-center gap-1.5"><Users size={14} /> {strategy.followers}</span>
           <span className="font-mono text-[9px]">Updated {formatWhen(strategy.updatedAt)}</span>
         </div>
-        <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c]">View and copy</Link>
+        <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-10 items-center rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c]">View and copy</Link>
       </footer>
     </article>
   );

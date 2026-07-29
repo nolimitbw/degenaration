@@ -36,7 +36,7 @@ export default function CursorGlow() {
   return (
     <>
       <div ref={dot} className="pointer-events-none fixed left-0 top-0 z-[100] -ml-1 -mt-1 h-2 w-2 rounded-full bg-white mix-blend-difference" />
-      <div ref={ring} className="cursor-ring pointer-events-none fixed left-0 top-0 z-[100] -ml-4 -mt-4 h-8 w-8 rounded-full border border-toxic/70" />
+      <div ref={ring} className="cursor-ring pointer-events-none fixed left-0 top-0 z-[100] -ml-4 -mt-4 h-8 w-8 rounded-full border border-gold-400/70" />
       <style jsx global>{`
         @media (pointer: fine) { * { cursor: none !important; } }
         .cursor-ring { transition: width .2s, height .2s, margin .2s, background .2s, border-color .2s; box-shadow: 0 0 18px rgb(var(--toxic-rgb) / .5); }

@@ -161,7 +161,7 @@ export default function LiveMarketTerminal() {
     <div className="terminal-preview overflow-hidden border border-edge bg-panel shadow-[0_28px_80px_-54px_rgba(0,0,0,.95)]">
       <header className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-edge px-4 py-2">
         <div className="flex items-center gap-4">
-          <span className="font-mono text-[10px] text-toxic">LIVE MARKET WORKSPACE</span>
+          <span className="font-mono text-[10px] text-gold-400">LIVE MARKET WORKSPACE</span>
           <span className="font-mono text-[10px] text-dim">BONK / SOL</span>
         </div>
         <div className="flex items-center gap-3">
@@ -172,7 +172,7 @@ export default function LiveMarketTerminal() {
             disabled={loading}
             aria-label="Refresh market data"
             title="Refresh market data"
-            className="grid h-8 w-8 place-items-center border border-edge text-dim transition hover:border-toxic hover:text-ink disabled:opacity-50"
+            className="grid h-8 w-8 place-items-center border border-edge text-dim transition hover:border-gold-400 hover:text-ink disabled:opacity-50"
           >
             <RefreshCw aria-hidden="true" size={13} className={loading ? "animate-spin" : ""} />
           </button>
@@ -236,7 +236,7 @@ export default function LiveMarketTerminal() {
                         onClick={() => setTimeframe(value)}
                         className={`min-h-8 min-w-9 px-2 font-mono text-[9px] transition ${
                           timeframe === value
-                            ? "bg-toxic text-[#17110c]"
+                            ? "bg-gold-400 text-[#17110c]"
                             : "border border-edge text-dim hover:text-ink"
                         }`}
                       >
@@ -261,7 +261,7 @@ export default function LiveMarketTerminal() {
                         <td className="py-3 text-dim">{String(holder.rank).padStart(2, "0")}</td>
                         <td className="py-3 text-ink">{holder.address.slice(0, 6)}...{holder.address.slice(-5)}</td>
                         <td className="py-3 text-right text-ink">{compact(holder.amount)}</td>
-                        <td className="py-3 text-right text-toxic">{holder.pct == null ? "--" : `${holder.pct.toFixed(2)}%`}</td>
+                        <td className="py-3 text-right text-gold-400">{holder.pct == null ? "--" : `${holder.pct.toFixed(2)}%`}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -304,7 +304,7 @@ export default function LiveMarketTerminal() {
                 type="button"
                 onClick={() => setTab(value)}
                 className={`min-h-12 border-r border-edge uppercase transition last:border-r-0 hover:text-ink ${
-                  tab === value ? "bg-panel text-toxic" : ""
+                  tab === value ? "bg-panel text-gold-400" : ""
                 }`}
               >
                 {value}
@@ -316,7 +316,7 @@ export default function LiveMarketTerminal() {
         <aside className="p-5">
           <div className="flex items-center justify-between gap-3 border-b border-edge pb-4">
             <div>
-              <p className="font-mono text-[9px] uppercase text-toxic">KOL bot preview</p>
+              <p className="font-mono text-[9px] uppercase text-gold-400">KOL bot preview</p>
               <h2 className="mt-2 text-sm font-semibold text-ink">Volatility entry</h2>
             </div>
             <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] text-dim">MAINNET DATA</span>
@@ -344,7 +344,7 @@ export default function LiveMarketTerminal() {
                 key={value}
                 onClick={() => setBuyAmount(value)}
                 className={`min-h-9 border font-mono text-[9px] transition ${
-                  buyAmount === value ? "border-toxic bg-toxic/10 text-toxic" : "border-edge text-dim hover:text-ink"
+                  buyAmount === value ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"
                 }`}
               >
                 {value}
@@ -411,19 +411,19 @@ export default function LiveMarketTerminal() {
 
           <Link
             href={buildHref}
-            className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 bg-toxic px-4 text-xs font-semibold text-[#17110c] transition hover:bg-[#d1a371]"
+            className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 bg-gold-400 px-4 text-xs font-semibold text-[#17110c] transition hover:bg-[#d1a371]"
           >
             <Bot aria-hidden="true" size={15} />
             Build this KOL bot
           </Link>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Link href="/bots/kol" className="border border-edge p-3 transition hover:border-toxic">
-              <CircleGauge aria-hidden="true" size={15} className="text-toxic" />
+            <Link href="/bots/kol" className="border border-edge p-3 transition hover:border-gold-400">
+              <CircleGauge aria-hidden="true" size={15} className="text-gold-400" />
               <p className="mt-2 text-[10px] text-dim">KOL marketplace</p>
             </Link>
-            <Link href="/bots/discord" className="border border-edge p-3 transition hover:border-toxic">
-              <ChartCandlestick aria-hidden="true" size={15} className="text-toxic" />
+            <Link href="/bots/discord" className="border border-edge p-3 transition hover:border-gold-400">
+              <ChartCandlestick aria-hidden="true" size={15} className="text-gold-400" />
               <p className="mt-2 text-[10px] text-dim">Discord sources</p>
             </Link>
           </div>

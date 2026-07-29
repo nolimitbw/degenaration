@@ -32,12 +32,12 @@ export default function Alpha() {
           <p className="mt-1 text-sm text-dim">Groups and callers ranked by real recorded on-chain performance.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href="/api/leaderboard-image" target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 font-mono text-xs text-dim transition hover:border-toxic/60 hover:text-toxic"><ImageDown aria-hidden="true" size={15} /> Weekly image</a>
-          {["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-toxic text-toxic":"border-edge text-dim hover:text-ink"}`}>{t}</button>)}
+          <a href="/api/leaderboard-image" target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 font-mono text-xs text-dim transition hover:border-gold-400/60 hover:text-gold-400"><ImageDown aria-hidden="true" size={15} /> Weekly image</a>
+          {["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-gold-400 text-gold-400":"border-edge text-dim hover:text-ink"}`}>{t}</button>)}
         </div>
       </div>
       <div className="mt-6 flex gap-1 rounded-md border border-edge p-1 font-mono text-xs w-fit">
-        {(["groups","calls","callers"] as View[]).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded px-4 py-2 font-bold transition ${view===v?"bg-toxic text-white":"text-dim hover:text-ink"}`}>{v.toUpperCase()}</button>)}
+        {(["groups","calls","callers"] as View[]).map((v) => <button key={v} onClick={() => setView(v)} className={`rounded px-4 py-2 font-bold transition ${view===v?"bg-gold-400 text-white":"text-dim hover:text-ink"}`}>{v.toUpperCase()}</button>)}
       </div>
 
       {empty ? (
@@ -53,7 +53,7 @@ export default function Alpha() {
             </table>
           ) : (
             <table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-panel font-mono text-[11px] uppercase text-dim"><tr>{["#","Name","Points","Avg peak","2x hit rate","Calls","Best"].map(h=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
-              <tbody>{(list as any[]).map((g, i) => (<tr key={`${g.name}-${i}`} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{rank(i)}</td><td className="px-4 py-3 font-bold">{g.name}</td><td className="px-4 py-3 text-cyber">{g.points.toFixed(0)}</td><td className="px-4 py-3 text-up">{g.avgX.toFixed(2)}x</td><td className="px-4 py-3">{g.hitRate.toFixed(0)}%</td><td className="px-4 py-3 text-dim">{g.calls}</td><td className="px-4 py-3 text-up">{g.bestX.toFixed(1)}x</td></tr>))}</tbody>
+              <tbody>{(list as any[]).map((g, i) => (<tr key={`${g.name}-${i}`} className="border-t border-edge font-mono text-xs"><td className="px-4 py-3">{rank(i)}</td><td className="px-4 py-3 font-bold">{g.name}</td><td className="px-4 py-3 text-info">{g.points.toFixed(0)}</td><td className="px-4 py-3 text-up">{g.avgX.toFixed(2)}x</td><td className="px-4 py-3">{g.hitRate.toFixed(0)}%</td><td className="px-4 py-3 text-dim">{g.calls}</td><td className="px-4 py-3 text-up">{g.bestX.toFixed(1)}x</td></tr>))}</tbody>
             </table>
           )}
         </div>

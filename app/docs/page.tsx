@@ -13,7 +13,7 @@ const FAQ = [
 export default function Docs() {
   return (
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-16">
-      <Link href="/" className="font-mono text-xs text-toxic">← back</Link>
+      <Link href="/" className="font-mono text-xs text-gold-400">← back</Link>
       <h1 className="mt-4 text-4xl font-bold">Docs & FAQ</h1>
       <div className="mt-8 space-y-6">
         {FAQ.map((f) => (

@@ -39,7 +39,7 @@ export default function HoldingsBody() {
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <h1 className="text-xl font-bold">Your holdings</h1>
         <p className="mt-2 text-sm text-dim">Connect your wallet to see your real on-chain positions, live value and allocation.</p>
-        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic">Connect wallet</button>
+        <button onClick={login} className="mt-6 w-full rounded-md bg-gold-400 py-3 font-bold text-white shadow-gold">Connect wallet</button>
       </div>
     );
   }
@@ -70,7 +70,7 @@ export default function HoldingsBody() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">Holdings
-            <span className="rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic">LIVE</span>
+            <span className="rounded-full border border-gold-400/40 px-2 py-0.5 font-mono text-[10px] text-gold-400">LIVE</span>
           </h1>
           <p className="mt-1 text-sm text-dim">Your real on-chain positions, priced live. Refreshes every 30s.</p>
         </div>
@@ -88,8 +88,8 @@ export default function HoldingsBody() {
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">PnL</p>
-          <p className={`mt-2 font-mono text-2xl font-bold ${pnlSol != null && pnlSol >= 0 ? "text-up" : "text-hotpink"}`}>{loading ? "…" : pnlSol != null ? `${pnlSol >= 0 ? "+" : ""}${pnlSol.toFixed(3)} SOL` : "—"}</p>
-          {pnlPct != null && <p className={`mt-0.5 font-mono text-xs ${pnlPct >= 0 ? "text-up" : "text-hotpink"}`}>{pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%</p>}
+          <p className={`mt-2 font-mono text-2xl font-bold ${pnlSol != null && pnlSol >= 0 ? "text-up" : "text-danger"}`}>{loading ? "…" : pnlSol != null ? `${pnlSol >= 0 ? "+" : ""}${pnlSol.toFixed(3)} SOL` : "—"}</p>
+          {pnlPct != null && <p className={`mt-0.5 font-mono text-xs ${pnlPct >= 0 ? "text-up" : "text-danger"}`}>{pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%</p>}
           {pnlSol == null && <p className="mt-0.5 font-mono text-[10px] text-dim">Trades needed</p>}
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -142,9 +142,9 @@ export default function HoldingsBody() {
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">{fmtAmt(p.amount)}</td>
                 <td className="px-4 py-3 font-mono text-xs">{p.priceUsd != null ? fmtUsd(p.priceUsd) : "—"}</td>
-                <td className={`px-4 py-3 font-mono text-xs ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(1)}%` : "—"}</td>
+                <td className={`px-4 py-3 font-mono text-xs ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-danger"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(1)}%` : "—"}</td>
                 <td className="px-4 py-3 font-mono text-xs font-bold">{fmtUsd(p.valueUsd)}</td>
-                <td className="px-4 py-3"><Link href={`/terminal?mint=${p.mint}`} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim hover:border-toxic hover:text-toxic">Trade</Link></td>
+                <td className="px-4 py-3"><Link href={`/terminal?mint=${p.mint}`} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim hover:border-gold-400 hover:text-gold-400">Trade</Link></td>
               </tr>
             ))}
             {pf && !positions.length && (

@@ -49,30 +49,30 @@ export default function Alerts() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-bold">Price alerts <span className="font-mono text-xs text-toxic">tab active</span></h1>
+      <h1 className="text-2xl font-bold">Price alerts <span className="font-mono text-xs text-gold-400">tab active</span></h1>
       <p className="mt-1 text-sm text-dim">Get a browser notification when a token crosses your target. Checked every 20s while this page is open.</p>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <input value={mint} onChange={e => setMint(e.target.value)} placeholder="Token mint" className="flex-1 min-w-[200px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
+        <input value={mint} onChange={e => setMint(e.target.value)} placeholder="Token mint" className="flex-1 min-w-[200px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
         <select value={kind} onChange={e => setKind(e.target.value as any)} className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
           <option value="above">above</option><option value="below">below</option>
         </select>
-        <input type="number" step="any" value={target || ""} onChange={e => setTarget(+e.target.value)} placeholder="$ price" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Alert</button>
+        <input type="number" step="any" value={target || ""} onChange={e => setTarget(+e.target.value)} placeholder="$ price" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+        <button onClick={add} className="rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-white shadow-gold">+ Alert</button>
       </div>
 
       <div className="mt-6 space-y-2">
         {!alerts.length && <p className="text-sm text-dim">No alerts yet.</p>}
         {alerts.map(a => (
-          <div key={a.id} className={`flex items-center justify-between rounded-lg border p-4 ${a.fired ? "border-toxic/60 bg-toxic/5" : "border-edge bg-panel"}`}>
+          <div key={a.id} className={`flex items-center justify-between rounded-lg border p-4 ${a.fired ? "border-gold-400/60 bg-gold-400/5" : "border-edge bg-panel"}`}>
             <div>
               <p className="font-bold">{a.label} <span className="font-mono text-xs text-dim">{a.kind} ${a.target}</span></p>
               <p className="font-mono text-[11px] text-dim">{a.mint.slice(0, 12)}…</p>
             </div>
             <div className="flex items-center gap-3">
-              {a.fired && <span className="rounded border border-toxic/50 px-2 py-0.5 font-mono text-[11px] text-toxic">TRIGGERED</span>}
-              <button onClick={() => setAlerts(x => x.filter(y => y.id !== a.id))} className="font-mono text-[11px] text-hotpink hover:underline">remove</button>
+              {a.fired && <span className="rounded border border-gold-400/50 px-2 py-0.5 font-mono text-[11px] text-gold-400">TRIGGERED</span>}
+              <button onClick={() => setAlerts(x => x.filter(y => y.id !== a.id))} className="font-mono text-[11px] text-danger hover:underline">remove</button>
             </div>
           </div>
         ))}

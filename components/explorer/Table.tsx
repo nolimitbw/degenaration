@@ -28,7 +28,7 @@ export default function Table({ rows, loading, onPick }: { rows: Tok[]; loading:
               <td className="px-4 py-3 font-mono"><Chg v={t.change1h} /></td>
               <td className="px-4 py-3 font-mono font-bold"><Chg v={t.change24h} /></td>
               <td className="px-4 py-3"><Pressure b={t.buys1h} s={t.sells1h} /></td>
-              <td className="px-4 py-3"><button onClick={(e) => { e.stopPropagation(); onPick(t); }} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim transition hover:border-toxic hover:text-toxic">Trade</button></td>
+              <td className="px-4 py-3"><button onClick={(e) => { e.stopPropagation(); onPick(t); }} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim transition hover:border-gold-400 hover:text-gold-400">Trade</button></td>
             </tr>
           ))}
         </tbody>

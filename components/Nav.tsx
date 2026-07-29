@@ -49,8 +49,8 @@ export default function Nav() {
         </div>
 
         <div className="ml-3 hidden items-center gap-2 md:flex">
-          <Link href="/login" className="rounded-md border border-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-toxic">Connect Wallet</Link>
-          <Link href="/bots" className="rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open app</Link>
+          <Link href="/login" className="rounded-md border border-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-gold-400">Connect Wallet</Link>
+          <Link href="/bots" className="rounded-md bg-gold-400 px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open app</Link>
         </div>
 
         <button
@@ -76,7 +76,7 @@ export default function Nav() {
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <Link href="/login" onClick={() => setOpen(false)} className="rounded-md border border-edge px-3 py-2.5 text-center text-sm font-semibold">Connect Wallet</Link>
-            <Link href="/bots" onClick={() => setOpen(false)} className="rounded-md bg-toxic px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open app</Link>
+            <Link href="/bots" onClick={() => setOpen(false)} className="rounded-md bg-gold-400 px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open app</Link>
           </div>
         </motion.div>
       )}

@@ -89,7 +89,7 @@ function ConfirmDialog({
       >
         <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
           <div>
-            <p className="font-mono text-[9px] uppercase text-toxic">Privileged action</p>
+            <p className="font-mono text-[9px] uppercase text-gold-400">Privileged action</p>
             <h2 id="admin-action-title" className="mt-2 text-base font-semibold text-ink">{action.title}</h2>
           </div>
           <button type="button" onClick={onCancel} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Close confirmation">
@@ -122,7 +122,7 @@ function ConfirmDialog({
             onClick={() => onConfirm(reason.trim())}
             disabled={!canConfirm || busy}
             className={`min-h-10 rounded-md px-4 text-xs font-semibold disabled:opacity-50 ${
-              action.destructive ? "bg-down text-white" : "bg-toxic text-[#17110c]"
+              action.destructive ? "bg-down text-white" : "bg-gold-400 text-[#17110c]"
             }`}
           >
             {busy ? "Applying..." : "Confirm action"}
@@ -230,7 +230,7 @@ export default function OwnerConsole() {
             type="button"
             onClick={load}
             disabled={refreshing || !identityToken}
-            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-toxic/50 hover:text-ink disabled:opacity-50"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             Refresh
@@ -244,7 +244,7 @@ export default function OwnerConsole() {
       </div>
 
       {!identityToken && (
-        <div className="mt-5 rounded-md border border-toxic/35 bg-toxic/5 px-4 py-3 text-xs leading-5 text-toxic">
+        <div className="mt-5 rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3 text-xs leading-5 text-gold-400">
           Privy has not supplied the signed owner identity token yet. Sign out and use Continue with Google if this state does not clear.
         </div>
       )}
@@ -266,9 +266,9 @@ export default function OwnerConsole() {
               active === id ? "text-ink" : "text-dim hover:text-ink"
             }`}
           >
-            <Icon size={14} className={active === id ? "text-toxic" : ""} />
+            <Icon size={14} className={active === id ? "text-gold-400" : ""} />
             {label}
-            {active === id && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-toxic" />}
+            {active === id && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-gold-400" />}
           </button>
         ))}
       </nav>

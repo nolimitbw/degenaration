@@ -60,7 +60,7 @@ export default function BotsPage() {
         title="Bots"
         description="Automate approved Discord calls or run a community strategy."
         actions={
-          <Link href="/bots/manage" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
+          <Link href="/bots/manage" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
             <DegenBotIcon size={16} />
             Manage bots
           </Link>
@@ -72,13 +72,13 @@ export default function BotsPage() {
         <article className="group overflow-hidden rounded-md border border-edge bg-panel">
           <div className="flex min-h-52 flex-col justify-between border-b border-edge p-6">
             <div className="flex items-start justify-between gap-4">
-              <span className="grid h-11 w-11 place-items-center rounded-md border border-toxic/35 bg-toxic/10 text-toxic">
+              <span className="grid h-11 w-11 place-items-center rounded-md border border-gold-400/35 bg-gold-400/10 text-gold-400">
                 <DiscordSignalIcon size={21} />
               </span>
               <StatusPill status="verified sources" />
             </div>
             <div className="mt-8">
-              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-toxic">Discord Bot</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-gold-400">Discord Bot</p>
               <h2 className="mt-2 text-xl font-semibold text-ink">Copy approved call channels with your own risk and exit rules.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-dim">
                 Choose an approved server, set exposure, retries, TP/SL, and fail-closed security filters. Source commission is itemized at 0.7%.
@@ -92,7 +92,7 @@ export default function BotsPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-6 py-4">
             <span className="inline-flex items-center gap-2 text-xs text-dim"><RiskShieldIcon size={15} className="text-up" /> Approved channels only</span>
-            <Link href="/bots/discord" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
+            <Link href="/bots/discord" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
               Browse sources <ArrowRight aria-hidden="true" size={16} />
             </Link>
           </div>
@@ -120,7 +120,7 @@ export default function BotsPage() {
             <Metric label="Creator quota" value="3" detail="Published bots" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-6 py-4">
-            <span className="inline-flex items-center gap-2 text-xs text-dim"><Users size={15} className="text-toxic" /> Versioned subscriber copies</span>
+            <span className="inline-flex items-center gap-2 text-xs text-dim"><Users size={15} className="text-gold-400" /> Versioned subscriber copies</span>
             <Link href="/bots/kol" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-void">
               Explore strategies <ArrowRight aria-hidden="true" size={16} />
             </Link>

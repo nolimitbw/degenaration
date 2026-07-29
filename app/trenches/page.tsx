@@ -29,9 +29,9 @@ function Pressure({ b, s }: { b: number; s: number }) {
   const t = b + s || 1; const bp = (b / t) * 100;
   return (
     <div className="mt-1">
-      <div className="flex h-1.5 overflow-hidden rounded-full bg-hotpink/40"><div className="bg-toxic transition-[width] duration-500" style={{ width: `${bp}%` }} /></div>
+      <div className="flex h-1.5 overflow-hidden rounded-full bg-danger/40"><div className="bg-gold-400 transition-[width] duration-500" style={{ width: `${bp}%` }} /></div>
       <p className="mt-1 font-mono text-[10px] text-dim">
-        <FlashValue value={b} className="text-toxic">{b} buys</FlashValue> · <FlashValue value={s} className="text-hotpink">{s} sells</FlashValue>
+        <FlashValue value={b} className="text-gold-400">{b} buys</FlashValue> · <FlashValue value={s} className="text-danger">{s} sells</FlashValue>
       </p>
     </div>
   );
@@ -98,15 +98,15 @@ export default function Trenches() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">Trenches
-            <span className="flex items-center gap-1 rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic">
-              <span className={`h-1.5 w-1.5 rounded-full bg-toxic ${pulse ? "animate-ping" : ""}`} />LIVE
+            <span className="flex items-center gap-1 rounded-full border border-gold-400/40 px-2 py-0.5 font-mono text-[10px] text-gold-400">
+              <span className={`h-1.5 w-1.5 rounded-full bg-gold-400 ${pulse ? "animate-ping" : ""}`} />LIVE
             </span>
           </h1>
           <p className="mt-1 text-sm text-dim">Fresh Solana launches and trending tokens, straight from the chain — updating live.</p>
         </div>
         <div className="flex gap-4 font-mono text-xs">
-          <div><p className="text-dim">Tracked</p><p className="text-toxic">{stats.count} tokens</p></div>
-          <div><p className="text-dim">24h volume</p><p className="text-toxic">{fmtNum(stats.totalVol)}</p></div>
+          <div><p className="text-dim">Tracked</p><p className="text-gold-400">{stats.count} tokens</p></div>
+          <div><p className="text-dim">24h volume</p><p className="text-gold-400">{fmtNum(stats.totalVol)}</p></div>
         </div>
       </div>
 
@@ -114,12 +114,12 @@ export default function Trenches() {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-xs">
           {(["new", "trending"] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1.5 font-bold transition ${tab === t ? "bg-toxic text-white" : "text-dim hover:text-ink"}`}>{t.toUpperCase()}</button>
+            <button key={t} onClick={() => setTab(t)} className={`rounded px-3 py-1.5 font-bold transition ${tab === t ? "bg-gold-400 text-white" : "text-dim hover:text-ink"}`}>{t.toUpperCase()}</button>
           ))}
         </div>
         <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-xs">
           {(["hot", "new", "volume", "gainers"] as Sort[]).map((sopt) => (
-            <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-cyber/20 text-cyber" : "text-dim hover:text-ink"}`}>{sopt.toUpperCase()}</button>
+            <button key={sopt} onClick={() => setSort(sopt)} className={`rounded px-3 py-1.5 font-bold transition ${sort === sopt ? "bg-info/20 text-info" : "text-dim hover:text-ink"}`}>{sopt.toUpperCase()}</button>
           ))}
         </div>
         <QuickBuyEditor presets={BUY_PRESETS} loaded={presetsLoaded} onSave={saveBuyPresets} />
@@ -132,14 +132,14 @@ export default function Trenches() {
             <div key={t.address} role="button" tabIndex={0} aria-label={`View ${t.symbol ?? "token"} details`}
               onClick={() => setDrawer(t)}
               onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDrawer(t); } }}
-              className="group gradient-border flex cursor-pointer flex-col rounded-lg border border-edge p-4 transition hover:shadow-toxic">
+              className="group gradient-border flex cursor-pointer flex-col rounded-lg border border-edge p-4 transition hover:shadow-gold">
               <div className="flex w-full items-center gap-3 text-left">
                 {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{t.symbol?.slice(0,2)}</div>}
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-hotpink/20 px-1 text-[9px] text-hotpink">new</span>}</p>
+                  <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-danger/20 px-1 text-[9px] text-danger">new</span>}</p>
                   <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>
                 </div>
-                <FlashValue value={t.change24h} className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-up":"text-hotpink"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</FlashValue>
+                <FlashValue value={t.change24h} className={`font-mono text-sm font-bold ${(t.change24h||0)>=0?"text-up":"text-danger"}`}>{(t.change24h||0)>=0?"+":""}{(t.change24h??0).toFixed(0)}%</FlashValue>
               </div>
             <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]">
               <div><p className="text-dim">MC</p><FlashValue value={t.marketCap} className="text-ink">{fmtNum(t.marketCap)}</FlashValue></div>
@@ -150,12 +150,12 @@ export default function Trenches() {
               {([["5m", t.change5m], ["1h", t.change1h], ["24h", t.change24h]] as const).map(([l, v]) => (
                 <div key={l} className="rounded bg-void/60 px-1 py-0.5 text-center">
                   <span className="text-dim">{l} </span>
-                  <FlashValue value={v} className={(v ?? 0) >= 0 ? "text-up" : "text-hotpink"}>{v != null ? `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%` : "—"}</FlashValue>
+                  <FlashValue value={v} className={(v ?? 0) >= 0 ? "text-up" : "text-danger"}>{v != null ? `${v >= 0 ? "+" : ""}${Number(v).toFixed(0)}%` : "—"}</FlashValue>
                 </div>
               ))}
             </div>
             <Pressure b={t.buys1h} s={t.sells1h} />
-            {t.risks?.length ? <div className="mt-2 flex flex-wrap gap-1">{t.risks.map((r: string) => <span key={r} className="rounded border border-hotpink/40 px-1.5 py-0.5 font-mono text-[9px] text-hotpink"><AlertTriangle size={9} className="inline" aria-hidden="true" /> {r}</span>)}</div> : null}
+            {t.risks?.length ? <div className="mt-2 flex flex-wrap gap-1">{t.risks.map((r: string) => <span key={r} className="rounded border border-danger/40 px-1.5 py-0.5 font-mono text-[9px] text-danger"><AlertTriangle size={9} className="inline" aria-hidden="true" /> {r}</span>)}</div> : null}
             <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-1 gap-1">
                 {BUY_PRESETS.map((a, i) => {
@@ -163,13 +163,13 @@ export default function Trenches() {
                   return (
                     <button key={i} onClick={() => quickBuy(t, a)} disabled={buyingKey != null}
                       title={`Quick buy ${a} SOL`} aria-label={`Quick buy ${a} SOL of ${t.symbol ?? "token"}`}
-                      className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">{busy ? "…" : a}</button>
+                      className="flex-1 rounded border border-edge py-1 text-center font-mono text-[10px] text-dim transition hover:border-gold-400 hover:text-gold-400 disabled:opacity-50">{busy ? "…" : a}</button>
                   );
                 })}
               </div>
-              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-ink" title={x.type} aria-label={x.type}><ArrowUpRight size={13} /></a>)}
+              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-info hover:text-ink" title={x.type} aria-label={x.type}><ArrowUpRight size={13} /></a>)}
             </div>
-            <Link href={`/terminal?mint=${t.address}`} onClick={(e) => e.stopPropagation()} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Quick trade →</Link>
+            <Link href={`/terminal?mint=${t.address}`} onClick={(e) => e.stopPropagation()} className="mt-2 block rounded-md bg-gold-400 py-2 text-center text-sm font-bold text-white shadow-gold transition hover:brightness-110">Quick trade →</Link>
           </div>
         ))}
         {!loading && !rows.length && (

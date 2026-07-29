@@ -43,7 +43,7 @@ export default async function SourceProfile({ params }: Props) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="truncate text-2xl font-bold sm:text-3xl">{source.name}</h1>
-                  <BadgeCheck aria-label="Approved source" size={19} className="text-toxic" />
+                  <BadgeCheck aria-label="Approved source" size={19} className="text-gold-400" />
                   <IntegrationHealthDot status={source.integrationHealth} />
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-dim">
@@ -56,11 +56,11 @@ export default async function SourceProfile({ params }: Props) {
             </div>
             <div className="flex flex-wrap gap-2">
               {invite && (
-                <a href={invite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#031018] transition hover:brightness-110">
+                <a href={invite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#031018] transition hover:brightness-110">
                   <MessageCircle aria-hidden="true" size={17} /> Join Discord <ExternalLink aria-hidden="true" size={14} />
                 </a>
               )}
-              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
+              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
                 <RadioTower aria-hidden="true" size={17} /> Configure bot
               </Link>
             </div>
@@ -71,7 +71,7 @@ export default async function SourceProfile({ params }: Props) {
 
         <section aria-labelledby="performance-heading" className="mt-6">
           <div className="flex items-center gap-2">
-            <BarChart3 aria-hidden="true" size={18} className="text-toxic" />
+            <BarChart3 aria-hidden="true" size={18} className="text-gold-400" />
             <h2 id="performance-heading" className="text-sm font-bold">All-time recorded performance</h2>
           </div>
           <div className="mt-3 grid overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4">
@@ -81,7 +81,7 @@ export default async function SourceProfile({ params }: Props) {
             <Stat label="Best call" value={metric(source.metrics.bestPeakX, 2)} detail="Peak from recorded entry" accent />
           </div>
           <p className="mt-2 flex items-start gap-2 font-mono text-[10px] leading-5 text-dim">
-            <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-cyber" />
+            <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-info" />
             Metrics are calculated from calls recorded after approval. Unmeasured calls stay visible and never count as wins.
           </p>
         </section>
@@ -103,7 +103,7 @@ export default async function SourceProfile({ params }: Props) {
                         <td className="px-4 py-3 text-dim">{call.calledAt ? new Date(call.calledAt).toLocaleDateString() : "-"}</td>
                         <td className="px-4 py-3">{metric(call.currentX, 2)}</td>
                         <td className="px-4 py-3 font-bold text-up">{metric(call.peakX, 2)}</td>
-                        <td className="px-4 py-3">{call.mint ? <Link href={`/risk/${call.mint}`} className="text-toxic hover:underline">Risk report</Link> : "-"}</td>
+                        <td className="px-4 py-3">{call.mint ? <Link href={`/risk/${call.mint}`} className="text-gold-400 hover:underline">Risk report</Link> : "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -135,7 +135,7 @@ function Stat({ label, value, detail, accent = false }: { label: string; value: 
   return (
     <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0">
       <p className="font-mono text-[10px] uppercase text-dim">{label}</p>
-      <p className={`mt-2 text-2xl font-bold ${accent ? "text-toxic" : "text-ink"}`}>{value}</p>
+      <p className={`mt-2 text-2xl font-bold ${accent ? "text-gold-400" : "text-ink"}`}>{value}</p>
       <p className="mt-1 font-mono text-[10px] text-dim">{detail}</p>
     </div>
   );

@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DegenBackdrop />
         <Providers>
           <ToastProvider>
-            <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
+            <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-gold-400 px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
               Skip to content
             </a>
             <ReleaseBanner />

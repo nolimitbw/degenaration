@@ -33,10 +33,10 @@
   --shadow-pink: 0 0 0 1px rgba(213,111,111,0.25), 0 10px 24px -14px rgba(213,111,111,0.34);
 
   /* Semantic token layer (spec §5.2).
-     The names above (`toxic`, `hotpink`, `cyber`) describe a neon palette the product no
-     longer uses — their values are already warm gold. These semantic names are the ones
-     new work should use; the legacy names remain as aliases until usages are migrated.
-     Both resolve to the same colors, so introducing this layer changes nothing visually. */
+     The `--toxic` / `--hotpink` / `--cyber` variables above are named for a retired neon
+     palette but hold warm values. Their Tailwind aliases have been removed; components
+     now use the semantic names below. The raw CSS variables remain only because internal
+     utilities (.grid-bg, .gradient-text, focus rings) still reference them. */
   --canvas: #0d0e0f;
   --canvas-elevated: #111213;
   --surface-1: #151617;
@@ -54,6 +54,16 @@
   --gold-400: #c29463;
   --gold-500: #a2784b;
   --gold-600: #7d5c39;
+
+  /* Channel-only forms so Tailwind can apply opacity modifiers (bg-gold-400/10).
+     A hex var cannot take `/10`, so the semantic scale needs both shapes. */
+  --gold-300-rgb: 217 180 135;
+  --gold-400-rgb: 194 148 99;
+  --gold-500-rgb: 162 120 75;
+  --success-rgb: 85 185 135;
+  --danger-rgb: 213 111 111;
+  --warning-rgb: 217 180 135;
+  --info-rgb: 210 173 128;
 
   --text-primary: #f3f0eb;
   --text-secondary: #cbc6bd;
@@ -214,6 +224,15 @@ input[type="number"]::-webkit-outer-spin-button {
   --grape-rgb: 185 139 93;
   --shadow-toxic: 0 0 0 1px rgb(var(--toxic-rgb) / 0.22), 0 8px 20px -12px rgb(var(--toxic-rgb) / 0.32);
   --shadow-pink: 0 0 0 1px rgb(var(--hotpink-rgb) / 0.22), 0 8px 20px -12px rgb(var(--hotpink-rgb) / 0.3);
+  /* Semantic channel vars must track the shell-scoped palette above, otherwise the
+     workspace would render the :root gold instead of this slightly deeper one. */
+  --gold-300-rgb: 208 170 124;
+  --gold-400-rgb: 185 139 93;
+  --gold-500-rgb: 155 114 74;
+  --success-rgb: 75 187 131;
+  --danger-rgb: 221 107 107;
+  --warning-rgb: 208 170 124;
+  --info-rgb: 208 170 124;
   color-scheme: dark;
   background: var(--void);
   background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
@@ -246,7 +265,7 @@ input[type="number"]::-webkit-outer-spin-button {
   mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
 }
 
-.text-glow-toxic { text-shadow: 0 0 18px rgb(var(--toxic-rgb) / 0.45); }
+.text-glow-gold { text-shadow: 0 0 18px rgb(var(--toxic-rgb) / 0.45); }
 .text-glow-pink { text-shadow: 0 0 18px rgb(var(--hotpink-rgb) / 0.45); }
 
 .gradient-text {

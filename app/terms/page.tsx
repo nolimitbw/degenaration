@@ -2,7 +2,7 @@ import Link from "next/link";
 export default function Terms() {
   return (
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-16">
-      <Link href="/" className="font-mono text-xs text-toxic">← back</Link>
+      <Link href="/" className="font-mono text-xs text-gold-400">← back</Link>
       <h1 className="mt-4 text-4xl font-bold">Terms of Service</h1>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-dim">
         <p>Degenaration is self-directed, non-custodial trading software. It is not a broker, exchange, custodian, or financial advisor. By using the service you agree to the following.</p>

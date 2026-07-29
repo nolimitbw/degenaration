@@ -50,7 +50,7 @@ export default function ExplorerPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">Search
-            <span className="flex items-center gap-1 rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic"><span className={`h-1.5 w-1.5 rounded-full bg-toxic ${pulse ? "animate-ping" : ""}`} />LIVE</span>
+            <span className="flex items-center gap-1 rounded-full border border-gold-400/40 px-2 py-0.5 font-mono text-[10px] text-gold-400"><span className={`h-1.5 w-1.5 rounded-full bg-gold-400 ${pulse ? "animate-ping" : ""}`} />LIVE</span>
           </h1>
           <p className="mt-1 text-sm text-dim">Search and filter real Solana tokens with live market data.</p>
         </div>
@@ -59,7 +59,7 @@ export default function ExplorerPage() {
       {view === "table" ? <Table rows={paged} loading={loading} onPick={setDrawer} /> : <Cards rows={paged} loading={loading} onPick={setDrawer} />}
       {!loading && !rows.length && <p className="mt-8 text-center text-sm text-dim">No tokens match. Try a different filter or search.</p>}
       {!loading && paged.length < rows.length && (
-        <button onClick={() => setPage((p) => p + 1)} className="mx-auto mt-5 block rounded-md border border-edge px-6 py-2 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">Load more ({rows.length - paged.length})</button>
+        <button onClick={() => setPage((p) => p + 1)} className="mx-auto mt-5 block rounded-md border border-edge px-6 py-2 font-mono text-xs text-dim transition hover:border-gold-400 hover:text-gold-400">Load more ({rows.length - paged.length})</button>
       )}
     </AppShell>
   );

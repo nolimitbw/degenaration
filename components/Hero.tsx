@@ -16,7 +16,7 @@ export default function Hero() {
               Solana automation workspace
             </div>
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold leading-[1.05] text-ink sm:text-5xl md:text-6xl">
-              Degen<span className="text-toxic">A</span>ration
+              Degen<span className="text-gold-400">A</span>ration
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-dim">
               Build evidence-aware bots from Discord calls or live market volatility, then follow every position, fee, and payout from one account.
@@ -24,10 +24,10 @@ export default function Hero() {
           </div>
           <div className="shrink-0">
             <div className="flex flex-wrap gap-3">
-              <Link href="/bots" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-toxic px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">
+              <Link href="/bots" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">
                 Open Bots <ArrowUpRight aria-hidden="true" size={16} />
               </Link>
-              <Link href="/affiliate" className="inline-flex min-h-11 items-center rounded-md border border-edge px-5 py-3 text-sm font-semibold text-ink transition hover:border-toxic">
+              <Link href="/affiliate" className="inline-flex min-h-11 items-center rounded-md border border-edge px-5 py-3 text-sm font-semibold text-ink transition hover:border-gold-400">
                 Creator earnings
               </Link>
             </div>

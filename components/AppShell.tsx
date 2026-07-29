@@ -55,12 +55,12 @@ function Notifications() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative grid h-10 w-10 place-items-center rounded-md border border-edge text-dim transition hover:border-toxic/60 hover:text-ink"
+        className="relative grid h-10 w-10 place-items-center rounded-md border border-edge text-dim transition hover:border-gold-400/60 hover:text-ink"
         aria-label="Notifications"
         aria-expanded={open}
       >
         <Bell aria-hidden="true" size={17} />
-        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-toxic" />
+        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-gold-400" />
       </button>
       {open && (
         <div className="absolute right-0 top-12 z-50 w-80 rounded-md border border-edge bg-panel p-4 shadow-2xl">
@@ -68,7 +68,7 @@ function Notifications() {
           <p className="mt-1 text-xs leading-5 text-dim">
             {AUTOMATED_MAINNET_RELEASE.reason}
           </p>
-          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-toxic hover:text-cyber">
+          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-gold-400 hover:text-info">
             Review bot status
           </Link>
         </div>
@@ -130,12 +130,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     active ? "text-ink" : "text-dim hover:text-ink"
                   }`}
                 >
-                  <Icon aria-hidden="true" size={16} strokeWidth={1.8} className={active ? "text-toxic" : ""} />
+                  <Icon aria-hidden="true" size={16} strokeWidth={1.8} className={active ? "text-gold-400" : ""} />
                   {label}
                   {active && (
                     <motion.span
                       layoutId="app-nav-active"
-                      className="absolute inset-x-3 bottom-0 h-0.5 bg-toxic"
+                      className="absolute inset-x-3 bottom-0 h-0.5 bg-gold-400"
                       transition={{ type: "spring", stiffness: 420, damping: 34 }}
                     />
                   )}
@@ -146,7 +146,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[10px] uppercase text-dim sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-toxic" />
+              <span className="h-1.5 w-1.5 rounded-full bg-gold-400" />
               Solana
               <span className="text-ink">Mainnet</span>
             </div>
@@ -154,7 +154,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 href="/admin"
                 className={`grid h-10 w-10 place-items-center rounded-md border transition ${
-                  isActivePath(path, "/admin") ? "border-toxic/60 bg-toxic/10 text-toxic" : "border-edge text-dim hover:text-ink"
+                  isActivePath(path, "/admin") ? "border-gold-400/60 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"
                 }`}
                 aria-label="Owner console"
                 title="Owner console"
@@ -190,10 +190,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   key={href}
                   href={href}
                   className={`flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-medium ${
-                    isActivePath(path, href) ? "bg-toxic/10 text-ink" : "text-dim"
+                    isActivePath(path, href) ? "bg-gold-400/10 text-ink" : "text-dim"
                   }`}
                 >
-                  <Icon aria-hidden="true" size={18} className={isActivePath(path, href) ? "text-toxic" : ""} />
+                  <Icon aria-hidden="true" size={18} className={isActivePath(path, href) ? "text-gold-400" : ""} />
                   {label}
                 </Link>
               ))}

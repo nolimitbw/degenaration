@@ -86,8 +86,8 @@ export default function PublicWallet({ address }: { address: string }) {
                   <td className="px-4 py-3 font-mono text-xs text-dim">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
                   <td className="px-4 py-3 font-mono text-xs">{position.priceUsd == null ? "-" : usd(position.priceUsd)}</td>
                   <td className="px-4 py-3 font-mono text-xs font-bold">{usd(position.valueUsd || 0)}</td>
-                  <td className={`px-4 py-3 font-mono text-xs font-bold ${(position.change24h || 0) >= 0 ? "text-up" : "text-hotpink"}`}>{position.change24h == null ? "-" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(1)}%`}</td>
-                  <td className="px-4 py-3"><div className="flex gap-3 font-mono text-[11px]"><Link href={`/terminal?mint=${position.mint}`} className="text-toxic hover:underline">Trade</Link><Link href={`/risk/${position.mint}`} className="text-dim hover:text-ink">Risk</Link></div></td>
+                  <td className={`px-4 py-3 font-mono text-xs font-bold ${(position.change24h || 0) >= 0 ? "text-up" : "text-danger"}`}>{position.change24h == null ? "-" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(1)}%`}</td>
+                  <td className="px-4 py-3"><div className="flex gap-3 font-mono text-[11px]"><Link href={`/terminal?mint=${position.mint}`} className="text-gold-400 hover:underline">Trade</Link><Link href={`/risk/${position.mint}`} className="text-dim hover:text-ink">Risk</Link></div></td>
                 </tr>
               ))}
             </tbody>
@@ -98,18 +98,18 @@ export default function PublicWallet({ address }: { address: string }) {
       </div>
 
       <div className="mt-4 flex items-start gap-2 font-mono text-[10px] leading-5 text-dim">
-        <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-cyber" />
+        <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-info" />
         The 24h figure estimates price movement on the wallet&apos;s current balances. It is not realized trade P&L and does not account for transfers or intraday balance changes.
       </div>
-      <a href={`https://solscan.io/account/${address}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold hover:border-toxic/60">Verify on Solscan <ArrowUpRight aria-hidden="true" size={15} /></a>
+      <a href={`https://solscan.io/account/${address}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold hover:border-gold-400/60">Verify on Solscan <ArrowUpRight aria-hidden="true" size={15} /></a>
     </div>
   );
 }
 
 function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: "up" | "down" }) {
-  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="font-mono text-[10px] uppercase text-dim">{label}</p><p className={`mt-2 text-xl font-bold ${tone === "up" ? "text-up" : tone === "down" ? "text-hotpink" : "text-ink"}`}>{value}</p><p className="mt-1 font-mono text-[10px] text-dim">{detail}</p></div>;
+  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="font-mono text-[10px] uppercase text-dim">{label}</p><p className={`mt-2 text-xl font-bold ${tone === "up" ? "text-up" : tone === "down" ? "text-danger" : "text-ink"}`}>{value}</p><p className="mt-1 font-mono text-[10px] text-dim">{detail}</p></div>;
 }
 
 function State({ error }: { error?: string }) {
-  return <div className="grid min-h-56 place-items-center rounded-md border border-edge bg-panel/40 p-6 text-center"><div>{error ? <AlertTriangle aria-hidden="true" className="mx-auto text-hotpink" /> : <LoaderCircle aria-hidden="true" className="mx-auto animate-spin text-toxic" />}<p className="mt-3 font-bold">{error ? "Wallet unavailable" : "Loading on-chain wallet"}</p><p className="mt-1 text-sm text-dim">{error || "Reading balances and live market prices."}</p></div></div>;
+  return <div className="grid min-h-56 place-items-center rounded-md border border-edge bg-panel/40 p-6 text-center"><div>{error ? <AlertTriangle aria-hidden="true" className="mx-auto text-danger" /> : <LoaderCircle aria-hidden="true" className="mx-auto animate-spin text-gold-400" />}<p className="mt-3 font-bold">{error ? "Wallet unavailable" : "Loading on-chain wallet"}</p><p className="mt-1 text-sm text-dim">{error || "Reading balances and live market prices."}</p></div></div>;
 }

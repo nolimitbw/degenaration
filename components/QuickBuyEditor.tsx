@@ -31,7 +31,7 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
 
   return (
     <>
-      <button onClick={openEditor} className="flex items-center gap-1.5 rounded-md border border-edge px-3 py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">
+      <button onClick={openEditor} className="flex items-center gap-1.5 rounded-md border border-edge px-3 py-1.5 font-mono text-xs text-dim transition hover:border-gold-400 hover:text-gold-400">
         <Pencil aria-hidden="true" size={13} /> Edit quick-buy
       </button>
       {open && (
@@ -49,12 +49,12 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
                   <input
                     type="number" step="0.01" min="0.01" value={v}
                     onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? e.target.value : x)))}
-                    className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic"
+                    className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-gold-400"
                   />
                 </label>
               ))}
             </div>
-            <button onClick={save} disabled={busy || !loaded} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+            <button onClick={save} disabled={busy || !loaded} className="mt-5 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">
               {busy ? "Saving…" : !loaded ? "Loading your presets…" : "Save"}
             </button>
           </div>

@@ -30,13 +30,13 @@ export default function Watchlist() {
 
   return (
     <AppShell>
-      <h1 className="text-2xl font-bold">Watchlist <span className="font-mono text-xs text-toxic">live</span></h1>
+      <h1 className="text-2xl font-bold">Watchlist <span className="font-mono text-xs text-gold-400">live</span></h1>
       <p className="mt-1 text-sm text-dim">Track your favorite tokens with live prices.</p>
 
       <div className="mt-5 flex gap-2">
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Token mint address"
-          className="flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-        <button onClick={add} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Add</button>
+          className="flex-1 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+        <button onClick={add} className="rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-white shadow-gold">+ Add</button>
       </div>
 
       {!mints.length ? (
@@ -62,13 +62,13 @@ export default function Watchlist() {
                     </div>
                   </td>
                   <td className="px-4 py-3 font-mono">{d?.priceUsd ? `$${d.priceUsd}` : "…"}</td>
-                  <td className={`px-4 py-3 font-mono ${(d?.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{d?.change24h != null ? `${d.change24h >= 0 ? "+" : ""}${Number(d.change24h).toFixed(1)}%` : "…"}</td>
+                  <td className={`px-4 py-3 font-mono ${(d?.change24h ?? 0) >= 0 ? "text-up" : "text-danger"}`}>{d?.change24h != null ? `${d.change24h >= 0 ? "+" : ""}${Number(d.change24h).toFixed(1)}%` : "…"}</td>
                   <td className="px-4 py-3 font-mono text-dim">{d ? fmtNum(d.fdv) : "…"}</td>
                   <td className="px-4 py-3 font-mono text-dim">{d ? fmtNum(d.liquidityUsd) : "…"}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      <Link href={`/terminal?mint=${m}`} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim hover:border-toxic hover:text-toxic">Trade</Link>
-                      <button onClick={() => remove(m)} className="font-mono text-[11px] text-hotpink hover:underline">remove</button>
+                      <Link href={`/terminal?mint=${m}`} className="rounded border border-edge px-3 py-1.5 text-xs font-bold text-dim hover:border-gold-400 hover:text-gold-400">Trade</Link>
+                      <button onClick={() => remove(m)} className="font-mono text-[11px] text-danger hover:underline">remove</button>
                     </div>
                   </td>
                 </tr>

@@ -36,9 +36,9 @@ export default function RiskReport({ mint }: { mint: string }) {
 
   return (
     <div className="space-y-6">
-      <div className={`rounded-md border p-5 ${report.ok ? "border-up/35 bg-up/5" : "border-hotpink/35 bg-hotpink/5"}`}>
+      <div className={`rounded-md border p-5 ${report.ok ? "border-up/35 bg-up/5" : "border-danger/35 bg-danger/5"}`}>
         <div className="flex items-start gap-3">
-          {report.ok ? <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0 text-up" /> : <ShieldAlert aria-hidden="true" className="mt-0.5 shrink-0 text-hotpink" />}
+          {report.ok ? <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0 text-up" /> : <ShieldAlert aria-hidden="true" className="mt-0.5 shrink-0 text-danger" />}
           <div>
             <h2 className="font-bold">{report.ok ? "No blocking signal found" : "Risk gate blocked"}</h2>
             <p className="mt-1 text-sm leading-6 text-dim">
@@ -61,7 +61,7 @@ export default function RiskReport({ mint }: { mint: string }) {
           <div className="mt-3 rounded-md border border-edge bg-panel">
             {report.reasons.length ? report.reasons.map((reason) => (
               <div key={reason} className="flex items-start gap-2 border-b border-edge px-4 py-3 text-sm last:border-b-0">
-                <AlertTriangle aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-hotpink" /> {reason}
+                <AlertTriangle aria-hidden="true" size={16} className="mt-0.5 shrink-0 text-danger" /> {reason}
               </div>
             )) : <p className="px-4 py-5 text-sm text-dim">No blocking reasons were returned.</p>}
           </div>
@@ -80,8 +80,8 @@ export default function RiskReport({ mint }: { mint: string }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Link href={`/terminal?mint=${mint}`} className="inline-flex min-h-11 items-center rounded-md bg-toxic px-4 text-sm font-semibold text-[#031018]">Open terminal</Link>
-        {report.pairUrl && <a href={report.pairUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold hover:border-toxic/60">Open market <ExternalLink aria-hidden="true" size={15} /></a>}
+        <Link href={`/terminal?mint=${mint}`} className="inline-flex min-h-11 items-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#031018]">Open terminal</Link>
+        {report.pairUrl && <a href={report.pairUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold hover:border-gold-400/60">Open market <ExternalLink aria-hidden="true" size={15} /></a>}
       </div>
       <p className="font-mono text-[10px] leading-5 text-dim">A passing report is not a guarantee of safety or future performance. Checks are live and can change between requests.</p>
     </div>
@@ -89,9 +89,9 @@ export default function RiskReport({ mint }: { mint: string }) {
 }
 
 function Check({ label, value, pass }: { label: string; value: string; pass: boolean }) {
-  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="font-mono text-[10px] uppercase text-dim">{label}</p><p className={`mt-2 text-lg font-bold ${pass ? "text-up" : "text-hotpink"}`}>{value}</p></div>;
+  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="font-mono text-[10px] uppercase text-dim">{label}</p><p className={`mt-2 text-lg font-bold ${pass ? "text-up" : "text-danger"}`}>{value}</p></div>;
 }
 
 function State({ title, detail, tone }: { title: string; detail: string; tone: "warn" | "loading" }) {
-  return <div className="flex min-h-56 items-center justify-center rounded-md border border-edge bg-panel/40 p-6 text-center"><div>{tone === "loading" ? <LoaderCircle aria-hidden="true" className="mx-auto animate-spin text-toxic" /> : <AlertTriangle aria-hidden="true" className="mx-auto text-hotpink" />}<p className="mt-3 font-bold">{title}</p><p className="mt-1 text-sm text-dim">{detail}</p></div></div>;
+  return <div className="flex min-h-56 items-center justify-center rounded-md border border-edge bg-panel/40 p-6 text-center"><div>{tone === "loading" ? <LoaderCircle aria-hidden="true" className="mx-auto animate-spin text-gold-400" /> : <AlertTriangle aria-hidden="true" className="mx-auto text-danger" />}<p className="mt-3 font-bold">{title}</p><p className="mt-1 text-sm text-dim">{detail}</p></div></div>;
 }

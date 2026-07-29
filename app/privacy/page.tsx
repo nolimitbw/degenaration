@@ -2,7 +2,7 @@ import Link from "next/link";
 export default function Privacy() {
   return (
     <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-16">
-      <Link href="/" className="font-mono text-xs text-toxic">← back</Link>
+      <Link href="/" className="font-mono text-xs text-gold-400">← back</Link>
       <h1 className="mt-4 text-4xl font-bold">Privacy Policy</h1>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-dim">
         <p>We collect the minimum needed to run the service: your account email (via Supabase auth), your public wallet address, your trading settings, and a record of executed trades.</p>

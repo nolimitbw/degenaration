@@ -37,13 +37,13 @@ function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { se
       <span className="font-mono text-[10px] uppercase text-dim">{label}</span>
       <div className="mt-0.5 flex items-center gap-1">
         <input type="number" step={step} value={settings[key]} onChange={(e) => onChange({ ...settings, [key]: +e.target.value })}
-          className="w-full rounded border border-edge bg-panel px-2 py-1 text-xs text-ink outline-none focus:border-toxic" />
+          className="w-full rounded border border-edge bg-panel px-2 py-1 text-xs text-ink outline-none focus:border-gold-400" />
         {suffix && <span className="font-mono text-[10px] text-dim">{suffix}</span>}
       </div>
     </label>
   );
   return (
-    <div className="mt-3 rounded-md border border-toxic/40 bg-void p-3">
+    <div className="mt-3 rounded-md border border-gold-400/40 bg-void p-3">
       <div className="grid grid-cols-2 gap-2">
         {field("Size / trade", "size", "0.05", "SOL")}
         {field("Daily cap", "dailyCap", "0.5", "SOL")}
@@ -55,10 +55,10 @@ function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { se
         {field("Max slippage", "slippage", "0.25", "%")}
       </div>
       <div className="mt-3 flex gap-2">
-        <button onClick={onStart} disabled={busy || !!error} className="flex-1 rounded bg-toxic py-1.5 font-mono text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{busy ? "Saving..." : "Start copying"}</button>
+        <button onClick={onStart} disabled={busy || !!error} className="flex-1 rounded bg-gold-400 py-1.5 font-mono text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60">{busy ? "Saving..." : "Start copying"}</button>
         <button onClick={onCancel} disabled={busy} className="rounded border border-edge px-3 py-1.5 font-mono text-[11px] text-dim disabled:opacity-60">cancel</button>
       </div>
-      {error && <p className="mt-2 font-mono text-[10px] text-hotpink">{error}</p>}
+      {error && <p className="mt-2 font-mono text-[10px] text-danger">{error}</p>}
     </div>
   );
 }
@@ -172,7 +172,7 @@ export default function TrackerBody() {
   return (
     <>
       <h1 className="flex items-center gap-2 text-2xl font-bold">Wallet Tracker
-        <span className="rounded-full border border-toxic/40 px-2 py-0.5 font-mono text-[10px] text-toxic">LIVE</span>
+        <span className="rounded-full border border-gold-400/40 px-2 py-0.5 font-mono text-[10px] text-gold-400">LIVE</span>
       </h1>
       <p className="mt-1 text-sm text-dim">Real on-chain smart-money discovery, plus any wallet you want to follow — priced live.</p>
 
@@ -181,7 +181,7 @@ export default function TrackerBody() {
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
           <p className="text-sm font-bold text-dim">Connect your wallet to track wallets</p>
           <p className="mt-1 max-w-md font-mono text-[11px] text-dim/70">Sign in to see the smart-money leaderboard, follow any wallet, and review the current copy-execution status.</p>
-          <button onClick={login} className="mt-4 rounded-md bg-toxic px-6 py-2.5 text-sm font-bold text-white shadow-toxic">Connect wallet</button>
+          <button onClick={login} className="mt-4 rounded-md bg-gold-400 px-6 py-2.5 text-sm font-bold text-white shadow-gold">Connect wallet</button>
         </div>
       ) : !balanceChecked ? (
         <div className="mt-6 grid place-items-center rounded-lg border border-edge bg-panel/40 py-12 text-center">
@@ -190,17 +190,17 @@ export default function TrackerBody() {
       ) : (
         <>
           {!canCopy && (
-            <div className="mt-6 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
+            <div className="mt-6 rounded-lg border border-danger/40 bg-danger/5 px-4 py-3">
               <p className="text-sm font-bold text-ink">Tracking is available. Add SOL before enabling copy trades.</p>
               <p className="mt-1 font-mono text-[11px] text-dim">Current wallet balance: {balance?.toFixed(3) ?? "0"} SOL. Copy trades use real funds and will stay locked until the wallet is funded.</p>
-              <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-white shadow-toxic">Go to Wallet</Link>
+              <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-gold-400 px-4 py-2 text-xs font-bold text-white shadow-gold">Go to Wallet</Link>
             </div>
           )}
           {canCopy && !canAutomate && (
-            <div className="mt-6 rounded-lg border border-hotpink/40 bg-hotpink/5 px-4 py-3">
+            <div className="mt-6 rounded-lg border border-danger/40 bg-danger/5 px-4 py-3">
               <p className="text-sm font-bold text-ink">{automation.copyLive ? "Delegated access is required for wallet copy." : "Wallet-copy execution is paused."}</p>
               <p className="mt-1 font-mono text-[11px] text-dim">{automation.copyLive ? "Open Wallet to manage delegated access and application-level spend limits." : "Tracking remains live. Copy execution stays unavailable until durable transaction-cursor checks pass."}</p>
-              {automation.copyLive && <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-toxic px-4 py-2 text-xs font-bold text-[#17110c] shadow-toxic">Open Wallet</Link>}
+              {automation.copyLive && <Link href="/wallet" className="mt-3 inline-flex rounded-md bg-gold-400 px-4 py-2 text-xs font-bold text-[#17110c] shadow-gold">Open Wallet</Link>}
             </div>
           )}
 
@@ -208,7 +208,7 @@ export default function TrackerBody() {
           <div className="mt-6">
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-lg font-bold">Smart Money
-                <span className="rounded-full border border-cyber/40 px-2 py-0.5 font-mono text-[10px] text-cyber">real on-chain</span>
+                <span className="rounded-full border border-info/40 px-2 py-0.5 font-mono text-[10px] text-info">real on-chain</span>
               </h2>
             </div>
             <p className="mt-1 font-mono text-[11px] text-dim">
@@ -223,8 +223,8 @@ export default function TrackerBody() {
                 {smart.map((s) => (
                   <div key={s.address} className="gradient-border rounded-lg border border-edge p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <a href={`https://solscan.io/account/${s.address}`} target="_blank" rel="noreferrer" className="font-mono text-xs text-dim hover:text-cyber">{short(s.address)}</a>
-                      <span className="rounded-full bg-toxic/15 px-2 py-0.5 font-mono text-[10px] font-bold text-toxic">{s.bestMultiple.toFixed(1)}x best</span>
+                      <a href={`https://solscan.io/account/${s.address}`} target="_blank" rel="noreferrer" className="font-mono text-xs text-dim hover:text-info">{short(s.address)}</a>
+                      <span className="rounded-full bg-gold-400/15 px-2 py-0.5 font-mono text-[10px] font-bold text-gold-400">{s.bestMultiple.toFixed(1)}x best</span>
                     </div>
                     <p className="mt-1 font-mono text-[10px] text-dim">{s.catchCount} early {s.catchCount === 1 ? "catch" : "catches"} · {s.catches.map((c) => c.symbol).join(", ")}</p>
                     {copyFor === s.address ? (
@@ -232,9 +232,9 @@ export default function TrackerBody() {
                     ) : (
                       <div className="mt-2 flex items-center gap-2">
                         {isCopied(s.address) ? (
-                          <button onClick={() => disableCopy(s.address)} disabled={copyBusy === s.address} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10 disabled:opacity-60">{copyBusy === s.address ? "Stopping..." : "● Copying · stop"}</button>
+                          <button onClick={() => disableCopy(s.address)} disabled={copyBusy === s.address} className="rounded-md border border-gold-400/50 px-3 py-1 font-mono text-[11px] font-bold text-gold-400 hover:bg-gold-400/10 disabled:opacity-60">{copyBusy === s.address ? "Stopping..." : "● Copying · stop"}</button>
                         ) : (
-                          <button onClick={() => openCopy(s.address)} disabled={!automation.copyLive} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30 disabled:cursor-not-allowed disabled:opacity-50">{automation.copyLive ? "Copy trades" : "Copy paused"}</button>
+                          <button onClick={() => openCopy(s.address)} disabled={!automation.copyLive} className="rounded-md bg-info/20 px-3 py-1 font-mono text-[11px] font-bold text-info hover:bg-info/30 disabled:cursor-not-allowed disabled:opacity-50">{automation.copyLive ? "Copy trades" : "Copy paused"}</button>
                         )}
                         <button onClick={() => add(s.address, s.catches[0]?.symbol)} className="font-mono text-[11px] text-dim hover:text-ink">+ track</button>
                       </div>
@@ -250,10 +250,10 @@ export default function TrackerBody() {
             <h2 className="text-lg font-bold">Your tracked wallets</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <input value={addr} onChange={(e) => setAddr(e.target.value)} placeholder="Wallet address to track"
-                className="flex-1 min-w-[240px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
+                className="flex-1 min-w-[240px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
               <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (optional)"
-                className="w-40 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-toxic" />
-              <button onClick={() => add(addr, label)} className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic">+ Track</button>
+                className="w-40 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+              <button onClick={() => add(addr, label)} className="rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-white shadow-gold">+ Track</button>
             </div>
 
             {!wallets.length && (
@@ -273,10 +273,10 @@ export default function TrackerBody() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-bold">{w.label}</p>
-                        <a href={`https://solscan.io/account/${w.address}`} target="_blank" rel="noreferrer" className="truncate font-mono text-[11px] text-dim hover:text-cyber">{w.address.slice(0, 8)}…{w.address.slice(-6)}</a>
+                        <a href={`https://solscan.io/account/${w.address}`} target="_blank" rel="noreferrer" className="truncate font-mono text-[11px] text-dim hover:text-info">{w.address.slice(0, 8)}…{w.address.slice(-6)}</a>
                       </div>
                       <div className="text-right">
-                        <p className="font-mono text-lg font-bold text-toxic">{pf ? fmtUsd(pf.totalUsd) : busy ? "…" : "—"}</p>
+                        <p className="font-mono text-lg font-bold text-gold-400">{pf ? fmtUsd(pf.totalUsd) : busy ? "…" : "—"}</p>
                         <p className="font-mono text-[10px] text-dim">{pf ? `${pf.sol.toFixed(2)} SOL · ${pf.count} tokens` : ""}</p>
                       </div>
                     </div>
@@ -287,9 +287,9 @@ export default function TrackerBody() {
                           <div key={p.mint} className="flex items-center gap-2 font-mono text-xs">
                             {p.image ? <img src={p.image} alt="" className="h-5 w-5 rounded-full" /> : <div className="grid h-5 w-5 place-items-center rounded-full bg-edge text-[8px]">{(p.symbol ?? "?").slice(0, 2)}</div>}
                             <span className="w-16 truncate font-bold">{p.symbol ?? p.mint.slice(0, 4)}</span>
-                            <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
+                            <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-danger"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
                             <span className="flex-1 text-right text-dim">{fmtUsd(p.valueUsd)}</span>
-                            <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-ink" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}><ArrowUpRight size={13} /></Link>
+                            <Link href={`/terminal?mint=${p.mint}`} className="text-info hover:text-ink" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}><ArrowUpRight size={13} /></Link>
                           </div>
                         ))}
                       </div>
@@ -304,11 +304,11 @@ export default function TrackerBody() {
                     ) : (
                       <div className="mt-3 flex items-center gap-3">
                         {isCopied(w.address) ? (
-                          <button onClick={() => disableCopy(w.address)} disabled={copyBusy === w.address} className="rounded-md border border-toxic/50 px-3 py-1 font-mono text-[11px] font-bold text-toxic hover:bg-toxic/10 disabled:opacity-60">{copyBusy === w.address ? "Stopping..." : "● Copying · stop"}</button>
+                          <button onClick={() => disableCopy(w.address)} disabled={copyBusy === w.address} className="rounded-md border border-gold-400/50 px-3 py-1 font-mono text-[11px] font-bold text-gold-400 hover:bg-gold-400/10 disabled:opacity-60">{copyBusy === w.address ? "Stopping..." : "● Copying · stop"}</button>
                         ) : (
-                          <button onClick={() => openCopy(w.address)} disabled={!automation.copyLive} className="rounded-md bg-cyber/20 px-3 py-1 font-mono text-[11px] font-bold text-cyber hover:bg-cyber/30 disabled:cursor-not-allowed disabled:opacity-50">{automation.copyLive ? "Copy trades" : "Copy paused"}</button>
+                          <button onClick={() => openCopy(w.address)} disabled={!automation.copyLive} className="rounded-md bg-info/20 px-3 py-1 font-mono text-[11px] font-bold text-info hover:bg-info/30 disabled:cursor-not-allowed disabled:opacity-50">{automation.copyLive ? "Copy trades" : "Copy paused"}</button>
                         )}
-                        <button onClick={() => remove(w.address)} disabled={copyBusy === w.address} className="font-mono text-[11px] text-hotpink hover:underline disabled:opacity-60">{isCopied(w.address) ? "stop & remove" : "remove"}</button>
+                        <button onClick={() => remove(w.address)} disabled={copyBusy === w.address} className="font-mono text-[11px] text-danger hover:underline disabled:opacity-60">{isCopied(w.address) ? "stop & remove" : "remove"}</button>
                       </div>
                     )}
                   </div>

@@ -24,10 +24,10 @@ export default function Home() {
             ].map(([Icon, title, copy, href]) => {
               const FeatureIcon = Icon as typeof Bot;
               return <Link key={title as string} href={href as string} className="group px-5 py-8 first:pl-0 last:pr-0">
-                <FeatureIcon aria-hidden="true" size={19} className="text-toxic" />
+                <FeatureIcon aria-hidden="true" size={19} className="text-gold-400" />
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <h2 className="text-sm font-semibold text-ink">{title as string}</h2>
-                  <ArrowUpRight aria-hidden="true" size={15} className="text-dim transition group-hover:text-toxic" />
+                  <ArrowUpRight aria-hidden="true" size={15} className="text-dim transition group-hover:text-gold-400" />
                 </div>
                 <p className="mt-2 text-sm leading-6 text-dim">{copy as string}</p>
               </Link>;
@@ -36,10 +36,10 @@ export default function Home() {
         </section>
         <section className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
           <div>
-            <p className="font-mono text-[11px] uppercase text-toxic">Automation with evidence</p>
+            <p className="font-mono text-[11px] uppercase text-gold-400">Automation with evidence</p>
             <h2 className="mt-4 max-w-lg text-3xl font-semibold leading-tight text-ink md:text-4xl">Every signal passes through the same risk and capital controls.</h2>
             <p className="mt-5 max-w-xl text-base leading-7 text-dim">Source performance, scanner evidence, immutable bot versions, route estimates, and portfolio history stay connected. Missing market evidence rejects entries instead of guessing.</p>
-            <Link href="/bots" className="mt-8 inline-flex rounded-md bg-toxic px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Configure a bot</Link>
+            <Link href="/bots" className="mt-8 inline-flex rounded-md bg-gold-400 px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Configure a bot</Link>
           </div>
           <div className="border border-edge bg-panel p-6">
             <div className="flex items-center gap-3 border-b border-edge pb-4"><ShieldCheck className="text-up" size={20} /><div><p className="text-sm font-semibold">Bounded automation</p><p className="text-xs text-dim">Every bot runs inside the limits you set, and every action is recorded.</p></div></div>

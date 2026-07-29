@@ -42,7 +42,7 @@ export default function DiscordSourceDetailsPage() {
         actions={
           <>
             <Link href="/bots/discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>
-            {source && <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]"><Bot size={15} /> Configure bot</Link>}
+            {source && <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><Bot size={15} /> Configure bot</Link>}
           </>
         }
       />
@@ -81,7 +81,7 @@ export default function DiscordSourceDetailsPage() {
               <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-4">
                 {[
                   ["Below +50%", source.under50, "text-down"],
-                  ["Reached +50%", source.plus50, "text-toxic"],
+                  ["Reached +50%", source.plus50, "text-gold-400"],
                   ["Reached 2x", source.twoX, "text-up"],
                   ["Reached 5x+", source.fiveX, "text-up"]
                 ].map(([label, value, tone]) => <div key={label as string} className="bg-void p-5"><p className={`font-mono text-2xl font-semibold ${tone}`}>{value}</p><p className="mt-2 text-xs text-dim">{label}</p></div>)}
@@ -98,13 +98,13 @@ export default function DiscordSourceDetailsPage() {
           </div>
 
           <aside className="h-fit rounded-md border border-edge bg-panel xl:sticky xl:top-24">
-            <header className="border-b border-edge p-5"><p className="font-mono text-[9px] uppercase text-toxic">Source integrity</p><h2 className="mt-2 text-base font-semibold text-ink">Execution eligibility</h2></header>
+            <header className="border-b border-edge p-5"><p className="font-mono text-[9px] uppercase text-gold-400">Source integrity</p><h2 className="mt-2 text-base font-semibold text-ink">Execution eligibility</h2></header>
             <div className="space-y-4 p-5">
               <div className="flex gap-3"><BadgeCheck className="shrink-0 text-up" size={17} /><div><p className="text-xs font-semibold text-ink">Admin approved</p><p className="mt-1 text-[11px] leading-5 text-dim">Signals still pass parser, token, route, and user filter checks.</p></div></div>
               <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Last signal</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.lastSignalAt)}</p></div></div>
               <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Profile synchronization</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.profileSyncedAt)} · {source.integrationHealth}</p></div></div>
               <div className="rounded-md border border-edge bg-void p-3"><p className="font-mono text-[9px] uppercase text-dim">Minimum history</p><p className="mt-2 text-xs text-ink">{source.measuredCalls >= 5 ? "Measured sample is available." : `Tracking — ${source.measuredCalls} of 5 calls measured so far.`}</p></div>
-              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">Use this source</Link>
+              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Use this source</Link>
             </div>
           </aside>
         </div>

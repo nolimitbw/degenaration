@@ -84,15 +84,15 @@ export default function DiscordMarketplacePage() {
         description="Approved call communities with measured on-chain performance."
         actions={
           <>
-            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-toxic/40 px-4 text-sm font-semibold text-toxic transition hover:bg-toxic/10">
+            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gold-400/40 px-4 text-sm font-semibold text-gold-400 transition hover:bg-gold-400/10">
               <Bot aria-hidden="true" size={16} />
               Add bot to server
             </a>
-            <Link href="/affiliate?tab=discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
+            <Link href="/affiliate?tab=discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
               <Users aria-hidden="true" size={16} />
               List a server
             </Link>
-            <Link href="/bots/discord/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
+            <Link href="/bots/discord/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
               <Plus aria-hidden="true" size={16} />
               New Discord bot
             </Link>
@@ -108,7 +108,7 @@ export default function DiscordMarketplacePage() {
           onChange={setPeriod}
           options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]}
         />
-        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-toxic">
+        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
           <input
             value={query}

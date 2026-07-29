@@ -80,7 +80,7 @@ function ActionButton({
     ? "border-up/45 text-up hover:bg-up/10"
     : tone === "negative"
       ? "border-down/45 text-down hover:bg-down/10"
-      : "border-edge text-dim hover:border-toxic/50 hover:text-ink";
+      : "border-edge text-dim hover:border-gold-400/50 hover:text-ink";
   return (
     <button type="button" onClick={onClick} className={`min-h-9 rounded-md border px-3 text-xs font-semibold transition ${color}`}>
       {children}
@@ -98,7 +98,7 @@ function Overview({ data }: { data: AdminData }) {
         { label: "Users", value: product.users || 0 },
         { label: "Active bots", value: product.activeBots || 0, tone: "text-up" },
         { label: "Open positions", value: product.openPositions || 0 },
-        { label: "Pending reviews", value: Number(data.summary.pendingChannels || 0) + Number(product.pendingKolStrategies || 0) + Number(product.pendingPayouts || 0), tone: "text-toxic" }
+        { label: "Pending reviews", value: Number(data.summary.pendingChannels || 0) + Number(product.pendingKolStrategies || 0) + Number(product.pendingPayouts || 0), tone: "text-gold-400" }
       ]} />
       <div className="grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <section>
@@ -117,7 +117,7 @@ function Overview({ data }: { data: AdminData }) {
                   <p className="text-xs font-medium text-ink">{label}</p>
                   <p className="mt-0.5 text-[11px] text-dim">{detail}</p>
                 </div>
-                <span className={`font-mono text-sm ${Number(value) > 0 ? "text-toxic" : "text-dim"}`}>{value}</span>
+                <span className={`font-mono text-sm ${Number(value) > 0 ? "text-gold-400" : "text-dim"}`}>{value}</span>
               </div>
             ))}
           </div>
@@ -272,7 +272,7 @@ function Discord({ data, act }: { data: AdminData; act: (action: AdminAction) =>
   return (
     <div className="space-y-7">
       <MetricStrip items={[
-        { label: "Pending /register", value: pending, tone: pending ? "text-toxic" : "text-ink" },
+        { label: "Pending /register", value: pending, tone: pending ? "text-gold-400" : "text-ink" },
         { label: "Approved channels", value: data.channels.filter((item) => item.status === "approved").length, tone: "text-up" },
         { label: "Server applications", value: data.applications.length },
         {
@@ -458,11 +458,11 @@ function Referrals({ data }: { data: AdminData }) {
       <MetricStrip items={[
         { label: "Attributions", value: data.referrals.length },
         { label: "Qualified users", value: qualifiedCount, tone: "text-up" },
-        { label: "Needs review", value: reviewCount, tone: reviewCount ? "text-toxic" : "text-ink" },
+        { label: "Needs review", value: reviewCount, tone: reviewCount ? "text-gold-400" : "text-ink" },
         { label: "Open abuse flags", value: openFlags, tone: openFlags ? "text-down" : "text-up" }
       ]} />
-      <div className="rounded-md border border-toxic/35 bg-toxic/5 px-4 py-3">
-        <p className="text-xs font-semibold text-toxic">Referral rewards are not enabled</p>
+      <div className="rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3">
+        <p className="text-xs font-semibold text-gold-400">Referral rewards are not enabled</p>
         <p className="mt-1 text-xs leading-5 text-dim">
           Attribution and qualifying activity are recorded, but no monetary reward accrues until an audited reward policy is approved and enabled.
         </p>
@@ -515,8 +515,8 @@ function Payouts({ data, act }: { data: AdminData; act: (action: AdminAction) =>
   });
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-toxic/35 bg-toxic/5 px-4 py-3">
-        <p className="text-xs font-semibold text-toxic">Payout execution is disabled</p>
+      <div className="rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3">
+        <p className="text-xs font-semibold text-gold-400">Payout execution is disabled</p>
         <p className="mt-1 text-xs leading-5 text-dim">Review and approval are ledger state changes only. No wallet signing or transfer action is exposed here.</p>
       </div>
       <section>
@@ -534,7 +534,7 @@ function Payouts({ data, act }: { data: AdminData; act: (action: AdminAction) =>
                 </div>
                 <div className="font-mono text-[10px] text-dim">
                   <p>Gross <span className="float-right text-ink">{formatSol(payout.grossLamports)}</span></p>
-                  <p className="mt-1">Fee <span className="float-right text-toxic">{formatSol(payout.processingFeeLamports)}</span></p>
+                  <p className="mt-1">Fee <span className="float-right text-gold-400">{formatSol(payout.processingFeeLamports)}</span></p>
                 </div>
                 <div className="font-mono text-[10px] text-dim">
                   <p>Net <span className="float-right text-up">{formatSol(payout.netLamports)}</span></p>
@@ -565,8 +565,8 @@ function Operations({ data }: { data: AdminData }) {
       <MetricStrip items={[
         { label: "Scanner tokens", value: scanner.tokenCount || 0 },
         { label: "Scanner pools", value: scanner.poolCount || 0 },
-        { label: "Unsupported pools", value: scanner.unsupportedPools || 0, tone: Number(scanner.unsupportedPools || 0) ? "text-toxic" : "text-ink" },
-        { label: "Quarantined signals (24h)", value: scanner.quarantinedSignals24h || 0, tone: Number(scanner.quarantinedSignals24h || 0) ? "text-toxic" : "text-ink" }
+        { label: "Unsupported pools", value: scanner.unsupportedPools || 0, tone: Number(scanner.unsupportedPools || 0) ? "text-gold-400" : "text-ink" },
+        { label: "Quarantined signals (24h)", value: scanner.quarantinedSignals24h || 0, tone: Number(scanner.quarantinedSignals24h || 0) ? "text-gold-400" : "text-ink" }
       ]} />
       <section>
         <SectionTitle title="Scanner freshness" detail={scanner.status || (scanner.ok ? "healthy" : "not reporting")} />
@@ -577,7 +577,7 @@ function Operations({ data }: { data: AdminData }) {
             <p className="mt-2 text-sm text-ink">{formatDate(scanner.latestMarketSnapshotAt)}</p>
           </div>
           <div className="rounded-md border border-edge bg-panel p-4">
-            <ShieldAlert size={17} className="text-toxic" />
+            <ShieldAlert size={17} className="text-gold-400" />
             <p className="mt-4 font-mono text-[9px] uppercase text-dim">Latest risk snapshot</p>
             <p className="mt-2 text-sm text-ink">{formatDate(scanner.latestRiskSnapshotAt)}</p>
           </div>

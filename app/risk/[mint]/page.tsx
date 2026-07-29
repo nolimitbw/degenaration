@@ -19,7 +19,7 @@ export default async function TokenRiskPage({ params }: Props) {
     <AppShell>
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center gap-3">
-          <ShieldCheck aria-hidden="true" className="text-toxic" />
+          <ShieldCheck aria-hidden="true" className="text-gold-400" />
           <div><h1 className="text-2xl font-bold">Token risk report</h1><p className="mt-1 break-all font-mono text-[11px] text-dim">{mint}</p></div>
         </div>
         <div className="mt-6"><RiskReport mint={mint} /></div>

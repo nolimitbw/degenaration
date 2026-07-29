@@ -106,14 +106,14 @@ export default function Commissions() {
         <button
           onClick={load}
           disabled={!admin || busy}
-          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic disabled:opacity-50"
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-gold-400 disabled:opacity-50"
         >
           Refresh
         </button>
-        <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
+        <span className={`font-mono text-[11px] ${loaded ? "text-gold-400" : "text-dim"}`}>
           {loaded ? "owner data loaded" : "loading owner data"}
         </span>
-        <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">
+        <span className="rounded border border-gold-400/40 bg-gold-400/10 px-2 py-1 font-mono text-[10px] text-gold-400">
           {COMMISSIONS_UI_VERSION}
         </span>
         {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
@@ -122,7 +122,7 @@ export default function Commissions() {
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">Total commissions earned</p>
-          <p className="mt-2 font-mono text-2xl font-bold text-toxic">{totals.totalSol.toFixed(3)} SOL</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-gold-400">{totals.totalSol.toFixed(3)} SOL</p>
           <p className="mt-1 font-mono text-[11px] text-dim">{totals.count} trades</p>
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -138,12 +138,12 @@ export default function Commissions() {
       </div>
 
       {!fee.feeWalletConfigured && (
-        <p className="mt-6 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
+        <p className="mt-6 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">
           Fees are currently disabled in production because server PLATFORM_FEE_ACCOUNT is not set. Set PLATFORM_FEE_ACCOUNT to the fee wallet to enable commission accrual.
         </p>
       )}
       {fee.feeWalletConfigured && !fee.withdrawalsConfigured && (
-        <p className="mt-6 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
+        <p className="mt-6 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">
           Commission tracking is enabled, but withdrawals are disabled until ADMIN_WALLETS or PLATFORM_FEE_ACCOUNT is available server-side.
         </p>
       )}
@@ -154,17 +154,17 @@ export default function Commissions() {
         <label className="mt-4 block">
           <span className="font-mono text-[11px] uppercase text-dim">Destination address</span>
           <input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="Your Solana address"
-            className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-toxic" />
-          {dest && !validDest && <span className="mt-1 block font-mono text-[10px] text-hotpink">Paste a valid Solana address.</span>}
+            className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-gold-400" />
+          {dest && !validDest && <span className="mt-1 block font-mono text-[10px] text-danger">Paste a valid Solana address.</span>}
         </label>
         <label className="mt-3 block">
           <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
           <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(+e.target.value)}
-            className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-toxic" />
-          {amount > 0 && !validAmount && <span className="mt-1 block font-mono text-[10px] text-hotpink">{!balanceLoaded ? "Wait for the fee wallet balance first." : "Use an amount below the fee wallet balance and at most 10,000 SOL."}</span>}
+            className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-gold-400" />
+          {amount > 0 && !validAmount && <span className="mt-1 block font-mono text-[10px] text-danger">{!balanceLoaded ? "Wait for the fee wallet balance first." : "Use an amount below the fee wallet balance and at most 10,000 SOL."}</span>}
         </label>
         <button onClick={withdraw} disabled={!canWithdraw}
-          className="mt-5 w-full rounded-md bg-toxic py-3 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+          className="mt-5 w-full rounded-md bg-gold-400 py-3 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">
           {busy ? "Signing…" : !fee.feeWalletConfigured ? "Fee wallet not configured" : !fee.withdrawalsConfigured ? "Withdrawals disabled" : !balanceLoaded ? "Loading fee wallet" : "Withdraw to my wallet"}
         </button>
         {status && <p className="mt-3 break-all font-mono text-[11px] text-dim">{status}</p>}

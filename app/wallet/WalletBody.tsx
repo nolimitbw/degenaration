@@ -66,7 +66,7 @@ export default function WalletBody() {
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <h1 className="text-xl font-bold">Connect your wallet</h1>
         <p className="mt-2 text-sm text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
-        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-[#17110c] shadow-toxic transition hover:brightness-110">Connect wallet</button>
+        <button onClick={login} className="mt-6 w-full rounded-md bg-gold-400 py-3 font-bold text-[#17110c] shadow-gold transition hover:brightness-110">Connect wallet</button>
         <p className="mt-3 font-mono text-[11px] text-dim">Wallet keys remain with your wallet provider. Delegated access is optional and revocable.</p>
       </div>
     );
@@ -88,10 +88,10 @@ export default function WalletBody() {
               <p className="font-mono text-[11px] uppercase text-dim">Your deposit address</p>
               <div className="mt-1 flex items-center gap-2">
                 <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">{address}</code>
-                <button onClick={copy} className="rounded-md bg-toxic px-3 py-2 text-xs font-bold text-white">{copied ? <Check size={14} aria-label="Copied" /> : "Copy"}</button>
+                <button onClick={copy} className="rounded-md bg-gold-400 px-3 py-2 text-xs font-bold text-white">{copied ? <Check size={14} aria-label="Copied" /> : "Copy"}</button>
               </div>
             </div>
-            <p className="w-full rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-center font-mono text-[11px] text-hotpink">Send only mainnet SOL. Transfers are irreversible.</p>
+            <p className="w-full rounded-md border border-danger/40 bg-danger/5 px-3 py-2 text-center font-mono text-[11px] text-danger">Send only mainnet SOL. Transfers are irreversible.</p>
           </div>
         </div>
 
@@ -104,7 +104,7 @@ export default function WalletBody() {
                 <p className="mt-1 font-mono text-xs text-dim">{balanceError ? balanceError : "mainnet"}</p>
               </div>
               <button onClick={loadBalance} disabled={balanceLoading}
-                className="rounded-md border border-edge px-3 py-1.5 font-mono text-[11px] font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">
+                className="rounded-md border border-edge px-3 py-1.5 font-mono text-[11px] font-bold text-dim transition hover:border-gold-400 hover:text-gold-400 disabled:opacity-50">
                 {balanceLoading ? "Checking" : "Refresh"}
               </button>
             </div>
@@ -114,13 +114,13 @@ export default function WalletBody() {
             <p className="mt-1 text-xs text-dim">These caps apply to every automated trade.</p>
             <label className="mt-4 block">
               <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
-              <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-toxic" />
+              <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-gold-400" />
             </label>
             <label className="mt-4 block">
               <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Daily spend cap</span><span className="text-ink">{dailyCap} SOL</span></span>
-              <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-toxic" />
+              <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-gold-400" />
             </label>
-            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110">{savedLimits ? <span className="inline-flex items-center justify-center gap-2"><Check size={14} aria-hidden="true" /> Saved</span> : "Save limits"}</button>
+            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110">{savedLimits ? <span className="inline-flex items-center justify-center gap-2"><Check size={14} aria-hidden="true" /> Saved</span> : "Save limits"}</button>
             <p className="mt-3 font-mono text-[11px] text-dim">Limits are application controls. Manage the separate Privy delegation below.</p>
           </div>
           <AutoTrade />
