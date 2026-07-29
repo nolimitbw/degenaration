@@ -87,8 +87,8 @@ export default async function SourceProfile({ params }: Props) {
           </p>
         </section>
 
-        <section className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div>
+        <section className="mt-7 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
             <h2 className="text-sm font-bold">Latest calls</h2>
             <div className="mt-3 overflow-x-auto rounded-md border border-edge">
               {source.recentCalls.length ? (
