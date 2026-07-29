@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, BadgeCheck, Bot, RadioTower } from "lucide-react";
 import AppShell from "@/components/AppShell";
-import { DiscordSourceAvatar, DiscordSourceBanner } from "@/components/product/DiscordSourceVisual";
+import { DiscordSourceAvatar } from "@/components/product/DiscordSourceVisual";
 import { EmptyState, Metric, PageHeader, ProductTabs, Segmented, StatusPill } from "@/components/product/Primitives";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
 import { safeDiscordInvite } from "@/lib/external-url";
@@ -53,7 +53,6 @@ export default function DiscordSourceDetailsPage() {
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
-              <DiscordSourceBanner source={source} />
               <header className="flex flex-wrap items-start gap-4 border-b border-edge p-5">
                 <DiscordSourceAvatar source={source} size="lg" />
                 <div className="min-w-0 flex-1">

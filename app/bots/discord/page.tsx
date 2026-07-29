@@ -22,7 +22,7 @@ import {
   Segmented,
   StatusPill
 } from "@/components/product/Primitives";
-import { DiscordSourceAvatar, DiscordSourceBanner } from "@/components/product/DiscordSourceVisual";
+import { DiscordSourceAvatar, IntegrationHealthDot } from "@/components/product/DiscordSourceVisual";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
 import { safeDiscordBotInstall, safeDiscordInvite } from "@/lib/external-url";
 
@@ -80,9 +80,8 @@ export default function DiscordMarketplacePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / Discord"
-        title="Approved Discord sources"
-        description="Measured community calls, transparent sample sizes, and configurable execution controls. Only approved channels can produce eligible signals."
+        title="Discord Sources"
+        description="Approved call communities with measured on-chain performance."
         actions={
           <>
             <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-toxic/40 px-4 text-sm font-semibold text-toxic transition hover:bg-toxic/10">
@@ -161,19 +160,17 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
   const joinUrl = safeDiscordInvite(source.joinUrl);
   return (
     <article className="overflow-hidden rounded-md border border-edge bg-panel">
-      <DiscordSourceBanner source={source} compact />
       <header className="flex items-start gap-4 border-b border-edge p-5">
         <DiscordSourceAvatar source={source} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate text-base font-semibold text-ink">{source.name}</h2>
             <StatusPill status={source.verificationStatus || "approved"} />
-            <StatusPill status={source.integrationHealth || "pending"} />
+            <IntegrationHealthDot status={source.integrationHealth} />
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-dim">
-            <span>{source.members || "Member count unavailable"}</span>
+            {source.members && <span>{source.members}</span>}
             <span>{source.activeFollowers} active followers</span>
-            <span>{formatPercentBps(source.creatorFeeBps)} creator fee</span>
           </p>
           <p className="mt-2 line-clamp-2 text-xs leading-5 text-dim">{source.description}</p>
         </div>
@@ -196,7 +193,7 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         <div className="grid grid-cols-4 gap-2">
           {[
             ["<50%", source.under50, "text-down"],
-            ["+50%", source.plus50, "text-toxic"],
+            ["+50%", source.plus50, "text-gold-300"],
             ["2x", source.twoX, "text-up"],
             ["5x+", source.fiveX, "text-up"]
           ].map(([label, value, tone]) => (
@@ -206,15 +203,30 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
             </div>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className={`text-xs font-medium ${measured ? "text-ink" : "text-toxic"}`}>{measured ? "Measured history available" : "Insufficient measured history"}</p>
-            <p className="mt-1 font-mono text-[9px] text-dim">Last signal: {formatWhen(source.lastSignalAt)}</p>
-            <p className="mt-1 font-mono text-[9px] text-dim">Profile sync: {formatWhen(source.profileSyncedAt)}</p>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-edge pt-4">
+          <div className="min-w-0">
+            {/* An unmeasured source states when tracking began, rather than repeating a
+                large "Insufficient measured history" error block on every card (§6.2). */}
+            {measured ? (
+              <p className="font-mono text-[10px] text-dim">Last call {formatWhen(source.lastSignalAt)}</p>
+            ) : (
+              <p
+                className="font-mono text-[10px] text-dim"
+                title="Performance appears after eligible calls receive enough market data."
+              >
+                Tracking started {formatWhen(source.approvedAt)}
+              </p>
+            )}
+            <p
+              className="mt-1 font-mono text-[10px] text-dim"
+              title={`The creator receives ${formatPercentBps(source.creatorFeeBps)} of executed notional, paid out of the 2.00% platform fee. You are not charged extra.`}
+            >
+              Creator share included in 2% fee
+            </p>
           </div>
-          <div className="flex gap-2">
-            <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink hover:border-toxic/60">Details</Link>
-            <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c]">Configure bot</Link>
+          <div className="flex shrink-0 gap-2">
+            <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink hover:border-gold-400/60">Details</Link>
+            <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c]">Configure bot</Link>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BadgeCheck, BarChart3, ExternalLink, MessageCircle, RadioTower, ShieldCheck } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import CopyReferralLink from "@/components/CopyReferralLink";
-import { DiscordSourceAvatar, DiscordSourceBanner } from "@/components/product/DiscordSourceVisual";
+import { DiscordSourceAvatar, IntegrationHealthDot } from "@/components/product/DiscordSourceVisual";
 import { StatusPill } from "@/components/product/Primitives";
 import { getPublicSource } from "@/lib/publicSource";
 
@@ -37,7 +37,6 @@ export default async function SourceProfile({ params }: Props) {
     <AppShell>
       <div className="mx-auto max-w-6xl">
         <section className="overflow-hidden rounded-md border border-edge bg-panel">
-          <DiscordSourceBanner source={source} />
           <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-4">
               <DiscordSourceAvatar source={source} size="lg" />
@@ -45,7 +44,7 @@ export default async function SourceProfile({ params }: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="truncate text-2xl font-bold sm:text-3xl">{source.name}</h1>
                   <BadgeCheck aria-label="Approved source" size={19} className="text-toxic" />
-                  <StatusPill status={source.integrationHealth} />
+                  <IntegrationHealthDot status={source.integrationHealth} />
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-dim">
                   <span>{source.members ? `${source.members} members` : "Member count pending"}</span>
