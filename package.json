@@ -11,7 +11,8 @@
     "verify:fee-ledger": "node scripts/verify-fee-ledger.mjs",
     "check:discord-commands": "node scripts/check-discord-commands.mjs",
     "check:visible-copy": "node scripts/check-visible-copy.mjs",
-    "check": "npm run typecheck && npm run test && npm run verify:fee-ledger && npm run check:discord-commands && npm run check:visible-copy && npm run build"
+    "verify:performance-journal": "node scripts/verify-performance-journal.mjs",
+    "check": "npm run typecheck && npm run test && npm run verify:fee-ledger && npm run verify:performance-journal && npm run check:discord-commands && npm run check:visible-copy && npm run build"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.35.1",
