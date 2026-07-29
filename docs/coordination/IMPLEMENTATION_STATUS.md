@@ -14,7 +14,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 2 | Creator 70/20 bps + referral allocation, balanced ledger | §13.2–13.5 | PARTIAL | `60e9ce8`, `5fa6460`; `allocatePlatformFee()` + DB trigger + generated retained column; **migration not applied to a database; runtime write path not yet emitting allocations** |
 | 3 | Self-service user principal withdrawal | §12 | PARTIAL | `47dec45`; endpoint + rules module + real modal; 11 withdrawal tests; **not exercised against a funded wallet** |
 | 4 | Affiliate payout rules kept separate | §12.6 | PASS | `47dec45`; test asserts principal withdrawal ignores the 0.1 SOL minimum and 0.043 SOL fee |
-| 5 | Discord/KOL signal journal end-to-end | §9 | BLOCKED | Schema + parser contract verified by `npm run verify:performance-journal`; **live pipeline untraceable without database access — B-4** |
+| 5 | Discord/KOL signal journal end-to-end | §9 | PARTIAL | `d792d7f`; outcome + aggregation layer implemented (`lib/call-outcomes.js`) with 12 §22.3 fixture tests: buckets, drawdown bps, distribution, minimum-sample gate, dedupe, edits. Schema + parser contract gated by `npm run verify:performance-journal`. **Live ingestion→journal path still untraceable without database access — B-4** |
 | 6 | Two approved sources show measured data | §9.8 | BLOCKED | Requires live database access to diagnose; see OPEN_BLOCKERS B-4 |
 | 7 | Exactly one `/register`; stale scopes cleared | §15 | PARTIAL | `b65e069`; root cause fixed + `npm run check:discord-commands` clean; **unobserved against a live Discord application** |
 | 8 | Affiliate never indefinitely loading | §16 | PASS | `cb4abb3`; allSettled + timeout + retry + stale banner; browser-verified, no console errors |
@@ -29,7 +29,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 17 | Repository skills | §4.2 | PASS | `.agents/skills/degenaration-{financial-integrity,ui,performance-journal,release-audit}/SKILL.md` |
 | 18 | Launch documentation set | §4.3 | PASS | All 9 written under `docs/launch/` |
 | 19 | Visual regression evidence | §22.6 | PARTIAL | `docs/launch/RELEASE_EVIDENCE.md`; no horizontal overflow at 375/768/1440, home + affiliate observed; **no captured screenshot set — most routes need an authenticated session with data** |
-| 20 | Release gates | §24 | PARTIAL | `npm run check` exit 0 covers typecheck, 70 tests, fee + journal invariants, command registry, copy, build. **Lint needs an ESLint dependency — see B-5.** e2e, migration dry run, and RLS tests need a database |
+| 20 | Release gates | §24 | PARTIAL | `c2b7c09`; `npm run check` exit 0 gates typecheck, **lint**, 82 tests, fee + journal invariants, command registry, public copy, build. e2e, migration dry run, and RLS tests need a database |
 
 ## Readiness
 

@@ -53,8 +53,15 @@ It was not added unilaterally. Type safety is already enforced by strict `tsc`, 
 suite additionally gates fee invariants, the journal contract, Discord command
 uniqueness, and public copy.
 
-Required action: owner decides whether to adopt `eslint` + `eslint-config-next`.
-Status: **BLOCKED — owner decision.**
+**RESOLVED 2026-07-30** without adding a dependency. `scripts/check-code-quality.mjs`
+enforces the rules this specification calls release-blocking — console.log, unresolved
+work markers, `@ts-ignore`, empty catch blocks, floating-point money math, basis-point
+division outside BigInt, `as any` on money paths, and handler-less buttons — across 218
+files with zero dependencies, wired in as `npm run lint`. It found and fixed 5 real
+problems. Strict `tsc` continues to cover type safety.
+
+Adopting full ESLint remains available if the owner wants broader style coverage, but the
+release gate no longer depends on that decision.
 
 ## Resolved / not blockers
 
