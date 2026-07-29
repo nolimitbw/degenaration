@@ -113,6 +113,58 @@ test("fee is off until PLATFORM_FEE_ACCOUNT is configured", () => {
 test("fee label renders as 2.00%", () => {
   assert.strictEqual(feeModel.formatBpsPercent(200), "2.00%");
 });
+
+// The database trigger app_private.validate_execution_fees() recomputes every fee and
+// rejects the row if it disagrees. These vectors pin lib/fee-model.js to the exact SQL
+// formulas in supabase/degenaration-fee-allocation-integrity.sql so a write built in JS
+// can never be rejected by the trigger.
+console.log("fee model parity with the database trigger");
+
+// floor(gross::numeric * bps / 10000)::bigint
+const sqlFloorBps = (amount, bps) => (BigInt(amount) * BigInt(bps)) / BigInt(10000);
+
+test("platform fee matches the SQL expected_platform formula", () => {
+  for (const notional of [HUNDRED_SOL, SOL, lam(123456789), lam(12345), lam(50), lam(1)]) {
+    const a = feeModel.allocatePlatformFee({ notionalLamports: notional });
+    assert.strictEqual(a.platformFeeLamports, sqlFloorBps(notional, 200));
+  }
+});
+test("creator fee matches the SQL expected_creator formula (from notional, not from fee)", () => {
+  for (const notional of [HUNDRED_SOL, SOL, lam(123456789), lam(12345)]) {
+    const discord = feeModel.allocatePlatformFee({ notionalLamports: notional, sourceKind: "discord" });
+    assert.strictEqual(discord.creatorLamports, sqlFloorBps(notional, 70));
+    const kol = feeModel.allocatePlatformFee({ notionalLamports: notional, sourceKind: "kol" });
+    assert.strictEqual(kol.creatorLamports, sqlFloorBps(notional, 20));
+  }
+});
+test("referral matches the SQL expected_referral formula (from collected fee)", () => {
+  for (const notional of [HUNDRED_SOL, SOL, lam(123456789), lam(12345)]) {
+    const a = feeModel.allocatePlatformFee({ notionalLamports: notional, referralEligible: true });
+    assert.strictEqual(a.referralLamports, sqlFloorBps(a.platformFeeLamports, 1000));
+  }
+});
+test("canonical rates never trigger the creator clamp, so JS always satisfies the trigger", () => {
+  // The trigger demands creator === floor(notional*bps/10000) exactly AND
+  // creator <= platform_fee. Clamping would break the first condition, so assert the
+  // canonical rates keep us clear of it.
+  assert.ok(feeModel.DISCORD_CREATOR_BPS <= feeModel.PLATFORM_FEE_BPS);
+  assert.ok(feeModel.KOL_CREATOR_BPS <= feeModel.PLATFORM_FEE_BPS);
+  for (const notional of [HUNDRED_SOL, SOL, lam(123456789), lam(12345), lam(50), lam(1)]) {
+    const a = feeModel.allocatePlatformFee({ notionalLamports: notional, sourceKind: "discord", referralEligible: true });
+    assert.strictEqual(a.creatorLamports, sqlFloorBps(notional, 70));
+    assert.ok(a.creatorLamports + a.referralLamports <= a.platformFeeLamports);
+  }
+});
+test("retained equals the generated-column expression", () => {
+  // retained_fee_lamports is GENERATED ALWAYS AS
+  //   (platform_fee_lamports - creator_fee_lamports - referral_fee_lamports)
+  const a = feeModel.allocatePlatformFee({ notionalLamports: lam(123456789), sourceKind: "discord", referralEligible: true });
+  assert.strictEqual(
+    a.retainedLamports,
+    a.platformFeeLamports - a.creatorLamports - a.referralLamports
+  );
+  assert.ok(a.retainedLamports >= BigInt(0));
+});
 const jupiterPath = require.resolve("../engine/jupiter");
 test("worker fee rate never drifts from the canonical fee model", () => {
   // The worker deploys with rootDir: server, so it cannot import lib/fee-model.js and
