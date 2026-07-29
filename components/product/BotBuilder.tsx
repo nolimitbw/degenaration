@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
+import { useCreateWallet } from "@privy-io/react-auth/solana";
 import {
   AlertTriangle,
   Bot,
@@ -105,6 +106,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const searchParams = useSearchParams();
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const { createWallet } = useCreateWallet();
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
   const walletId = getSolanaWalletId(user) || "";
@@ -160,12 +162,33 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [filters, setFilters] = useState(defaultFilters);
   const [flags, setFlags] = useState(defaultFlags);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [walletCreating, setWalletCreating] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(Boolean(botId));
   const [confirmStatus, setConfirmStatus] = useState<"draft" | "active" | null>(null);
   const [confirmReviewed, setConfirmReviewed] = useState(false);
+
+  useEffect(() => {
+    if (!securityOpen && !confirmStatus) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeDialog = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setSecurityOpen(false);
+      setConfirmStatus(null);
+      setConfirmReviewed(false);
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeDialog);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeDialog);
+    };
+  }, [confirmStatus, securityOpen]);
 
   useEffect(() => {
     if (kind !== "discord") return;
@@ -270,6 +293,22 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     setPriceDropBps(value.priceDropBps);
     setLookbackMinutes(value.lookbackMinutes);
     setRiskTier(value.riskTier);
+  }
+
+  async function setupWallet() {
+    if (!authenticated) {
+      login();
+      return;
+    }
+    setWalletCreating(true);
+    try {
+      await createWallet();
+      toast("Solana wallet created");
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : "Could not create Solana wallet", "err");
+    } finally {
+      setWalletCreating(false);
+    }
   }
 
   async function runPreview() {
@@ -417,9 +456,14 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
   return (
     <>
-      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0 space-y-5">
-          <FormSection title="Identity and source" description={kind === "discord" ? "Choose one approved call source and optional channel." : "Name the strategy and choose how it will be published."}>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-px overflow-hidden rounded-md border border-edge bg-edge">
+          <FormSection
+            title="Identity and source"
+            description={kind === "discord" ? "Choose the approved community this bot follows." : "Name the strategy and choose its visibility."}
+            summary={kind === "discord" ? source?.name || "Source required" : visibility === "public" ? "Public strategy" : "Private strategy"}
+            defaultOpen
+          >
             <div className="grid gap-4 lg:grid-cols-2">
               <TextField label="Bot name" value={name} onChange={setName} maxLength={80} />
               {kind === "discord" ? (
@@ -428,10 +472,16 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <SelectField label="Visibility" value={visibility} onChange={(value) => setVisibility(value as "private" | "public")} options={[{ value: "private", label: "Private draft" }, { value: "public", label: "Public after review" }]} />
               )}
             </div>
-            <label className="block">
-              <span className="field-label">Description</span>
-              <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={600} rows={3} className="field-control mt-1.5 resize-y px-3 py-2.5" placeholder="Describe the signal logic and intended risk profile." />
-            </label>
+            <details className="group rounded-md border border-edge bg-void">
+              <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3 text-xs font-medium text-ink">
+                Optional description
+                <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
+              </summary>
+              <label className="block border-t border-edge p-3">
+                <span className="sr-only">Description</span>
+                <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={600} rows={3} className="field-control resize-y px-3 py-2.5" placeholder="Describe the signal logic and intended risk profile." />
+              </label>
+            </details>
             {kind === "discord" && (
               <div className="grid gap-4 lg:grid-cols-2">
                 <SelectField
@@ -449,24 +499,51 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             )}
           </FormSection>
 
-          <FormSection title="Funding and exposure" description="Capital limits are checked before every signal claim.">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <FormSection
+            title="Funding and exposure"
+            description="Set the amount per entry and the total capital ceiling."
+            summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
+            defaultOpen
+          >
+            <div className="grid gap-4 md:grid-cols-3">
               <NumberField label="Buy amount" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
               <NumberField label="Maximum capital" value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} />
-              <NumberField label="Daily loss limit" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
-              <NumberField label="Per-token exposure" value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} />
+              <NumberField label="Maximum open trades" value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} />
             </div>
             <div className="flex flex-wrap gap-2">
               {[0.1, 0.5, 1, 5].map((amount) => (
                 <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-9 rounded-md border px-3 font-mono text-xs ${buyAmountSol === amount ? "border-toxic bg-toxic/10 text-toxic" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
               ))}
             </div>
-            <div className="grid gap-4 lg:grid-cols-3">
-              <NumberField label="Maximum open trades" value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} />
+            <details className="group rounded-md border border-edge bg-void">
+              <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
+                <span>
+                  <span className="block text-xs font-medium text-ink">Risk limits</span>
+                  <span className="mt-0.5 block font-mono text-[9px] text-dim">{dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
+                </span>
+                <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
+              </summary>
+              <div className="grid gap-4 border-t border-edge p-3 sm:grid-cols-2">
+                <NumberField label="Daily loss limit" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
+                <NumberField label="Per-token exposure" value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} />
+              </div>
+            </details>
+            <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-md border border-edge bg-void px-4 py-3">
                 <p className="field-label">Execution wallet</p>
                 <p className="mt-2 truncate font-mono text-sm text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</p>
                 <p className={`mt-1 text-[11px] ${delegated ? "text-up" : "text-toxic"}`}>{delegated ? "Delegated execution enabled" : "Delegation required to activate"}</p>
+                {!walletAddress && (
+                  <button
+                    type="button"
+                    onClick={setupWallet}
+                    disabled={walletCreating}
+                    className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-md border border-toxic/45 px-3 text-xs font-semibold text-toxic disabled:opacity-50"
+                  >
+                    {walletCreating ? <Loader2 aria-hidden="true" size={14} className="animate-spin" /> : <WalletCards aria-hidden="true" size={14} />}
+                    {authenticated ? "Create Solana wallet" : "Connect account"}
+                  </button>
+                )}
               </div>
               <div className="rounded-md border border-edge bg-void px-4 py-3">
                 <p className="field-label">Minimum planned capital</p>
@@ -477,7 +554,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           </FormSection>
 
           {kind === "kol" && (
-            <FormSection title="Token universe and volatility trigger" description="Scanner snapshots are informational; stale prices always reject entry.">
+            <FormSection
+              title="Entry trigger"
+              description="Choose what must happen before the strategy can enter."
+              summary={`-${(priceDropBps / 100).toFixed(1)}% over ${lookbackMinutes < 60 ? `${lookbackMinutes}m` : `${lookbackMinutes / 60}h`} · ${preset}`}
+              defaultOpen
+            >
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="block">
                   <span className="field-label">Manual Solana mints</span>
@@ -507,24 +589,23 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           )}
 
           {kind === "kol" && (
-            <FormSection title="Dollar-cost averaging" description="Every level is included in the maximum-capital preview.">
+            <FormSection
+              title="Dollar-cost averaging"
+              description="Optional staged entries after a deeper drop."
+              summary={dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(2)} SOL` : "Off"}
+            >
               <Toggle label="Enable DCA" detail="Add bounded buys after deeper price drops." checked={dcaEnabled} onChange={setDcaEnabled} />
               {dcaEnabled && (
                 <>
-                  <div className="overflow-x-auto rounded-md border border-edge">
-                    <table className="w-full min-w-[620px] text-left">
-                      <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-3 py-2.5">Level</th><th className="px-3 py-2.5">Additional drop</th><th className="px-3 py-2.5">Buy amount</th><th className="w-12" /></tr></thead>
-                      <tbody>
-                        {dcaLevels.map((level, index) => (
-                          <tr key={index} className="border-t border-edge">
-                            <td className="px-3 py-3 font-mono text-xs text-dim">DCA {index + 1}</td>
-                            <td className="px-3 py-3"><CompactNumber value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" /></td>
-                            <td className="px-3 py-3"><CompactNumber value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" /></td>
-                            <td className="px-2"><button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="divide-y divide-edge rounded-md border border-edge">
+                    {dcaLevels.map((level, index) => (
+                      <div key={index} className="grid gap-3 p-3 sm:grid-cols-[64px_repeat(2,minmax(0,1fr))_36px] sm:items-end">
+                        <p className="font-mono text-xs text-dim sm:self-center">DCA {index + 1}</p>
+                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" /></span></label>
+                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" /></span></label>
+                        <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25 }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
@@ -535,7 +616,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </FormSection>
           )}
 
-          <FormSection title="Entry and execution" description="Retries are bounded and every quote expires.">
+          <FormSection
+            title="Execution and retries"
+            description="Fine-tune route, fees, retry bounds, and cooldown."
+            summary={`${entryMode} · ${(slippageBps / 100).toFixed(2)}% slippage · ${autoRetryCount} retries`}
+          >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <SelectField label="Entry mode" value={entryMode} onChange={(value) => setEntryMode(value as typeof entryMode)} options={[{ value: "market", label: "Market route" }, { value: "limit", label: "Limit entry" }]} />
               <NumberField label="Slippage cap" value={slippageBps / 100} onChange={(value) => setSlippageBps(Math.round(value * 100))} unit="%" step={0.25} min={0.01} max={20} />
@@ -552,22 +637,21 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
           </FormSection>
 
-          <FormSection title="Take profit" description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}>
-            <div className="overflow-x-auto rounded-md border border-edge">
-              <table className="w-full min-w-[720px] text-left">
-                <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-3 py-2.5">Level</th><th className="px-3 py-2.5">Target gain</th><th className="px-3 py-2.5">Sell allocation</th><th className="px-3 py-2.5">Trailing</th><th className="w-12" /></tr></thead>
-                <tbody>
-                  {tpLevels.map((level, index) => (
-                    <tr key={index} className="border-t border-edge">
-                      <td className="px-3 py-3 font-mono text-xs text-dim">TP {index + 1}</td>
-                      <td className="px-3 py-3"><CompactNumber value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" /></td>
-                      <td className="px-3 py-3"><CompactNumber value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" /></td>
-                      <td className="px-3 py-3"><CompactNumber value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit} /></td>
-                      <td className="px-2"><button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <FormSection
+            title="Take profit"
+            description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}
+            summary={`${tpLevels.length} levels · first at +${(tpLevels[0]?.targetBps / 100 || 0).toFixed(0)}%`}
+          >
+            <div className="divide-y divide-edge rounded-md border border-edge">
+              {tpLevels.map((level, index) => (
+                <div key={index} className="grid gap-3 p-3 sm:grid-cols-[52px_repeat(3,minmax(0,1fr))_36px] sm:items-end">
+                  <p className="font-mono text-xs text-dim sm:self-center">TP {index + 1}</p>
+                  <label><span className="field-label">Target gain</span><span className="mt-1.5 block"><CompactNumber value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" /></span></label>
+                  <label><span className="field-label">Sell allocation</span><span className="mt-1.5 block"><CompactNumber value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" /></span></label>
+                  <label><span className="field-label">Trailing</span><span className="mt-1.5 block"><CompactNumber value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit} /></span></label>
+                  <button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button>
+                </div>
+              ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0 }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
@@ -576,7 +660,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             {tpAllocationBps > 10000 && <InlineError>Sell allocation exceeds 100%.</InlineError>}
           </FormSection>
 
-          <FormSection title="Stop loss" description="Exit management continues when new entries are paused.">
+          <FormSection
+            title="Stop loss"
+            description="Exit management continues when new entries are paused."
+            summary={`-${(stopBps / 100).toFixed(1)}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`}
+          >
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <NumberField label="Stop loss" value={stopBps / 100} onChange={(value) => setStopBps(Math.round(value * 100))} unit="%" step={0.5} min={0.01} max={100} />
               <NumberField label="Trigger debounce" value={stopDelaySeconds} onChange={(value) => setStopDelaySeconds(Math.round(value))} unit="sec" step={1} min={0} max={300} />
@@ -589,37 +677,25 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
           </FormSection>
 
-          <FormSection title="Token security filters" description="Every enabled filter fails closed when its required evidence is stale or unavailable.">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {FLAG_FILTERS.map(([key, label, sourceLabel]) => (
-                <Toggle key={key} label={label} detail={sourceLabel} checked={flags[key]} onChange={(checked) => setFlags((current) => ({ ...current, [key]: checked }))} />
-              ))}
-            </div>
-            <button type="button" onClick={() => setAdvancedOpen((current) => !current)} className="flex min-h-11 w-full items-center justify-between rounded-md border border-edge bg-void px-4 text-left text-sm font-semibold text-ink">
-              <span>Advanced range filters <span className="ml-2 font-mono text-[9px] font-normal text-dim">{Object.values(filters).filter((filter) => filter.enabled).length} enabled</span></span>
-              <ChevronDown size={16} className={`text-dim transition ${advancedOpen ? "rotate-180" : ""}`} />
-            </button>
-            {advancedOpen && (
-              <div className="overflow-x-auto rounded-md border border-edge">
-                <table className="w-full min-w-[760px] text-left">
-                  <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-3 py-2.5">Filter</th><th className="px-3 py-2.5">Data source</th><th className="px-3 py-2.5">Minimum</th><th className="px-3 py-2.5">Maximum</th><th className="px-3 py-2.5">Required</th></tr></thead>
-                  <tbody>
-                    {FILTERS.map((definition) => {
-                      const value = filters[definition.key];
-                      return (
-                        <tr key={definition.key} className="border-t border-edge">
-                          <td className="px-3 py-3 text-xs font-medium text-ink">{definition.label}<span className="ml-1 font-mono text-[9px] text-dim">({definition.unit})</span></td>
-                          <td className="px-3 py-3 font-mono text-[9px] text-dim">{definition.source}</td>
-                          <td className="px-3 py-3"><CompactNumber value={value.min} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, min: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
-                          <td className="px-3 py-3"><CompactNumber value={value.max} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, max: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
-                          <td className="px-3 py-3"><button type="button" role="switch" aria-checked={value.enabled} onClick={() => setFilters((current) => ({ ...current, [definition.key]: { ...value, enabled: !value.enabled } }))} className={`relative h-6 w-11 rounded-full transition ${value.enabled ? "bg-toxic" : "bg-edge"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${value.enabled ? "left-6" : "left-1"}`} /></button></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          <FormSection
+            title="Security filters"
+            description="Only open this when you need to change the recommended safeguards."
+            summary={`${Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length} checks enabled`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-edge bg-void px-4 py-3">
+              <div>
+                <p className="text-xs font-semibold text-ink">Recommended protection is on</p>
+                <p className="mt-1 text-[11px] leading-5 text-dim">Enabled checks fail closed when fresh evidence is unavailable.</p>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={() => setSecurityOpen(true)}
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-toxic/50 px-4 text-xs font-semibold text-toxic"
+              >
+                <ShieldCheck aria-hidden="true" size={14} />
+                Configure filters
+              </button>
+            </div>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-edge bg-void px-4 py-3">
               <div>
                 <p className="text-xs font-semibold text-ink">Current candidate preview</p>
@@ -645,7 +721,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           </FormSection>
         </div>
 
-        <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel 2xl:sticky 2xl:top-24">
+        <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
           <header className="border-b border-edge px-5 py-4">
             <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-toxic">Configuration summary</p>
             <h2 className="mt-2 truncate text-base font-semibold text-ink">{name || "Untitled bot"}</h2>
@@ -682,19 +758,99 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <button
                 type="button"
                 onClick={() => {
+                  if (validationError) {
+                    toast(validationError, "err");
+                    return;
+                  }
                   setConfirmReviewed(false);
                   setConfirmStatus("draft");
                 }}
-                disabled={saving || !!validationError}
+                disabled={saving}
                 className="min-h-11 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40"
               >
-                Save draft
+                Review and save draft
               </button>
             </div>
             <p className="mt-3 text-center font-mono text-[9px] leading-4 text-dim">{AUTOMATED_MAINNET_RELEASE.reason}</p>
           </div>
         </aside>
       </div>
+
+      {securityOpen && (
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={() => setSecurityOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="security-filter-title"
+            className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-md border border-edge bg-panel shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-edge bg-panel px-5 py-4">
+              <div>
+                <p className="font-mono text-[9px] uppercase text-toxic">Advanced safeguards</p>
+                <h2 id="security-filter-title" className="mt-2 text-lg font-semibold text-ink">Security filters</h2>
+                <p className="mt-1 text-[11px] leading-5 text-dim">Disabled checks are listed in the final review. Enabled checks reject missing or stale evidence.</p>
+              </div>
+              <button type="button" onClick={() => setSecurityOpen(false)} className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-edge text-dim" aria-label="Close security filters"><X size={16} /></button>
+            </header>
+
+            <div className="space-y-5 p-5">
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div><h3 className="text-sm font-semibold text-ink">Core checks</h3><p className="mt-1 text-[11px] text-dim">Authority, metadata, liquidity, and transaction simulation evidence.</p></div>
+                  <span className="font-mono text-[9px] text-dim">{Object.values(flags).filter(Boolean).length}/{FLAG_FILTERS.length} on</span>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {FLAG_FILTERS.map(([key, label, sourceLabel]) => (
+                    <Toggle key={key} label={label} detail={sourceLabel} checked={flags[key]} onChange={(checked) => setFlags((current) => ({ ...current, [key]: checked }))} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="overflow-hidden rounded-md border border-edge">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen((current) => !current)}
+                  aria-expanded={advancedOpen}
+                  className="flex min-h-12 w-full items-center justify-between gap-3 bg-void px-4 text-left"
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-ink">Range filters</span>
+                    <span className="mt-0.5 block font-mono text-[9px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length} enabled · optional min/max evidence</span>
+                  </span>
+                  <ChevronDown aria-hidden="true" size={16} className={`shrink-0 text-dim transition ${advancedOpen ? "rotate-180" : ""}`} />
+                </button>
+                {advancedOpen && (
+                  <div className="overflow-x-auto border-t border-edge">
+                    <table className="w-full min-w-[780px] text-left">
+                      <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-3 py-2.5">Filter</th><th className="px-3 py-2.5">Data source</th><th className="px-3 py-2.5">Minimum</th><th className="px-3 py-2.5">Maximum</th><th className="px-3 py-2.5">Required</th></tr></thead>
+                      <tbody>
+                        {FILTERS.map((definition) => {
+                          const value = filters[definition.key];
+                          return (
+                            <tr key={definition.key} className="border-t border-edge">
+                              <td className="px-3 py-3 text-xs font-medium text-ink">{definition.label}<span className="ml-1 font-mono text-[9px] text-dim">({definition.unit})</span></td>
+                              <td className="px-3 py-3 font-mono text-[9px] text-dim">{definition.source}</td>
+                              <td className="px-3 py-3"><CompactNumber value={value.min} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, min: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
+                              <td className="px-3 py-3"><CompactNumber value={value.max} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, max: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
+                              <td className="px-3 py-3"><button type="button" role="switch" aria-label={`Require ${definition.label}`} aria-checked={value.enabled} onClick={() => setFilters((current) => ({ ...current, [definition.key]: { ...value, enabled: !value.enabled } }))} className={`relative h-6 w-11 rounded-full transition ${value.enabled ? "bg-toxic" : "bg-edge"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${value.enabled ? "left-6" : "left-1"}`} /></button></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-edge bg-panel px-5 py-4">
+              <p className="font-mono text-[9px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length} total checks enabled</p>
+              <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-10 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c]">Done</button>
+            </footer>
+          </div>
+        </div>
+      )}
 
       {confirmStatus && (
         <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }}>
@@ -763,15 +919,36 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   );
 }
 
-function FormSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function FormSection({
+  title,
+  description,
+  summary,
+  defaultOpen = false,
+  children
+}: {
+  title: string;
+  description: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="overflow-hidden rounded-md border border-edge bg-panel">
-      <header className="border-b border-edge px-5 py-4">
-        <h2 className="text-sm font-semibold text-ink">{title}</h2>
-        <p className="mt-1 text-[11px] leading-5 text-dim">{description}</p>
-      </header>
-      <div className="space-y-4 p-5">{children}</div>
-    </section>
+    <details className="group bg-panel" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="flex min-h-[68px] list-none items-center justify-between gap-4 px-5 py-3.5">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-ink">{title}</span>
+          <span className="mt-1 block text-[11px] leading-4 text-dim">{description}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
+          {summary && <span className="hidden max-w-56 truncate font-mono text-[9px] text-dim sm:block">{summary}</span>}
+          <span className="grid h-8 w-8 place-items-center rounded-md border border-edge text-dim transition group-open:border-toxic/40 group-open:text-toxic">
+            <ChevronDown aria-hidden="true" size={15} className="transition group-open:rotate-180" />
+          </span>
+        </span>
+      </summary>
+      <div className="space-y-4 border-t border-edge p-5">{children}</div>
+    </details>
   );
 }
 

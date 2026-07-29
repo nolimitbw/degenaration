@@ -11,6 +11,7 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  LogOut,
   RefreshCw,
   Share2,
   ShieldAlert,
@@ -49,7 +50,7 @@ export type PortfolioSummary = {
 };
 
 export default function PortfolioDashboard() {
-  const { authenticated, user, login, getAccessToken } = usePrivy();
+  const { authenticated, user, login, logout, getAccessToken } = usePrivy();
   const toast = useToast();
   const walletAddress = getSolanaAddress(user);
   const [period, setPeriod] = useState<Period>("30d");
@@ -61,6 +62,7 @@ export default function PortfolioDashboard() {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [share, setShare] = useState<{ type: "portfolio" | "position"; id?: string } | null>(null);
   const [botFilter, setBotFilter] = useState("");
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -133,6 +135,22 @@ export default function PortfolioDashboard() {
             <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
             <button type="button" onClick={() => setDepositOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowDownToLine size={15} /> Deposit</button>
             <button type="button" onClick={() => setWithdrawOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]"><ArrowUpFromLine size={15} /> Withdraw</button>
+            <button
+              type="button"
+              onClick={async () => {
+                setSigningOut(true);
+                try {
+                  await logout();
+                } finally {
+                  setSigningOut(false);
+                }
+              }}
+              disabled={signingOut}
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-down/40 px-4 text-sm font-semibold text-down transition hover:bg-down/5 disabled:opacity-50"
+            >
+              {signingOut ? <Loader2 aria-hidden="true" size={15} className="animate-spin" /> : <LogOut aria-hidden="true" size={15} />}
+              Sign out
+            </button>
           </>
         }
       />

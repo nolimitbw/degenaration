@@ -14,7 +14,7 @@ const TABS = [
 export default function NewDiscordBotPage() {
   return (
     <AppShell>
-      <PageHeader eyebrow="Bots / Discord / New" title="Configure Discord bot" description="Create a versioned execution profile for one approved Discord source." />
+      <PageHeader eyebrow="Bots / Discord / New" title="Configure Discord bot" description="Choose a call source, set the budget, then review the safeguards." />
       <ProductTabs items={TABS} active="/bots/discord" />
       <div className="mt-6"><BotBuilder kind="discord" /></div>
     </AppShell>

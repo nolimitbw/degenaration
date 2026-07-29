@@ -12,7 +12,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={appId}
       config={{
-        appearance: { theme: "dark", accentColor: "#c29463" },
+        appearance: {
+          theme: "dark",
+          accentColor: "#c29463",
+          walletChainType: "solana-only"
+        },
         embeddedWallets: { solana: { createOnLogin: "users-without-wallets" } },
         loginMethods: ["email", "google", "wallet"],
         solana: {
