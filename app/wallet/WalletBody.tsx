@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getNet } from "@/lib/net";
 import { usePrivy } from "@privy-io/react-auth";
@@ -87,7 +88,7 @@ export default function WalletBody() {
               <p className="font-mono text-[11px] uppercase text-dim">Your deposit address</p>
               <div className="mt-1 flex items-center gap-2">
                 <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">{address}</code>
-                <button onClick={copy} className="rounded-md bg-toxic px-3 py-2 text-xs font-bold text-white">{copied ? "✓" : "Copy"}</button>
+                <button onClick={copy} className="rounded-md bg-toxic px-3 py-2 text-xs font-bold text-white">{copied ? <Check size={14} aria-label="Copied" /> : "Copy"}</button>
               </div>
             </div>
             <p className="w-full rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-center font-mono text-[11px] text-hotpink">Send only mainnet SOL. Transfers are irreversible.</p>
@@ -110,7 +111,7 @@ export default function WalletBody() {
           </div>
           <div className="gradient-border rounded-lg border border-edge p-5">
             <h2 className="font-bold">Automation limits</h2>
-            <p className="mt-1 text-xs text-dim">The database reserves these limits atomically before the worker requests a signature.</p>
+            <p className="mt-1 text-xs text-dim">These caps apply to every automated trade.</p>
             <label className="mt-4 block">
               <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
               <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-toxic" />
@@ -119,7 +120,7 @@ export default function WalletBody() {
               <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Daily spend cap</span><span className="text-ink">{dailyCap} SOL</span></span>
               <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-toxic" />
             </label>
-            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110">{savedLimits ? "✓ Saved" : "Save limits"}</button>
+            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110">{savedLimits ? <span className="inline-flex items-center justify-center gap-2"><Check size={14} aria-hidden="true" /> Saved</span> : "Save limits"}</button>
             <p className="mt-3 font-mono text-[11px] text-dim">Limits are application controls. Manage the separate Privy delegation below.</p>
           </div>
           <AutoTrade />

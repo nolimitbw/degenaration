@@ -132,7 +132,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       <PageHeader
         eyebrow="Creator revenue"
         title="Affiliate"
-        description="Immutable commission accounting for confirmed Discord and KOL copied trades. Payouts are reviewed and reconciled on chain."
+        description="Track creator and referral earnings."
         actions={
           <>
             <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh affiliate dashboard"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>

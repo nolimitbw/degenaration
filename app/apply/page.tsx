@@ -1,5 +1,6 @@
 "use client";
 import AppShell from "@/components/AppShell";
+import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { submitApplication } from "@/lib/queries";
 
@@ -87,7 +88,7 @@ export default function Apply() {
 
         {sent ? (
           <div className="mt-8 rounded-lg border border-toxic/50 bg-panel p-8">
-            <p className="text-center text-4xl">✓</p>
+            <p className="flex justify-center text-toxic" aria-hidden="true"><Check size={40} /></p>
             <h2 className="mt-3 text-center text-lg font-bold text-toxic">Application received</h2>
             <p className="mt-2 text-center text-sm text-dim">
               We review every server manually. Once approved, add our bot and register your

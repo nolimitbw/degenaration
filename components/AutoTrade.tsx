@@ -45,7 +45,7 @@ export default function AutoTrade() {
       </div>
       <p className="mt-1 text-xs text-dim">
         Delegation lets the configured worker request wallet signatures while you are offline.
-        Degenaration checks saved per-trade and daily limits atomically before it claims supported automation work.
+        Your saved per-trade and daily limits are checked before any automated entry runs.
         The underlying delegation is powerful and is not itself a trade-only policy, so keep it off unless needed and revoke it anytime.
         Privy secures the wallet key; Degenaration does not store it.
       </p>

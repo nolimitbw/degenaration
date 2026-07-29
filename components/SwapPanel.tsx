@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { getBase58Decoder } from "@solana/kit";
@@ -88,7 +89,7 @@ export default function SwapPanel() {
       </button>
       {status === "done" && (
         <p className="mt-3 break-all font-mono text-[11px] text-toxic">
-          ✓ Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
+          <Check size={14} className="inline" aria-hidden="true" /> Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
         </p>
       )}
       {status === "error" && <p className="mt-3 font-mono text-[11px] text-hotpink">{err}</p>}

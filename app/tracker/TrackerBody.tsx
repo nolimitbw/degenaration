@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { getNet } from "@/lib/net";
@@ -288,7 +289,7 @@ export default function TrackerBody() {
                             <span className="w-16 truncate font-bold">{p.symbol ?? p.mint.slice(0, 4)}</span>
                             <span className={`w-14 ${(p.change24h ?? 0) >= 0 ? "text-up" : "text-hotpink"}`}>{p.change24h != null ? `${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(0)}%` : ""}</span>
                             <span className="flex-1 text-right text-dim">{fmtUsd(p.valueUsd)}</span>
-                            <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-ink" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}>↗</Link>
+                            <Link href={`/terminal?mint=${p.mint}`} className="text-cyber hover:text-ink" title="trade" aria-label={`Trade ${p.symbol ?? p.mint.slice(0, 4)}`}><ArrowUpRight size={13} /></Link>
                           </div>
                         ))}
                       </div>

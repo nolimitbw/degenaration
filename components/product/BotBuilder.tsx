@@ -753,7 +753,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 title={AUTOMATED_MAINNET_RELEASE.reason}
               >
                 <ShieldCheck size={15} />
-                Mainnet activation locked
+                Automated trading not yet available
               </button>
               <button
                 type="button"
@@ -880,7 +880,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </div>
               <div className="mt-4 flex gap-3 rounded-md border border-toxic/35 bg-toxic/5 p-3 text-xs leading-5 text-dim">
                 <AlertTriangle className="mt-0.5 shrink-0 text-toxic" size={16} />
-                <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds. Mainnet activation remains unavailable until the controlled release review passes.</p>
+                <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds, and automated trading is not yet available.</p>
               </div>
               <label className="mt-4 flex items-start gap-3 text-xs text-ink">
                 <input

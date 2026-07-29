@@ -227,7 +227,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-edge px-4 py-3">
         <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-dim">
           <span>Solana Mainnet workspace</span>
-          <span>Automated activation requires controlled release approval. No fallback fills.</span>
         </div>
       </footer>
     </div>

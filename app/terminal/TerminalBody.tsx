@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Candles from "@/components/Candles";
+import { ArrowUpRight } from "lucide-react";
 import { getIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { useExecuteSell } from "@/lib/useExecuteSell";
@@ -354,7 +355,7 @@ export default function TerminalBody() {
                 <p className="text-dim">Symbol: <span className="text-ink">{livePrice?.symbol ?? "—"}</span></p>
                 <p className="text-dim">FDV: <span className="text-ink">{livePrice?.fdv ? "$" + Math.round(livePrice.fdv).toLocaleString() : "—"}</span></p>
                 <p className="text-dim">Mint: <span className="break-all text-ink">{cleanMint}</span></p>
-                <p className="text-dim">Links: {(livePrice?.websites || []).concat((livePrice?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 text-cyber hover:underline">↗</a>))}{!(livePrice?.websites || []).length && !(livePrice?.socials || []).length && <span className="text-ink">—</span>}</p>
+                <p className="text-dim">Links: {(livePrice?.websites || []).concat((livePrice?.socials || []).map((x: any) => x.url)).slice(0, 4).map((u: string) => (<a key={u} href={u} target="_blank" rel="noreferrer" aria-label="Open link" className="mr-2 inline-flex text-cyber hover:underline"><ArrowUpRight size={13} /></a>))}{!(livePrice?.websites || []).length && !(livePrice?.socials || []).length && <span className="text-ink">—</span>}</p>
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 "use client";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
+import { AlertTriangle, ArrowUpRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { fetchTokensFull, fmtNum, fmtAge } from "@/lib/queries";
@@ -154,7 +155,7 @@ export default function Trenches() {
               ))}
             </div>
             <Pressure b={t.buys1h} s={t.sells1h} />
-            {t.risks?.length ? <div className="mt-2 flex flex-wrap gap-1">{t.risks.map((r: string) => <span key={r} className="rounded border border-hotpink/40 px-1.5 py-0.5 font-mono text-[9px] text-hotpink">⚠ {r}</span>)}</div> : null}
+            {t.risks?.length ? <div className="mt-2 flex flex-wrap gap-1">{t.risks.map((r: string) => <span key={r} className="rounded border border-hotpink/40 px-1.5 py-0.5 font-mono text-[9px] text-hotpink"><AlertTriangle size={9} className="inline" aria-hidden="true" /> {r}</span>)}</div> : null}
             <div className="mt-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-1 gap-1">
                 {BUY_PRESETS.map((a, i) => {
@@ -166,7 +167,7 @@ export default function Trenches() {
                   );
                 })}
               </div>
-              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-ink" title={x.type} aria-label={x.type}>↗</a>)}
+              {t.socials?.slice(0,2).map((x: any) => <a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-cyber hover:text-ink" title={x.type} aria-label={x.type}><ArrowUpRight size={13} /></a>)}
             </div>
             <Link href={`/terminal?mint=${t.address}`} onClick={(e) => e.stopPropagation()} className="mt-2 block rounded-md bg-toxic py-2 text-center text-sm font-bold text-white shadow-toxic transition hover:brightness-110">Quick trade →</Link>
           </div>

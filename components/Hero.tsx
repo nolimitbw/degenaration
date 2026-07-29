@@ -33,7 +33,7 @@ export default function Hero() {
             </div>
             <div className="mt-4 flex items-start gap-2 border-t border-edge pt-4 text-[11px] leading-5 text-dim">
               <ShieldCheck aria-hidden="true" size={15} className="mt-0.5 shrink-0 text-up" />
-              Solana Mainnet data is live. Automated entries and payouts remain locked until controlled release review passes.
+              Solana Mainnet data is live. Automated entries and payouts are not yet available.
             </div>
           </div>
         </motion.div>
