@@ -61,6 +61,8 @@ export default function PortfolioDashboard() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [walletPortfolio, setWalletPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [share, setShare] = useState<{ type: "portfolio" | "position"; id?: string } | null>(null);
@@ -86,17 +88,27 @@ export default function PortfolioDashboard() {
       return;
     }
     setLoading(true);
-    Promise.all([
-      productFetch<PortfolioSummary>(`/api/product/portfolio?period=${period}`, { getAccessToken }),
+    setError("");
+    // Bounded so a hung provider cannot leave the page spinning forever.
+    const signal = AbortSignal.timeout(15000);
+    // allSettled, not all: an on-chain wallet lookup failing must not blank the whole
+    // portfolio, and a failed summary must not leave the page rendering nothing (§16).
+    Promise.allSettled([
+      productFetch<PortfolioSummary>(`/api/product/portfolio?period=${period}`, { getAccessToken }, { signal }),
       walletAddress ? fetchPortfolio(walletAddress, getNet()) : Promise.resolve(null)
     ])
       .then(([product, chain]) => {
-        setSummary(product);
-        setWalletPortfolio(chain);
+        if (product.status === "fulfilled") {
+          setSummary(product.value);
+          setUpdatedAt(Date.now());
+        } else {
+          // Keep the last known summary rather than blanking it; it renders as stale.
+          setError(product.reason instanceof Error ? product.reason.message : "Portfolio data is temporarily unavailable.");
+        }
+        if (chain.status === "fulfilled") setWalletPortfolio(chain.value);
       })
-      .catch((reason) => toast(reason instanceof Error ? reason.message : "Could not load portfolio", "err"))
       .finally(() => setLoading(false));
-  }, [authenticated, getAccessToken, period, toast, walletAddress]);
+  }, [authenticated, getAccessToken, period, walletAddress]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -190,7 +202,32 @@ export default function PortfolioDashboard() {
         </div>
       )}
 
-      {loading && !summary && <div className="mt-5 grid min-h-72 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
+      {/* Skeleton shaped like the real content, never a spinner in an empty rectangle. */}
+      {loading && !summary && (
+        <div className="mt-5 space-y-5" aria-busy="true">
+          <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-3">
+            {[0, 1, 2, 3, 4, 5].map((key) => <div key={key} className="bg-panel p-5"><div className="h-3 w-24 animate-pulse rounded bg-void" /><div className="mt-3 h-5 w-28 animate-pulse rounded bg-void" /></div>)}
+          </div>
+          <div className="h-64 animate-pulse rounded-md border border-edge bg-panel" />
+        </div>
+      )}
+
+      {/* Recoverable failure with a retry, instead of a blank page and a vanished toast. */}
+      {!loading && !summary && error && (
+        <div className="mt-5 rounded-md border border-edge bg-panel p-6">
+          <p className="text-sm font-semibold text-ink">Portfolio could not be loaded</p>
+          <p className="mt-1 text-xs leading-5 text-dim">{error}</p>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+        </div>
+      )}
+
+      {/* Last known data preserved on a transient failure and labelled as stale. */}
+      {summary && error && (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-edge bg-panel px-4 py-3">
+          <p className="text-xs text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
+          <button type="button" onClick={load} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
+        </div>
+      )}
       {summary && view === "overview" && (
         <>
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">

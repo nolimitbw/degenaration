@@ -156,7 +156,7 @@ export default function KolStrategyDetailsPage() {
               <header className="flex flex-wrap items-start gap-4 border-b border-edge p-5">
                 <span className="grid h-14 w-14 place-items-center rounded-md border border-toxic/30 bg-toxic/10 font-mono text-base font-semibold text-toxic">{strategy.name.slice(0, 2).toUpperCase()}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold text-ink">{strategy.name}</h2><StatusPill status={strategy.insufficientHistory ? "insufficient history" : "reviewed"} /></div>
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold text-ink">{strategy.name}</h2><StatusPill status={strategy.insufficientHistory ? "tracking" : "reviewed"} /></div>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-dim">{strategy.description || "No public strategy description was provided."}</p>
                   <p className="mt-2 font-mono text-[9px] uppercase text-dim">
                     {strategy.creatorName || "Verified creator"} · Strategy version {strategy.version || 1}

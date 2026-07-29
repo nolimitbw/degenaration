@@ -320,7 +320,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           symbol: source.name,
           address: source.id,
           pass: source.measuredCalls >= 5,
-          reason: source.measuredCalls >= 5 ? `${source.measuredCalls} measured calls available` : "Insufficient measured call history"
+          reason: source.measuredCalls >= 5 ? `${source.measuredCalls} measured calls available` : `Tracking — ${source.measuredCalls} of 5 calls measured`
         }] : []);
       } else {
         const data = await productFetch<{ tokens?: any[] }>("/api/tokens?mode=trending");

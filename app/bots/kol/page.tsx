@@ -43,7 +43,12 @@ export default function KolMarketplacePage() {
   const load = useCallback(() => {
     setStrategies(null);
     setError("");
-    productFetch<{ strategies: KolStrategy[] }>(`/api/product/marketplace/kol?period=${period}&sort=${sort}`)
+    // Bounded so a hung provider cannot leave the list loading forever (§16).
+    productFetch<{ strategies: KolStrategy[] }>(
+      `/api/product/marketplace/kol?period=${period}&sort=${sort}`,
+      undefined,
+      { signal: AbortSignal.timeout(15000) }
+    )
       .then((data) => setStrategies(data.strategies || []))
       .catch((reason) => {
         setStrategies([]);
@@ -61,9 +66,8 @@ export default function KolMarketplacePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / KOL"
-        title="KOL strategy marketplace"
-        description="Copy reviewed scanner strategies with immutable versions, net-of-fee performance, and risk controls you can only make stricter."
+        title="KOL Strategies"
+        description="Copy public strategies built and tracked on DegenAration."
         actions={
           <Link href="/bots/kol/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
             <Bot aria-hidden="true" size={16} />
@@ -107,12 +111,27 @@ export default function KolMarketplacePage() {
 
       <div className="mt-5">
         {strategies == null && <LoadingRows count={4} />}
-        {strategies != null && visible.length === 0 && (
+        {/* A failure and an empty result are different states and get different actions:
+            offering "create the first strategy" when the request actually failed is
+            misleading, and a retry is what the user needs (§16). */}
+        {strategies != null && visible.length === 0 && error && (
           <EmptyState
             icon={Sparkles}
-            title={error ? "Strategy data is temporarily unavailable" : "No public KOL strategies yet"}
-            description={error || "Create a strategy, submit it for review, and it will appear here after approval with honest performance history."}
-            action={<Link href="/bots/kol/new" className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">Create the first strategy</Link>}
+            title="Strategy data could not be loaded"
+            description={error}
+            action={<button type="button" onClick={load} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><RefreshCw size={15} /> Try again</button>}
+          />
+        )}
+        {strategies != null && visible.length === 0 && !error && (
+          <EmptyState
+            icon={Sparkles}
+            title={query.trim() ? "No strategies match these filters" : "No public KOL strategies yet"}
+            description={query.trim() ? "Clear filters or create the first strategy in this view." : "Create a strategy, submit it for review, and it will appear here after approval with measured performance history."}
+            action={
+              query.trim()
+                ? <button type="button" onClick={() => setQuery("")} className="inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-sm font-semibold text-ink">Clear filters</button>
+                : <Link href="/bots/kol/new" className="inline-flex min-h-10 items-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Create KOL bot</Link>
+            }
           />
         )}
         <div className="grid gap-4 xl:grid-cols-2">
@@ -134,7 +153,7 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate text-base font-semibold text-ink">{strategy.name}</h2>
-            <StatusPill status={strategy.insufficientHistory ? "insufficient history" : "reviewed"} />
+            <StatusPill status={strategy.insufficientHistory ? "tracking" : "reviewed"} />
           </div>
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-dim">{strategy.description || "No public description provided."}</p>
         </div>

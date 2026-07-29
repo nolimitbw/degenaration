@@ -38,6 +38,8 @@ const FORBIDDEN_PHRASES = [
   "engine not configured",
   "immutable commission accounting",
   "immutable accounting",
+  "insufficient measured",
+  "insufficient history",
   "atomically",
   "lorem ipsum",
   "unlock your potential",

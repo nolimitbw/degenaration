@@ -206,7 +206,7 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-edge pt-4">
           <div className="min-w-0">
             {/* An unmeasured source states when tracking began, rather than repeating a
-                large "Insufficient measured history" error block on every card (§6.2). */}
+                large repeated error block on every card (§6.2). */}
             {measured ? (
               <p className="font-mono text-[10px] text-dim">Last call {formatWhen(source.lastSignalAt)}</p>
             ) : (
