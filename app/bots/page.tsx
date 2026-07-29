@@ -85,7 +85,7 @@ export default function BotsPage() {
           <div className="grid grid-cols-3 divide-x divide-edge py-4">
             <Metric label="Approved sources" value={sourceCount ?? "--"} />
             <Metric label="Creator fee" value="0.70%" />
-            <Metric label="Automation" value="Locked" detail="Mainnet release review" />
+            <Metric label="Automation" value="Not yet available" detail="Manual trading is live" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-6 py-4">
             <span className="inline-flex items-center gap-2 text-xs text-dim"><ShieldCheck size={15} className="text-up" /> Approved channels only</span>

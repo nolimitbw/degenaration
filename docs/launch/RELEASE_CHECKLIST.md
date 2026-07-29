@@ -86,14 +86,30 @@ deployment, and add a uniqueness check per §4.4 `scripts/check-discord-commands
 
 Spec §11.4 and §23 require these be removed or relocated to Admin Console diagnostics.
 
-## F-6 — Retired neon design tokens are still in use
+## F-6 — Design tokens are named for a retired palette (CORRECTED — lower severity)
 
-`tailwind.config.ts` still defines and components still consume `toxic` (neon green),
-`hotpink`, `cyber`, and `shadow-toxic` — e.g. `app/wallet/WalletBody.tsx:90,122`
-(`bg-toxic`), `components/product/PortfolioDashboard.tsx:327` (`border-toxic/35`),
-`app/trenches/page.tsx:157` (`text-hotpink`). The approved identity is gold / white /
-dim-black (§5.1–5.2). `gold: "#f0b429"` exists but the semantic token layer from §5.2
-(`--canvas`, `--surface-*`, `--gold-*`, `--text-*`) does not.
+**Correction (2026-07-30).** The original finding claimed the UI still rendered neon
+green. That was wrong, and browser verification disproved it. The CSS variables were
+already remapped to the approved warm palette:
+
+```css
+--toxic-rgb:   194 148 99;   /* warm gold, not neon green */
+--cyber-rgb:   210 173 128;  /* tan */
+--hotpink-rgb: 213 111 111;  /* muted red */
+```
+
+A screenshot of `/affiliate` confirms the product renders gold on dim-black today. The
+colors are correct.
+
+What remains is a **naming and semantics** problem, not a visual one. Components consume
+`bg-toxic`, `text-hotpink`, `border-cyber`, `shadow-toxic` — names that describe a
+palette the product no longer uses, which invites a future contributor to "restore" neon
+values. §5.2 asks for semantic tokens (`--canvas`, `--surface-*`, `--gold-*`,
+`--text-*`) instead of these literal-but-now-wrong names.
+
+Migration carries real regression risk across ~40 files for a near-identical visual
+result, so it is being done additively: the semantic layer is introduced first and new
+work uses it, with the legacy aliases retained until usages are migrated.
 
 ## F-7 — Unicode glyphs used as interface icons
 

@@ -13,16 +13,25 @@ import { dirname, join, relative } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // Admin Console is where operational detail belongs, so it is exempt (§11.4).
-const SCAN_DIRS = ["app", "components"];
+// lib/ is scanned too: user-facing strings live there (e.g. AUTOMATED_MAINNET_RELEASE
+// .reason renders in the header popover), and a checker that only reads app/ and
+// components/ misses them. Browser verification is what surfaced that blind spot.
+const SCAN_DIRS = ["app", "components", "lib"];
 const EXEMPT = [
   join("app", "admin"),
-  join("components", "admin")
+  join("components", "admin"),
+  join("lib", "server")
 ];
 
 // Phrases that describe the implementation rather than the user's situation.
 const FORBIDDEN_PHRASES = [
   "activation locked",
   "activation remains locked",
+  "release locked",
+  "release gates",
+  "release review",
+  "remain locked",
+  "remains locked",
   "controlled release",
   "no fallback fills",
   "database reserves",

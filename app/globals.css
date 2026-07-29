@@ -31,6 +31,45 @@
   --grape-rgb: 194 148 99;
   --shadow-toxic: 0 0 0 1px rgba(194,148,99,0.26), 0 10px 24px -14px rgba(194,148,99,0.38);
   --shadow-pink: 0 0 0 1px rgba(213,111,111,0.25), 0 10px 24px -14px rgba(213,111,111,0.34);
+
+  /* Semantic token layer (spec §5.2).
+     The names above (`toxic`, `hotpink`, `cyber`) describe a neon palette the product no
+     longer uses — their values are already warm gold. These semantic names are the ones
+     new work should use; the legacy names remain as aliases until usages are migrated.
+     Both resolve to the same colors, so introducing this layer changes nothing visually. */
+  --canvas: #0d0e0f;
+  --canvas-elevated: #111213;
+  --surface-1: #151617;
+  --surface-2: #1a1917;
+  --surface-3: #201e1a;
+  --surface-hover: #262320;
+
+  --border-subtle: rgba(194, 148, 99, 0.10);
+  --border-default: rgba(194, 148, 99, 0.16);
+  --border-strong: rgba(194, 148, 99, 0.30);
+
+  --gold-100: #f7ead6;
+  --gold-200: #e8cfa9;
+  --gold-300: #d9b487;
+  --gold-400: #c29463;
+  --gold-500: #a2784b;
+  --gold-600: #7d5c39;
+
+  --text-primary: #f3f0eb;
+  --text-secondary: #cbc6bd;
+  --text-muted: #9d9992;
+  --text-disabled: #6b6862;
+
+  --success: #55b987;
+  --success-muted: rgba(85, 185, 135, 0.12);
+  --danger: #d56f6f;
+  --danger-muted: rgba(213, 111, 111, 0.12);
+  --warning: #d9b487;
+  --info: #d2ad80;
+
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.28);
+  --shadow-focus: 0 0 0 3px rgba(194, 148, 99, 0.16);
+
   color-scheme: dark;
 }
 

@@ -64,7 +64,7 @@ function Notifications() {
       </button>
       {open && (
         <div className="absolute right-0 top-12 z-50 w-80 rounded-md border border-edge bg-panel p-4 shadow-2xl">
-          <p className="text-sm font-semibold text-ink">Automation release review</p>
+          <p className="text-sm font-semibold text-ink">Automated trading is not yet available</p>
           <p className="mt-1 text-xs leading-5 text-dim">
             {AUTOMATED_MAINNET_RELEASE.reason}
           </p>

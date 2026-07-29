@@ -42,9 +42,9 @@ export default function Home() {
             <Link href="/bots" className="mt-8 inline-flex rounded-md bg-toxic px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Configure a bot</Link>
           </div>
           <div className="border border-edge bg-panel p-6">
-            <div className="flex items-center gap-3 border-b border-edge pb-4"><ShieldCheck className="text-up" size={20} /><div><p className="text-sm font-semibold">Bounded automation</p><p className="text-xs text-dim">Versioned controls, explicit release gates, and audited actions.</p></div></div>
+            <div className="flex items-center gap-3 border-b border-edge pb-4"><ShieldCheck className="text-up" size={20} /><div><p className="text-sm font-semibold">Bounded automation</p><p className="text-xs text-dim">Every bot runs inside the limits you set, and every action is recorded.</p></div></div>
             <div className="mt-5 grid gap-px bg-edge sm:grid-cols-3">
-              {[["Automation", "Release locked"], ["Missing data", "Fail closed"], ["Network", "Solana Mainnet"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="font-mono text-[10px] uppercase text-dim">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
+              {[["Automation", "Not yet available"], ["Missing data", "Fail closed"], ["Network", "Solana Mainnet"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="font-mono text-[10px] uppercase text-dim">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
             </div>
           </div>
         </section>

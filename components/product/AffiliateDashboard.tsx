@@ -68,6 +68,8 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   const [summary, setSummary] = useState<AffiliateSummary | null>(null);
   const [bots, setBots] = useState<ProductBot[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [botConfig, setBotConfig] = useState<any>(null);
 
@@ -77,21 +79,31 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
     if (!authenticated) {
       setSummary(null);
       setBots([]);
+      setError("");
       return;
     }
     setLoading(true);
+    setError("");
     const affiliateScope = scope === "payouts" || scope === "referrals" ? "all" : scope;
-    Promise.all([
-      productFetch<AffiliateSummary>(`/api/product/affiliate?scope=${affiliateScope}`, { getAccessToken }),
-      productFetch<{ bots: ProductBot[] }>("/api/product/bots", { getAccessToken })
+    // Bounded so a hung provider can never leave the page spinning forever.
+    const signal = AbortSignal.timeout(15000);
+    // allSettled, not all: one failing panel must not blank the whole page (spec §16).
+    Promise.allSettled([
+      productFetch<AffiliateSummary>(`/api/product/affiliate?scope=${affiliateScope}`, { getAccessToken }, { signal }),
+      productFetch<{ bots: ProductBot[] }>("/api/product/bots", { getAccessToken }, { signal })
     ])
-      .then(([affiliate, botData]) => {
-        setSummary(affiliate);
-        setBots(botData.bots || []);
+      .then(([affiliateResult, botResult]) => {
+        if (affiliateResult.status === "fulfilled") {
+          setSummary(affiliateResult.value);
+          setUpdatedAt(Date.now());
+        } else {
+          // Keep the last known summary rather than blanking it; it renders as stale.
+          setError(affiliateResult.reason instanceof Error ? affiliateResult.reason.message : "Affiliate data is temporarily unavailable.");
+        }
+        if (botResult.status === "fulfilled") setBots(botResult.value.bots || []);
       })
-      .catch((reason) => toast(reason instanceof Error ? reason.message : "Could not load affiliate data", "err"))
       .finally(() => setLoading(false));
-  }, [authenticated, getAccessToken, scope, toast]);
+  }, [authenticated, getAccessToken, scope]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -112,7 +124,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   if (!authenticated) {
     return (
       <>
-        <PageHeader eyebrow="Creator revenue" title="Affiliate" description="Track Discord and KOL creator commission from confirmed, reconciled copied trades." />
+        <PageHeader title="Affiliate" description="Track creator and referral earnings." />
         <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel p-8 text-center">
           <div className="max-w-md">
             <WalletCards className="mx-auto text-toxic" size={26} />
@@ -155,7 +167,32 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         ))}
       </nav>
 
-      {loading && !summary && <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
+      {/* Skeleton shaped like the real content, never a spinner in a giant empty box. */}
+      {loading && !summary && (
+        <div className="mt-5 space-y-px" aria-busy="true">
+          <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((key) => <div key={key} className="bg-panel p-5"><div className="h-3 w-24 animate-pulse rounded bg-void" /><div className="mt-3 h-5 w-28 animate-pulse rounded bg-void" /></div>)}
+          </div>
+          <div className="mt-5 h-48 animate-pulse rounded-md border border-edge bg-panel" />
+        </div>
+      )}
+
+      {/* Recoverable failure with a retry, instead of a blank page and a vanished toast. */}
+      {!loading && !summary && error && (
+        <div className="mt-6 rounded-md border border-edge bg-panel p-6">
+          <p className="text-sm font-semibold text-ink">Affiliate data could not be loaded</p>
+          <p className="mt-1 text-xs leading-5 text-dim">{error}</p>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+        </div>
+      )}
+
+      {/* Last known data is preserved on a transient failure and labelled as stale. */}
+      {summary && error && (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-edge bg-panel px-4 py-3">
+          <p className="text-xs text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
+          <button type="button" onClick={load} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
+        </div>
+      )}
       {summary && (scope === "discord" || scope === "kol") && (
         <>
           <section className="mt-5 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">

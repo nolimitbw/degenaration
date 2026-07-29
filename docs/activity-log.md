@@ -1,5 +1,79 @@
 # Activity Log
 
+## Session: Discord bot invite fix
+
+- Owner reported servers still could not add the Discord bot. Checked the website invite and
+  found it pointed at old app id `1521883553682559116`, while the local `DISCORD_BOT_TOKEN`
+  belongs to app `1522107717836214405` (`De Generation PR`).
+- Updated `/apply` to use the active bot app id and `bot applications.commands` scopes, and
+  added an always-visible "Add the active Degenaration bot" CTA before the application form.
+- Updated Discord runbooks to reference the token-backed app id and invite URL.
+- Verification: Discord API shows `bot_public: true` and `bot_require_code_grant: false` for
+  the active app. `npx tsc --noEmit --incremental false`, `npm --prefix server test`,
+  `git diff --check`, and `npm run build` passed.
+- Deployed to Vercel Production as `dpl_Ek2rYmkYmbhg6kG35MXwcczJPhb8`. Live `/apply` contains
+  `client_id=1522107717836214405` and the Discord OAuth URL returns 200.
+- Follow-up after owner clarified the bot source lives in `nolimitbw/Degencalls`: patched the
+  Degencalls bot locally to support external `!register` and call forwarding.
+- Applied production Supabase call-source migration and secret-checked bot RPCs for register,
+  approved-channel refresh, and ingest. Added website bot routes `/api/bot/register-channel`
+  and `/api/bot/approved-channels`, and switched `/api/ingest-call` to the RPC path so the
+  Discord tracker no longer needs Vercel or the bot host to hold a Supabase service-role key.
+
+## Session: production deploy for Discord-source landing work
+
+- Owner asked to deploy. Re-ran verification before shipping: `npx tsc --noEmit --incremental false`,
+  `npm --prefix server test`, `git diff --check`, and `npm run build` all passed.
+- Deployed the current local source to Vercel Production. First deploy was green, then added
+  `BOT_SHARED_SECRET` as a sensitive Production env var and redeployed so `/api/ingest-call`
+  can authenticate Discord bot posts.
+- Final Vercel deployment: `dpl_8U7caN3HuyCANyQJNnk3vCDEj2hE`, aliased to
+  `https://degenaration.vercel.app`.
+- Live smoke checks passed: `/` 200 with `rocket-launch-hero.png` in the HTML, `/calls` 200,
+  `/images/rocket-launch-hero.png` 200 as a 1672x941 PNG, `/api/call-sources` 200, and
+  `/api/ingest-call` returns 401 for an intentionally wrong bot secret.
+- Not fully deployed: the separate Discord bot daemon still needs a long-running host plus
+  `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`. Those service-role credentials are not present
+  locally, so only the Vercel website/API side was shipped.
+
+## Session: landing page clarity and Discord-source UX
+
+- Replaced the enlarged 640px launch clip with a dedicated high-resolution rocket image in
+  `public/images/rocket-launch-hero.png`; removed the watermark crop and scroll-scrub code
+  that made the prior hero visibly soft.
+- Reframed the landing page around the actual source workflow: callers connect approved Discord
+  channels, performance is independently tracked, users review the record, then choose their
+  own per-source execution limits.
+- Rewired home-page source cards to `/api/call-sources`, so they display measured call data rather
+  than legacy group fields. The empty state now explains how callers can get listed.
+- Simplified dense visual effects into high-contrast, static surfaces; removed decorative coin
+  rain, animated gradient buttons, animated card borders, custom cursor, and unverified latency
+  and availability claims. Updated main navigation and calls to action to working destinations.
+- Browser review found the persistent risk banner overlapping the fixed navigation and an awkward
+  desktop headline wrap. Moved navigation beneath the banner and condensed the heading.
+- Verification: `npx tsc --noEmit --incremental false`, `npm run build`, and
+  `npm --prefix server test` passed (26 tests). Production-preview browser checks passed at
+  desktop and 390px mobile widths; the mobile menu expands and the primary calls action reaches
+  `/calls` and its caller-listing state.
+
+## Session: Discord call-source platform
+
+- Added an approved-source performance path: calls retain selected-channel and caller
+  attribution plus entry/current/peak market data; the worker refreshes recent calls from
+  DexScreener without executing trades.
+- Added `/api/call-sources` and rewired `/calls` to compare measured 2x hit rate, average /
+  median / best peak multiple, scanner coverage, and recent calls before a user subscribes.
+- Added optional `RELAY_CHANNEL_ID` support so the bot relays only successfully-ingested,
+  approved-channel calls to the official Degenaration Discord with mentions disabled.
+- Added `supabase/call-source-platform.sql` and admin-flow fixes: application approval is now
+  a vetting decision; an actual copy source appears only when a selected Discord channel is
+  approved. Multiple approved channels from one guild reuse the same source.
+- Added scanner tests. Pending verification: server tests, TypeScript build, and local browser
+  smoke test. No production deployment or bot configuration was changed.
+- Browser smoke test caught a stale demo-group path in the new endpoint; moved the existing
+  id-based demo filter into a shared source module so both direct and API-backed source lists
+  exclude it.
+
 ## Session: professional finish pass (autonomous, overnight)
 
 ### Phase 0 — Config + hygiene (DONE, verified)
@@ -931,3 +1005,54 @@ over the entire codebase. Found 19 real bugs. Fixed all of them.
 - `npx tsc --noEmit`: clean, 0 errors.
 - `npm run build`: green, all 45 routes.
 - `node server/test/run.js`: 24/24 pass.
+
+## Session: automation integrity and production truthfulness (2026-07-16)
+
+- Added a health endpoint and startup preflight to the 24/7 worker. Live signing now
+  refuses to start when Privy signing credentials are missing.
+- Fixed worker commission records so fees remain zero when the Jupiter fee account is
+  not configured; failed Supabase writes now surface as execution errors.
+- Added Privy identity-token ownership checks for limit orders, wallet copy trading,
+  and Discord call copying. A submitted Solana wallet must belong to the same Privy user.
+- Added production automation status to `/api/platform/config`; limit and copy controls
+  no longer claim to be live when no healthy mainnet worker is configured.
+- Added `render.yaml` for the `degenaration-worker` service with safe signing-off defaults.
+- Added on-chain verification before a browser can mark a limit order filled, and applied
+  the `limit_order_fill_integrity` Supabase migration.
+- Deployed Vercel production deployment `dpl_E3DF4vKj2WSXBij1WdPaXJzTsfsb`.
+
+### Verify
+
+- `npx tsc --noEmit`: clean.
+- `npm run build`: green, 39 pages generated.
+- `npm --prefix server test`: 35/35 pass.
+- Worker `/health` process smoke test: watch-only status returned correctly.
+- Unsafe worker startup with signing enabled and missing secrets: rejected with exit 1.
+- Production `/terminal`, `/orders`, `/calls`, `/tracker`, and `/admin/channels`: HTTP 200.
+
+## Session: final source, referral, and release hardening (2026-07-29)
+
+- Deployed Discord profile synchronization, marketplace visibility rules, branded
+  fallbacks, stable public profiles, and admin health diagnostics.
+- Verified `/register` in an approved production Discord channel. Render recorded a
+  successful registration and profile sync; the marketplace now shows the real server
+  icon, member count, fresh sync timestamp, and healthy integration state.
+- Added signed pre-auth referral capture, immutable first-touch attribution, abuse
+  review records, canonical aliases, eligible custom slugs, cooldown/history, reward
+  lifecycle storage, and authoritative commission accrual with append-only reversals.
+- Removed public paper-trading controls and limited bot payloads to Solana Mainnet
+  drafts. Automated activation, delegated signing, payouts, and monetary referral
+  rewards remain disabled because the durable live execution/exit stack is incomplete.
+- Added skip navigation, labeled controls, responsive bot tabs, and fixed the public
+  source table so its internal horizontal scroll does not widen a 390px viewport.
+- Deployed Vercel production deployment `dpl_9GSTSk4oEKEooQc3Hzz37m1bDnTB`.
+- Updated `docs/FINAL_COMPLETION_AUDIT.md`; release decision remains `NOT READY`.
+
+### Verify
+
+- `npm run typecheck`: passed.
+- `npm test`: 41/41 passed.
+- `npm run build`: passed, 59 routes.
+- `git diff --check`: passed for committed runtime changes.
+- Production browser smoke: seven primary routes at 1440px, 768px, and 390px with no
+  console/page errors or horizontal overflow.
