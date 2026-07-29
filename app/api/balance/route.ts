@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
+import { lamportsToSolString } from "@/lib/fee-model";
 
 // GET /api/balance?address=<pubkey> -> SOL balance (lamports + SOL)
 export async function GET(req: NextRequest) {
@@ -14,7 +15,9 @@ export async function GET(req: NextRequest) {
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [address] })
     }).then((x) => x.json());
     const lamports = r?.result?.value ?? 0;
-    return NextResponse.json({ address, lamports, sol: lamports / 1e9 });
+    // `lamports` is the authoritative integer value. `sol` is a display convenience and
+    // must never be fed back into ledger or validation math (spec §13.1).
+    return NextResponse.json({ address, lamports, sol: Number(lamportsToSolString(lamports)) });
   } catch (e: any) {
     return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });
   }

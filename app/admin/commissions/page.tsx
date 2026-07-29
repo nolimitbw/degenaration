@@ -10,6 +10,15 @@ type FeeConfig = { platformFeeBps?: number; feeWalletConfigured?: boolean; publi
 const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const COMMISSIONS_UI_VERSION = "commissions-admin-v2";
 
+// Phantom injects this on window. Narrow structural type instead of `as any`, so a
+// change in the shape we rely on is a type error rather than a runtime surprise.
+type PhantomProvider = {
+  isPhantom?: boolean;
+  connect: () => Promise<unknown>;
+  publicKey?: { toBase58: () => string; toString: () => string } | null;
+  signAndSendTransaction: (tx: unknown) => Promise<{ signature?: string }>;
+};
+
 export default function Commissions() {
   const { getAccessToken, user } = usePrivy();
   const { identityToken } = useIdentityToken();
@@ -73,7 +82,7 @@ export default function Commissions() {
     if (!validDest) { setStatus("Paste a valid destination Solana address."); return; }
     if (!balanceLoaded) { setStatus("Wait for the fee wallet balance to load first."); return; }
     if (!validAmount) { setStatus(balance != null && amount >= balance ? "Amount must be below the fee wallet balance so rent and network fees remain." : "Enter a valid withdrawal amount."); return; }
-    const sol = (window as any).solana;
+    const sol = (window as unknown as { solana?: PhantomProvider }).solana;
     if (!sol?.isPhantom) { setStatus("Connect Phantom (the fee wallet) to sign the withdrawal."); return; }
     setBusy(true);
     try {
@@ -86,7 +95,7 @@ export default function Commissions() {
       });
       if (!res.ok) throw new Error(res.error);
       const web3 = await import("@solana/web3.js");
-      const tx = (web3 as any).Transaction.from(Uint8Array.from(atob(res.data.transaction), (c) => c.charCodeAt(0)));
+      const tx = web3.Transaction.from(Uint8Array.from(atob(res.data.transaction), (c) => c.charCodeAt(0)));
       const sig = await sol.signAndSendTransaction(tx);
       setStatus(`✓ Withdrawal sent: ${sig.signature ?? sig}`);
     } catch (e: any) {

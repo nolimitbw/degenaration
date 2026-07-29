@@ -40,7 +40,12 @@ async function tryVerifyPrivyJwt(token: string | undefined | null) {
 function emailFromIdPayload(payload: any) {
   const linkedRaw = payload?.linked_accounts;
   let linked: any[] = [];
-  try { linked = typeof linkedRaw === "string" ? JSON.parse(linkedRaw) : Array.isArray(linkedRaw) ? linkedRaw : []; } catch {}
+  // A malformed linked_accounts claim must not throw; an empty list fails closed below.
+  try {
+    linked = typeof linkedRaw === "string" ? JSON.parse(linkedRaw) : Array.isArray(linkedRaw) ? linkedRaw : [];
+  } catch {
+    linked = [];
+  }
   const account = linked.find((item) => item?.type === "google_oauth");
   const email = String(account?.email || "").trim().toLowerCase();
   const subject = String(account?.subject || "").trim();

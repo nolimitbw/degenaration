@@ -545,7 +545,9 @@ function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: 
         await navigator.clipboard.writeText("https://degenaration.vercel.app");
         toast("Share link copied");
       }
-    } catch {}
+    } catch {
+      toast("Could not copy the share link", "err");
+    }
   }
 
   return (
