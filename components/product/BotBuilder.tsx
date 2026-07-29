@@ -30,6 +30,7 @@ import {
   type ProductBot
 } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
+import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 
 type TpLevel = { targetBps: number; sellBps: number; trailingBps: number };
 type DcaLevel = { dropBps: number; buyAmountSol: number };
@@ -256,12 +257,24 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const tpAllocationBps = tpLevels.reduce((total, level) => total + level.sellBps, 0);
   const dcaCapital = dcaEnabled ? dcaLevels.reduce((total, level) => total + level.buyAmountSol, 0) : 0;
   const requiredCapital = (buyAmountSol + dcaCapital) * maxOpenTrades;
-  const creatorFeeBps = kind === "discord" ? source?.creatorFeeBps ?? 70 : 20;
-  const creatorFeeLamports = useMemo(() => {
-    const notional = BigInt(solToLamports(buyAmountSol));
-    return (notional * BigInt(creatorFeeBps)) / BigInt(10_000);
-  }, [buyAmountSol, creatorFeeBps]);
-  const platformFeeBps = 0;
+  const creatorFeeBps = kind === "discord" ? source?.creatorFeeBps ?? DISCORD_CREATOR_BPS : KOL_CREATOR_BPS;
+  const creatorFeeLamports = useMemo(
+    () => bpsOf(solToLamports(buyAmountSol), creatorFeeBps),
+    [buyAmountSol, creatorFeeBps]
+  );
+  // Was hard-coded to 0, so the builder told users the platform fee was 0.00% while the
+  // swap routes were charging 200 bps. The real rate comes from the server, which
+  // reports 0 only while PLATFORM_FEE_ACCOUNT is unset.
+  const [platformFeeBps, setPlatformFeeBps] = useState(0);
+  useEffect(() => {
+    productFetch<{ platformFeeBps?: number }>("/api/platform/config")
+      .then((config) => setPlatformFeeBps(Number(config?.platformFeeBps) || 0))
+      .catch(() => setPlatformFeeBps(0));
+  }, []);
+  const platformFeeLamports = useMemo(
+    () => bpsOf(solToLamports(buyAmountSol), platformFeeBps),
+    [buyAmountSol, platformFeeBps]
+  );
 
   const validationError = useMemo(() => {
     if (!name.trim() || name.trim().length > 80) return "Bot name must be 1 to 80 characters.";
@@ -617,27 +630,6 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           )}
 
           <FormSection
-            title="Execution and retries"
-            description="Fine-tune route, fees, retry bounds, and cooldown."
-            summary={`${entryMode} · ${(slippageBps / 100).toFixed(2)}% slippage · ${autoRetryCount} retries`}
-          >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <SelectField label="Entry mode" value={entryMode} onChange={(value) => setEntryMode(value as typeof entryMode)} options={[{ value: "market", label: "Market route" }, { value: "limit", label: "Limit entry" }]} />
-              <NumberField label="Slippage cap" value={slippageBps / 100} onChange={(value) => setSlippageBps(Math.round(value * 100))} unit="%" step={0.25} min={0.01} max={20} />
-              <SelectField label="Priority fee" value={priorityStrategy} onChange={(value) => setPriorityStrategy(value as typeof priorityStrategy)} options={[{ value: "economy", label: "Economy" }, { value: "auto", label: "Automatic" }, { value: "fast", label: "Fast" }]} />
-              <NumberField label="Priority fee maximum" value={priorityFeeMax} onChange={(value) => setPriorityFeeMax(Math.round(value))} unit="lamports" step={100000} min={0} max={100000000} />
-              <NumberField label="Auto retries" value={autoRetryCount} onChange={(value) => setAutoRetryCount(Math.round(value))} unit="tries" step={1} min={0} max={10} />
-              <NumberField label="Limit retries" value={limitRetryCount} onChange={(value) => setLimitRetryCount(Math.round(value))} unit="tries" step={1} min={0} max={10} />
-              <NumberField label="Quote expiration" value={quoteExpirationSeconds} onChange={(value) => setQuoteExpirationSeconds(Math.round(value))} unit="sec" step={5} min={5} max={300} />
-              <NumberField label="Token cooldown" value={cooldownSeconds / 60} onChange={(value) => setCooldownSeconds(Math.round(value * 60))} unit="min" step={5} min={0} max={10080} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <Toggle label="Transaction simulation" detail="Reject the order when simulation is unavailable or fails." checked={simulationRequired} onChange={setSimulationRequired} />
-              {kind === "discord" && <Toggle label="First call only" detail="Ignore repeat calls for the token during the cooldown." checked={firstCallOnly} onChange={setFirstCallOnly} />}
-            </div>
-          </FormSection>
-
-          <FormSection
             title="Take profit"
             description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}
             summary={`${tpLevels.length} levels · first at +${(tpLevels[0]?.targetBps / 100 || 0).toFixed(0)}%`}
@@ -719,6 +711,27 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </div>
             )}
           </FormSection>
+
+          <FormSection
+            title="Execution and retries"
+            description="Fine-tune route, fees, retry bounds, and cooldown."
+            summary={`${entryMode} · ${(slippageBps / 100).toFixed(2)}% slippage · ${autoRetryCount} retries`}
+          >
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <SelectField label="Entry mode" value={entryMode} onChange={(value) => setEntryMode(value as typeof entryMode)} options={[{ value: "market", label: "Market route" }, { value: "limit", label: "Limit entry" }]} />
+              <NumberField label="Slippage cap" value={slippageBps / 100} onChange={(value) => setSlippageBps(Math.round(value * 100))} unit="%" step={0.25} min={0.01} max={20} />
+              <SelectField label="Priority fee" value={priorityStrategy} onChange={(value) => setPriorityStrategy(value as typeof priorityStrategy)} options={[{ value: "economy", label: "Economy" }, { value: "auto", label: "Automatic" }, { value: "fast", label: "Fast" }]} />
+              <NumberField label="Priority fee maximum" value={priorityFeeMax} onChange={(value) => setPriorityFeeMax(Math.round(value))} unit="lamports" step={100000} min={0} max={100000000} />
+              <NumberField label="Auto retries" value={autoRetryCount} onChange={(value) => setAutoRetryCount(Math.round(value))} unit="tries" step={1} min={0} max={10} />
+              <NumberField label="Limit retries" value={limitRetryCount} onChange={(value) => setLimitRetryCount(Math.round(value))} unit="tries" step={1} min={0} max={10} />
+              <NumberField label="Quote expiration" value={quoteExpirationSeconds} onChange={(value) => setQuoteExpirationSeconds(Math.round(value))} unit="sec" step={5} min={5} max={300} />
+              <NumberField label="Token cooldown" value={cooldownSeconds / 60} onChange={(value) => setCooldownSeconds(Math.round(value * 60))} unit="min" step={5} min={0} max={10080} />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Toggle label="Transaction simulation" detail="Reject the order when simulation is unavailable or fails." checked={simulationRequired} onChange={setSimulationRequired} />
+              {kind === "discord" && <Toggle label="First call only" detail="Ignore repeat calls for the token during the cooldown." checked={firstCallOnly} onChange={setFirstCallOnly} />}
+            </div>
+          </FormSection>
         </div>
 
         <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
@@ -737,9 +750,24 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <SummaryRow label="TP allocation" value={`${(tpAllocationBps / 100).toFixed(0)}%`} />
             <SummaryRow label="Stop loss" value={`-${(stopBps / 100).toFixed(2)}%`} />
             <SummaryRow label="Slippage" value={`${(slippageBps / 100).toFixed(2)}%`} />
-            <SummaryRow label="Creator fee" value={formatPercentBps(creatorFeeBps)} />
-            <SummaryRow label="Platform fee" value={formatPercentBps(platformFeeBps)} />
-            <SummaryRow label="Fee per entry" value={formatSol(creatorFeeLamports)} />
+            <SummaryRow
+              label="Maximum exposure"
+              value={`${Math.min(maximumCapitalSol, buyAmountSol * maxOpenTrades).toFixed(3)} SOL`}
+              hint="The most this bot can have deployed at once: buy amount times maximum open trades, capped by maximum capital."
+            />
+            {/* One user-facing rate. Listing the creator share as a second row read as
+                2.00% + 0.70% additive, which is exactly what spec 13.2 forbids -- the
+                creator is paid OUT OF the platform fee, not on top of it. */}
+            <SummaryRow
+              label="Platform fee"
+              value={formatPercentBps(platformFeeBps)}
+              hint={`Charged on each confirmed swap leg. The ${formatPercentBps(creatorFeeBps)} creator share is paid out of this fee, not added to it.`}
+            />
+            <SummaryRow
+              label="Fee per entry"
+              value={formatSol(platformFeeLamports)}
+              hint={`Estimated on a ${buyAmountSol.toFixed(3)} SOL entry. Solana network and priority fees are separate.`}
+            />
           </dl>
           <div className="border-t border-edge p-5">
             <div className={`rounded-md border px-3 py-2.5 text-[11px] leading-5 ${validationError ? "border-down/35 bg-down/5 text-down" : "border-up/30 bg-up/5 text-up"}`}>
@@ -1024,8 +1052,18 @@ function Toggle({ label, detail, checked, onChange, danger = false, compact = fa
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-start justify-between gap-4 py-3"><dt className="text-[11px] text-dim">{label}</dt><dd className="max-w-[58%] text-right font-mono text-[10px] leading-4 text-ink">{value}</dd></div>;
+function SummaryRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-3">
+      <dt className="flex items-center gap-1.5 text-[11px] text-dim">
+        {label}
+        {/* Progressive disclosure: detail lives behind an info affordance rather than
+            as helper text under every row (spec 6.1, 6.3). */}
+        {hint && <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono text-[8px] leading-none text-dim">i</span>}
+      </dt>
+      <dd className="max-w-[58%] text-right font-mono text-[10px] leading-4 text-ink">{value}</dd>
+    </div>
+  );
 }
 
 function InlineError({ children }: { children: React.ReactNode }) {
