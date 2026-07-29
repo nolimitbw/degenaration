@@ -8,6 +8,8 @@ import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 type Channel = {
   id: string; guild_name: string | null; channel_name: string | null; channel_id: string;
   registered_by: string | null; guild_member_count: number | null; status: string; group_id: string | null; created_at: string;
+  marketplace_visible: boolean | null; integration_health: string | null; profile_synced_at: string | null;
+  profile_sync_failed_at: string | null; profile_sync_error: string | null;
 };
 type Summary = { pendingChannels?: number; approvedChannels?: number };
 type ChannelsResponse = { channels?: Channel[]; source?: string; normalizedFrom?: string; rpcCount?: number; rpcError?: string };
@@ -34,6 +36,7 @@ export default function AdminChannels() {
   const [source, setSource] = useState<string | null>(null);
   const [bot, setBot] = useState<BotConfig | null>(null);
   const [approvedResult, setApprovedResult] = useState<DecisionResult | null>(null);
+  const [decisionReasons, setDecisionReasons] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!admin) {
@@ -70,14 +73,27 @@ export default function AdminChannels() {
   }, []);
 
   async function act(id: string, action: "approve" | "reject") {
+    const reason = decisionReasons[id]?.trim() || "";
+    if (reason.length < 3) {
+      setErr("Enter a short decision reason before approving or rejecting this channel.");
+      return;
+    }
     setBusy(id);
+    setErr(null);
     setApprovedResult(null);
     const res = await adminFetchJson<DecisionResult>("/api/admin/channels", getAccessToken, identityToken, email, {
       method: "POST",
-      body: JSON.stringify({ id, action })
+      body: JSON.stringify({ id, action, reason })
     });
     if (!res.ok) setErr(res.error || `${action} failed`);
-    else if (action === "approve" && res.data?.public_slug) setApprovedResult(res.data);
+    else {
+      if (action === "approve" && res.data?.public_slug) setApprovedResult(res.data);
+      setDecisionReasons((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    }
     await load();
     setBusy(null);
   }
@@ -183,11 +199,21 @@ export default function AdminChannels() {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => act(c.id, "approve")} disabled={busy === c.id}
-                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-white shadow-toxic disabled:opacity-50">{busy === c.id ? "…" : "Approve"}</button>
+                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-[#17110c] disabled:opacity-50">{busy === c.id ? "Working..." : "Approve"}</button>
                 <button onClick={() => act(c.id, "reject")} disabled={busy === c.id}
                   className="rounded-md border border-hotpink/60 px-4 py-2 text-sm font-bold text-hotpink hover:bg-hotpink/10 disabled:opacity-50">Reject</button>
               </div>
             </div>
+            <label className="mt-4 block">
+              <span className="font-mono text-[10px] uppercase text-dim">Decision reason</span>
+              <input
+                value={decisionReasons[c.id] || ""}
+                onChange={(event) => setDecisionReasons((current) => ({ ...current, [c.id]: event.target.value }))}
+                maxLength={500}
+                placeholder="Verified server ownership and call-channel access"
+                className="mt-2 min-h-10 w-full rounded-md border border-edge bg-void px-3 text-sm text-ink outline-none placeholder:text-dim/60 focus:border-toxic"
+              />
+            </label>
           </div>
         ))}
       </div>
@@ -197,8 +223,16 @@ export default function AdminChannels() {
           <h2 className="mt-8 text-lg font-bold">Decided</h2>
           <div className="mt-3 divide-y divide-edge rounded-lg border border-edge bg-panel">
             {decided.map((c) => (
-              <div key={c.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></span>
+              <div key={c.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 text-sm">
+                <div>
+                  <span className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></span>
+                  {c.group_id && (
+                    <p className="mt-1 font-mono text-[10px] text-dim">
+                      Profile {c.integration_health || "pending"} · {c.profile_synced_at ? `synced ${new Date(c.profile_synced_at).toLocaleString()}` : "awaiting sync"} · marketplace {c.marketplace_visible === false ? "hidden" : "visible"}
+                    </p>
+                  )}
+                  {c.profile_sync_error && <p className="mt-1 max-w-2xl text-xs text-hotpink">{c.profile_sync_error}</p>}
+                </div>
                 <span className={`font-mono text-xs ${c.status === "approved" ? "text-toxic" : "text-hotpink"}`}>{c.status}</span>
               </div>
             ))}

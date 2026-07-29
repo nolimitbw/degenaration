@@ -10,7 +10,7 @@ export type ProductBot = {
   description: string;
   status: BotStatus;
   visibility: "private" | "public";
-  executionMode: "paper" | "solana-devnet" | "solana-mainnet";
+  executionMode: "solana-mainnet";
   sourceGroupId?: string | null;
   sourceName?: string | null;
   version: number;
@@ -36,11 +36,16 @@ export type DiscordSource = {
   name: string;
   members: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
+  description: string;
+  ownerDisplayName: string | null;
   joinUrl: string | null;
   publicSlug: string | null;
   referralCode: string | null;
   creatorFeeBps: number;
   verificationStatus: string;
+  marketplaceVisible: boolean;
+  integrationHealth: "pending" | "healthy" | "degraded" | "unavailable";
   eligibleCalls: number;
   measuredCalls: number;
   under50: number;
@@ -54,6 +59,9 @@ export type DiscordSource = {
   activeFollowers: number;
   channels: Array<{ id: string; name: string | null }>;
   dataFreshnessAt: string | null;
+  lastSignalAt: string | null;
+  profileSyncedAt: string | null;
+  lastVerifiedAt: string | null;
   approvedAt: string | null;
 };
 

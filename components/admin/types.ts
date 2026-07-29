@@ -2,6 +2,7 @@ export type AdminTab =
   | "overview"
   | "discord"
   | "kol"
+  | "referrals"
   | "payouts"
   | "operations"
   | "users"
@@ -30,7 +31,32 @@ export type Channel = {
   status: string;
   group_id: string | null;
   decision_reason?: string | null;
+  integration_health?: string | null;
+  profile_synced_at?: string | null;
+  profile_sync_error?: string | null;
   created_at: string;
+};
+
+export type ReferralFlag = {
+  id: string;
+  type: string;
+  severity: string;
+  status: string;
+  reason: string;
+  createdAt: string;
+};
+
+export type ReferralAttribution = {
+  id: string;
+  referrerPrivyUserId: string;
+  referredPrivyUserId: string;
+  status: string;
+  statusReason: string;
+  firstQualifyingAt?: string | null;
+  attributed_at: string;
+  code: string;
+  flags: ReferralFlag[];
+  rewardLamports: string | number;
 };
 
 export type ProductOverview = {
@@ -173,6 +199,7 @@ export type AdminData = {
   applications: Application[];
   channels: Channel[];
   strategies: KolStrategy[];
+  referrals: ReferralAttribution[];
   payouts: Payout[];
   users: AppUser[];
   executions: Execution[];

@@ -30,7 +30,7 @@ export default function Login() {
   }
 
   return (
-    <main className="grid-bg flex min-h-screen items-center justify-center px-5">
+    <main id="main-content" tabIndex={-1} className="grid-bg flex min-h-screen items-center justify-center px-5">
       <div className="w-full max-w-md">
         <Link href="/" className="mb-8 block text-center text-2xl font-bold">
           DEGEN<span className="text-toxic text-glow-toxic">ARATION</span>

@@ -11,6 +11,10 @@ export type PublicSource = {
   tag: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  bannerUrl: string | null;
+  ownerDisplayName: string | null;
+  integrationHealth: string;
+  profileSyncedAt: string | null;
   discordInviteUrl: string | null;
   publicSlug: string;
   referralCode: string;
@@ -41,8 +45,12 @@ export async function getPublicSource(slug: string): Promise<PublicSource | null
 
   const { data: group, error } = await supa
     .from("approved_groups")
-    .select("id,name,members,tag,bio,avatar_url,discord_invite_url,public_slug,referral_code,created_at")
+    .select("id,name,members,tag,bio,discord_description,avatar_url,banner_url,owner_display_name,integration_health,profile_synced_at,discord_invite_url,public_slug,referral_code,created_at")
     .eq("active", true)
+    .eq("marketplace_visible", true)
+    .eq("verification_status", "approved")
+    .is("removed_at", null)
+    .is("suspended_at", null)
     .eq("public_slug", slug)
     .maybeSingle();
   if (error || !group?.public_slug || !group?.referral_code) return null;
@@ -60,8 +68,12 @@ export async function getPublicSource(slug: string): Promise<PublicSource | null
     name: group.name,
     members: group.members,
     tag: group.tag,
-    bio: group.bio,
+    bio: group.bio || group.discord_description || "Approved Discord source building a measured call history on DegenAration.",
     avatarUrl: group.avatar_url,
+    bannerUrl: group.banner_url,
+    ownerDisplayName: group.owner_display_name,
+    integrationHealth: group.integration_health,
+    profileSyncedAt: group.profile_synced_at,
     discordInviteUrl: group.discord_invite_url,
     publicSlug: group.public_slug,
     referralCode: group.referral_code,

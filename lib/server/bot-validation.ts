@@ -3,7 +3,7 @@ import { isDiscordSnowflake } from "@/lib/server/bot-auth";
 
 const BOT_STATUSES = new Set(["draft", "active", "paused", "stopping", "archived", "error"]);
 const VISIBILITIES = new Set(["private", "public"]);
-const MODES = new Set(["paper", "solana-devnet", "solana-mainnet"]);
+const MODES = new Set(["solana-mainnet"]);
 
 function levelsValid(value: unknown) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 5) return false;
@@ -53,6 +53,9 @@ export function validateBotPayload(raw: unknown) {
   const status = typeof raw.status === "string" && BOT_STATUSES.has(raw.status) ? raw.status : null;
   const visibility = typeof raw.visibility === "string" && VISIBILITIES.has(raw.visibility) ? raw.visibility : null;
   const executionMode = typeof raw.executionMode === "string" && MODES.has(raw.executionMode) ? raw.executionMode : null;
+  if (raw.executionMode !== "solana-mainnet") {
+    return { error: "Solana mainnet is the only supported execution mode" } as const;
+  }
   if (!kind || !status || !visibility || !executionMode || !name || name.length > 80 || description.length > 600) {
     return { error: "invalid bot identity" } as const;
   }
@@ -75,6 +78,9 @@ export function validateBotPayload(raw: unknown) {
   }
   if (status === "active" && !walletAddress) {
     return { error: "verified execution wallet required" } as const;
+  }
+  if (status === "active" && config.simulationRequired !== true) {
+    return { error: "transaction simulation is required for activation" } as const;
   }
   if (config.channelId != null && config.channelId !== "" && !isDiscordSnowflake(config.channelId)) {
     return { error: "invalid Discord channel" } as const;

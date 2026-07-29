@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { BadgeCheck, BarChart3, ExternalLink, MessageCircle, RadioTower, ShieldCheck } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import CopyReferralLink from "@/components/CopyReferralLink";
+import { DiscordSourceAvatar, DiscordSourceBanner } from "@/components/product/DiscordSourceVisual";
+import { StatusPill } from "@/components/product/Primitives";
 import { getPublicSource } from "@/lib/publicSource";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -30,39 +32,41 @@ export default async function SourceProfile({ params }: Props) {
   const source = await getPublicSource((await params).slug);
   if (!source) notFound();
   const invite = safeDiscordInvite(source.discordInviteUrl);
-  const initial = source.name.trim().slice(0, 1).toUpperCase() || "D";
 
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-5 border-b border-edge pb-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md border border-edge bg-panel text-2xl font-bold text-toxic">
-              {initial}
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-bold sm:text-3xl">{source.name}</h1>
-                <BadgeCheck aria-label="Approved source" size={19} className="text-toxic" />
+        <section className="overflow-hidden rounded-md border border-edge bg-panel">
+          <DiscordSourceBanner source={source} />
+          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <DiscordSourceAvatar source={source} size="lg" />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="truncate text-2xl font-bold sm:text-3xl">{source.name}</h1>
+                  <BadgeCheck aria-label="Approved source" size={19} className="text-toxic" />
+                  <StatusPill status={source.integrationHealth} />
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-dim">
+                  <span>{source.members ? `${source.members} members` : "Member count pending"}</span>
+                  <span>{source.tag || "Discord source"}</span>
+                  <span>Tracking since {new Date(source.createdAt).toLocaleDateString("en", { month: "short", year: "numeric" })}</span>
+                </p>
+                {source.ownerDisplayName && <p className="mt-2 text-xs text-dim">Managed by {source.ownerDisplayName}</p>}
               </div>
-              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-dim">
-                <span>{source.members ? `${source.members} members` : "Member count pending"}</span>
-                <span>{source.tag || "Discord source"}</span>
-                <span>Tracking since {new Date(source.createdAt).toLocaleDateString("en", { month: "short", year: "numeric" })}</span>
-              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {invite && (
+                <a href={invite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#031018] transition hover:brightness-110">
+                  <MessageCircle aria-hidden="true" size={17} /> Join Discord <ExternalLink aria-hidden="true" size={14} />
+                </a>
+              )}
+              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
+                <RadioTower aria-hidden="true" size={17} /> Configure bot
+              </Link>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {invite && (
-              <a href={invite} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#031018] transition hover:brightness-110">
-                <MessageCircle aria-hidden="true" size={17} /> Join Discord <ExternalLink aria-hidden="true" size={14} />
-              </a>
-            )}
-            <Link href="/calls" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
-              <RadioTower aria-hidden="true" size={17} /> Copy settings
-            </Link>
-          </div>
-        </div>
+        </section>
 
         {source.bio && <p className="mt-5 max-w-3xl text-sm leading-6 text-dim">{source.bio}</p>}
 
@@ -114,6 +118,9 @@ export default async function SourceProfile({ params }: Props) {
           </div>
 
           <aside className="h-fit rounded-md border border-edge bg-panel p-5">
+            <p className="font-mono text-[10px] uppercase text-dim">Profile freshness</p>
+            <p className="mt-2 text-xs text-ink">{source.profileSyncedAt ? new Date(source.profileSyncedAt).toLocaleString() : "Awaiting first Discord metadata sync"}</p>
+            <div className="my-4 border-t border-edge" />
             <p className="font-mono text-[10px] uppercase text-dim">Server referral</p>
             <p className="mt-2 break-all font-mono text-sm text-ink">/r/{source.referralCode}</p>
             <p className="mt-2 text-xs leading-5 text-dim">A stable public link assigned to this Discord server. It opens this profile without requiring a wallet.</p>

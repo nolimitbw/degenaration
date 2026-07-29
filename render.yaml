@@ -12,7 +12,7 @@ services:
       - key: NODE_VERSION
         value: 22.22.0
       - key: WORKER_NET
-        value: mainnet
+        value: devnet
       - key: DELEGATED_SIGNING
         value: "off"
       - key: COPY_TRADING

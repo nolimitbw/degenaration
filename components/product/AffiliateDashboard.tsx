@@ -11,9 +11,13 @@ import {
   Copy,
   CreditCard,
   Link2,
+  LockKeyhole,
   Loader2,
+  PencilLine,
   RadioTower,
   RefreshCw,
+  ShieldAlert,
+  UserPlus,
   WalletCards,
   X
 } from "lucide-react";
@@ -21,9 +25,10 @@ import { useToast } from "@/components/Toast";
 import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
 import { formatSol, formatWhen, lamportsToSol, productFetch, solToLamports, type ProductBot } from "@/lib/product-api";
 import { emailFromPrivyUser } from "@/lib/admin";
+import { validateReferralSlug } from "@/lib/referral-rules";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
-type Scope = "discord" | "kol" | "payouts";
+type Scope = "discord" | "kol" | "referrals" | "payouts";
 type Period = "24h" | "7d" | "30d" | "3m";
 
 type AffiliateSummary = {
@@ -41,6 +46,17 @@ type AffiliateSummary = {
   events: Array<any>;
   payouts: Array<any>;
   links: Array<any>;
+  totalInvites: number;
+  verifiedInvites: number;
+  activeReferredUsers: number;
+  referralPendingLamports: number | string;
+  referralAvailableLamports: number | string;
+  referralLifetimeLamports: number | string;
+  referralActivity: Array<any>;
+  customSlugEligible: boolean;
+  slugChangedAt: string | null;
+  slugCooldownUntil: string | null;
+  referralRewardPolicyEnabled: boolean;
 };
 
 export default function AffiliateDashboard({ initialScope = "discord" }: { initialScope?: Scope }) {
@@ -64,7 +80,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       return;
     }
     setLoading(true);
-    const affiliateScope = scope === "payouts" ? "all" : scope;
+    const affiliateScope = scope === "payouts" || scope === "referrals" ? "all" : scope;
     Promise.all([
       productFetch<AffiliateSummary>(`/api/product/affiliate?scope=${affiliateScope}`, { getAccessToken }),
       productFetch<{ bots: ProductBot[] }>("/api/product/bots", { getAccessToken })
@@ -129,6 +145,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         {[
           ["discord", "Discord Bot"],
           ["kol", "KOL Bot"],
+          ["referrals", "Referrals"],
           ["payouts", "Payouts"]
         ].map(([value, label]) => (
           <button key={value} type="button" onClick={() => setScope(value as Scope)} className={`relative min-h-11 shrink-0 px-4 text-sm font-medium ${scope === value ? "text-ink" : "text-dim hover:text-ink"}`}>
@@ -139,7 +156,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       </nav>
 
       {loading && !summary && <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
-      {summary && scope !== "payouts" && (
+      {summary && (scope === "discord" || scope === "kol") && (
         <>
           <section className="mt-5 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
             {[
@@ -203,6 +220,14 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         </>
       )}
 
+      {summary && scope === "referrals" && (
+        <ReferralDashboard
+          summary={summary}
+          getAccessToken={getAccessToken}
+          onRefresh={load}
+        />
+      )}
+
       {summary && scope === "payouts" && <PayoutHistory summary={summary} onRequest={() => setPayoutOpen(true)} />}
       {payoutOpen && summary && (
         <PayoutModal
@@ -218,6 +243,249 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         />
       )}
     </>
+  );
+}
+
+type SlugCheck = {
+  eligible: boolean;
+  valid: boolean;
+  available: boolean;
+  current: boolean;
+  cooldownUntil: string | null;
+  reason: string | null;
+};
+
+function ReferralDashboard({
+  summary,
+  getAccessToken,
+  onRefresh
+}: {
+  summary: AffiliateSummary;
+  getAccessToken: () => Promise<string | null>;
+  onRefresh: () => void;
+}) {
+  const toast = useToast();
+  const [slug, setSlug] = useState(summary.referralCode.toLowerCase());
+  const [check, setCheck] = useState<SlugCheck | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const validation = useMemo(() => validateReferralSlug(slug), [slug]);
+  const validatedSlug = validation.ok && typeof validation.slug === "string" ? validation.slug : null;
+  const currentSlug = summary.referralCode.toLowerCase();
+  const changed = validatedSlug != null && validatedSlug !== currentSlug;
+  const cooldownActive = summary.slugCooldownUntil
+    ? new Date(summary.slugCooldownUntil).getTime() > Date.now()
+    : false;
+
+  useEffect(() => {
+    setSlug(summary.referralCode.toLowerCase());
+    setCheck(null);
+  }, [summary.referralCode]);
+
+  useEffect(() => {
+    if (!summary.customSlugEligible || !validatedSlug || validatedSlug === currentSlug) {
+      setCheck(null);
+      setChecking(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setChecking(true);
+      productFetch<SlugCheck>(
+        `/api/product/referrals/slug?slug=${encodeURIComponent(validatedSlug)}`,
+        { getAccessToken }
+      )
+        .then(setCheck)
+        .catch((reason) => setCheck({
+          eligible: summary.customSlugEligible,
+          valid: false,
+          available: false,
+          current: false,
+          cooldownUntil: summary.slugCooldownUntil,
+          reason: reason instanceof Error ? reason.message : "Could not check this slug."
+        }))
+        .finally(() => setChecking(false));
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [currentSlug, getAccessToken, summary.customSlugEligible, summary.slugCooldownUntil, validatedSlug]);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/r/${summary.referralCode}`);
+      toast("Referral link copied");
+    } catch {
+      toast("Could not copy referral link", "err");
+    }
+  }
+
+  async function saveSlug() {
+    if (!validatedSlug || !check?.available || !changed) return;
+    setSaving(true);
+    try {
+      await productFetch("/api/product/referrals/slug", { getAccessToken }, {
+        method: "POST",
+        body: JSON.stringify({ slug: validatedSlug, confirmed: true })
+      });
+      toast("Referral URL updated");
+      setConfirmOpen(false);
+      onRefresh();
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : "Could not update referral URL", "err");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 space-y-5">
+      <section className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-6">
+        {[
+          ["Total invites", String(summary.totalInvites || 0), "First-touch records"],
+          ["Verified invites", String(summary.verifiedInvites || 0), "Eligible attribution"],
+          ["Active users", String(summary.activeReferredUsers || 0), "Confirmed qualifying activity"],
+          ["Pending rewards", formatSol(summary.referralPendingLamports), "Hold or review"],
+          ["Available rewards", formatSol(summary.referralAvailableLamports), "Eligible for payout policy"],
+          ["Lifetime rewards", formatSol(summary.referralLifetimeLamports), "Excludes rejected or reversed"]
+        ].map(([label, value, detail]) => (
+          <div key={label} className="bg-panel p-4">
+            <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
+            <p className="mt-2 font-mono text-lg font-semibold text-ink">{value}</p>
+            <p className="mt-1 text-[10px] leading-4 text-dim">{detail}</p>
+          </div>
+        ))}
+      </section>
+
+      {!summary.referralRewardPolicyEnabled && (
+        <div className="flex items-start gap-3 rounded-md border border-toxic/35 bg-toxic/5 px-4 py-3">
+          <ShieldAlert size={17} className="mt-0.5 shrink-0 text-toxic" />
+          <div>
+            <p className="text-xs font-semibold text-ink">Referral attribution is active; monetary rewards await an approved policy.</p>
+            <p className="mt-1 text-[11px] leading-5 text-dim">Invites and qualifying activity are recorded now. No reward amount is promised or accrued until the owner approves a rate and hold period.</p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="overflow-hidden rounded-md border border-edge bg-panel">
+          <header className="border-b border-edge px-5 py-4">
+            <p className="font-mono text-[9px] uppercase text-toxic">Referral activity</p>
+            <h2 className="mt-2 text-sm font-semibold text-ink">Immutable first-touch attribution</h2>
+            <p className="mt-1 text-[11px] text-dim">A referred account is assigned once. Review and abuse states never earn rewards automatically.</p>
+          </header>
+          {!summary.referralActivity?.length ? (
+            <div className="grid min-h-60 place-items-center p-8 text-center">
+              <div>
+                <UserPlus size={22} className="mx-auto text-toxic" />
+                <p className="mt-3 text-sm font-semibold text-ink">No attributed invites yet</p>
+                <p className="mt-1 text-[11px] text-dim">Share your stable URL to begin the attribution flow.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-edge">
+              {summary.referralActivity.slice(0, 20).map((event) => (
+                <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]">
+                  <div>
+                    <p className="text-xs font-semibold text-ink">{event.inviteLabel}</p>
+                    <p className="mt-1 text-[10px] text-dim">{event.statusReason}</p>
+                  </div>
+                  <StatusPill status={event.status} />
+                  <div className="text-right">
+                    <p className="font-mono text-xs text-ink">{formatSol(event.rewardLamports)}</p>
+                    <p className="mt-1 font-mono text-[9px] text-dim">{formatWhen(event.attributed_at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel">
+          <header className="border-b border-edge px-5 py-4">
+            <p className="font-mono text-[9px] uppercase text-toxic">Referral URL</p>
+            <h2 className="mt-2 text-sm font-semibold text-ink">Your public link</h2>
+          </header>
+          <div className="p-5">
+            <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
+              <Link2 size={14} className="shrink-0 text-toxic" />
+              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">/r/{summary.referralCode}</span>
+              <button type="button" onClick={copyLink} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link">
+                <Copy size={14} />
+              </button>
+            </div>
+
+            <div className="mt-5 border-t border-edge pt-5">
+              <div className="flex items-center gap-2">
+                {summary.customSlugEligible ? <PencilLine size={15} className="text-toxic" /> : <LockKeyhole size={15} className="text-dim" />}
+                <p className="text-xs font-semibold text-ink">Custom path</p>
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-dim">
+                {summary.customSlugEligible
+                  ? "Change only the final path segment. Previous links remain reserved and redirect safely for one year."
+                  : "Custom paths unlock after a Discord source or affiliate account is approved."}
+              </p>
+              <label className="mt-4 block">
+                <span className="field-label">degenaration.vercel.app/r/</span>
+                <input
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value.toLowerCase())}
+                  disabled={!summary.customSlugEligible || cooldownActive}
+                  maxLength={32}
+                  className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 font-mono text-sm text-ink outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </label>
+              <p className={`mt-2 min-h-5 text-[10px] ${
+                !validation.ok || check?.available === false ? "text-down" : check?.available ? "text-up" : "text-dim"
+              }`}>
+                {!summary.customSlugEligible
+                  ? "Approval required."
+                  : cooldownActive
+                    ? `Next change available ${formatWhen(summary.slugCooldownUntil)}.`
+                    : !validation.ok
+                      ? validation.error
+                      : checking
+                        ? "Checking availability..."
+                        : check?.available
+                          ? "Available."
+                          : check?.reason || "Use 4-32 lowercase letters, numbers, or single hyphens."}
+              </p>
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(true)}
+                disabled={!changed || !check?.available || checking || saving || cooldownActive}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <PencilLine size={15} />
+                Review URL change
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {confirmOpen && validatedSlug && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="referral-confirm-title">
+          <div className="w-full max-w-md rounded-md border border-edge bg-panel p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-mono text-[9px] uppercase text-toxic">Confirm referral URL</p>
+                <h2 id="referral-confirm-title" className="mt-2 text-base font-semibold text-ink">Change your public path?</h2>
+              </div>
+              <button type="button" onClick={() => setConfirmOpen(false)} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={15} /></button>
+            </div>
+            <dl className="mt-5 divide-y divide-edge border-y border-edge text-xs">
+              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Current</dt><dd className="break-all font-mono text-ink">/r/{currentSlug}</dd></div>
+              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">New</dt><dd className="break-all font-mono text-toxic">/r/{validatedSlug}</dd></div>
+              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Cooldown</dt><dd className="font-mono text-ink">30 days</dd></div>
+            </dl>
+            <p className="mt-4 text-[11px] leading-5 text-dim">The old URL will keep redirecting during its retention period and cannot be claimed by another account.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-ink">Cancel</button>
+              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-10 rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

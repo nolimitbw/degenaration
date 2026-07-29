@@ -3,6 +3,7 @@ import { validateBotPayload } from "@/lib/server/bot-validation";
 import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import { rpcResponse, UUID_RE } from "@/lib/server/product";
 import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
+import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 export async function GET(req: NextRequest) {
   const limited = await distributedRateLimit(req, { limit: 90, windowSeconds: 60 });
@@ -36,11 +37,20 @@ export async function POST(req: NextRequest) {
   if (!user.ok) return user.response;
   const parsed = validateBotPayload(await req.json().catch(() => null));
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  if (parsed.value.status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
+    return NextResponse.json(
+      { error: AUTOMATED_MAINNET_RELEASE.reason, code: "AUTOMATION_RELEASE_LOCKED" },
+      { status: 503, headers: { "Retry-After": "3600" } }
+    );
+  }
   if (parsed.walletAddress) {
     const ownership = await requirePrivyWallet(req, user.privyUserId, parsed.walletAddress, parsed.walletId);
     if (!ownership.ok) return ownership.response;
   }
-  return rpcResponse(await callPrivyRpc("app_user_save_bot", {
+  const rpcName = parsed.value.status === "active"
+    ? "app_user_save_bot"
+    : "app_user_save_mainnet_bot_draft";
+  return rpcResponse(await callPrivyRpc(rpcName, {
     p_privy_user_id: user.privyUserId,
     p_payload: parsed.value
   }));

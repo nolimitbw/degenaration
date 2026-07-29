@@ -15,7 +15,9 @@ import {
   X
 } from "lucide-react";
 import Logo from "@/components/Logo";
+import ReferralCaptureCompletion from "@/components/ReferralCaptureCompletion";
 import { useIsAdmin } from "@/lib/admin";
+import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 const WalletButton = dynamic(() => import("@/components/WalletButton"), {
   ssr: false,
@@ -62,9 +64,9 @@ function Notifications() {
       </button>
       {open && (
         <div className="absolute right-0 top-12 z-50 w-80 rounded-md border border-edge bg-panel p-4 shadow-2xl">
-          <p className="text-sm font-semibold text-ink">Execution safeguards active</p>
+          <p className="text-sm font-semibold text-ink">Automation release review</p>
           <p className="mt-1 text-xs leading-5 text-dim">
-            New automation runs in paper mode until the owner enables a reviewed execution environment.
+            {AUTOMATED_MAINNET_RELEASE.reason}
           </p>
           <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-toxic hover:text-cyber">
             Review bot status
@@ -101,9 +103,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell min-h-screen">
-      <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
-        Skip to content
-      </a>
+      <ReferralCaptureCompletion />
 
       <header className="sticky top-0 z-40 border-b border-edge bg-void/95 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-3 px-4 lg:px-6">
@@ -146,9 +146,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[10px] uppercase text-dim sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-up" />
+              <span className="h-1.5 w-1.5 rounded-full bg-toxic" />
               Solana
-              <span className="text-ink">Paper</span>
+              <span className="text-ink">Mainnet</span>
             </div>
             {admin && (
               <Link
@@ -226,8 +226,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t border-edge px-4 py-3">
         <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-dim">
-          <span>Automation workspace</span>
-          <span>Paper mode active. Real-fund execution is disabled.</span>
+          <span>Solana Mainnet workspace</span>
+          <span>Automated activation requires controlled release approval. No fallback fills.</span>
         </div>
       </footer>
     </div>

@@ -8,7 +8,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
   if (!ready) return null;
   if (!admin) {
     return (
-      <main className="grid-bg flex min-h-screen flex-col items-center justify-center gap-2 px-5 text-center">
+      <main id="main-content" tabIndex={-1} className="grid-bg flex min-h-screen flex-col items-center justify-center gap-2 px-5 text-center">
         <h1 className="text-2xl font-bold">Owner dashboard</h1>
         <p className="max-w-md text-sm text-dim">
           {authenticated

@@ -3,7 +3,7 @@ import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
-import DevnetBanner from "@/components/DevnetBanner";
+import ReleaseBanner from "@/components/ReleaseBanner";
 
 const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
@@ -32,7 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${display.variable} ${mono.variable} font-display antialiased`}>
         <Providers>
           <ToastProvider>
-            <DevnetBanner />
+            <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
+              Skip to content
+            </a>
+            <ReleaseBanner />
             {children}
           </ToastProvider>
         </Providers>

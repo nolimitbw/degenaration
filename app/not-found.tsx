@@ -3,7 +3,7 @@ import Link from "next/link";
 // Branded 404 so a bad URL never shows Next's default page.
 export default function NotFound() {
   return (
-    <main className="grid-bg flex min-h-screen flex-col items-center justify-center gap-4 px-5 text-center">
+    <main id="main-content" tabIndex={-1} className="grid-bg flex min-h-screen flex-col items-center justify-center gap-4 px-5 text-center">
       <Link href="/" className="text-2xl font-bold">
         DEGEN<span className="text-toxic text-glow-toxic">ARATION</span>
       </Link>

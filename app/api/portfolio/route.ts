@@ -8,8 +8,7 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 // getTokenAccountsByOwner is blocked on some free RPCs (e.g. PublicNode); the official
 // endpoint supports it. Override with a paid RPC via MAINNET_RPC.
-function rpcFor(net: string | null) {
-  if (net === "devnet") return "https://api.devnet.solana.com";
+function rpcFor() {
   return process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
 }
 
@@ -27,7 +26,7 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const address = req.nextUrl.searchParams.get("address");
   if (!isMint(address)) return NextResponse.json({ error: "invalid address" }, { status: 400 });
-  const url = rpcFor(req.nextUrl.searchParams.get("net"));
+  const url = rpcFor();
 
   try {
     const [balResult, accResult] = await Promise.allSettled([

@@ -28,19 +28,25 @@ function client() {
   return _privy;
 }
 
+function resolveCaip2(net) {
+  if (!Object.hasOwn(CAIP2, net)) throw new Error("explicit worker network required for delegated signing");
+  return CAIP2[net];
+}
+
 // walletId is the Privy embedded-wallet id (getSolanaWalletId on the client — stored with
 // the order/subscription so the worker signs for the right wallet). base64Tx is Jupiter's
 // unsigned swapTransaction (versioned).
-async function signAndSend(base64Tx, walletId, net = "mainnet") {
+async function signAndSend(base64Tx, walletId, net) {
   if (!walletId) throw new Error("missing walletId for delegated signing");
+  const caip2 = resolveCaip2(net);
   const { VersionedTransaction } = require("@solana/web3.js");
   const transaction = VersionedTransaction.deserialize(Buffer.from(base64Tx, "base64"));
   const res = await client().walletApi.solana.signAndSendTransaction({
     walletId,
-    caip2: CAIP2[net] || CAIP2.mainnet,
+    caip2,
     transaction
   });
   return res?.hash || res?.signature || res;
 }
 
-module.exports = { signAndSend, CAIP2 };
+module.exports = { signAndSend, resolveCaip2, CAIP2 };

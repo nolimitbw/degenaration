@@ -222,6 +222,47 @@ test("rejects a substituted wallet id", () => {
   assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:owner", tradeWallet, "wallet-attacker"), false);
 });
 
+console.log("referral integrity");
+const { validateReferralSlug } = require("../../lib/referral-rules");
+const { CAPTURE_WINDOW_SECONDS, createReferralCapture, verifyReferralCapture } = require("../../lib/server/referral-capture");
+const referralSecret = "test-referral-secret-with-sufficient-entropy";
+const referralNow = Date.UTC(2026, 6, 28);
+const visitorHash = "a".repeat(64);
+test("accepts and canonicalizes an eligible custom referral slug", () => {
+  assert.deepStrictEqual(validateReferralSlug("  Alpha-Calls-27 "), { ok: true, slug: "alpha-calls-27" });
+});
+test("rejects reserved, Unicode, and repeated-hyphen referral slugs", () => {
+  assert.strictEqual(validateReferralSlug("admin").ok, false);
+  assert.strictEqual(validateReferralSlug("dégen").ok, false);
+  assert.strictEqual(validateReferralSlug("alpha--calls").ok, false);
+});
+test("round-trips a signed referral capture without exposing an owner id", () => {
+  const capture = createReferralCapture({ code: "alpha-calls", visitorHash, now: referralNow }, referralSecret);
+  const parsed = verifyReferralCapture(capture, referralSecret, referralNow + 1000);
+  assert.strictEqual(parsed.code, "alpha-calls");
+  assert.strictEqual(parsed.visitorHash, visitorHash);
+  assert.strictEqual(JSON.stringify(parsed).includes("privy"), false);
+});
+test("rejects tampered and expired referral captures", () => {
+  const capture = createReferralCapture({ code: "alpha-calls", visitorHash, now: referralNow }, referralSecret);
+  assert.strictEqual(verifyReferralCapture(`${capture}x`, referralSecret, referralNow), null);
+  assert.strictEqual(
+    verifyReferralCapture(capture, referralSecret, referralNow + (CAPTURE_WINDOW_SECONDS + 1) * 1000),
+    null
+  );
+});
+
+console.log("delegated signing network gate");
+const { CAIP2, resolveCaip2 } = require("../engine/signer");
+test("requires an explicit supported signing network", () => {
+  assert.throws(() => resolveCaip2(), /explicit worker network/);
+  assert.throws(() => resolveCaip2("localnet"), /explicit worker network/);
+});
+test("maps only the declared Solana networks", () => {
+  assert.strictEqual(resolveCaip2("devnet"), CAIP2.devnet);
+  assert.strictEqual(resolveCaip2("mainnet"), CAIP2.mainnet);
+});
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -140,7 +140,7 @@ export default function PortfolioDashboard() {
       <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
         <div className="grid gap-px bg-edge lg:grid-cols-[1.35fr_repeat(4,1fr)]">
           <div className="bg-panel p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2"><p className="field-label">Total portfolio value</p><span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase text-dim"><span className="h-1.5 w-1.5 rounded-full bg-up" /> Solana · paper</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="field-label">Total portfolio value</p><span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase text-dim"><span className="h-1.5 w-1.5 rounded-full bg-up" /> Solana Mainnet</span></div>
             <p className="mt-3 font-mono text-3xl font-semibold text-ink">{totalSolEquivalent.toFixed(3)} <span className="text-base text-dim">SOL</span></p>
             <p className="mt-1 font-mono text-xs text-dim">{fmtUsd(totalUsd)}</p>
           </div>
@@ -306,7 +306,7 @@ function DepositModal({ wallet, onClose }: { wallet: string; onClose: () => void
 function UnavailableWithdrawal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Withdraw funds" onClose={onClose}>
-      <div className="flex gap-3 rounded-md border border-toxic/35 bg-toxic/5 p-4"><ShieldAlert className="shrink-0 text-toxic" size={18} /><div><p className="text-sm font-semibold text-ink">Withdrawals are disabled in paper mode</p><p className="mt-1 text-xs leading-5 text-dim">No transaction will be constructed while the real-fund release gate is off. This prevents a button from implying that funds can move when execution is not enabled.</p></div></div>
+      <div className="flex gap-3 rounded-md border border-toxic/35 bg-toxic/5 p-4"><ShieldAlert className="shrink-0 text-toxic" size={18} /><div><p className="text-sm font-semibold text-ink">In-app transfers are not available</p><p className="mt-1 text-xs leading-5 text-dim">DegenAration does not construct a withdrawal transaction from this view. Funds remain controlled by the connected wallet.</p></div></div>
       <Link href="/wallet" className="mt-4 inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink">Review wallet security</Link>
     </Modal>
   );

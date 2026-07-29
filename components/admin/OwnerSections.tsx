@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import {
   Activity,
   Bot,
   CheckCircle2,
   CircleAlert,
   ExternalLink,
+  Link2,
   RadioTower,
+  Search,
   ShieldAlert,
   Users,
   WalletCards
@@ -20,7 +23,8 @@ import type {
   Application,
   Channel,
   KolStrategy,
-  Payout
+  Payout,
+  ReferralAttribution
 } from "@/components/admin/types";
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
@@ -105,7 +109,7 @@ function Overview({ data }: { data: AdminData }) {
               ["KOL moderation", product.pendingKolStrategies || 0, "Strategies awaiting owner review"],
               ["Payout review", product.pendingPayouts || 0, "Execution remains disabled"],
               ["Unreconciled executions", product.unreconciledExecutions || 0, "Submitted or confirmed records"],
-              ["Failed executions (24h)", failed, "Paper and controlled execution attempts"],
+              ["Failed executions (24h)", failed, "Controlled execution attempts"],
               ["Dead-letter jobs", product.deadLetters || 0, "Jobs requiring operator attention"]
             ].map(([label, value, detail]) => (
               <div key={String(label)} className="flex items-center justify-between gap-4 px-4 py-3">
@@ -127,7 +131,7 @@ function Overview({ data }: { data: AdminData }) {
                   <div className="min-w-0">
                     <p className="truncate font-mono text-xs text-ink">{worker.key}</p>
                     <p className="mt-1 truncate font-mono text-[10px] text-dim">
-                      {worker.executionMode || "paper"} · {formatDate(worker.heartbeatAt)}
+                      {worker.executionMode || "not reported"} · {formatDate(worker.heartbeatAt)}
                     </p>
                   </div>
                   <StatusPill status={worker.healthy ? "healthy" : "degraded"} />
@@ -222,6 +226,12 @@ function ChannelRow({ channel, act }: { channel: Channel; act: (action: AdminAct
         <p className="mt-1 truncate font-mono text-[10px] text-dim">
           {channel.channel_id} · {channel.guild_member_count ?? "Unknown"} members · by {channel.registered_by || "Unknown"}
         </p>
+        {channel.group_id && (
+          <p className="mt-1 truncate font-mono text-[10px] text-dim">
+            Profile {channel.integration_health || "pending"} · {channel.profile_synced_at ? `synced ${formatDate(channel.profile_synced_at)}` : "awaiting sync"}
+          </p>
+        )}
+        {channel.profile_sync_error && <p className="mt-1 line-clamp-2 text-[11px] text-down">{channel.profile_sync_error}</p>}
       </div>
       <p className="text-xs text-dim">{channel.decision_reason || `Registered ${formatDate(channel.created_at)}`}</p>
       <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
@@ -383,6 +393,110 @@ function Kol({ data, act }: { data: AdminData; act: (action: AdminAction) => voi
   );
 }
 
+function ReferralRow({ referral }: { referral: ReferralAttribution }) {
+  const openFlags = referral.flags.filter((flag) => flag.status === "open");
+  return (
+    <div className="grid gap-4 px-4 py-4 xl:grid-cols-[1fr_.8fr_.75fr_.7fr] xl:items-center">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-mono text-xs font-semibold text-ink">/{referral.code}</p>
+          <StatusPill status={referral.status} />
+        </div>
+        <p className="mt-1 truncate text-xs text-dim">{referral.statusReason}</p>
+      </div>
+      <div className="min-w-0 font-mono text-[10px] text-dim">
+        <p className="truncate">From <span className="text-ink">{compact(referral.referrerPrivyUserId, 10, 6)}</span></p>
+        <p className="mt-1 truncate">To <span className="text-ink">{compact(referral.referredPrivyUserId, 10, 6)}</span></p>
+      </div>
+      <div className="font-mono text-[10px] text-dim">
+        <p>Captured <span className="text-ink">{formatDate(referral.attributed_at)}</span></p>
+        <p className="mt-1">Qualified <span className={referral.firstQualifyingAt ? "text-up" : "text-dim"}>{formatDate(referral.firstQualifyingAt || undefined)}</span></p>
+      </div>
+      <div className="font-mono text-[10px] text-dim">
+        <p>Reward <span className="float-right text-ink">{formatSol(referral.rewardLamports)}</span></p>
+        <p className="mt-1">
+          Flags
+          <span className={`float-right ${openFlags.length ? "text-down" : "text-up"}`}>
+            {openFlags.length ? `${openFlags.length} open` : "clear"}
+          </span>
+        </p>
+      </div>
+      {openFlags.length > 0 && (
+        <div className="rounded-md border border-down/30 bg-down/5 px-3 py-2 xl:col-span-4">
+          {openFlags.map((flag) => (
+            <p key={flag.id} className="text-[11px] leading-5 text-down">
+              {flag.severity.toUpperCase()} · {flag.type.replaceAll("_", " ")} · {flag.reason}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Referrals({ data }: { data: AdminData }) {
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const rows = needle
+    ? data.referrals.filter((referral) => [
+      referral.code,
+      referral.status,
+      referral.statusReason,
+      referral.referrerPrivyUserId,
+      referral.referredPrivyUserId
+    ].some((value) => value.toLowerCase().includes(needle)))
+    : data.referrals;
+  const reviewCount = data.referrals.filter((referral) => referral.status === "review").length;
+  const qualifiedCount = data.referrals.filter((referral) => referral.firstQualifyingAt).length;
+  const openFlags = data.referrals.reduce(
+    (total, referral) => total + referral.flags.filter((flag) => flag.status === "open").length,
+    0
+  );
+
+  return (
+    <div className="space-y-6">
+      <MetricStrip items={[
+        { label: "Attributions", value: data.referrals.length },
+        { label: "Qualified users", value: qualifiedCount, tone: "text-up" },
+        { label: "Needs review", value: reviewCount, tone: reviewCount ? "text-toxic" : "text-ink" },
+        { label: "Open abuse flags", value: openFlags, tone: openFlags ? "text-down" : "text-up" }
+      ]} />
+      <div className="rounded-md border border-toxic/35 bg-toxic/5 px-4 py-3">
+        <p className="text-xs font-semibold text-toxic">Referral rewards are not enabled</p>
+        <p className="mt-1 text-xs leading-5 text-dim">
+          Attribution and qualifying activity are recorded, but no monetary reward accrues until an audited reward policy is approved and enabled.
+        </p>
+      </div>
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <SectionTitle title="Referral attribution review" detail={`${rows.length} shown`} />
+          <label className="relative w-full sm:w-72">
+            <span className="sr-only">Search referrals</span>
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-dim" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="field-control min-h-10 w-full pl-9"
+              placeholder="Search code, status, or user"
+            />
+          </label>
+        </div>
+        {rows.length ? (
+          <div className="divide-y divide-edge rounded-md border border-edge bg-panel">
+            {rows.map((referral) => <ReferralRow key={referral.id} referral={referral} />)}
+          </div>
+        ) : (
+          <EmptyState
+            icon={Link2}
+            title={data.referrals.length ? "No matching referrals" : "No referral attributions"}
+            description={data.referrals.length ? "Change the search to review another attribution." : "A signed first-touch referral will appear here after the invited user authenticates."}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
 function nextPayoutActions(payout: Payout) {
   if (payout.status === "requested") return ["review", "approve", "reject"] as const;
   if (payout.status === "reviewing") return ["approve", "reject"] as const;
@@ -492,7 +606,7 @@ function Operations({ data }: { data: AdminData }) {
             </table>
           </div>
         ) : (
-          <EmptyState icon={Activity} title="No execution records" description="Paper and controlled execution attempts will be listed here with reconciliation state." />
+          <EmptyState icon={Activity} title="No execution records" description="Controlled execution attempts will be listed here with reconciliation state." />
         )}
       </section>
     </div>
@@ -625,6 +739,7 @@ export default function OwnerSections({
   if (active === "overview") return <Overview data={data} />;
   if (active === "discord") return <Discord data={data} act={act} />;
   if (active === "kol") return <Kol data={data} act={act} />;
+  if (active === "referrals") return <Referrals data={data} />;
   if (active === "payouts") return <Payouts data={data} act={act} />;
   if (active === "operations") return <Operations data={data} />;
   if (active === "users") return <UserList data={data} />;

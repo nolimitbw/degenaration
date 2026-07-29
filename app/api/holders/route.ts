@@ -8,8 +8,7 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const mint = req.nextUrl.searchParams.get("mint");
   if (!isMint(mint)) return NextResponse.json({ error: "invalid mint" }, { status: 400 });
-  const net = req.nextUrl.searchParams.get("net");
-  const rpc = net === "mainnet" ? (process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com") : (net === "devnet" ? "https://api.devnet.solana.com" : (process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com"));
+  const rpc = process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com";
   try {
     const [largest, supply] = await Promise.all([
       fetchWithTimeout(rpc, { method: "POST", headers: { "content-type": "application/json" },

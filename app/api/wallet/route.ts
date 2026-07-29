@@ -11,8 +11,7 @@ export async function GET(req: NextRequest) {
   const address = req.nextUrl.searchParams.get("address");
   if (!isMint(address)) return NextResponse.json({ error: "invalid address" }, { status: 400 });
 
-  const net = req.nextUrl.searchParams.get("net");
-  const rpc = net === "mainnet" ? (process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com") : (net === "devnet" ? "https://api.devnet.solana.com" : (process.env.SOLANA_RPC_URL || "https://solana-rpc.publicnode.com"));
+  const rpc = process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com";
   try {
     const [balRes, sigRes] = await Promise.all([
       fetchWithTimeout(rpc, { method: "POST", headers: { "content-type": "application/json" },

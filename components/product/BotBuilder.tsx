@@ -28,6 +28,7 @@ import {
   type DiscordSource,
   type ProductBot
 } from "@/lib/product-api";
+import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 type TpLevel = { targetBps: number; sellBps: number; trailingBps: number };
 type DcaLevel = { dropBps: number; buyAmountSol: number };
@@ -164,6 +165,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(Boolean(botId));
   const [confirmStatus, setConfirmStatus] = useState<"draft" | "active" | null>(null);
+  const [confirmReviewed, setConfirmReviewed] = useState(false);
 
   useEffect(() => {
     if (kind !== "discord") return;
@@ -368,6 +370,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       toast(validationError, "err");
       return;
     }
+    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
+      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
+      return;
+    }
     if (status === "active" && (!walletAddress || !walletId)) {
       toast("Connect a verified Solana execution wallet first.", "err");
       return;
@@ -387,20 +393,21 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           description: description.trim(),
           status,
           visibility: kind === "discord" ? "private" : visibility,
-          executionMode: "paper",
+          executionMode: "solana-mainnet",
           sourceGroupId: kind === "discord" ? sourceId : null,
           confirmed: status === "active",
           changeNote: botId ? "Configuration updated from bot manager" : "Initial configuration",
           config: buildConfig()
         })
       });
-      toast(status === "active" ? "Bot activated in paper mode" : "Draft saved");
+      toast(status === "active" ? "Bot activated on Solana Mainnet" : "Draft saved");
       router.push("/bots/manage");
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : "Could not save bot", "err");
     } finally {
       setSaving(false);
       setConfirmStatus(null);
+      setConfirmReviewed(false);
     }
   }
 
@@ -646,7 +653,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           <dl className="divide-y divide-edge px-5">
             <SummaryRow label="Product" value={kind === "discord" ? "Discord Bot" : "KOL Bot"} />
             <SummaryRow label="Source" value={kind === "discord" ? source?.name || "Not selected" : preset} />
-            <SummaryRow label="Execution" value="Paper mode" />
+            <SummaryRow label="Network" value={AUTOMATED_MAINNET_RELEASE.label} />
             <SummaryRow label="Wallet" value={walletAddress ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}` : "Not connected"} />
             <SummaryRow label="Buy amount" value={`${buyAmountSol.toFixed(3)} SOL`} />
             <SummaryRow label="Maximum capital" value={`${maximumCapitalSol.toFixed(3)} SOL`} />
@@ -663,23 +670,38 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               {validationError || "Configuration passes client validation. Server and scanner checks still apply."}
             </div>
             <div className="mt-4 grid gap-2">
-              <button type="button" onClick={() => setConfirmStatus("active")} disabled={saving || !!validationError} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40">
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
-                Activate in paper mode
+              <button
+                type="button"
+                disabled
+                className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-dim opacity-70"
+                title={AUTOMATED_MAINNET_RELEASE.reason}
+              >
+                <ShieldCheck size={15} />
+                Mainnet activation locked
               </button>
-              <button type="button" onClick={() => setConfirmStatus("draft")} disabled={saving || !!validationError} className="min-h-11 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40">Save draft</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmReviewed(false);
+                  setConfirmStatus("draft");
+                }}
+                disabled={saving || !!validationError}
+                className="min-h-11 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40"
+              >
+                Save draft
+              </button>
             </div>
-            <p className="mt-3 text-center font-mono text-[9px] leading-4 text-dim">Mainnet entries and payouts remain disabled by global release gates.</p>
+            <p className="mt-3 text-center font-mono text-[9px] leading-4 text-dim">{AUTOMATED_MAINNET_RELEASE.reason}</p>
           </div>
         </aside>
       </div>
 
       {confirmStatus && (
-        <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={() => setConfirmStatus(null)}>
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }}>
           <div role="dialog" aria-modal="true" aria-labelledby="confirm-bot-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
               <div><p className="font-mono text-[9px] uppercase text-toxic">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 text-lg font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
-              <button type="button" onClick={() => setConfirmStatus(null)} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
+              <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
             </header>
             <div className="p-5">
               <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
@@ -702,26 +724,32 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </div>
               <div className="mt-4 flex gap-3 rounded-md border border-toxic/35 bg-toxic/5 p-3 text-xs leading-5 text-dim">
                 <AlertTriangle className="mt-0.5 shrink-0 text-toxic" size={16} />
-                <p>Only signals that pass every selected filter are eligible. Market conditions, provider availability, and execution routes can change after this summary. Paper mode does not move real funds.</p>
+                <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds. Mainnet activation remains unavailable until the controlled release review passes.</p>
               </div>
               <label className="mt-4 flex items-start gap-3 text-xs text-ink">
-                <input type="checkbox" required className="mt-0.5 h-4 w-4 accent-[#b98b5d]" id="bot-confirm-check" />
+                <input
+                  type="checkbox"
+                  required
+                  checked={confirmReviewed}
+                  onChange={(event) => setConfirmReviewed(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[#b98b5d]"
+                  id="bot-confirm-check"
+                />
                 I reviewed the source, capital exposure, exits, retries, and fail-closed filters.
               </label>
             </div>
             <footer className="flex flex-col-reverse gap-2 border-t border-edge p-5 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => setConfirmStatus(null)} className="min-h-11 rounded-md border border-edge px-5 text-sm font-semibold text-ink">Cancel</button>
+              <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="min-h-11 rounded-md border border-edge px-5 text-sm font-semibold text-ink">Cancel</button>
               <button
                 type="button"
                 onClick={() => {
-                  const checkbox = document.getElementById("bot-confirm-check") as HTMLInputElement | null;
-                  if (!checkbox?.checked) {
+                  if (!confirmReviewed) {
                     toast("Confirm that you reviewed the configuration.", "err");
                     return;
                   }
                   save(confirmStatus);
                 }}
-                disabled={saving}
+                disabled={saving || !confirmReviewed}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c] disabled:opacity-50"
               >
                 {saving && <Loader2 size={15} className="animate-spin" />}

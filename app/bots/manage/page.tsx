@@ -25,6 +25,7 @@ import {
 } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
 import { productFetch, type BotKind, type ProductBot } from "@/lib/product-api";
+import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -64,6 +65,10 @@ export default function BotManagerPage() {
   }), [bots]);
 
   async function saveBot(bot: ProductBot, status: ProductBot["status"], duplicate = false) {
+    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
+      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
+      return;
+    }
     setBusy(bot.id);
     try {
       await productFetch("/api/product/bots", { getAccessToken, identityToken }, {
@@ -75,7 +80,7 @@ export default function BotManagerPage() {
           description: bot.description || "",
           status: duplicate ? "draft" : status,
           visibility: duplicate ? "private" : bot.visibility,
-          executionMode: "paper",
+          executionMode: "solana-mainnet",
           sourceGroupId: bot.sourceGroupId || null,
           confirmed: status === "active" && !duplicate,
           changeNote: duplicate ? "Duplicated from bot manager" : `Lifecycle changed to ${status}`,
@@ -134,6 +139,9 @@ export default function BotManagerPage() {
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>
+      <p className="mt-3 rounded-md border border-toxic/30 bg-toxic/5 px-4 py-3 text-xs leading-5 text-dim">
+        Drafts remain editable on {AUTOMATED_MAINNET_RELEASE.label}. {AUTOMATED_MAINNET_RELEASE.reason}
+      </p>
 
       <div className="mt-5">
         {bots == null && <div className="grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
@@ -192,7 +200,15 @@ export default function BotManagerPage() {
                               {bot.status === "active" ? (
                                 <button type="button" onClick={() => saveBot(bot, "paused")} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-toxic" aria-label={`Pause ${bot.name}`} title="Pause entries"><Pause size={14} /></button>
                               ) : bot.status !== "archived" && (
-                                <button type="button" onClick={() => saveBot(bot, "active")} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-up" aria-label={`Resume ${bot.name}`} title="Resume"><Play size={14} /></button>
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="grid h-9 w-9 cursor-not-allowed place-items-center rounded-md border border-edge text-dim opacity-40"
+                                  aria-label={`Activation unavailable for ${bot.name}`}
+                                  title={AUTOMATED_MAINNET_RELEASE.reason}
+                                >
+                                  <Play size={14} />
+                                </button>
                               )}
                               {bot.kind === "kol" && bot.status !== "archived" && (
                                 <button type="button" onClick={() => saveBot(bot, "draft", true)} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Duplicate ${bot.name}`} title="Duplicate as draft"><Copy size={14} /></button>

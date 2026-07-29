@@ -6,7 +6,7 @@ import { useEffect } from "react";
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => { console.error(error); }, [error]);
   return (
-    <main className="grid-bg flex min-h-screen flex-col items-center justify-center gap-4 px-5 text-center">
+    <main id="main-content" tabIndex={-1} className="grid-bg flex min-h-screen flex-col items-center justify-center gap-4 px-5 text-center">
       <Link href="/" className="text-2xl font-bold">
         DEGEN<span className="text-toxic text-glow-toxic">ARATION</span>
       </Link>

@@ -31,6 +31,14 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
   guild_status: {
     rpc: "bot_guild_status",
     params: ["p_secret", "p_guild_id"]
+  },
+  sync_source_profile: {
+    rpc: "bot_sync_source_profile",
+    params: [
+      "p_secret", "p_guild_id", "p_guild_name", "p_guild_member_count",
+      "p_avatar_url", "p_banner_url", "p_description", "p_owner_display_name",
+      "p_bot_present", "p_sync_error"
+    ]
   }
 };
 

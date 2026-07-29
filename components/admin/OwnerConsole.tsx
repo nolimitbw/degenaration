@@ -7,6 +7,7 @@ import {
   Bot,
   ClipboardList,
   History,
+  Link2,
   RefreshCw,
   ServerCog,
   Settings2,
@@ -25,6 +26,7 @@ const EMPTY_DATA: AdminData = {
   applications: [],
   channels: [],
   strategies: [],
+  referrals: [],
   payouts: [],
   users: [],
   executions: [],
@@ -38,6 +40,7 @@ const TABS = [
   { id: "overview", label: "Overview", icon: Activity },
   { id: "discord", label: "Discord", icon: ServerCog },
   { id: "kol", label: "KOL", icon: Bot },
+  { id: "referrals", label: "Referrals", icon: Link2 },
   { id: "payouts", label: "Payouts", icon: WalletCards },
   { id: "operations", label: "Operations", icon: ClipboardList },
   { id: "users", label: "Users", icon: Users },
@@ -51,6 +54,7 @@ function mergeResponse(data: AdminData, path: string, payload: any): AdminData {
   if (path.includes("/applications")) return { ...data, applications: payload?.applications || [] };
   if (path.includes("/channels")) return { ...data, channels: payload?.channels || [] };
   if (path.includes("/kol-strategies")) return { ...data, strategies: payload?.strategies || [] };
+  if (path.includes("/referrals")) return { ...data, referrals: payload?.attributions || [] };
   if (path.includes("/payouts")) return { ...data, payouts: payload?.payouts || [] };
   if (path.includes("/users")) return { ...data, users: payload?.users || [] };
   if (path.includes("/trades")) return { ...data, executions: payload?.executions || [] };
@@ -150,6 +154,7 @@ export default function OwnerConsole() {
     "/api/admin/applications",
     "/api/admin/channels",
     "/api/admin/kol-strategies",
+    "/api/admin/referrals",
     "/api/admin/payouts",
     "/api/admin/users",
     "/api/admin/trades",

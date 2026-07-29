@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 
-// GET /api/token-balance?owner=<pubkey>&mint=<mint>&net= -> raw + ui token balance for one mint.
+// GET /api/token-balance?owner=<pubkey>&mint=<mint> -> raw + UI token balance for one mint.
 // Read-only RPC call; used by the Sell flow to compute an exact raw amount (no decimal guessing).
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
@@ -9,10 +9,7 @@ export async function GET(req: NextRequest) {
   const owner = req.nextUrl.searchParams.get("owner");
   const mint = req.nextUrl.searchParams.get("mint");
   if (!isMint(owner) || !isMint(mint)) return NextResponse.json({ error: "invalid owner/mint" }, { status: 400 });
-  const net = req.nextUrl.searchParams.get("net");
-  const rpc = net === "devnet"
-    ? "https://api.devnet.solana.com"
-    : (process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com");
+  const rpc = process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com";
   try {
     const r = await fetchWithTimeout(rpc, {
       method: "POST", headers: { "content-type": "application/json" },

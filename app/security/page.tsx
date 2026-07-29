@@ -18,7 +18,7 @@ const CHECKS = [
 
 export default function Security() {
   return (
-    <main className="mx-auto max-w-3xl px-5 py-16">
+    <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-16">
       <Link href="/" className="font-mono text-xs text-toxic">← back</Link>
       <h1 className="mt-4 text-4xl font-bold">Security model</h1>
       <p className="mt-3 text-dim">The controls below reduce execution risk; they do not make memecoin trading or delegated wallet access risk-free.</p>
@@ -44,7 +44,7 @@ export default function Security() {
 
       <h2 className="mt-10 text-lg font-bold">Audit roadmap</h2>
       <div className="mt-4 rounded-lg border border-cyber/40 bg-cyber/5 p-5 text-sm text-dim">
-        <p><span className="rounded-full border border-cyber/50 px-2 py-0.5 font-mono text-[11px] text-cyber">NOT AUDITED</span> An independent third-party review has not been completed. Manual swaps use <b className="text-hotpink">Solana mainnet with real funds</b>. Automated signing remains off until devnet duplicate, cap, revocation, and restart-reconciliation tests pass.</p>
+        <p><span className="rounded-full border border-cyber/50 px-2 py-0.5 font-mono text-[11px] text-cyber">NOT AUDITED</span> An independent third-party review has not been completed. Manual swaps use <b className="text-hotpink">Solana Mainnet with real funds</b>. Automated activation remains locked until duplicate, cap, revocation, exit-management, and restart-reconciliation tests pass.</p>
       </div>
 
       <p className="mt-8 font-mono text-[11px] text-dim">Rate-limited APIs · input validation · no private keys stored · RLS-protected database.</p>

@@ -22,8 +22,9 @@ import {
   Segmented,
   StatusPill
 } from "@/components/product/Primitives";
+import { DiscordSourceAvatar, DiscordSourceBanner } from "@/components/product/DiscordSourceVisual";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
-import { safeDiscordBotInstall, safeDiscordImage, safeDiscordInvite } from "@/lib/external-url";
+import { safeDiscordBotInstall, safeDiscordInvite } from "@/lib/external-url";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -39,7 +40,7 @@ export default function DiscordMarketplacePage() {
   const [period, setPeriod] = useState<Period>("7d");
   const [sort, setSort] = useState<Sort>("performance");
   const [query, setQuery] = useState("");
-  const [minimumHistory, setMinimumHistory] = useState(true);
+  const [minimumHistory, setMinimumHistory] = useState(false);
   const [sources, setSources] = useState<DiscordSource[] | null>(null);
   const [minimumSampleSize, setMinimumSampleSize] = useState(5);
   const [error, setError] = useState("");
@@ -157,27 +158,24 @@ export default function DiscordMarketplacePage() {
 
 function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; minimumSampleSize: number }) {
   const measured = source.measuredCalls >= minimumSampleSize;
-  const initials = source.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
-  const avatarUrl = safeDiscordImage(source.avatarUrl);
   const joinUrl = safeDiscordInvite(source.joinUrl);
   return (
     <article className="overflow-hidden rounded-md border border-edge bg-panel">
+      <DiscordSourceBanner source={source} compact />
       <header className="flex items-start gap-4 border-b border-edge p-5">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
-        ) : (
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-toxic/30 bg-toxic/10 font-mono text-sm font-semibold text-toxic">{initials}</span>
-        )}
+        <DiscordSourceAvatar source={source} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate text-base font-semibold text-ink">{source.name}</h2>
             <StatusPill status={source.verificationStatus || "approved"} />
+            <StatusPill status={source.integrationHealth || "pending"} />
           </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-dim">
             <span>{source.members || "Member count unavailable"}</span>
             <span>{source.activeFollowers} active followers</span>
             <span>{formatPercentBps(source.creatorFeeBps)} creator fee</span>
           </p>
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-dim">{source.description}</p>
         </div>
         {joinUrl && (
           <a href={joinUrl} target="_blank" rel="noreferrer" className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Join ${source.name}`} title="Join server">
@@ -186,10 +184,11 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         )}
       </header>
 
-      <div className="grid grid-cols-4 divide-x divide-edge border-b border-edge py-4">
+      <div className="grid grid-cols-2 divide-x divide-y divide-edge border-b border-edge py-4 sm:grid-cols-5 sm:divide-y-0">
         <Metric label="Win rate" value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "--"} tone={measured ? "positive" : "default"} />
         <Metric label="Median return" value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"} />
         <Metric label="Average return" value={measured && source.averageReturnX != null ? `${source.averageReturnX.toFixed(2)}x` : "--"} />
+        <Metric label="Max drawdown" value={measured ? formatPercentBps(source.maxDrawdownBps) : "--"} tone={source.maxDrawdownBps != null ? "negative" : "default"} />
         <Metric label="Eligible calls" value={source.eligibleCalls} detail={`${source.measuredCalls} measured`} />
       </div>
 
@@ -210,7 +209,8 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className={`text-xs font-medium ${measured ? "text-ink" : "text-toxic"}`}>{measured ? "Measured history available" : "Insufficient measured history"}</p>
-            <p className="mt-1 font-mono text-[9px] text-dim">Freshness: {formatWhen(source.dataFreshnessAt)}</p>
+            <p className="mt-1 font-mono text-[9px] text-dim">Last signal: {formatWhen(source.lastSignalAt)}</p>
+            <p className="mt-1 font-mono text-[9px] text-dim">Profile sync: {formatWhen(source.profileSyncedAt)}</p>
           </div>
           <div className="flex gap-2">
             <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink hover:border-toxic/60">Details</Link>

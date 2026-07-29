@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <div className="degen-home" id="top">
       <Nav />
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Hero />
         <section className="home-band border-y border-edge" id="platform">
           <div className="mx-auto grid max-w-7xl divide-y divide-edge px-5 md:grid-cols-3 md:divide-x md:divide-y-0">
@@ -44,7 +44,7 @@ export default function Home() {
           <div className="border border-edge bg-panel p-6">
             <div className="flex items-center gap-3 border-b border-edge pb-4"><ShieldCheck className="text-up" size={20} /><div><p className="text-sm font-semibold">Bounded automation</p><p className="text-xs text-dim">Versioned controls, explicit release gates, and audited actions.</p></div></div>
             <div className="mt-5 grid gap-px bg-edge sm:grid-cols-3">
-              {[["Entries", "Paper mode"], ["Missing data", "Fail closed"], ["Network", "Solana"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="font-mono text-[10px] uppercase text-dim">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
+              {[["Automation", "Release locked"], ["Missing data", "Fail closed"], ["Network", "Solana Mainnet"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="font-mono text-[10px] uppercase text-dim">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
             </div>
           </div>
         </section>

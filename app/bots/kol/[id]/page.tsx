@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Bot,
   Check,
-  Loader2,
   Pause,
   Play,
   ShieldCheck,
@@ -19,6 +18,7 @@ import { EmptyState, Metric, PageHeader, ProductTabs, Segmented, StatusPill } fr
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { formatPercentBps, formatSol, formatWhen, productFetch, solToLamports, type KolStrategy } from "@/lib/product-api";
+import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -93,6 +93,10 @@ export default function KolStrategyDetailsPage() {
       return;
     }
     if (!strategy) return;
+    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
+      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
+      return;
+    }
     if (status === "active" && invalid) {
       toast(invalid, "err");
       return;
@@ -125,7 +129,7 @@ export default function KolStrategyDetailsPage() {
         })
       });
       setSubscription(data.subscription);
-      toast(status === "active" ? "KOL copy activated in paper mode" : "KOL copy paused");
+      toast(status === "active" ? "KOL copy activated on Solana Mainnet" : "KOL copy paused");
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : "Could not save KOL copy", "err");
     } finally {
@@ -215,17 +219,22 @@ export default function KolStrategyDetailsPage() {
               <CopyField label="Priority fee maximum" value={priorityFee} onChange={(value) => setPriorityFee(Math.round(value))} suffix="lamports" step={100000} />
               <div className="rounded-md border border-edge bg-void p-3 text-xs">
                 <div className="flex justify-between gap-3 text-dim"><span>Creator fee</span><span className="font-mono text-ink">{formatPercentBps(strategy.creatorFeeBps)}</span></div>
-                <div className="mt-2 flex justify-between gap-3 text-dim"><span>Execution mode</span><span className="font-mono text-ink">Paper</span></div>
+                <div className="mt-2 flex justify-between gap-3 text-dim"><span>Network</span><span className="font-mono text-ink">{AUTOMATED_MAINNET_RELEASE.label}</span></div>
               </div>
               {invalid && <p className="rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">{invalid}</p>}
               <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I reviewed this strategy, its fee, and my worst-case capital limit.</label>
-              <button type="button" onClick={() => save("active")} disabled={saving || !!invalid} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c] disabled:opacity-40">
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                {subscription?.status === "active" ? "Update active copy" : "Activate paper copy"}
+              <button
+                type="button"
+                disabled
+                title={AUTOMATED_MAINNET_RELEASE.reason}
+                className="inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-dim opacity-70"
+              >
+                <Play size={15} />
+                Mainnet activation locked
               </button>
               {subscription?.status === "active" && <button type="button" onClick={() => save("paused")} disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><Pause size={15} /> Pause entries</button>}
               {!authenticated && <button type="button" onClick={login} className="min-h-11 w-full rounded-md border border-edge text-sm font-semibold text-ink">Connect account</button>}
-              <p className="flex gap-2 text-[10px] leading-4 text-dim"><ShieldCheck size={14} className="shrink-0 text-up" />Open-position exits continue when entries are paused.</p>
+              <p className="flex gap-2 text-[10px] leading-4 text-dim"><ShieldCheck size={14} className="shrink-0 text-up" />{AUTOMATED_MAINNET_RELEASE.reason}</p>
             </div>
           </aside>
         </div>

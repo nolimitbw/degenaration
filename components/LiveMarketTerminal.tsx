@@ -319,7 +319,7 @@ export default function LiveMarketTerminal() {
               <p className="font-mono text-[9px] uppercase text-toxic">KOL bot preview</p>
               <h2 className="mt-2 text-sm font-semibold text-ink">Volatility entry</h2>
             </div>
-            <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] text-dim">PAPER</span>
+            <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] text-dim">MAINNET DATA</span>
           </div>
 
           <label className="mt-5 block">

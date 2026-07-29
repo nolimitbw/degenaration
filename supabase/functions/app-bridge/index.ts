@@ -52,6 +52,14 @@ const operations: Record<string, string[]> = {
   app_public_resolve_referral: [
     "p_secret", "p_code", "p_visitor_hash", "p_idempotency_key"
   ],
+  app_user_complete_referral_attribution: [
+    "p_secret", "p_privy_user_id", "p_code", "p_visitor_hash",
+    "p_capture_nonce", "p_captured_at"
+  ],
+  app_user_check_referral_slug: ["p_secret", "p_privy_user_id", "p_slug"],
+  app_user_change_referral_slug: [
+    "p_secret", "p_privy_user_id", "p_slug", "p_confirmed"
+  ],
   app_user_request_payout: [
     "p_secret", "p_privy_user_id", "p_destination_wallet", "p_gross_lamports"
   ],
@@ -88,6 +96,9 @@ const operations: Record<string, string[]> = {
   ],
   admin_source_action: [
     "p_secret", "p_actor_privy_user_id", "p_source_group_id", "p_action", "p_reason"
+  ],
+  admin_list_referrals_v2: [
+    "p_secret", "p_actor_privy_user_id", "p_query", "p_limit"
   ]
 };
 

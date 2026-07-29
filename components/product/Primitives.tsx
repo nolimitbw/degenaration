@@ -28,12 +28,12 @@ export function PageHeader({
 
 export function ProductTabs({ items, active }: { items: Array<{ href: string; label: string; count?: number }>; active: string }) {
   return (
-    <nav className="mt-5 flex max-w-full gap-1 overflow-x-auto border-b border-edge" aria-label="Bots navigation">
+    <nav className="mt-5 grid max-w-full grid-cols-4 border-b border-edge sm:flex sm:gap-1 sm:overflow-x-auto" aria-label="Bots navigation">
       {items.map((item) => (
         <Link
           key={item.href}
           href={item.href}
-          className={`relative flex min-h-11 shrink-0 items-center gap-2 px-4 text-sm font-medium transition ${
+          className={`relative flex min-h-11 min-w-0 items-center justify-center gap-1 px-1 text-center text-xs font-medium whitespace-nowrap transition sm:shrink-0 sm:gap-2 sm:px-4 sm:text-sm ${
             active === item.href ? "text-ink" : "text-dim hover:text-ink"
           }`}
         >
@@ -69,9 +69,9 @@ export function Metric({
 
 export function StatusPill({ status }: { status: string }) {
   const normalized = status.toLowerCase();
-  const color = ["active", "approved", "supported", "confirmed", "succeeded"].includes(normalized)
+  const color = ["active", "approved", "supported", "confirmed", "succeeded", "healthy"].includes(normalized)
     ? "border-up/35 bg-up/5 text-up"
-    : ["error", "failed", "rejected", "removed", "dead-letter"].includes(normalized)
+    : ["error", "failed", "rejected", "removed", "dead-letter", "unavailable"].includes(normalized)
       ? "border-down/35 bg-down/5 text-down"
       : ["pending", "reviewing", "processing", "planned", "degraded"].includes(normalized)
         ? "border-toxic/35 bg-toxic/5 text-toxic"

@@ -1,7 +1,7 @@
 import Link from "next/link";
 export default function Privacy() {
   return (
-    <main className="mx-auto max-w-3xl px-5 py-16">
+    <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-16">
       <Link href="/" className="font-mono text-xs text-toxic">← back</Link>
       <h1 className="mt-4 text-4xl font-bold">Privacy Policy</h1>
       <div className="mt-6 space-y-4 text-sm leading-relaxed text-dim">

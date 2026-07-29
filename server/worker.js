@@ -21,7 +21,7 @@ const store = require("./engine/store");
 
 const SIGNING_READY = process.env.DELEGATED_SIGNING === "on";
 const COPY_TRADING_READY = SIGNING_READY && process.env.COPY_TRADING === "on";
-const NET = process.env.WORKER_NET || "mainnet";
+const NET = String(process.env.WORKER_NET || "").trim().toLowerCase();
 const PORT = Number(process.env.PORT || 10000);
 const startedAt = Date.now();
 const state = { events: 0, errors: 0, lastEventAt: null, lastError: null };
