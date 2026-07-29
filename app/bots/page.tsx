@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { Metric, PageHeader, ProductTabs, StatusPill } from "@/components/product/Primitives";
+import DiscordSignalIcon from "@/components/icons/DiscordSignalIcon";
+import KolStrategyIcon from "@/components/icons/KolStrategyIcon";
+import DegenBotIcon from "@/components/icons/DegenBotIcon";
+import RiskShieldIcon from "@/components/icons/RiskShieldIcon";
 import { productFetch, type ProductBot } from "@/lib/product-api";
 
 const TABS = [
@@ -53,12 +57,11 @@ export default function BotsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Automation"
         title="Bots"
-        description="Build disciplined Solana automations from verified Discord calls or publish a scanner-driven KOL strategy."
+        description="Automate approved Discord calls or run a community strategy."
         actions={
           <Link href="/bots/manage" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
-            <SlidersHorizontal aria-hidden="true" size={16} />
+            <DegenBotIcon size={16} />
             Manage bots
           </Link>
         }
@@ -70,13 +73,13 @@ export default function BotsPage() {
           <div className="flex min-h-52 flex-col justify-between border-b border-edge p-6">
             <div className="flex items-start justify-between gap-4">
               <span className="grid h-11 w-11 place-items-center rounded-md border border-toxic/35 bg-toxic/10 text-toxic">
-                <RadioTower aria-hidden="true" size={21} />
+                <DiscordSignalIcon size={21} />
               </span>
               <StatusPill status="verified sources" />
             </div>
             <div className="mt-8">
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-toxic">Discord Bot</p>
-              <h2 className="mt-2 text-xl font-semibold text-ink">Copy eligible community calls with your own risk rules.</h2>
+              <h2 className="mt-2 text-xl font-semibold text-ink">Copy approved call channels with your own risk and exit rules.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-dim">
                 Choose an approved server, set exposure, retries, TP/SL, and fail-closed security filters. Source commission is itemized at 0.7%.
               </p>
@@ -88,7 +91,7 @@ export default function BotsPage() {
             <Metric label="Automation" value="Not yet available" detail="Manual trading is live" />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-6 py-4">
-            <span className="inline-flex items-center gap-2 text-xs text-dim"><ShieldCheck size={15} className="text-up" /> Approved channels only</span>
+            <span className="inline-flex items-center gap-2 text-xs text-dim"><RiskShieldIcon size={15} className="text-up" /> Approved channels only</span>
             <Link href="/bots/discord" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
               Browse sources <ArrowRight aria-hidden="true" size={16} />
             </Link>
@@ -99,13 +102,13 @@ export default function BotsPage() {
           <div className="flex min-h-52 flex-col justify-between border-b border-edge p-6">
             <div className="flex items-start justify-between gap-4">
               <span className="grid h-11 w-11 place-items-center rounded-md border border-up/30 bg-up/5 text-up">
-                <ChartNoAxesCombined aria-hidden="true" size={21} />
+                <KolStrategyIcon size={21} />
               </span>
               <StatusPill status="creator strategy" />
             </div>
             <div className="mt-8">
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-up">KOL Bot</p>
-              <h2 className="mt-2 text-xl font-semibold text-ink">Turn scanner logic into a transparent, copyable strategy.</h2>
+              <h2 className="mt-2 text-xl font-semibold text-ink">Discover community strategies or publish one of your own.</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-dim">
                 Configure volatility triggers, DCA, execution limits, scanner presets, and advanced token filters. Publish up to three reviewed strategies.
               </p>

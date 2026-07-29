@@ -22,6 +22,7 @@ import {
   X
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import AffiliateLinkIcon from "@/components/icons/AffiliateLinkIcon";
 import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
 import { formatSol, formatWhen, lamportsToSol, productFetch, solToLamports, type ProductBot } from "@/lib/product-api";
 import { emailFromPrivyUser } from "@/lib/admin";
@@ -142,7 +143,6 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   return (
     <>
       <PageHeader
-        eyebrow="Creator revenue"
         title="Affiliate"
         description="Track creator and referral earnings."
         actions={
@@ -229,7 +229,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
               <header className="border-b border-edge px-5 py-4"><p className="font-mono text-[9px] uppercase text-toxic">Referral link</p><h2 className="mt-2 text-sm font-semibold text-ink">Stable creator URL</h2></header>
               <div className="p-5">
                 <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
-                  <Link2 size={14} className="shrink-0 text-toxic" />
+                  <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
                   <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
                   <button type="button" onClick={copyReferral} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link"><Copy size={14} /></button>
                 </div>
@@ -443,7 +443,7 @@ function ReferralDashboard({
           </header>
           <div className="p-5">
             <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
-              <Link2 size={14} className="shrink-0 text-toxic" />
+              <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
               <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">/r/{summary.referralCode}</span>
               <button type="button" onClick={copyLink} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link">
                 <Copy size={14} />

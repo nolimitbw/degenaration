@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
+import PortfolioCurveIcon from "@/components/icons/PortfolioCurveIcon";
 import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import { fetchPortfolio, fmtUsd, type Portfolio } from "@/lib/queries";
 import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch } from "@/lib/product-api";
@@ -131,9 +132,9 @@ export default function PortfolioDashboard() {
   if (!authenticated) {
     return (
       <>
-        <PageHeader eyebrow="Balances and performance" title="Portfolio" description="One reconciled view of balances, bot positions, executions, and wallet movements." />
+        <PageHeader title="Portfolio" description="Balances, positions, performance, and transactions." />
         <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel p-8 text-center">
-          <div className="max-w-md"><WalletCards className="mx-auto text-toxic" size={26} /><h2 className="mt-4 text-base font-semibold text-ink">Connect to view your portfolio</h2><p className="mt-2 text-sm leading-6 text-dim">Private performance and bot execution records are scoped to your verified Privy account.</p><button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c]">Connect account</button></div>
+          <div className="max-w-md"><PortfolioCurveIcon className="mx-auto text-gold-400" size={26} /><h2 className="mt-4 text-base font-semibold text-ink">Connect to view your portfolio</h2><p className="mt-2 text-sm leading-6 text-dim">Private performance and bot execution records are scoped to your verified Privy account.</p><button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c]">Connect account</button></div>
         </div>
       </>
     );
@@ -142,9 +143,8 @@ export default function PortfolioDashboard() {
   return (
     <>
       <PageHeader
-        eyebrow="Balances and performance"
         title="Portfolio"
-        description="On-chain wallet balances alongside reconciled bot positions, executions, fees, and cash movements."
+        description="Balances, positions, performance, and transactions."
         actions={
           <>
             <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>

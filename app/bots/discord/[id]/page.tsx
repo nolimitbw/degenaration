@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, BadgeCheck, Bot, RadioTower } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { DiscordSourceAvatar } from "@/components/product/DiscordSourceVisual";
+import ScannerPulseIcon from "@/components/icons/ScannerPulseIcon";
 import { EmptyState, Metric, PageHeader, ProductTabs, Segmented, StatusPill } from "@/components/product/Primitives";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
 import { safeDiscordInvite } from "@/lib/external-url";
@@ -100,8 +101,8 @@ export default function DiscordSourceDetailsPage() {
             <header className="border-b border-edge p-5"><p className="font-mono text-[9px] uppercase text-toxic">Source integrity</p><h2 className="mt-2 text-base font-semibold text-ink">Execution eligibility</h2></header>
             <div className="space-y-4 p-5">
               <div className="flex gap-3"><BadgeCheck className="shrink-0 text-up" size={17} /><div><p className="text-xs font-semibold text-ink">Admin approved</p><p className="mt-1 text-[11px] leading-5 text-dim">Signals still pass parser, token, route, and user filter checks.</p></div></div>
-              <div className="flex gap-3"><RadioTower className="shrink-0 text-toxic" size={17} /><div><p className="text-xs font-semibold text-ink">Last signal</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.lastSignalAt)}</p></div></div>
-              <div className="flex gap-3"><RadioTower className="shrink-0 text-toxic" size={17} /><div><p className="text-xs font-semibold text-ink">Profile synchronization</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.profileSyncedAt)} · {source.integrationHealth}</p></div></div>
+              <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Last signal</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.lastSignalAt)}</p></div></div>
+              <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Profile synchronization</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.profileSyncedAt)} · {source.integrationHealth}</p></div></div>
               <div className="rounded-md border border-edge bg-void p-3"><p className="font-mono text-[9px] uppercase text-dim">Minimum history</p><p className="mt-2 text-xs text-ink">{source.measuredCalls >= 5 ? "Measured sample is available." : `Tracking — ${source.measuredCalls} of 5 calls measured so far.`}</p></div>
               <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">Use this source</Link>
             </div>
