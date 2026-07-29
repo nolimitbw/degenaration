@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useIdentityToken } from "@privy-io/react-auth";
+import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { getBase58Decoder } from "@solana/kit";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -20,7 +22,7 @@ import {
 } from "lucide-react";
 import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import { fetchPortfolio, fmtUsd, type Portfolio } from "@/lib/queries";
 import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch } from "@/lib/product-api";
 import { getNet } from "@/lib/net";
@@ -51,6 +53,7 @@ export type PortfolioSummary = {
 
 export default function PortfolioDashboard() {
   const { authenticated, user, login, logout, getAccessToken } = usePrivy();
+  const { identityToken } = useIdentityToken();
   const toast = useToast();
   const walletAddress = getSolanaAddress(user);
   const [period, setPeriod] = useState<Period>("30d");
@@ -223,7 +226,7 @@ export default function PortfolioDashboard() {
       {summary && view === "movements" && <MovementsTable rows={summary.cashMovements} />}
 
       {depositOpen && <DepositModal wallet={walletAddress || ""} onClose={() => setDepositOpen(false)} />}
-      {withdrawOpen && <UnavailableWithdrawal onClose={() => setWithdrawOpen(false)} />}
+      {withdrawOpen && <WithdrawModal wallet={walletAddress || ""} walletId={getSolanaWalletId(user) || ""} getAccessToken={getAccessToken} identityToken={identityToken} onClose={() => setWithdrawOpen(false)} />}
       {share && <PnlShareModal subject={share} period={period} getAccessToken={getAccessToken} onClose={() => setShare(null)} />}
     </>
   );
@@ -321,11 +324,144 @@ function DepositModal({ wallet, onClose }: { wallet: string; onClose: () => void
   );
 }
 
-function UnavailableWithdrawal({ onClose }: { onClose: () => void }) {
+type WithdrawAvailability = { balanceLamports: string; lockedLamports: string; spendableLamports: string; reserveLamports: string };
+
+/** Parse a decimal SOL string to exact lamports without floating-point arithmetic. */
+function solInputToLamports(value: string): bigint | null {
+  const trimmed = value.trim();
+  if (!/^\d*\.?\d*$/.test(trimmed) || trimmed === "" || trimmed === ".") return null;
+  const [whole, frac = ""] = trimmed.split(".");
+  if (frac.length > 9) return null;
+  try {
+    return BigInt(whole || "0") * BigInt(1_000_000_000) + BigInt((frac + "000000000").slice(0, 9));
+  } catch {
+    return null;
+  }
+}
+
+function lamportsToSolText(value: bigint, digits = 4) {
+  const whole = value / BigInt(1_000_000_000);
+  const frac = (value % BigInt(1_000_000_000)).toString().padStart(9, "0").slice(0, digits);
+  return digits > 0 ? `${whole}.${frac}` : `${whole}`;
+}
+
+function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClose }: { wallet: string; walletId: string; getAccessToken: () => Promise<string | null>; identityToken: string | null; onClose: () => void }) {
+  const toast = useToast();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
+  const privyWallet = wallets.find((w) => w.address === wallet);
+
+  const [availability, setAvailability] = useState<WithdrawAvailability | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [destination, setDestination] = useState("");
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [signature, setSignature] = useState("");
+
+  const load = useCallback(async () => {
+    if (!wallet) { setLoading(false); setLoadError("Connect a wallet to withdraw."); return; }
+    setLoading(true);
+    setLoadError("");
+    try {
+      const data = await productFetch<WithdrawAvailability>(`/api/product/portfolio/withdraw?wallet=${wallet}`, { getAccessToken, identityToken });
+      setAvailability(data);
+    } catch (reason) {
+      setLoadError(reason instanceof Error ? reason.message : "Balance is temporarily unavailable.");
+    } finally {
+      setLoading(false);
+    }
+  }, [getAccessToken, identityToken, wallet]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const spendable = availability ? BigInt(availability.spendableLamports) : BigInt(0);
+  const locked = availability ? BigInt(availability.lockedLamports) : BigInt(0);
+  const setPercent = (percent: number) => setAmount(lamportsToSolText((spendable * BigInt(percent)) / BigInt(100), 9).replace(/0+$/, "").replace(/\.$/, ""));
+
+  async function submit() {
+    setError("");
+    const lamports = solInputToLamports(amount);
+    if (lamports == null || lamports <= BigInt(0)) { setError("Enter an amount greater than zero."); return; }
+    if (!walletsReady) { setError("Your wallet is still loading. Try again in a moment."); return; }
+    if (!privyWallet) { setError("Sign in with the wallet that holds these funds to withdraw."); return; }
+
+    setBusy(true);
+    try {
+      const built = await productFetch<{ transaction: string; amountLamports: string }>(
+        "/api/product/portfolio/withdraw",
+        { getAccessToken, identityToken },
+        { method: "POST", body: JSON.stringify({ from: wallet, walletId, to: destination.trim(), amountLamports: lamports.toString() }) }
+      );
+      const raw = Uint8Array.from(atob(built.transaction), (c) => c.charCodeAt(0));
+      const receipt = await signAndSendTransaction({ transaction: raw, wallet: privyWallet, chain: "solana:mainnet" });
+      const sig = getBase58Decoder().decode(receipt.signature);
+      setSignature(sig);
+      toast("Withdrawal submitted");
+      load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Withdrawal could not be completed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (signature) {
+    return (
+      <Modal title="Withdraw SOL" onClose={onClose}>
+        <p className="text-sm font-semibold text-ink">Withdrawal submitted</p>
+        <p className="mt-1 text-xs leading-5 text-dim">The network is confirming your transfer. It will appear in Deposits &amp; withdrawals once reconciled.</p>
+        <a href={`https://explorer.solana.com/tx/${signature}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><ExternalLink size={14} /> View transaction</a>
+      </Modal>
+    );
+  }
+
   return (
-    <Modal title="Withdraw funds" onClose={onClose}>
-      <div className="flex gap-3 rounded-md border border-toxic/35 bg-toxic/5 p-4"><ShieldAlert className="shrink-0 text-toxic" size={18} /><div><p className="text-sm font-semibold text-ink">In-app transfers are not available</p><p className="mt-1 text-xs leading-5 text-dim">DegenAration does not construct a withdrawal transaction from this view. Funds remain controlled by the connected wallet.</p></div></div>
-      <Link href="/wallet" className="mt-4 inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink">Review wallet security</Link>
+    <Modal title="Withdraw SOL" onClose={onClose}>
+      {loading && <div className="space-y-3" aria-busy="true"><div className="h-14 animate-pulse rounded-md bg-void" /><div className="h-10 animate-pulse rounded-md bg-void" /><div className="h-10 animate-pulse rounded-md bg-void" /></div>}
+
+      {!loading && loadError && (
+        <div className="rounded-md border border-edge bg-void p-4">
+          <p className="text-sm font-semibold text-ink">{loadError}</p>
+          <button type="button" onClick={load} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+        </div>
+      )}
+
+      {!loading && !loadError && availability && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-md border border-edge bg-void p-3"><p className="field-label">Available</p><p className="mt-2 font-mono text-sm text-ink">{lamportsToSolText(spendable)} SOL</p></div>
+            <div className="rounded-md border border-edge bg-void p-3"><p className="field-label">Committed to open trades</p><p className="mt-2 font-mono text-sm text-ink">{lamportsToSolText(locked)} SOL</p></div>
+          </div>
+          <p className="mt-2 text-[10px] text-dim">{lamportsToSolText(BigInt(availability.reserveLamports), 6)} SOL stays in the account for rent and network fees.</p>
+
+          <label className="mt-4 block">
+            <span className="field-label">Destination address</span>
+            <input value={destination} onChange={(event) => setDestination(event.target.value)} spellCheck={false} placeholder="Solana address" className="mt-2 w-full rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-xs text-ink" />
+          </label>
+
+          <label className="mt-4 block">
+            <span className="field-label">Amount</span>
+            <div className="mt-2 flex items-center gap-2">
+              <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0.0" className="w-full rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-sm text-ink" />
+              <span className="font-mono text-xs text-dim">SOL</span>
+            </div>
+          </label>
+          <div className="mt-2 flex gap-2">
+            {[25, 50, 75, 100].map((percent) => (
+              <button key={percent} type="button" onClick={() => setPercent(percent)} disabled={spendable <= BigInt(0)} className="min-h-9 flex-1 rounded-md border border-edge text-xs font-semibold text-ink disabled:opacity-40">{percent === 100 ? "Max" : `${percent}%`}</button>
+            ))}
+          </div>
+
+          {error && <p role="alert" className="mt-4 rounded-md border border-down/40 bg-down/5 px-3 py-2.5 text-xs text-ink">{error}</p>}
+
+          <button type="button" onClick={submit} disabled={busy || spendable <= BigInt(0) || !destination.trim() || !amount.trim()} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold px-4 text-sm font-semibold text-black disabled:opacity-40">
+            {busy ? <><Loader2 size={15} className="animate-spin" /> Building transaction</> : "Withdraw SOL"}
+          </button>
+          <p className="mt-2 text-center text-[10px] text-dim">You sign this transfer with your own wallet. DegenAration never holds your keys.</p>
+        </>
+      )}
     </Modal>
   );
 }

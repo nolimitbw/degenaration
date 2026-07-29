@@ -64,6 +64,7 @@ const operations: Record<string, string[]> = {
     "p_secret", "p_privy_user_id", "p_destination_wallet", "p_gross_lamports"
   ],
   app_user_portfolio_summary: ["p_secret", "p_privy_user_id", "p_period"],
+  app_user_withdrawable_state: ["p_secret", "p_privy_user_id"],
   app_user_record_pnl_card: [
     "p_secret", "p_privy_user_id", "p_card_type", "p_subject_type",
     "p_subject_id", "p_snapshot", "p_referral_code", "p_render_version"

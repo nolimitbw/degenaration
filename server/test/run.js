@@ -205,6 +205,85 @@ test("worker records the configured commission when a fee account is present", (
   delete require.cache[jupiterPath];
 });
 
+console.log("user withdrawals (spec 12 / 22.2)");
+const wd = require("../../lib/withdrawal");
+const OWNER = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+const DEST = "6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP";
+const withdraw = (over) => wd.validateWithdrawal(Object.assign({
+  owner: OWNER,
+  destination: DEST,
+  amountLamports: SOL,
+  balanceLamports: SOL * BigInt(10),
+  lockedLamports: BigInt(0)
+}, over || {}));
+
+test("a user with spendable principal can withdraw", () => {
+  const r = withdraw();
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.amountLamports, SOL);
+});
+test("zero balance is a validation state, not a disabled feature", () => {
+  const r = withdraw({ balanceLamports: BigInt(0) });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, "zero-balance");
+  // Must not read as an admin-permission or feature-lock message (spec 12.4, 23).
+  assert.ok(!/approval|locked|unavailable|permission/i.test(r.message));
+});
+test("amount above available is rejected with the actual available figure", () => {
+  const r = withdraw({ amountLamports: SOL * BigInt(50) });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, "exceeds-spendable");
+});
+test("locked capital is explained exactly, not hidden", () => {
+  const r = withdraw({ balanceLamports: SOL * BigInt(2), lockedLamports: SOL * BigInt(2) });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, "locked-capital");
+  assert.strictEqual(r.lockedLamports, SOL * BigInt(2));
+  assert.ok(/open positions/i.test(r.message));
+});
+test("rent and network fee reserve is retained", () => {
+  const r = withdraw({ balanceLamports: wd.REQUIRED_RESERVE_LAMPORTS, amountLamports: BigInt(1) });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.code, "below-reserve");
+});
+test("spendable never goes negative", () => {
+  assert.strictEqual(wd.spendableLamports({ balanceLamports: BigInt(0) }), BigInt(0));
+  assert.strictEqual(wd.spendableLamports({ balanceLamports: SOL, lockedLamports: SOL * BigInt(5) }), BigInt(0));
+});
+test("invalid and self-destination addresses are rejected", () => {
+  assert.strictEqual(withdraw({ destination: "not-an-address" }).code, "invalid-destination");
+  assert.strictEqual(withdraw({ destination: "0OIl" + "x".repeat(35) }).code, "invalid-destination");
+  assert.strictEqual(withdraw({ destination: OWNER }).code, "same-address");
+});
+test("non-positive and fractional amounts are rejected", () => {
+  assert.strictEqual(withdraw({ amountLamports: BigInt(0) }).code, "invalid-amount");
+  assert.strictEqual(withdraw({ amountLamports: "-5" }).code, "invalid-amount");
+  assert.strictEqual(withdraw({ amountLamports: 1.5 }).code, "invalid-amount");
+});
+test("percent selectors floor to whole lamports and never exceed spendable", () => {
+  const spendable = wd.spendableLamports({ balanceLamports: SOL * BigInt(10) });
+  assert.strictEqual(wd.percentOfSpendable(spendable, 100), spendable);
+  assert.strictEqual(wd.percentOfSpendable(spendable, 50), spendable / BigInt(2));
+  assert.ok(wd.percentOfSpendable(spendable, 25) < spendable);
+  for (const pct of [25, 50, 75, 100]) {
+    assert.strictEqual(withdraw({ amountLamports: wd.percentOfSpendable(spendable, pct) }).ok, true);
+  }
+});
+test("a retried submission produces the same idempotency key", () => {
+  const args = { owner: OWNER, destination: DEST, amountLamports: "1000", requestId: "abc" };
+  assert.strictEqual(wd.withdrawalIdempotencyKey(args), wd.withdrawalIdempotencyKey(args));
+  assert.notStrictEqual(
+    wd.withdrawalIdempotencyKey(args),
+    wd.withdrawalIdempotencyKey(Object.assign({}, args, { amountLamports: "1001" }))
+  );
+});
+test("principal withdrawal does not inherit the affiliate payout minimum or fee", () => {
+  // Affiliate payout rules (0.1 SOL minimum, 0.043 SOL fee) stay separate (spec 12.6).
+  const AFFILIATE_MINIMUM = SOL / BigInt(10);
+  const r = withdraw({ amountLamports: AFFILIATE_MINIMUM / BigInt(2) });
+  assert.strictEqual(r.ok, true);
+});
+
 console.log("rugcheck thresholds");
 const MIN_LIQ = 10000, MAX_SCORE = 60;
 function verdict({ liq, score, mintAuth, freezeAuth }) {
