@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit --pretty false",
     "test": "node server/test/run.js",
     "verify:fee-ledger": "node scripts/verify-fee-ledger.mjs",
-    "check": "npm run typecheck && npm run test && npm run verify:fee-ledger && npm run build"
+    "check:discord-commands": "node scripts/check-discord-commands.mjs",
+    "check": "npm run typecheck && npm run test && npm run verify:fee-ledger && npm run check:discord-commands && npm run build"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.35.1",

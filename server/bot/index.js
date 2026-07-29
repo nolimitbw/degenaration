@@ -35,14 +35,21 @@ const ALPHA_COMMAND = new SlashCommandBuilder()
   .setDescription("Record a token call in an approved Degenaration channel.")
   .addStringOption((option) => option.setName("token").setDescription("Solana mint or supported token link").setRequired(true));
 
+// /degen channel-add was removed: it did exactly what /register does, and the handler
+// routed both to the same function. Two published ways to perform one action is the
+// overlap spec 15.2 prohibits.
 const DEGEN_COMMAND = new SlashCommandBuilder()
   .setName("degen")
   .setDescription("Manage and inspect this server's Degenaration source.")
   .addSubcommand((command) => command.setName("status").setDescription("Show registration and approval status."))
   .addSubcommand((command) => command.setName("profile").setDescription("Open this server's public performance profile."))
   .addSubcommand((command) => command.setName("referral").setDescription("Get this server's assigned referral link."))
-  .addSubcommand((command) => command.setName("callers").setDescription("Show this server's most active recorded callers."))
-  .addSubcommand((command) => command.setName("channel-add").setDescription("Submit this channel for approval."));
+  .addSubcommand((command) => command.setName("callers").setDescription("Show this server's most active recorded callers."));
+
+const TEST_CALL_COMMAND = new SlashCommandBuilder()
+  .setName("test-call")
+  .setDescription("Check that Degenaration can parse a token link. Never places a trade.")
+  .addStringOption((option) => option.setName("token").setDescription("Solana mint or supported token link").setRequired(true));
 
 const ONBOARD_COMMAND = new SlashCommandBuilder()
   .setName("onboard")
@@ -52,7 +59,7 @@ const HELP_COMMAND = new SlashCommandBuilder()
   .setName("help")
   .setDescription("Show Degenaration bot commands.");
 
-const COMMANDS = [REGISTER_COMMAND, ALPHA_COMMAND, DEGEN_COMMAND, ONBOARD_COMMAND, HELP_COMMAND];
+const COMMANDS = [REGISTER_COMMAND, ALPHA_COMMAND, DEGEN_COMMAND, TEST_CALL_COMMAND, ONBOARD_COMMAND, HELP_COMMAND];
 
 // Approved channels, refreshed from the DB so newly-approved servers work with no redeploy.
 let approved = {};
@@ -143,9 +150,30 @@ async function syncRegisterCommand(guild) {
   }
 }
 
+/**
+ * Remove stale GLOBAL commands.
+ *
+ * This is the root cause of the duplicate /register users see. Commands are published
+ * guild-scoped via guild.commands.set(), which bulk-replaces only the GUILD list and
+ * never touches the GLOBAL list. Any command registered globally by an earlier
+ * deployment therefore keeps being served alongside the guild copy, and Discord renders
+ * both. Clearing the global scope leaves exactly one published copy of each command.
+ */
+async function clearGlobalCommands() {
+  try {
+    const existing = await client.application.commands.fetch();
+    if (existing.size === 0) return;
+    await client.application.commands.set([]);
+    console.log(`[bot] removed ${existing.size} stale global command(s)`);
+  } catch (e) {
+    console.error("[bot] could not clear global commands:", e.message);
+  }
+}
+
 client.once("ready", async () => {
   console.log(`[bot] logged in as ${client.user.tag}`);
   console.log(`[bot] build ${BOT_BUILD}`);
+  await clearGlobalCommands();
   await Promise.allSettled(client.guilds.cache.map((guild) => syncRegisterCommand(guild)));
   await refresh();
   console.log(`[bot] watching ${Object.keys(approved).length} approved channel(s)`);
@@ -161,7 +189,7 @@ client.on("interactionCreate", async (interaction) => {
   await interaction.deferReply({ ephemeral: true }).catch(() => {});
   const reply = (content) => interaction.editReply({ content }).catch(() => {});
 
-  if (interaction.commandName === "register" || (interaction.commandName === "degen" && interaction.options.getSubcommand() === "channel-add")) {
+  if (interaction.commandName === "register") {
     await registerCallChannel({
       guild: interaction.guild,
       channel: interaction.channel,
@@ -195,13 +223,30 @@ client.on("interactionCreate", async (interaction) => {
     return;
   }
 
+  if (interaction.commandName === "test-call") {
+    // Diagnostic only: parses the input and reports what the scanner would see.
+    // It never ingests a call and never submits a swap (spec 15.2).
+    if (!interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageGuild)) {
+      await reply("Only a server manager can run /test-call.");
+      return;
+    }
+    const call = parseCall(interaction.options.getString("token", true));
+    const channelApproved = Boolean(approved[interaction.channelId]);
+    if (!call) {
+      await reply(`Test only — no trade placed.\nParsed: no supported mint or link found.\nChannel approved: ${channelApproved ? "yes" : "no"}`);
+      return;
+    }
+    await reply(`Test only — no trade placed.\nParsed mint: ${call.mint}\nConfidence: ${call.confidence}\nChannel approved: ${channelApproved ? "yes" : "no"}`);
+    return;
+  }
+
   if (interaction.commandName === "onboard") {
     await reply("1. Add Degenaration with bot + applications.commands.\n2. Run /register in the calls channel.\n3. Wait for owner approval.\n4. Post one Solana mint or use /alpha.\n5. Use /degen profile to share the earned record.");
     return;
   }
 
   if (interaction.commandName === "help") {
-    await reply("/register or /degen channel-add - submit this channel\n/alpha token - record an explicit call\n/degen status - approval state\n/degen profile - public performance\n/degen referral - assigned server link\n/degen callers - recorded caller activity\n/onboard - setup steps");
+    await reply("/register - submit this channel as a call source\n/alpha token - record an explicit call\n/test-call token - check parsing without trading\n/degen status - approval state\n/degen profile - public performance\n/degen referral - assigned server link\n/degen callers - recorded caller activity\n/onboard - setup steps");
     return;
   }
 
