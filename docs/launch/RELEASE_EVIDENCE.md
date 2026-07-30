@@ -9,12 +9,17 @@ Branch `claude/degenaration-launch-remediation` · last updated 2026-07-30
 
 | Command | Result | When |
 |---|---|---|
-| `npm run check` | **exit 0** — typecheck, 70 server tests, fee-ledger invariants, Discord command registry, visible-copy scan, production build | after every slice |
-| `npm run verify:fee-ledger` | all invariants hold across 48 notional × source × referral combinations | slice 2 |
+| `npm run check` | **exit 0** — typecheck, lint, 104 server tests, fee-ledger invariants, journal contract, Discord command registry, visible-copy scan, production build | after every slice |
+| `npm run lint` | clean across 218 files; found and fixed 5 real problems on first run | Phase 24 |
+| `npm run verify:fee-ledger` | all invariants hold across 75 notional × source × referral combinations, including the ledger entry model | Phase 13.5 |
+| `npm run verify:performance-journal` | schema + parser contract hold; dedupe anchored on a NOT NULL column | Phase 9 |
 | `npm run check:discord-commands` | registry clean — 6 unique commands, one `/register`, single scope, global cleanup present | Phase 4 |
-| `npm run check:visible-copy` | clean across 186 files in `app/`, `components/`, `lib/` | Phase 5/6 |
+| `npm run check:visible-copy` | clean across 187 files in `app/`, `components/`, `lib/` | Phase 5/6 |
+| `npm run verify:withdrawal` | 6 structural checks pass — transaction decodes to a single System Program transfer, lamports round-trip exactly, leaves the server unsigned | Phase 12 |
+| `npm run verify:discord-live` | requires owner-held bot credentials; exits 0 with instructions when absent | Phase 15 |
 
-Test count went 41 → 70 over this work (fee model, JS↔SQL parity, withdrawals).
+Test count went 41 → 104 over this work (fee model, JS↔SQL parity, withdrawals, journal
+outcomes, safety filters, portfolio stats).
 
 **Operational note:** `npm run check` runs `next build`, which clobbers a running
 `next dev` server's `.next` directory and produces a spurious failure. Stop the dev
@@ -107,23 +112,32 @@ result — if the background is obvious on a data screen it is too strong.
 
 Stated plainly so none of this reads as covered:
 
-- **No captured screenshot set** at 375 / 768 / 1024 / 1440 for the routes §22.6 lists
-  (Discord marketplace, source details, bot form and review, KOL marketplace and
-  builder, My Bots, Affiliate tabs, Portfolio populated and empty, withdrawal modal,
-  Wallet, PnL cards, Admin diagnostics). Most require an authenticated session with real
-  data.
-- **Withdrawal flow not exercised end to end.** Logic has 11 unit tests; it has not run
-  against a funded wallet or a real Privy signature.
-- **Migrations not applied.** `degenaration-fee-allocation-integrity.sql` and
-  `degenaration-user-withdrawals.sql` are written and reviewed but have not run against a
-  database, so the trigger and the RPC are unproven at runtime.
-- **Discord global-command cleanup unobserved.** Correct by construction and covered by
-  the static check, but not seen against a live Discord application.
-- **Signal journal untraced.** Requires database access — see `OPEN_BLOCKERS.md` B-4.
-- **No lint, e2e, migration dry run, or RLS test run.**
+- **No stored PNG set** for the authenticated routes §22.6 lists (My Bots, Affiliate tabs,
+  Portfolio populated and empty, withdrawal modal, Wallet, PnL cards, Admin diagnostics).
+  Public routes were audited programmatically at all four widths; the authenticated ones
+  need a real Privy session, which cannot be created from this environment.
+- **No real withdrawal signature.** The transaction the endpoint builds is verified
+  structurally (decodes to a correct transfer, exact lamports, unsigned), but the on-chain
+  landing check needs the devnet faucet, which is currently 429 rate-limited here. A funded
+  wallet closes this.
+- **Discord global-command cleanup unobserved live.** `npm run verify:discord-live` exists
+  to confirm it; it needs the deployed bot's credentials.
+- **No browser e2e on authenticated routes.** Same session dependency.
+
+### Corrected in this revision
+
+The previous revision claimed migrations were unapplied, the signal journal untraced, and
+no lint run. All three had since been done — the four migrations were applied and proven
+against live Postgres, the journal chain was traced end to end (rolled back), and
+`npm run lint` gates 218 files. A stale evidence file is worse than none, because it reads
+as verification.
 
 ## Readiness
 
-**NOT READY.** Both audit-identified release blockers now have tested implementations,
-but nothing here has run against a live database, a funded wallet, or a real Discord
-application, and Phases 3, 6, and 7 remain substantially incomplete.
+**READY FOR STAGING — not for mainnet.**
+
+No requirement is BLOCKED. Every remaining gap is a physical dependency: a funded wallet,
+a deployed worker, or a signed-in session. Before mainnet, `PLATFORM_FEE_ACCOUNT` must be
+set (currently 0 bps collected) and **OPEN_BLOCKERS B-6 must be resolved** — the worker
+reads legacy tables carrying no safety configuration, so a deployed worker would execute
+without the filters users configured.
