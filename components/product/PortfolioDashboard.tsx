@@ -27,6 +27,7 @@ import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import { fetchPortfolio, fmtUsd, type Portfolio } from "@/lib/queries";
 import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch } from "@/lib/product-api";
 import { getNet } from "@/lib/net";
+import { portfolioStatistics } from "@/lib/portfolio-stats";
 
 type Period = "7d" | "30d" | "3m";
 type View = "overview" | "positions" | "trades" | "movements";
@@ -123,6 +124,10 @@ export default function PortfolioDashboard() {
   const fees = lamportsToSol(summary?.performance?.networkFeesLamports) + lamportsToSol(summary?.performance?.platformFeesLamports) + lamportsToSol(summary?.performance?.creatorFeesLamports);
   const executionBuys = summary?.executions.filter((execution) => execution.side === "buy").length || 0;
   const executionSells = summary?.executions.filter((execution) => execution.side === "sell").length || 0;
+  // Reference R5 reports buy/sell VOLUME alongside transaction counts, and wins vs losses
+  // as counts distinct from the win-rate percentage. Computed in a tested module because
+  // this page is auth-gated and cannot be exercised in a browser without a session.
+  const stats = portfolioStatistics(summary);
   const lastExecution = summary?.executions[0]?.created_at || summary?.legacyTrades[0]?.created_at;
   const uniqueTokens = new Set([...(summary?.executions || []).map((execution) => execution.mint), ...(summary?.legacyTrades || []).map((trade) => trade.mint)]).size;
   const availableSol = walletPortfolio?.sol ?? 0;
@@ -241,12 +246,15 @@ export default function PortfolioDashboard() {
               <dl className="divide-y divide-edge px-5">
                 <StatRow label="Total swaps" value={String((summary.executions.length || 0) + (summary.legacyTrades.length || 0))} />
                 <StatRow label="Buys / sells" value={`${executionBuys} / ${executionSells}`} />
-                <StatRow label="Network + creator + platform fees" value={`${fees.toFixed(4)} SOL`} />
+                <StatRow label="Buy / sell volume" value={`${stats.buyVolumeSol.toFixed(3)} / ${stats.sellVolumeSol.toFixed(3)} SOL`} />
+                <StatRow label="Wins / losses" value={stats.wins == null ? "--" : `${stats.wins} / ${stats.losses}`} />
+                <StatRow label="Gas fees" value={`${stats.networkFeesSol.toFixed(4)} SOL`} />
+                <StatRow label="All fees" value={`${fees.toFixed(4)} SOL`} />
                 <StatRow label="Unique tokens" value={String(uniqueTokens)} />
                 <StatRow label="Win rate" value={formatPercentBps(summary.performance?.winRateBps)} />
                 <StatRow label="Maximum drawdown" value={formatPercentBps(summary.performance?.maxDrawdownBps)} />
                 <StatRow label="Last swap" value={formatWhen(lastExecution)} />
-                <StatRow label="Risk-flagged tokens" value={String(summary.performance?.metrics?.riskFlaggedTokens ?? 0)} />
+                <StatRow label="Risk-flagged tokens" value={stats.riskFlaggedTokens == null ? "--" : String(stats.riskFlaggedTokens)} />
               </dl>
             </section>
           </div>

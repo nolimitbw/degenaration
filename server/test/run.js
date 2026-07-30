@@ -375,6 +375,68 @@ test("principal withdrawal does not inherit the affiliate payout minimum or fee"
 // The bot's configured safety filters were persisted and never read: rugcheck.js
 // hardcoded a $10,000 liquidity floor, so a bot asking for $500,000 was executed against
 // $10,000. These cover the enforcement layer that closes that gap (spec 10, 11.2).
+// The Portfolio page is authentication-gated, so its Statistics panel cannot be exercised
+// in a browser without a real session. The arithmetic lives in a pure module so it is
+// verifiable at all (spec 17.1, reference R5 "Main Stats").
+console.log("portfolio statistics (spec 17.1)");
+const { portfolioStatistics } = require("../../lib/portfolio-stats");
+const exec = (side, sol) => ({ side, mint: "M" + sol, grossNotionalLamports: String(sol * 1e9), created_at: "2026-07-2" + (sol % 9) + "T00:00:00Z" });
+const pos = (status, pnlSol) => ({ status, realizedPnlLamports: String(pnlSol * 1e9), costLamports: "1000000000" });
+
+test("buy and sell volume are summed separately", () => {
+  const s = portfolioStatistics({ executions: [exec("buy", 12), exec("buy", 8), exec("sell", 15)] });
+  assert.strictEqual(s.buyVolumeSol, 20);
+  assert.strictEqual(s.sellVolumeSol, 15);
+  assert.strictEqual(s.buyCount, 2);
+  assert.strictEqual(s.sellCount, 1);
+});
+test("wins and losses count only closed positions", () => {
+  const s = portfolioStatistics({ positions: [pos("closed", 0.9), pos("closed", -0.4), pos("closed", 0.7), pos("open", 0)] });
+  assert.strictEqual(s.closedPositions, 3);
+  assert.strictEqual(s.wins, 2);
+  assert.strictEqual(s.losses, 1);
+});
+test("no closed positions reports null, not 0/0", () => {
+  // "nothing has closed" and "an even win/loss split" are different facts (spec 23).
+  const s = portfolioStatistics({ positions: [pos("open", 0)] });
+  assert.strictEqual(s.wins, null);
+  assert.strictEqual(s.losses, null);
+});
+test("a break-even close counts as neither a win nor a loss", () => {
+  const s = portfolioStatistics({ positions: [pos("closed", 0)] });
+  assert.strictEqual(s.wins, 0);
+  assert.strictEqual(s.losses, 0);
+  assert.strictEqual(s.closedPositions, 1);
+});
+test("gas fees are reported separately from total fees", () => {
+  const s = portfolioStatistics({ performance: { networkFeesLamports: "60000", platformFeesLamports: "800000000", creatorFeesLamports: "280000000" } });
+  assert.ok(Math.abs(s.networkFeesSol - 0.00006) < 1e-9);
+  assert.ok(Math.abs(s.allFeesSol - 1.08006) < 1e-9);
+});
+test("unique tokens counts executions and legacy trades together", () => {
+  const s = portfolioStatistics({ executions: [exec("buy", 1), exec("buy", 1)], legacyTrades: [{ mint: "OTHER", created_at: "2026-07-01T00:00:00Z" }] });
+  assert.strictEqual(s.uniqueTokens, 2);
+  assert.strictEqual(s.totalSwaps, 3);
+});
+test("last swap is the most recent across both sources", () => {
+  const s = portfolioStatistics({
+    executions: [{ side: "buy", mint: "A", grossNotionalLamports: "0", created_at: "2026-07-10T00:00:00Z" }],
+    legacyTrades: [{ mint: "B", created_at: "2026-07-29T00:00:00Z" }]
+  });
+  assert.strictEqual(s.lastSwapAt, "2026-07-29T00:00:00Z");
+});
+test("risk-flagged tokens is null when the server supplied no risk evidence", () => {
+  assert.strictEqual(portfolioStatistics({ performance: {} }).riskFlaggedTokens, null);
+  assert.strictEqual(portfolioStatistics({ performance: { metrics: { riskFlaggedTokens: 2 } } }).riskFlaggedTokens, 2);
+});
+test("an empty summary produces zeros and nulls without throwing", () => {
+  const s = portfolioStatistics(null);
+  assert.strictEqual(s.totalSwaps, 0);
+  assert.strictEqual(s.buyVolumeSol, 0);
+  assert.strictEqual(s.wins, null);
+  assert.strictEqual(s.lastSwapAt, null);
+});
+
 console.log("configured safety filters (spec 10)");
 const { evaluateSafety } = require("../engine/safety");
 const pairFixture = (over) => Object.assign({
