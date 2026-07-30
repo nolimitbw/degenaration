@@ -61,6 +61,18 @@ alter table app_private.commission_ledger_entries
   check (source_type in ('discord', 'kol', 'referral', 'payout', 'reversal', 'adjustment'));
 
 -- A referral entry must name the account it credits, same rule the creator account has.
+--
+-- The ORIGINAL table-level CHECK was declared anonymously, so Postgres named it
+-- `commission_ledger_entries_check`. It permits only 'creator' (with an owner) or
+-- 'platform', which means it rejects every 'referral' entry. Adding the superseding
+-- constraint below is not enough — the original has to be dropped, or the two together
+-- make referral rewards unwritable.
+--
+-- This was found by exercising the accrual trigger against the live database. The JS
+-- fixture tests modelled ledger entries in memory and could not see a real constraint.
+alter table app_private.commission_ledger_entries
+  drop constraint if exists commission_ledger_entries_check;
+
 alter table app_private.commission_ledger_entries
   drop constraint if exists commission_ledger_entries_owner_required_check;
 
