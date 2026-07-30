@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 import { configuredPlatformFeeBps } from "@/lib/fee-model";
+import { resolveFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -26,9 +27,17 @@ export async function POST(req: NextRequest) {
   const slippageBps = validSlippageBps(body.slippageBps);
   const mevEnabled = mev !== false;
 
-  const feeAccount = process.env.PLATFORM_FEE_ACCOUNT;
-  const platformFeeBps = configuredPlatformFeeBps();
-  const applyFee = platformFeeBps > 0;
+  // Resolve a usable fee account BEFORE requesting the fee. Jupiter does not validate
+  // feeAccount, so a wallet address pasted into PLATFORM_FEE_ACCOUNT would build fine and
+  // then fail every swap on chain. When no usable account exists the fee is skipped —
+  // collecting nothing is recoverable, breaking every trade is not.
+  const resolvedFee = await resolveFeeAccount(inputMint);
+  const feeAccount = resolvedFee.feeAccount;
+  const platformFeeBps = feeAccount ? configuredPlatformFeeBps() : 0;
+  const applyFee = platformFeeBps > 0 && Boolean(feeAccount);
+  if (!feeAccount && process.env.PLATFORM_FEE_ACCOUNT) {
+    console.warn(`[swap] platform fee skipped — ${resolvedFee.reason}`);
+  }
 
   try {
     const qurl = new URL(`${JUP}/quote`);

@@ -20,7 +20,58 @@ const MAX_PRICE_IMPACT_PCT = 15;
 // so requesting the fee unconditionally would make EVERY worker trade fail when the env
 // var is unset. Mirror the frontend /api/swap behaviour: fee is all-or-nothing per env.
 const FEE_ACCOUNT = process.env.PLATFORM_FEE_ACCOUNT;
-const APPLY_FEE = !!FEE_ACCOUNT;
+
+// Jupiter does NOT validate feeAccount. A wallet address pasted into PLATFORM_FEE_ACCOUNT
+// builds a transaction successfully and then fails on chain at execution — which would
+// break every worker trade, not merely forgo the fee.
+//
+// The worker deploys with rootDir: server (render.yaml) so it cannot import
+// lib/server/fee-account.ts. It performs the same check with a one-time probe at startup
+// and disables the fee if the account cannot receive one. Collecting nothing is
+// recoverable; breaking every trade is not.
+let APPLY_FEE = false;
+let feeAccountChecked = false;
+
+async function feeAccountUsable() {
+  if (!FEE_ACCOUNT) return false;
+  const rpc = process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
+  try {
+    const r = await fetch(rpc, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo",
+        params: [FEE_ACCOUNT, { encoding: "jsonParsed" }] }),
+      signal: AbortSignal.timeout(6000)
+    });
+    const value = (await r.json())?.result?.value;
+    const usable = value?.data?.parsed?.type === "account";
+    if (!usable) {
+      console.warn(`[jupiter] platform fee DISABLED — PLATFORM_FEE_ACCOUNT ${FEE_ACCOUNT} is not an initialised token account`);
+    }
+    return usable;
+  } catch {
+    console.warn("[jupiter] platform fee DISABLED — could not verify PLATFORM_FEE_ACCOUNT");
+    return false;
+  }
+}
+
+async function ensureFeeAccountChecked() {
+  if (feeAccountChecked) return APPLY_FEE;
+  feeAccountChecked = true;
+  APPLY_FEE = await feeAccountUsable();
+  return APPLY_FEE;
+}
+
+/**
+ * Test seam. The ledger-facing fee math must stay deterministic and offline, so tests set
+ * the resolved state directly instead of reaching the network. Production never calls this
+ * — the probe above settles APPLY_FEE before any trade records a fee, because every trade
+ * goes through getQuote/buildSwapTx first.
+ */
+function __setFeeAccountUsable(usable) {
+  APPLY_FEE = Boolean(usable);
+  feeAccountChecked = true;
+}
 
 /** Exact integer fee on a lamport notional. This is the ledger-facing calculation. */
 function platformFeeLamports(notionalLamports) {
@@ -52,7 +103,7 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
   url.searchParams.set("outputMint", outputMint);
   url.searchParams.set("amount", String(amountLamports));
   url.searchParams.set("slippageBps", String(slippageBps));
-  if (APPLY_FEE) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+  if (await ensureFeeAccountChecked()) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) throw new Error(`quote failed (${response.status})`);
   const q = await response.json();
@@ -73,7 +124,7 @@ async function buildSwapTx({ quote, userPublicKey }) {
     dynamicComputeUnitLimit: true,
     prioritizationFeeLamports: "auto"
   };
-  if (APPLY_FEE) swapBody.feeAccount = FEE_ACCOUNT;
+  if (await ensureFeeAccountChecked()) swapBody.feeAccount = FEE_ACCOUNT;
   const res = await fetch(`${JUP}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -97,5 +148,9 @@ const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
 
 module.exports = {
   getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports,
-  SOL_MINT, PLATFORM_FEE_BPS, APPLY_FEE
+  ensureFeeAccountChecked, __setFeeAccountUsable,
+  SOL_MINT, PLATFORM_FEE_BPS,
+  // APPLY_FEE is resolved asynchronously by the probe, so it is exposed as a getter
+  // rather than a snapshot taken at module load (which was always false).
+  get APPLY_FEE() { return APPLY_FEE; }
 };

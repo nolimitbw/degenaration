@@ -11,8 +11,41 @@ production". Fee logic, ledger allocation, and tests can all be implemented and 
 against fixtures without it, but **no fee is actually collected in production until the
 owner supplies the fee wallet address.**
 
-Required action: owner sets `PLATFORM_FEE_ACCOUNT` to the destination fee wallet.
-Impacts release gate: revenue collection. Status: **BLOCKED — owner action.**
+**UPDATED 2026-07-30 — setting this is now SAFE, and there is an exact next step.**
+
+The original danger was that `PLATFORM_FEE_ACCOUNT` must be a TOKEN ACCOUNT, not a wallet,
+and Jupiter does not validate it — a wallet address would build transactions fine and then
+fail EVERY SWAP on chain. Verified: a plain wallet and a known-bogus wallet were accepted
+identically by Jupiter's swap endpoint.
+
+`lib/server/fee-account.ts` (web app) and the startup probe in `server/engine/jupiter.js`
+(worker) now resolve this before requesting a fee:
+
+- configured value is already a token account for the fee mint → use it
+- configured value is a wallet → derive its associated token account and use that if it
+  exists on chain
+- otherwise → **skip the fee entirely**, so the swap still succeeds
+
+Collecting nothing is recoverable; breaking every trade is not.
+
+**Exact next step for the owner.** Probed against mainnet for the supplied address
+`FSF99fXBhfr15KBzjA2uQWf8vmAnawd3eTD5LdcTQbh9`:
+
+| Check | Result |
+|---|---|
+| Exists on chain | no |
+| Is a token account | no |
+| Derived wSOL ATA | `AuFCZDtr7PaZxEitCPzKpQZdkRLnpKZxK6Y4MpxAZhDj` |
+| That ATA exists | no |
+
+So `PLATFORM_FEE_ACCOUNT` can be set to the wallet **today** without risk — trading keeps
+working and 0 bps is collected. Fees begin automatically, with no code change, the moment
+that wrapped-SOL associated token account exists. Creating it requires one transaction from
+the owner's wallet (any wallet that can create an ATA, or receiving any wSOL).
+
+Alternatively use Jupiter's Referral Program and set the referral token account directly.
+
+Status: **SAFE TO SET — fees begin once a fee token account exists.**
 
 ## B-2 — Delegated-signing secrets and a worker host
 

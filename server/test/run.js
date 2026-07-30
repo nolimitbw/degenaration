@@ -178,7 +178,11 @@ test("worker fee uses exact integer lamport arithmetic", () => {
   const previous = process.env.PLATFORM_FEE_ACCOUNT;
   process.env.PLATFORM_FEE_ACCOUNT = "F".repeat(44);
   delete require.cache[jupiterPath];
-  const { platformFeeLamports } = require("../engine/jupiter");
+  const jup = require("../engine/jupiter");
+  // The fee account is verified by a network probe in production; tests declare the
+  // resolved state so the ledger math stays deterministic and offline.
+  jup.__setFeeAccountUsable(true);
+  const { platformFeeLamports } = jup;
   assert.strictEqual(platformFeeLamports(HUNDRED_SOL), feeModel.bpsOf(HUNDRED_SOL, 200));
   assert.strictEqual(platformFeeLamports(lam(1)), BigInt(0));
   if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
@@ -198,8 +202,9 @@ test("worker records the configured commission when a fee account is present", (
   const previous = process.env.PLATFORM_FEE_ACCOUNT;
   process.env.PLATFORM_FEE_ACCOUNT = "F".repeat(44);
   delete require.cache[jupiterPath];
-  const { platformFeeSol } = require("../engine/jupiter");
-  assert.ok(Math.abs(platformFeeSol(1.2) - 0.024) < 1e-9);
+  const jupSol = require("../engine/jupiter");
+  jupSol.__setFeeAccountUsable(true);
+  assert.ok(Math.abs(jupSol.platformFeeSol(1.2) - 0.024) < 1e-9);
   if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
   else delete process.env.PLATFORM_FEE_ACCOUNT;
   delete require.cache[jupiterPath];
