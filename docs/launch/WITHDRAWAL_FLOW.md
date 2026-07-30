@@ -76,7 +76,37 @@ Creator and referral reward payouts keep their own rules — 0.1 SOL minimum, 0.
 processing fee, ledger-backed states. Those do **not** apply to principal withdrawal;
 a test asserts a principal withdrawal below the affiliate minimum still succeeds.
 
+## How to verify it
+
+```bash
+npm run verify:withdrawal
+```
+
+Structural checks need nothing. For the on-chain half, start a local validator first —
+the public devnet faucet is frequently rate-limited:
+
+```bash
+solana-test-validator --reset --quiet --ledger /tmp/degen-validator/ledger
+```
+
+The script probes `127.0.0.1:8899` and prefers it automatically, falling back to public
+devnet. Override with `SOLANA_TEST_RPC`.
+
+Install the CLI if absent:
+
+```bash
+sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+```
+
+## Verified
+
+16/16 against a local validator: the transaction confirms on chain, the destination
+receives exactly the requested lamports, the source retains the rent-exempt minimum, and a
+subsequent Max withdrawal still retains the reserve. `degenaration-user-withdrawals.sql`
+is applied and its locked-capital query verified against live Postgres.
+
 ## Not yet verified
 
-The flow has 11 unit tests but has never run against a funded wallet or a real Privy
-signature, and `degenaration-user-withdrawals.sql` has not been applied to a database.
+The browser flow where a real Privy wallet signs. That needs the owner's wallet — the
+transaction handed to it is proven correct, but the signing UI itself is unexercised.
