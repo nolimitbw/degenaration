@@ -61,6 +61,32 @@ const loadTrackedWallets = async () => {
   return [...new Set((rows || []).map((r) => r.leader_wallet))].map((address) => ({ address }));
 };
 const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss`, true);
+
+/**
+ * A subscriber's own safety filters, or null when the row predates the bot builder.
+ *
+ * `extended_config` is the full bot config written at save time, so no extra round trip
+ * and no cross-schema read of app_private.bot_config_versions is needed.
+ *
+ * Returns `{ ok: false }` when the row came from the builder (it has a bot_profile_id or a
+ * config_version_id) but its filters cannot be read. Callers MUST treat that as a refusal
+ * to execute rather than as "no filters configured" — silently running a bot without the
+ * user's risk settings is the failure this guards against.
+ */
+function subscriberSafety(subscription) {
+  const row = subscription || {};
+  const fromBuilder = Boolean(row.bot_profile_id || row.config_version_id);
+  const config = row.extended_config;
+
+  if (config && typeof config === "object" && config.safetyFilters && typeof config.safetyFilters === "object") {
+    return { ok: true, safety: config.safetyFilters, fromBuilder };
+  }
+  if (fromBuilder) {
+    return { ok: false, reason: "bot safety configuration unavailable", fromBuilder };
+  }
+  // Legacy subscription with no builder config: platform baseline checks still applied.
+  return { ok: true, safety: null, fromBuilder: false };
+}
 const recordTrade = (evt) => sbInsert("trades", {
   privy_user_id: evt.privy_user_id || null,
   user_pubkey: evt.user || evt.user_pubkey || null,
@@ -80,7 +106,7 @@ const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}
 // ---- discord call execution ----
 const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50", true);
 const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
-const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`, true);
+const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,bot_profile_id,config_version_id,extended_config`, true);
 const claimCallExecution = (callId, subscriptionId) => sbRpc("worker_claim_call_execution", {
   p_call_id: callId,
   p_subscription_id: subscriptionId
@@ -118,4 +144,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance };
+module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance };

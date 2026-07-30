@@ -293,6 +293,62 @@ test("an edited message keeps the original signal identity", () => {
   assert.strictEqual(outcomes.dedupeSignals([first, edited]).length, 1);
 });
 
+console.log("per-subscriber safety enforcement (B-6)");
+const { subscriberSafety } = require("../engine/store");
+
+test("a legacy subscription runs on the platform baseline, not failed closed", () => {
+  const r = subscriberSafety({ id: "legacy" });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.safety, null);
+  assert.strictEqual(r.fromBuilder, false);
+});
+test("a builder subscription supplies its own filters", () => {
+  const r = subscriberSafety({
+    bot_profile_id: "b1",
+    extended_config: { safetyFilters: { ranges: { liquidityUsd: { enabled: true, min: 5000 } }, flags: { mintAuthorityRevoked: true } } }
+  });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.safety.ranges.liquidityUsd.min, 5000);
+  assert.strictEqual(r.safety.ranges.liquidityUsd.enabled, true);
+  assert.strictEqual(r.fromBuilder, true);
+});
+test("a builder subscription with UNREADABLE filters refuses to execute", () => {
+  // The failure this guards: running someone's bot without the risk settings they chose.
+  for (const row of [
+    { bot_profile_id: "b1", extended_config: {} },
+    { config_version_id: "v1", extended_config: null },
+    { bot_profile_id: "b1" }
+  ]) {
+    const r = subscriberSafety(row);
+    assert.strictEqual(r.ok, false, JSON.stringify(row));
+    assert.match(r.reason, /unavailable/i);
+  }
+});
+test("a malformed safetyFilters value is treated as unreadable, not as empty", () => {
+  const r = subscriberSafety({ bot_profile_id: "b1", extended_config: { safetyFilters: "nope" } });
+  assert.strictEqual(r.ok, false);
+});
+test("a range with no enabled flag is not evaluated (row-level opt-in)", () => {
+  const { evaluateSafety } = require("../engine/safety");
+  const verdict = evaluateSafety({
+    pair: { liquidity: { usd: 1 } },
+    mintInfo: null,
+    safety: { ranges: { liquidityUsd: { min: 999999999 } }, flags: {} }
+  });
+  assert.strictEqual(verdict.ok, true, "an un-enabled range must not block");
+});
+test("one subscriber's filters cannot leak into another's decision", () => {
+  const strict = subscriberSafety({ bot_profile_id: "a", extended_config: { safetyFilters: { ranges: { liquidityUsd: { enabled: true, min: 999999999 } }, flags: {} } } });
+  const loose = subscriberSafety({ bot_profile_id: "b", extended_config: { safetyFilters: { ranges: {}, flags: {} } } });
+  assert.notDeepStrictEqual(strict.safety, loose.safety);
+  const { evaluateSafety } = require("../engine/safety");
+  const evidence = { pair: { liquidity: { usd: 50000 } }, mintInfo: null };
+  const strictVerdict = evaluateSafety({ ...evidence, safety: strict.safety });
+  const looseVerdict = evaluateSafety({ ...evidence, safety: loose.safety });
+  assert.strictEqual(strictVerdict.ok, false); // 50k < the strict minimum
+  assert.strictEqual(looseVerdict.ok, true);   // no bound set
+});
+
 console.log("user withdrawals (spec 12 / 22.2)");
 const wd = require("../../lib/withdrawal");
 const OWNER = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";

@@ -98,6 +98,7 @@ if (SIGNING_READY) {
   // Discord group calls -> mirror to each group's subscribers.
   startCallWatcher({
     loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
+    subscriberSafety: store.subscriberSafety,
     claimCallExecution: store.claimCallExecution, finishCallExecution: store.finishCallExecution,
     completeCall: store.completeCall, markCallExecuted: store.markCallExecuted, signAndSend,
     recordCopy: store.recordCopy, onEvent: log("call")

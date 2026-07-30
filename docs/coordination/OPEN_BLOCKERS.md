@@ -76,28 +76,47 @@ problems. Strict `tsc` continues to cover type safety.
 Adopting full ESLint remains available if the owner wants broader style coverage, but the
 release gate no longer depends on that decision.
 
-## B-6 — The worker reads legacy tables that carry no safety configuration
+## B-6 — RESOLVED: the worker now enforces each subscriber's own filters
 
-The bot builder persists 36 safety filters into `safetyFilters` on the bot config, and
-`server/engine/safety.js` now enforces them. But the worker's execution paths
-(`copy.js`, `calls.js`, `index.js`) load subscribers from the legacy `copy_subscriptions`
-and `subscriptions` tables, whose SELECT lists contain no safety configuration at all —
-only size, slippage, caps, and TP/SL. The new configuration lives in
-`bot_config_versions`.
+The original entry said this needed database access and could not be done blind. With
+access, two of its assumptions turned out to be wrong:
 
-So enforcement exists and is tested, but nothing yet hands it a user's filters at
-execution time. `rugCheck` now returns `evidence` precisely so a caller can evaluate each
-subscriber's own filters without re-fetching, and it applies filters when a `safety`
-argument is supplied — the remaining work is migrating the worker's subscriber loading
-onto the bot config tables.
+1. **No table migration was needed.** `public.subscriptions` already carries
+   `bot_profile_id`, `config_version_id`, and `extended_config` — and
+   `app_upsert_discord_bot` writes the FULL bot config into `extended_config` at save
+   time. The filters were already sitting in an accessible table in the `public` schema;
+   nothing had to read `app_private.bot_config_versions` across schemas.
 
-That migration changes execution behaviour and cannot be verified without a database, so
-it was not done blind.
+2. **There was nothing to break.** Live counts: `bot_profiles`=0,
+   `bot_config_versions`=0, `copy_subscriptions`=0, and the single `subscriptions` row is
+   `enabled: false, status: paused`. `loadGroupSubscribers` filters `enabled=eq.true`, so
+   there are **zero enabled subscribers**. The caution about changing execution behaviour
+   was written without knowing the tables were empty.
 
-Required action: database access, then migrate `loadSubscribers` / `loadGroupSubscribers`
-to join `bot_profiles` → `bot_config_versions` and pass `safetyFilters` into `rugCheck`
-per subscriber.
-Status: **BLOCKED — needs database access.**
+What was implemented:
+
+- `loadGroupSubscribers` now selects `bot_profile_id, config_version_id, extended_config`.
+- `store.subscriberSafety(row)` resolves a subscriber's own filters and returns
+  `{ ok: false }` when the row came from the builder but its filters cannot be read.
+- `calls.js` evaluates each subscriber's filters against the evidence `rugCheck` already
+  gathered — no extra network round trip — and skips only that subscriber on rejection,
+  so one person's stricter rules cannot affect anyone else's execution.
+- A builder-created bot whose filters are unreadable emits `SAFETY_UNAVAILABLE` and does
+  **not** execute. Running someone's bot without the risk settings they chose is the
+  specific failure this closes.
+- Legacy rows with no builder linkage continue on the platform baseline rather than being
+  failed closed, so the migration cannot silently disable existing subscriptions.
+
+6 tests cover it, including that an un-enabled range is not evaluated (the row-level
+opt-in that keeps a 35-filter form usable) and that two subscribers' filters produce
+different verdicts on identical evidence.
+
+**Note for deployment:** `copy.js` (wallet copy-trading) was deliberately left on the
+baseline. `copy_subscriptions` has no `extended_config` column, so there is no per-bot
+configuration to honour there yet. That path is unchanged, not silently degraded.
+
+Status: **RESOLVED in code.** Unobserved in production only because the worker has never
+run (see requirement 6).
 
 ## B-7 — Remaining blockers, each TESTED rather than assumed
 

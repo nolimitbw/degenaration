@@ -5,6 +5,7 @@
  * keys sign via signAndSend. Analogous to copy.js but keyed on group calls, not wallets.
  */
 const { rugCheck } = require("./rugcheck");
+const { evaluateSafety } = require("./safety");
 const { buyToken } = require("./jupiter");
 
 // Pure, testable: calls that are executable and not yet handled this run.
@@ -23,7 +24,10 @@ function pickNewCalls(calls, seen) {
  *  recordCopy(evt) / onEvent(evt)
  */
 function startCallWatcher(deps, pollMs = 8000) {
-  const { loadPendingCalls, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, markCallExecuted, signAndSend, recordCopy = async () => {}, onEvent = () => {} } = deps;
+  const { loadPendingCalls, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, markCallExecuted, signAndSend, recordCopy = async () => {}, onEvent = () => {},
+    // Resolves a subscriber's own safety filters. Defaults to "no builder config", which
+    // keeps legacy rows on the platform baseline rather than failing them closed.
+    subscriberSafety = () => ({ ok: true, safety: null, fromBuilder: false }) } = deps;
   const seen = new Set();
 
   const runTick = async () => {
@@ -43,6 +47,27 @@ function startCallWatcher(deps, pollMs = 8000) {
       try { subs = await loadGroupSubscribers(c.group_id); }
       catch (e) { onEvent({ type: "SUBSCRIBER_LOAD_ERROR", call: c.id, error: e.message }); }
       for (const s of subs) {
+        // Each subscriber's own filters, evaluated against the evidence rugCheck already
+        // gathered — no extra network round trip per subscriber.
+        const resolved = subscriberSafety(s);
+        if (!resolved.ok) {
+          // A bot created in the builder whose filters cannot be read must NOT execute.
+          // Running it unfiltered would ignore the risk settings the user chose.
+          onEvent({ type: "SAFETY_UNAVAILABLE", call: c.id, subscription: s.id, reason: resolved.reason });
+          continue;
+        }
+        if (resolved.safety) {
+          const verdict = evaluateSafety({
+            pair: check.evidence?.pair || null,
+            mintInfo: check.evidence?.mintInfo || null,
+            safety: resolved.safety
+          });
+          if (!verdict.ok) {
+            onEvent({ type: "SAFETY_REJECTED", call: c.id, subscription: s.id, mint: c.mint, reasons: verdict.reasons });
+            continue;
+          }
+        }
+
         let claim;
         try { claim = await claimCallExecution(c.id, s.id); }
         catch (e) { onEvent({ type: "CLAIM_ERROR", call: c.id, subscription: s.id, error: e.message }); continue; }
