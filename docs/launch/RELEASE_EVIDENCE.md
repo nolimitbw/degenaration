@@ -78,6 +78,44 @@ Cards render one per row at 343px on mobile and two per row on wide desktop, per
 Verified with a stubbed marketplace response covering a measured and an unmeasured source.
 No console errors at either width.
 
+### Third pass — every public route in the §22.6 list
+
+The second pass covered only `/bots/discord`. Extending the audit to the remaining public
+routes found **three more control tiers** below the 44px minimum that per-route fixes had
+missed, because they live in shared classes rather than in one page:
+
+| Tier | Where it appeared | Count |
+|---|---|---|
+| `min-h-10` (40px) | retry buttons, page-header actions, filter wrappers | 71 occurrences, 19 files |
+| `min-h-9` (36px) | SOL amount presets, "Connect account", table row actions | 17 occurrences, 9 files |
+| bare `<select>` (18px) | marketplace sort controls | 5 |
+
+All raised to 44px up to `sm` and returning to compact size above it.
+
+| Route | Width | Overflow | Sub-44px controls |
+|---|---|---|---|
+| `/bots/kol` | 375 | none | 0 |
+| `/bots/discord/new` | 375 | none | 0 |
+| `/bots/discord` | 375 | none | 0 |
+| `/bots/discord` | 1440 | none | compact by design — Segmented 32, refresh 40, sort 18, actions 40 |
+
+Desktop density confirmed unchanged at 1440 after every sweep, which is the point of the
+responsive approach: §7.4 wants 44px reachable, §5 wants professional density, and a flat
+bump would have traded one for the other.
+
+**One deliberate exception.** `Skip to content` reports 36px and was left alone: it is a
+keyboard-only skip link, visually hidden until focused (`-translate-y-20 focus:translate-y-0`),
+so it is never a touch target.
+
+**One redundancy removed.** A `<select>` carrying `field-control` already inherits a 44px
+minimum from `app/globals.css`, so the added height class was noise there and was reverted —
+kept only on bare selects that genuinely had an 18px hit area.
+
+Two regex failures worth recording, both mine: `[^>]*` cannot match a JSX tag containing an
+arrow function, because `=>` supplies the `>` — the select sweep silently matched nothing
+until it was redone line-based. And `--format=%H%x09%b` cannot be split to attribute commit
+trailers, because `%b` is multi-line.
+
 ### Copy changes confirmed on the rendered page
 
 Read back from `document.body.innerText`, not from source:

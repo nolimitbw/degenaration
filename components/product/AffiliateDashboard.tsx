@@ -149,7 +149,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         actions={
           <>
             <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh affiliate dashboard"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
-            <button type="button" onClick={() => setPayoutOpen(true)} disabled={!summary || Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Request payout</button>
+            <button type="button" onClick={() => setPayoutOpen(true)} disabled={!summary || Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Request payout</button>
           </>
         }
       />
@@ -183,7 +183,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         <div className="mt-6 rounded-md border border-edge bg-panel p-6">
           <p className="text-sm font-semibold text-ink">Affiliate data could not be loaded</p>
           <p className="mt-1 text-xs leading-5 text-dim">{error}</p>
-          <button type="button" onClick={load} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
         </div>
       )}
 
@@ -191,7 +191,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       {summary && error && (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-edge bg-panel px-4 py-3">
           <p className="text-xs text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
-          <button type="button" onClick={load} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
+          <button type="button" onClick={load} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
         </div>
       )}
       {summary && (scope === "discord" || scope === "kol") && (
@@ -555,8 +555,8 @@ function ReferralDashboard({
             </dl>
             <p className="mt-4 text-[11px] leading-5 text-dim">The old URL will keep redirecting during its retention period and cannot be claimed by another account.</p>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-ink">Cancel</button>
-              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-10 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
+              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-ink">Cancel</button>
+              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
             </div>
           </div>
         </div>

@@ -153,8 +153,8 @@ export default function PortfolioDashboard() {
         actions={
           <>
             <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
-            <button type="button" onClick={() => setDepositOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowDownToLine size={15} /> Deposit</button>
-            <button type="button" onClick={() => setWithdrawOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><ArrowUpFromLine size={15} /> Withdraw</button>
+            <button type="button" onClick={() => setDepositOpen(true)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowDownToLine size={15} /> Deposit</button>
+            <button type="button" onClick={() => setWithdrawOpen(true)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><ArrowUpFromLine size={15} /> Withdraw</button>
             <button
               type="button"
               onClick={async () => {
@@ -166,7 +166,7 @@ export default function PortfolioDashboard() {
                 }
               }}
               disabled={signingOut}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-down/40 px-4 text-sm font-semibold text-down transition hover:bg-down/5 disabled:opacity-50"
+              className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-down/40 px-4 text-sm font-semibold text-down transition hover:bg-down/5 disabled:opacity-50"
             >
               {signingOut ? <Loader2 aria-hidden="true" size={15} className="animate-spin" /> : <LogOut aria-hidden="true" size={15} />}
               Sign out
@@ -222,7 +222,7 @@ export default function PortfolioDashboard() {
         <div className="mt-5 rounded-md border border-edge bg-panel p-6">
           <p className="text-sm font-semibold text-ink">Portfolio could not be loaded</p>
           <p className="mt-1 text-xs leading-5 text-dim">{error}</p>
-          <button type="button" onClick={load} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
         </div>
       )}
 
@@ -230,7 +230,7 @@ export default function PortfolioDashboard() {
       {summary && error && (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-edge bg-panel px-4 py-3">
           <p className="text-xs text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
-          <button type="button" onClick={load} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
+          <button type="button" onClick={load} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
         </div>
       )}
       {summary && view === "overview" && (
@@ -239,7 +239,7 @@ export default function PortfolioDashboard() {
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4"><div><h2 className="text-sm font-semibold text-ink">Portfolio performance</h2><p className="mt-1 text-[11px] text-dim">Equity time series excludes deposits and withdrawals from trading return.</p></div><Segmented value={period} onChange={setPeriod} label="Portfolio period" options={[{ value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "3m", label: "3M" }]} /></header>
               <PortfolioPerformanceChart performance={summary.performance} />
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-5 py-4"><p className="text-[11px] text-dim">As of {formatWhen(summary.performance?.asOf)}</p><button type="button" onClick={() => setShare({ type: "portfolio" })} disabled={!summary.performance} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-35"><Share2 size={14} /> Share performance</button></div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-5 py-4"><p className="text-[11px] text-dim">As of {formatWhen(summary.performance?.asOf)}</p><button type="button" onClick={() => setShare({ type: "portfolio" })} disabled={!summary.performance} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-35"><Share2 size={14} /> Share performance</button></div>
             </section>
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
               <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Statistics</h2></header>
@@ -327,7 +327,7 @@ function PositionsTable({ positions, onShare }: { positions: any[]; onShare: (id
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Bot positions</h2><p className="mt-1 text-[11px] text-dim">Configuration and source attribution remain attached to the position snapshot.</p></header>
       {positions.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No bot positions yet.</p> : (
-        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Bot</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Invested</th><th className="px-4 py-3">Realized PnL</th><th className="px-4 py-3">Fees</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">Actions</th></tr></thead><tbody>{positions.map((position) => <tr key={position.id} className="border-t border-edge text-xs"><td className="px-4 py-4"><p className="font-mono text-ink">{position.mint.slice(0, 7)}...{position.mint.slice(-5)}</p></td><td className="px-4 py-4 text-ink">{position.botName || "Unassigned bot"}</td><td className="px-4 py-4"><StatusPill status={position.status} /></td><td className="px-4 py-4 font-mono text-ink">{formatSol(position.costLamports)}</td><td className={`px-4 py-4 font-mono ${Number(position.realizedPnlLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(position.realizedPnlLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(position.feesLamports)}</td><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(position.opened_at)}</td><td className="px-4 py-4"><div className="flex gap-2"><button type="button" onClick={() => onShare(position.id)} className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><Share2 size={13} /> Share</button><Link href={`/portfolio/positions/${position.id}`} className="inline-flex min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink">Details</Link></div></td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Bot</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Invested</th><th className="px-4 py-3">Realized PnL</th><th className="px-4 py-3">Fees</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">Actions</th></tr></thead><tbody>{positions.map((position) => <tr key={position.id} className="border-t border-edge text-xs"><td className="px-4 py-4"><p className="font-mono text-ink">{position.mint.slice(0, 7)}...{position.mint.slice(-5)}</p></td><td className="px-4 py-4 text-ink">{position.botName || "Unassigned bot"}</td><td className="px-4 py-4"><StatusPill status={position.status} /></td><td className="px-4 py-4 font-mono text-ink">{formatSol(position.costLamports)}</td><td className={`px-4 py-4 font-mono ${Number(position.realizedPnlLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(position.realizedPnlLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(position.feesLamports)}</td><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(position.opened_at)}</td><td className="px-4 py-4"><div className="flex gap-2"><button type="button" onClick={() => onShare(position.id)} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><Share2 size={13} /> Share</button><Link href={`/portfolio/positions/${position.id}`} className="inline-flex min-h-11 sm:min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink">Details</Link></div></td></tr>)}</tbody></table></div>
       )}
     </section>
   );
@@ -364,7 +364,7 @@ function DepositModal({ wallet, onClose }: { wallet: string; onClose: () => void
   return (
     <Modal title="Deposit SOL or SPL tokens" onClose={onClose}>
       <div className="rounded-md border border-gold-400/30 bg-gold-400/5 p-4 text-xs leading-5 text-dim">Send only Solana network assets to this address. Verify the address in your wallet before confirming a transfer.</div>
-      <div className="mt-4 rounded-md border border-edge bg-void p-4"><p className="field-label">Your Solana address</p><p className="mt-2 break-all font-mono text-xs text-ink">{wallet || "No wallet connected"}</p><button type="button" onClick={copy} disabled={!wallet} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Copy size={14} /> Copy address</button></div>
+      <div className="mt-4 rounded-md border border-edge bg-void p-4"><p className="field-label">Your Solana address</p><p className="mt-2 break-all font-mono text-xs text-ink">{wallet || "No wallet connected"}</p><button type="button" onClick={copy} disabled={!wallet} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Copy size={14} /> Copy address</button></div>
     </Modal>
   );
 }
@@ -457,7 +457,7 @@ function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClos
       <Modal title="Withdraw SOL" onClose={onClose}>
         <p className="text-sm font-semibold text-ink">Withdrawal submitted</p>
         <p className="mt-1 text-xs leading-5 text-dim">The network is confirming your transfer. It will appear in Deposits &amp; withdrawals once reconciled.</p>
-        <a href={`https://explorer.solana.com/tx/${signature}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><ExternalLink size={14} /> View transaction</a>
+        <a href={`https://explorer.solana.com/tx/${signature}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><ExternalLink size={14} /> View transaction</a>
       </Modal>
     );
   }
@@ -469,7 +469,7 @@ function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClos
       {!loading && loadError && (
         <div className="rounded-md border border-edge bg-void p-4">
           <p className="text-sm font-semibold text-ink">{loadError}</p>
-          <button type="button" onClick={load} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+          <button type="button" onClick={load} className="mt-3 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
         </div>
       )}
 
@@ -495,7 +495,7 @@ function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClos
           </label>
           <div className="mt-2 flex gap-2">
             {[25, 50, 75, 100].map((percent) => (
-              <button key={percent} type="button" onClick={() => setPercent(percent)} disabled={spendable <= BigInt(0)} className="min-h-9 flex-1 rounded-md border border-edge text-xs font-semibold text-ink disabled:opacity-40">{percent === 100 ? "Max" : `${percent}%`}</button>
+              <button key={percent} type="button" onClick={() => setPercent(percent)} disabled={spendable <= BigInt(0)} className="min-h-11 sm:min-h-9 flex-1 rounded-md border border-edge text-xs font-semibold text-ink disabled:opacity-40">{percent === 100 ? "Max" : `${percent}%`}</button>
             ))}
           </div>
 
@@ -563,7 +563,7 @@ function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: 
       <div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}>
         <header className="flex items-center justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Authoritative PnL card</p><h2 className="mt-2 text-lg font-semibold text-ink">Share performance</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close share preview"><X size={15} /></button></header>
         <div className="grid min-h-96 place-items-center bg-void p-5">{url ? <img src={url} alt="DegenAration PnL share card" className="max-h-[62vh] w-full rounded-md object-contain" /> : error ? <div className="max-w-md text-center"><ShieldAlert className="mx-auto text-gold-400" /><p className="mt-3 text-sm font-semibold text-ink">Card unavailable</p><p className="mt-2 text-xs leading-5 text-dim">{error}</p></div> : <Loader2 className="animate-spin text-gold-400" />}</div>
-        <footer className="flex flex-wrap justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={download} disabled={!url} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink disabled:opacity-40"><Download size={14} /> Download PNG</button><button type="button" onClick={shareNative} disabled={!url} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-40"><Share2 size={14} /> Share</button></footer>
+        <footer className="flex flex-wrap justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={download} disabled={!url} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink disabled:opacity-40"><Download size={14} /> Download PNG</button><button type="button" onClick={shareNative} disabled={!url} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-40"><Share2 size={14} /> Share</button></footer>
       </div>
     </div>
   );

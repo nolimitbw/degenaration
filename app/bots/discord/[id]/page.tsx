@@ -41,8 +41,8 @@ export default function DiscordSourceDetailsPage() {
         description="Measured call history and approved channel coverage. Past performance is not a guarantee of future execution."
         actions={
           <>
-            <Link href="/bots/discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>
-            {source && <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><Bot size={15} /> Configure bot</Link>}
+            <Link href="/bots/discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>
+            {source && <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><Bot size={15} /> Configure bot</Link>}
           </>
         }
       />
@@ -62,7 +62,7 @@ export default function DiscordSourceDetailsPage() {
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-dim">{source.description}</p>
                   {source.ownerDisplayName && <p className="mt-2 font-mono text-[10px] text-dim">Source owner: {source.ownerDisplayName}</p>}
                 </div>
-                {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
+                {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Source performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]} /></div>
               <div className="grid grid-cols-2 divide-x divide-y divide-edge sm:grid-cols-4 lg:grid-cols-7 lg:divide-y-0 py-4">

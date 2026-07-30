@@ -60,7 +60,7 @@ export default function BotsPage() {
         title="Bots"
         description="Automate approved Discord calls or run a community strategy."
         actions={
-          <Link href="/bots/manage" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
+          <Link href="/bots/manage" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
             <DegenBotIcon size={16} />
             Manage bots
           </Link>
@@ -92,7 +92,7 @@ export default function BotsPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-6 py-4">
             <span className="inline-flex items-center gap-2 text-xs text-dim"><RiskShieldIcon size={15} className="text-up" /> Approved channels only</span>
-            <Link href="/bots/discord" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
+            <Link href="/bots/discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
               Browse sources <ArrowRight aria-hidden="true" size={16} />
             </Link>
           </div>
@@ -121,7 +121,7 @@ export default function BotsPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-edge px-6 py-4">
             <span className="inline-flex items-center gap-2 text-xs text-dim"><Users size={15} className="text-gold-400" /> Versioned subscriber copies</span>
-            <Link href="/bots/kol" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-void">
+            <Link href="/bots/kol" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-void">
               Explore strategies <ArrowRight aria-hidden="true" size={16} />
             </Link>
           </div>

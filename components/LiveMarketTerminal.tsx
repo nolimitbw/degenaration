@@ -343,7 +343,7 @@ export default function LiveMarketTerminal() {
                 type="button"
                 key={value}
                 onClick={() => setBuyAmount(value)}
-                className={`min-h-11 border font-mono text-[9px] transition sm:min-h-9 ${
+                className={`min-h-11 border font-mono text-[9px] transition sm:min-h-11 sm:min-h-9 ${
                   buyAmount === value ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"
                 }`}
               >

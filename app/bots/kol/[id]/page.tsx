@@ -143,7 +143,7 @@ export default function KolStrategyDetailsPage() {
         eyebrow="Bots / KOL / Strategy"
         title={strategy?.name || "KOL strategy"}
         description="Review net-of-fee history and configure your own bounded capital controls before copying."
-        actions={<Link href="/bots/kol" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>}
+        actions={<Link href="/bots/kol" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>}
       />
       <ProductTabs items={TABS} active="/bots/kol" />
 

@@ -211,7 +211,7 @@ export default function AdminChannels() {
                 onChange={(event) => setDecisionReasons((current) => ({ ...current, [c.id]: event.target.value }))}
                 maxLength={500}
                 placeholder="Verified server ownership and call-channel access"
-                className="mt-2 min-h-10 w-full rounded-md border border-edge bg-void px-3 text-sm text-ink outline-none placeholder:text-dim/60 focus:border-gold-400"
+                className="mt-2 min-h-11 sm:min-h-10 w-full rounded-md border border-edge bg-void px-3 text-sm text-ink outline-none placeholder:text-dim/60 focus:border-gold-400"
               />
             </label>
           </div>

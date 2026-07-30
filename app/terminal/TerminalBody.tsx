@@ -325,7 +325,7 @@ export default function TerminalBody() {
               <div><p className="text-dim">Socials</p><p className="flex gap-2">{(livePrice?.socials || []).slice(0, 3).map((x: any) => (<a key={x.url} href={x.url} target="_blank" rel="noreferrer" className="text-info hover:underline">{x.type?.slice(0, 2)}</a>))}{!(livePrice?.socials || []).length && <span className="text-dim">—</span>}</p></div>
             </div>
             {chartTab === "chart" && <div className="mt-3 overflow-hidden rounded-md border border-edge bg-void">
-              <div className="flex min-h-10 items-center justify-between border-b border-edge px-3">
+              <div className="flex min-h-11 sm:min-h-10 items-center justify-between border-b border-edge px-3">
                 <span className="font-mono text-[9px] uppercase text-dim">Live OHLCV</span>
                 <div className="flex gap-1">
                   {(["minute", "hour", "day"] as const).map((value) => (
@@ -425,7 +425,7 @@ export default function TerminalBody() {
             <div className="mt-4 grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="font-mono text-[11px] uppercase text-dim">Trigger</span>
-                <select value={limitTrigger} onChange={(e) => setLimitTrigger(e.target.value as any)} disabled={tradeLocked} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50">
+                <select value={limitTrigger} onChange={(e) => setLimitTrigger(e.target.value as any)} disabled={tradeLocked} className="h-11 sm:h-auto mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50">
                   <option value="below">price ≤</option><option value="above">price ≥</option>
                 </select>
               </label>

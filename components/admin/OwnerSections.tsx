@@ -82,7 +82,7 @@ function ActionButton({
       ? "border-down/45 text-down hover:bg-down/10"
       : "border-edge text-dim hover:border-gold-400/50 hover:text-ink";
   return (
-    <button type="button" onClick={onClick} className={`min-h-9 rounded-md border px-3 text-xs font-semibold transition ${color}`}>
+    <button type="button" onClick={onClick} className={`min-h-11 sm:min-h-9 rounded-md border px-3 text-xs font-semibold transition ${color}`}>
       {children}
     </button>
   );
@@ -476,7 +476,7 @@ function Referrals({ data }: { data: AdminData }) {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className="field-control min-h-10 w-full pl-9"
+              className="field-control min-h-11 sm:min-h-10 w-full pl-9"
               placeholder="Search code, status, or user"
             />
           </label>

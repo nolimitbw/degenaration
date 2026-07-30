@@ -114,14 +114,14 @@ function ConfirmDialog({
           )}
         </div>
         <footer className="flex justify-end gap-2 border-t border-edge p-4">
-          <button type="button" onClick={onCancel} disabled={busy} className="min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-dim hover:text-ink disabled:opacity-50">
+          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-dim hover:text-ink disabled:opacity-50">
             Cancel
           </button>
           <button
             type="button"
             onClick={() => onConfirm(reason.trim())}
             disabled={!canConfirm || busy}
-            className={`min-h-10 rounded-md px-4 text-xs font-semibold disabled:opacity-50 ${
+            className={`min-h-11 sm:min-h-10 rounded-md px-4 text-xs font-semibold disabled:opacity-50 ${
               action.destructive ? "bg-down text-white" : "bg-gold-400 text-[#17110c]"
             }`}
           >
@@ -230,7 +230,7 @@ export default function OwnerConsole() {
             type="button"
             onClick={load}
             disabled={refreshing || !identityToken}
-            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
+            className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             Refresh

@@ -84,15 +84,15 @@ export default function DiscordMarketplacePage() {
         description="Approved call communities with measured on-chain performance."
         actions={
           <>
-            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gold-400/40 px-4 text-sm font-semibold text-gold-400 transition hover:bg-gold-400/10">
+            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/40 px-4 text-sm font-semibold text-gold-400 transition hover:bg-gold-400/10">
               <Bot aria-hidden="true" size={16} />
               Add bot to server
             </a>
-            <Link href="/affiliate?tab=discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
+            <Link href="/affiliate?tab=discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
               <Users aria-hidden="true" size={16} />
               List a server
             </Link>
-            <Link href="/bots/discord/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
+            <Link href="/bots/discord/new" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
               <Plus aria-hidden="true" size={16} />
               New Discord bot
             </Link>
@@ -108,7 +108,7 @@ export default function DiscordMarketplacePage() {
           onChange={setPeriod}
           options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]}
         />
-        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
+        <label className="flex min-h-11 sm:min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
           <input
             value={query}
@@ -117,14 +117,14 @@ export default function DiscordMarketplacePage() {
             className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-dim/70"
           />
         </label>
-        <label className="flex min-h-10 items-center gap-2 text-xs text-dim">
+        <label className="flex min-h-11 sm:min-h-10 items-center gap-2 text-xs text-dim">
           <input type="checkbox" checked={minimumHistory} onChange={(event) => setMinimumHistory(event.target.checked)} className="h-4 w-4 accent-[#b98b5d]" />
           Minimum {minimumSampleSize} measured calls
         </label>
-        <label className="flex min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 text-xs text-dim">
+        <label className="flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 text-xs text-dim">
           <SlidersHorizontal aria-hidden="true" size={14} />
           <span className="sr-only">Sort sources</span>
-          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="bg-transparent text-xs text-ink outline-none">
+          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="h-11 sm:h-auto bg-transparent text-xs text-ink outline-none">
             <option value="performance">Best performance</option>
             <option value="drawdown">Lowest drawdown</option>
             <option value="followers">Most followers</option>
@@ -225,8 +225,8 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink hover:border-gold-400/60">Details</Link>
-            <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c]">Configure bot</Link>
+            <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink hover:border-gold-400/60">Details</Link>
+            <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c]">Configure bot</Link>
           </div>
         </div>
       </div>

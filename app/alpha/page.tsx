@@ -32,7 +32,7 @@ export default function Alpha() {
           <p className="mt-1 text-sm text-dim">Groups and callers ranked by real recorded on-chain performance.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a href="/api/leaderboard-image" target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 font-mono text-xs text-dim transition hover:border-gold-400/60 hover:text-gold-400"><ImageDown aria-hidden="true" size={15} /> Weekly image</a>
+          <a href="/api/leaderboard-image" target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 font-mono text-xs text-dim transition hover:border-gold-400/60 hover:text-gold-400"><ImageDown aria-hidden="true" size={15} /> Weekly image</a>
           {["1h","1d","7d","30d"].map((t) => <button key={t} onClick={() => setTf(t)} className={`rounded-md border px-3 py-1.5 font-mono text-xs transition ${tf===t?"border-gold-400 text-gold-400":"border-edge text-dim hover:text-ink"}`}>{t}</button>)}
         </div>
       </div>

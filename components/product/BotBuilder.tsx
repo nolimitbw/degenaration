@@ -535,7 +535,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
             <div className="flex flex-wrap gap-2">
               {[0.1, 0.5, 1, 5].map((amount) => (
-                <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-9 rounded-md border px-3 font-mono text-xs ${buyAmountSol === amount ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
+                <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-11 sm:min-h-9 rounded-md border px-3 font-mono text-xs ${buyAmountSol === amount ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
               ))}
             </div>
             <details className="group rounded-md border border-edge bg-void">
@@ -561,7 +561,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     type="button"
                     onClick={setupWallet}
                     disabled={walletCreating}
-                    className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-md border border-gold-400/45 px-3 text-xs font-semibold text-gold-400 disabled:opacity-50"
+                    className="mt-3 inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-gold-400/45 px-3 text-xs font-semibold text-gold-400 disabled:opacity-50"
                   >
                     {walletCreating ? <Loader2 aria-hidden="true" size={14} className="animate-spin" /> : <WalletCards aria-hidden="true" size={14} />}
                     {authenticated ? "Create Solana wallet" : "Connect account"}
@@ -631,7 +631,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     ))}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25 }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
+                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25 }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
                     <NumberField label="DCA expiration" value={dcaExpirationMinutes} onChange={(value) => setDcaExpirationMinutes(Math.round(value))} unit="min" step={30} min={30} max={10080} compact />
                   </div>
                 </>
@@ -656,7 +656,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0 }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
+              <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0 }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
               <Toggle label="Trailing take profit" detail="Apply the per-level trailing distance after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} compact />
             </div>
             {tpAllocationBps > 10000 && <InlineError>Sell allocation exceeds 100%.</InlineError>}
@@ -692,7 +692,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <button
                 type="button"
                 onClick={() => setSecurityOpen(true)}
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400"
+                className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400"
               >
                 <ShieldCheck aria-hidden="true" size={14} />
                 Configure filters
@@ -703,7 +703,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <p className="text-xs font-semibold text-ink">Current candidate preview</p>
                 <p className="mt-1 text-[11px] text-dim">Informational only. Every live signal is checked again with fresh evidence.</p>
               </div>
-              <button type="button" onClick={runPreview} disabled={previewing} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400 disabled:opacity-50">
+              <button type="button" onClick={runPreview} disabled={previewing} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400 disabled:opacity-50">
                 <RefreshCw size={14} className={previewing ? "animate-spin" : ""} />
                 Run preview
               </button>
@@ -884,7 +884,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
             <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-edge bg-panel px-5 py-4">
               <p className="font-mono text-[9px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length} total checks enabled</p>
-              <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-10 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Done</button>
+              <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Done</button>
             </footer>
           </div>
         </div>
@@ -1046,7 +1046,7 @@ function NumberField({
 
 function CompactNumber({ value, onChange, suffix, disabled = false }: { value: number; onChange: (value: number) => void; suffix: string; disabled?: boolean }) {
   return (
-    <label className={`flex min-h-9 min-w-36 items-center rounded-md border border-edge bg-void px-2 ${disabled ? "opacity-45" : "focus-within:border-gold-400"}`}>
+    <label className={`flex min-h-11 sm:min-h-9 min-w-36 items-center rounded-md border border-edge bg-void px-2 ${disabled ? "opacity-45" : "focus-within:border-gold-400"}`}>
       <input type="number" value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} className="min-w-0 flex-1 bg-transparent font-mono text-xs outline-none" />
       <span className="ml-2 font-mono text-[8px] text-dim">{suffix}</span>
     </label>

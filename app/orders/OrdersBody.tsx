@@ -110,7 +110,7 @@ export default function OrdersBody() {
       <div className="mt-5 grid gap-2 rounded-lg border border-edge bg-panel p-4 sm:grid-cols-2 lg:grid-cols-6">
         <input value={mint} onChange={(e) => setMint(e.target.value)} placeholder="Token mint" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400 lg:col-span-2" />
         <input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="Symbol" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <select value={trigger} onChange={(e) => setTrigger(e.target.value as any)} className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
+        <select value={trigger} onChange={(e) => setTrigger(e.target.value as any)} className="h-11 sm:h-auto rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
           <option value="below">price ≤</option><option value="above">price ≥</option>
         </select>
         <input type="number" step="any" value={target || ""} onChange={(e) => setTarget(+e.target.value)} placeholder="$ target" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />

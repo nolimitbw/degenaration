@@ -115,7 +115,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Menu aria-hidden="true" size={19} />
           </button>
-          <Link href="/bots" className="shrink-0" aria-label="DegenAration bots">
+          <Link href="/bots" className="flex min-h-11 shrink-0 items-center sm:min-h-0" aria-label="DegenAration bots">
             <Logo />
           </Link>
 

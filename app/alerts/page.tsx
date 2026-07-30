@@ -55,7 +55,7 @@ export default function Alerts() {
       <div className="mt-5 flex flex-wrap gap-2">
         <input value={mint} onChange={e => setMint(e.target.value)} placeholder="Token mint" className="flex-1 min-w-[200px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
         <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <select value={kind} onChange={e => setKind(e.target.value as any)} className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
+        <select value={kind} onChange={e => setKind(e.target.value as any)} className="h-11 sm:h-auto rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
           <option value="above">above</option><option value="below">below</option>
         </select>
         <input type="number" step="any" value={target || ""} onChange={e => setTarget(+e.target.value)} placeholder="$ price" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />

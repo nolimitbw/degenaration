@@ -109,7 +109,7 @@ export function EmptyState({
 
 export function TextLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-gold-400 transition hover:text-info">
+    <Link href={href} className="inline-flex min-h-11 sm:min-h-10 items-center gap-1 text-sm font-semibold text-gold-400 transition hover:text-info">
       {children}
       <ChevronRight aria-hidden="true" size={15} />
     </Link>
@@ -128,13 +128,13 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div className="inline-flex min-h-10 overflow-hidden rounded-md border border-edge bg-void p-1" role="group" aria-label={label}>
+    <div className="inline-flex min-h-11 sm:min-h-10 overflow-hidden rounded-md border border-edge bg-void p-1" role="group" aria-label={label}>
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`min-h-11 min-w-14 rounded-sm px-3 text-xs font-medium transition sm:min-h-8 ${
+          className={`min-h-11 min-w-14 rounded-sm px-3 text-xs font-medium transition sm:min-h-11 sm:min-h-8 ${
             value === option.value ? "bg-gold-400 text-[#17110c]" : "text-dim hover:text-ink"
           }`}
         >

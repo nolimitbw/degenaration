@@ -106,7 +106,7 @@ export default function BotManagerPage() {
             icon={Bot}
             title="Connect to manage your bots"
             description="Your bot configurations are private and only returned for the authenticated Privy user."
-            action={<button type="button" onClick={login} className="min-h-10 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Connect account</button>}
+            action={<button type="button" onClick={login} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Connect account</button>}
           />
         </div>
       </AppShell>
@@ -120,7 +120,7 @@ export default function BotManagerPage() {
         title="My Bots"
         description="Pause entries immediately, create immutable configuration versions, and preserve financial history when archiving."
         actions={
-          <Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
+          <Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
             <Plus aria-hidden="true" size={16} />
             New {kind === "discord" ? "Discord" : "KOL"} bot
           </Link>
@@ -150,7 +150,7 @@ export default function BotManagerPage() {
             icon={Bot}
             title={`No ${kind === "discord" ? "Discord" : "KOL"} bots yet`}
             description={kind === "discord" ? "Choose an approved Discord source and save your first execution profile." : "Build a scanner-driven strategy and save it as a private draft or submit it for review."}
-            action={<Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-10 items-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Create bot</Link>}
+            action={<Link href={kind === "discord" ? "/bots/discord/new" : "/bots/kol/new"} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Create bot</Link>}
           />
         )}
         {!!bots?.length && (

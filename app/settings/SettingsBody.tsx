@@ -72,9 +72,9 @@ export default function SettingsBody() {
             <div className="mt-4">
               <code className="block truncate rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-xs">{wallet}</code>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={copyWallet} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
-                <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><ExternalLink size={14} /> Solscan</a>
-                <span className={`inline-flex min-h-10 items-center rounded-md border px-3 font-mono text-[10px] uppercase ${delegated ? "border-gold-400/40 text-gold-400" : "border-edge text-dim"}`}>Delegation {delegated ? "granted" : "off"}</span>
+                <button onClick={copyWallet} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
+                <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><ExternalLink size={14} /> Solscan</a>
+                <span className={`inline-flex min-h-11 sm:min-h-10 items-center rounded-md border px-3 font-mono text-[10px] uppercase ${delegated ? "border-gold-400/40 text-gold-400" : "border-edge text-dim"}`}>Delegation {delegated ? "granted" : "off"}</span>
               </div>
             </div>
           ) : <p className="mt-4 rounded-md border border-edge bg-void p-4 text-sm text-dim">No Solana wallet is linked to this Privy account.</p>}
@@ -83,7 +83,7 @@ export default function SettingsBody() {
         <section className="rounded-lg border border-edge bg-panel p-5 lg:col-span-2">
           <h2 className="font-bold">Session</h2>
           <p className="mt-1 text-xs text-dim">Sign out of this browser. Revoke delegated wallet access separately from the Wallet screen before signing out when you no longer need unattended execution.</p>
-          <button onClick={signOut} disabled={busy} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-md border border-danger/50 px-4 text-sm font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50"><LogOut size={16} /> {busy ? "Signing out" : "Sign out"}</button>
+          <button onClick={signOut} disabled={busy} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-danger/50 px-4 text-sm font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50"><LogOut size={16} /> {busy ? "Signing out" : "Sign out"}</button>
         </section>
       </div>
     </>
