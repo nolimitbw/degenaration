@@ -2,9 +2,19 @@
  * Rug-check — runs BEFORE every auto-buy. All checks must pass.
  * Uses free public APIs; engine skips the trade + notifies user on any failure.
  */
+const { evaluateSafety } = require("./safety");
+
+// Floor applied when a bot has no configured liquidity filter. A bot that DOES configure
+// one gets its own bound enforced instead — see evaluateSafety.
 const MIN_LIQUIDITY_USD = 10_000;
 
-async function rugCheck(mint) {
+/**
+ * @param {string} mint
+ * @param {object} [safety] bot config safetyFilters { ranges, flags, unavailableDataBehavior }.
+ *   When supplied, the user's configured bounds are enforced on top of these baseline
+ *   checks. Omitting it preserves the previous baseline-only behaviour.
+ */
+async function rugCheck(mint, safety) {
   const reasons = [];
 
   // 1) DexScreener: pair exists + liquidity
@@ -44,7 +54,27 @@ async function rugCheck(mint) {
     if (info.freezeAuthority) reasons.push("freeze authority NOT revoked (can freeze your tokens)");
   }
 
-  return { ok: reasons.length === 0, reasons, pair: pair ? { dex: pair.dexId, priceUsd: pair.priceUsd, liqUsd: pair.liquidity?.usd } : null };
+  // 4) The bot's OWN configured filters. Previously the config was persisted and never
+  // read, so a bot asking for a $500k liquidity floor was executed against $10k.
+  let configured = null;
+  if (safety && (safety.ranges || safety.flags)) {
+    configured = evaluateSafety({ mint, pair, mintInfo: info || null, safety, nowMs: Date.now() });
+    reasons.push(...configured.reasons);
+  }
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    pair: pair ? { dex: pair.dexId, priceUsd: pair.priceUsd, liqUsd: pair.liquidity?.usd } : null,
+    // Raw evidence, so a caller can evaluate EACH subscriber's own filters without
+    // re-fetching per subscriber. The gate runs once per mint but configuration is
+    // per-bot, so the loop needs the evidence rather than another network round trip.
+    evidence: { pair, mintInfo: info || null },
+    // Which configured filters were actually checked, and which blocked for want of
+    // evidence — so a rejection can be explained precisely instead of generically.
+    evaluatedFilters: configured ? configured.evaluated : [],
+    blockedUnevaluatedFilters: configured ? configured.blockedUnevaluated : []
+  };
 }
 
 module.exports = { rugCheck };

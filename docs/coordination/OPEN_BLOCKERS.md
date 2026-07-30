@@ -63,6 +63,29 @@ problems. Strict `tsc` continues to cover type safety.
 Adopting full ESLint remains available if the owner wants broader style coverage, but the
 release gate no longer depends on that decision.
 
+## B-6 — The worker reads legacy tables that carry no safety configuration
+
+The bot builder persists 36 safety filters into `safetyFilters` on the bot config, and
+`server/engine/safety.js` now enforces them. But the worker's execution paths
+(`copy.js`, `calls.js`, `index.js`) load subscribers from the legacy `copy_subscriptions`
+and `subscriptions` tables, whose SELECT lists contain no safety configuration at all —
+only size, slippage, caps, and TP/SL. The new configuration lives in
+`bot_config_versions`.
+
+So enforcement exists and is tested, but nothing yet hands it a user's filters at
+execution time. `rugCheck` now returns `evidence` precisely so a caller can evaluate each
+subscriber's own filters without re-fetching, and it applies filters when a `safety`
+argument is supplied — the remaining work is migrating the worker's subscriber loading
+onto the bot config tables.
+
+That migration changes execution behaviour and cannot be verified without a database, so
+it was not done blind.
+
+Required action: database access, then migrate `loadSubscribers` / `loadGroupSubscribers`
+to join `bot_profiles` → `bot_config_versions` and pass `safetyFilters` into `rugCheck`
+per subscriber.
+Status: **BLOCKED — needs database access.**
+
 ## Resolved / not blockers
 
 - **Wallet model for withdrawals.** Determined from code rather than escalated: the

@@ -84,7 +84,10 @@ const FLAG_FILTERS = [
   ["token2022ExtensionsAllowed", "Supported Token-2022 extensions only", "Solana RPC"],
   ["sellRouteRequired", "Executable sell route", "Jupiter simulation"],
   ["buySimulationRequired", "Successful buy simulation", "Transaction simulator"],
-  ["sellSimulationRequired", "Successful sell simulation", "Transaction simulator"]
+  ["sellSimulationRequired", "Successful sell simulation", "Transaction simulator"],
+  // Reference parity (R3): the team paid for enhanced DEX listing info, a weak but real
+  // legitimacy signal. The last filter from the reference set not already covered.
+  ["dexPaid", "DEX listing paid", "DexScreener"]
 ] as const;
 
 const PRESETS = {
@@ -98,8 +101,15 @@ function defaultFilters() {
   return Object.fromEntries(FILTERS.map((filter) => [filter.key, { enabled: ["liquidityUsd", "marketCapUsd", "top10HolderBps", "minimumRouteLiquidityUsd", "maximumPriceImpactBps"].includes(filter.key), min: filter.min, max: filter.max }])) as Record<string, FilterValue>;
 }
 
+// Security-critical flags default ON. These are legitimacy signals rather than safety
+// checks, and requiring them by default would reject most newly launched tokens — so
+// they are opt-in.
+const OPT_IN_FLAGS = new Set<string>(["dexPaid"]);
+
 function defaultFlags() {
-  return Object.fromEntries(FLAG_FILTERS.map(([key]) => [key, true])) as Record<string, boolean>;
+  return Object.fromEntries(
+    FLAG_FILTERS.map(([key]) => [key, !OPT_IN_FLAGS.has(key)])
+  ) as Record<string, boolean>;
 }
 
 export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: string }) {

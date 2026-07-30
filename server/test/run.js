@@ -372,6 +372,100 @@ test("principal withdrawal does not inherit the affiliate payout minimum or fee"
   assert.strictEqual(r.ok, true);
 });
 
+// The bot's configured safety filters were persisted and never read: rugcheck.js
+// hardcoded a $10,000 liquidity floor, so a bot asking for $500,000 was executed against
+// $10,000. These cover the enforcement layer that closes that gap (spec 10, 11.2).
+console.log("configured safety filters (spec 10)");
+const { evaluateSafety } = require("../engine/safety");
+const pairFixture = (over) => Object.assign({
+  liquidity: { usd: 250000 },
+  marketCap: 5000000,
+  volume: { h24: 900000 },
+  priceChange: { h24: -6 },
+  pairCreatedAt: 1_700_000_000_000,
+  baseToken: { symbol: "DEGEN", name: "Degen Token" },
+  info: { socials: [{ type: "twitter", url: "https://x.com/x" }] }
+}, over || {});
+const range = (key, cfg) => ({ ranges: { [key]: Object.assign({ enabled: true }, cfg) }, flags: {} });
+
+test("a configured liquidity floor is enforced instead of the hardcoded default", () => {
+  // The exact defect: $250k liquidity passes the old $10k floor but fails the user's $500k.
+  const r = evaluateSafety({ pair: pairFixture(), safety: range("liquidityUsd", { min: 500000, max: 0 }) });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/liquidityUsd 250000 below configured minimum 500000/.test(r.reasons.join("|")));
+});
+test("a configured filter that passes does not block", () => {
+  const r = evaluateSafety({ pair: pairFixture(), safety: range("liquidityUsd", { min: 100000, max: 0 }) });
+  assert.strictEqual(r.ok, true);
+  assert.ok(r.evaluated.includes("liquidityUsd"));
+});
+test("upper bounds are enforced too", () => {
+  const r = evaluateSafety({ pair: pairFixture(), safety: range("marketCapUsd", { min: 0, max: 1000000 }) });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/above configured maximum/.test(r.reasons.join("|")));
+});
+test("a disabled filter is ignored entirely", () => {
+  const r = evaluateSafety({ pair: pairFixture(), safety: { ranges: { liquidityUsd: { enabled: false, min: 999999999, max: 0 } }, flags: {} } });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.evaluated.length, 0);
+});
+test("negative price change converts to basis points correctly", () => {
+  const r = evaluateSafety({ pair: pairFixture(), safety: range("priceChangeBps", { min: -500, max: 10000 }) });
+  assert.strictEqual(r.ok, false);  // -6% = -600 bps, below a -500 bps floor
+});
+test("an enabled filter with unavailable evidence FAILS CLOSED", () => {
+  const r = evaluateSafety({ pair: null, safety: range("liquidityUsd", { min: 1, max: 0 }) });
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.blockedUnevaluated.includes("liquidityUsd"));
+  assert.ok(/blocked/.test(r.reasons.join("|")));
+});
+test("an enabled filter with no wired provider FAILS CLOSED rather than being skipped", () => {
+  // Silently ignoring a filter the user switched on is the original defect in a new place.
+  const r = evaluateSafety({ pair: pairFixture(), safety: range("smartMoneyInflowSol", { min: 1, max: 0 }) });
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.blockedUnevaluated.includes("smartMoneyInflowSol"));
+});
+test("fail-open is honoured only when explicitly configured", () => {
+  const r = evaluateSafety({
+    pair: pairFixture(),
+    safety: { ranges: { smartMoneyInflowSol: { enabled: true, min: 1, max: 0 } }, flags: {}, unavailableDataBehavior: "allow" }
+  });
+  assert.strictEqual(r.ok, true);
+});
+test("mint and freeze authority flags block when unverifiable", () => {
+  const r = evaluateSafety({ pair: pairFixture(), mintInfo: null, safety: { ranges: {}, flags: { mintAuthorityRevoked: true } } });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/could not verify on-chain authority/.test(r.reasons.join("|")));
+});
+test("an un-revoked mint authority is rejected", () => {
+  const r = evaluateSafety({ pair: pairFixture(), mintInfo: { mintAuthority: "SOMEONE" }, safety: { ranges: {}, flags: { mintAuthorityRevoked: true } } });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/mint authority NOT revoked/.test(r.reasons.join("|")));
+});
+test("non-Latin token metadata is rejected when the flag is on", () => {
+  const r = evaluateSafety({
+    pair: pairFixture({ baseToken: { symbol: "ДЕГЕН", name: "Degen" } }),
+    safety: { ranges: {}, flags: { latinNameSymbol: true } }
+  });
+  assert.strictEqual(r.ok, false);
+  assert.ok(/non-Latin/.test(r.reasons.join("|")));
+});
+test("DEX paid uses the enhanced-info proxy and is named as such", () => {
+  const withInfo = evaluateSafety({ pair: pairFixture(), safety: { ranges: {}, flags: { dexPaid: true } } });
+  assert.strictEqual(withInfo.ok, true);
+  const without = evaluateSafety({ pair: pairFixture({ info: {} }), safety: { ranges: {}, flags: { dexPaid: true } } });
+  assert.strictEqual(without.ok, false);
+  assert.ok(/enhanced info absent/.test(without.reasons.join("|")));
+});
+test("every reason names the filter, so a rejection is explainable", () => {
+  const r = evaluateSafety({
+    pair: pairFixture(),
+    safety: { ranges: { liquidityUsd: { enabled: true, min: 500000, max: 0 }, marketCapUsd: { enabled: true, min: 0, max: 100 } }, flags: {} }
+  });
+  assert.strictEqual(r.reasons.length, 2);
+  for (const reason of r.reasons) assert.ok(reason.length > 10);
+});
+
 console.log("rugcheck thresholds");
 const MIN_LIQ = 10000, MAX_SCORE = 60;
 function verdict({ liq, score, mintAuth, freezeAuth }) {
