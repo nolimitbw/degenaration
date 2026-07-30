@@ -57,7 +57,7 @@ export default function Nav() {
           onClick={() => setOpen((v) => !v)}
           aria-label="Menu"
           aria-expanded={open}
-          className="ml-auto grid h-10 w-10 place-items-center rounded-md border border-edge text-dim md:hidden"
+          className="ml-auto grid h-11 w-11 place-items-center rounded-md border border-edge text-dim md:hidden"
         >
           {open ? <X aria-hidden="true" size={19} /> : <Menu aria-hidden="true" size={19} />}
         </button>

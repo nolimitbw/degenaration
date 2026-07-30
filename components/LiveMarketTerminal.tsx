@@ -172,7 +172,7 @@ export default function LiveMarketTerminal() {
             disabled={loading}
             aria-label="Refresh market data"
             title="Refresh market data"
-            className="grid h-8 w-8 place-items-center border border-edge text-dim transition hover:border-gold-400 hover:text-ink disabled:opacity-50"
+            className="grid h-11 w-11 place-items-center border border-edge text-dim transition hover:border-gold-400 hover:text-ink disabled:opacity-50 sm:h-8 sm:w-8"
           >
             <RefreshCw aria-hidden="true" size={13} className={loading ? "animate-spin" : ""} />
           </button>
@@ -234,7 +234,7 @@ export default function LiveMarketTerminal() {
                         key={value}
                         type="button"
                         onClick={() => setTimeframe(value)}
-                        className={`min-h-8 min-w-9 px-2 font-mono text-[9px] transition ${
+                        className={`min-h-11 min-w-11 px-2 font-mono text-[9px] transition sm:min-h-8 sm:min-w-9 ${
                           timeframe === value
                             ? "bg-gold-400 text-[#17110c]"
                             : "border border-edge text-dim hover:text-ink"
@@ -343,7 +343,7 @@ export default function LiveMarketTerminal() {
                 type="button"
                 key={value}
                 onClick={() => setBuyAmount(value)}
-                className={`min-h-9 border font-mono text-[9px] transition ${
+                className={`min-h-11 border font-mono text-[9px] transition sm:min-h-9 ${
                   buyAmount === value ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"
                 }`}
               >
