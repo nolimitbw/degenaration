@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Bot,
   Check,
+  ChevronDown,
   Clipboard,
   Copy,
   CreditCard,
@@ -24,7 +25,7 @@ import {
 import { useToast } from "@/components/Toast";
 import AffiliateLinkIcon from "@/components/icons/AffiliateLinkIcon";
 import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
-import { formatSol, formatWhen, lamportsToSol, productFetch, solToLamports, type ProductBot } from "@/lib/product-api";
+import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch, solToLamports, type ProductBot } from "@/lib/product-api";
 import { emailFromPrivyUser } from "@/lib/admin";
 import { validateReferralSlug } from "@/lib/referral-rules";
 import { getSolanaAddress } from "@/lib/solanaWallet";
@@ -197,13 +198,18 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         <>
           <section className="mt-5 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Rewards available", formatSol(summary.availableLamports), "Ready for request"],
-              ["Pending rewards", formatSol(summary.pendingLamports), "Awaiting availability"],
-              ["Lifetime earnings", formatSol(summary.lifetimeLamports), "Positive credits"],
-              ["30-day earnings", formatSol(summary.earnings30dLamports), `${summary.followers} attributed followers`]
-            ].map(([label, value, detail]) => (
+              ["Rewards available", formatSol(summary.availableLamports), "Ready for request", `Credited from confirmed, reconciled copied trades. Requestable once the balance reaches ${formatSol(summary.minimumPayoutLamports)}.`],
+              ["Pending rewards", formatSol(summary.pendingLamports), "Awaiting availability", "Earned but not yet available. Rewards become available once the trade that produced them is reconciled on chain."],
+              ["Lifetime earnings", formatSol(summary.lifetimeLamports), "Positive credits", "Every reward ever credited to this account, before any payouts or reversals."],
+              ["30-day earnings", formatSol(summary.earnings30dLamports), `${summary.followers} attributed followers`, "Rewards credited in the last 30 days, and the number of users whose trades were attributed to you."]
+            ].map(([label, value, detail, hint]) => (
               <div key={label} className="bg-panel p-5">
-                <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
+                <p className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-dim">
+                  {label}
+                  {/* Reference R1 puts an info affordance on every metric so the page needs
+                      no explanatory prose (spec §6.1, §6.3). */}
+                  <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono text-[8px] normal-case leading-none text-dim">i</span>
+                </p>
                 <p className="mt-2 font-mono text-xl font-semibold text-ink">{value}</p>
                 <p className="mt-1 text-[11px] text-dim">{detail}</p>
               </div>
@@ -266,6 +272,39 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       )}
 
       {summary && scope === "payouts" && <PayoutHistory summary={summary} onRequest={() => setPayoutOpen(true)} />}
+
+      {/* Reference R1 answers the recurring questions as collapsed inline items at the
+          foot of the page, so the surfaces above stay free of explanatory paragraphs
+          (spec §6.1, §6.3). */}
+      {summary && (
+        <section className="mt-6 border-t border-edge pt-5" aria-label="Affiliate questions">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {[
+              {
+                q: "How are earnings calculated?",
+                a: `Each confirmed swap leg charges a ${formatPercentBps(summary.defaultRateBps)} share of executed notional, paid out of the 2.00% platform fee rather than added to it. Rewards credit once the trade is reconciled on chain.`
+              },
+              {
+                q: "When do I get paid?",
+                a: `Request a payout once your available balance reaches ${formatSol(summary.minimumPayoutLamports)}. A ${formatSol(summary.processingFeeLamports)} network processing fee is deducted, and the exact gross, fee, and net are shown before you confirm.`
+              },
+              {
+                q: "Can I change my reward rate?",
+                a: "Rates are set per source and versioned with an effective date. Historical trades keep the rate that applied when they executed, so past earnings never change retroactively."
+              }
+            ].map(({ q, a }) => (
+              <details key={q} className="group rounded-md border border-edge bg-panel">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-xs font-semibold text-ink">
+                  {q}
+                  <ChevronDown aria-hidden="true" size={14} className="shrink-0 text-dim transition group-open:rotate-180" />
+                </summary>
+                <p className="border-t border-edge px-4 py-3 text-[11px] leading-5 text-dim">{a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
       {payoutOpen && summary && (
         <PayoutModal
           summary={summary}
