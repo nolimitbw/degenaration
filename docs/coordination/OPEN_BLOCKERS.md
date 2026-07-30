@@ -30,7 +30,20 @@ Spec §12 and §13 describe real-money behavior. Development and automated tests
 authorization and controlled review; it will not be enabled autonomously.
 Status: **BLOCKED — owner decision, by design.**
 
-## B-4 — No live database access to diagnose the two silent Discord sources
+## B-4 — RESOLVED: database access existed; requirement 6 is diagnosed
+
+**Corrected 2026-07-30.** This blocker was wrong. A Supabase MCP server is connected to
+the project and was available the whole time; I asserted the limitation without testing it.
+
+Requirement 6 is now diagnosed from live data: `approved_groups`=2 and `call_channels`=2,
+but `calls`=1, `raw_signals`=0, `market_snapshots`=0, `performance_snapshots`=0,
+`durable_jobs`=0, `worker_leases`=0. The single call arrived via the `/alpha` slash command,
+has `last_scanned_at`=NULL, and identical called/peak/latest prices.
+
+**The worker has never run, and passive channel ingestion has produced nothing.** The
+dashes are accurate. The fix is deploying the worker, not changing code.
+
+## B-4 (original text, retained for the record) — No live database access
 
 Requirement 6 (§9.8) asks why two approved Discord sources show no measured performance.
 The schema exists (`raw_signals`, `parsed_signals`, `signal_deliveries`,

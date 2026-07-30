@@ -29,7 +29,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 17 | Repository skills | §4.2 | PASS | `.agents/skills/degenaration-{financial-integrity,ui,performance-journal,release-audit}/SKILL.md` |
 | 18 | Launch documentation set | §4.3 | PASS | All 9 written under `docs/launch/` |
 | 19 | Visual regression evidence | §22.6 | PARTIAL | `38d8284`; programmatic audit at all four required widths — no overflow, no off-screen controls, 9 sub-44px touch targets found and fixed. 5 routes observed live incl. Discord cards with stubbed data. **No stored PNG set — authenticated routes need a real session** |
-| 20 | Release gates | §24 | PARTIAL | `c2b7c09`; `npm run check` exit 0 gates typecheck, **lint**, 82 tests, fee + journal invariants, command registry, public copy, build. e2e, migration dry run, and RLS tests need a database |
+| 20 | Release gates | §24 | PARTIAL | `npm run check` exit 0 gates typecheck, lint, 104 tests, fee + journal invariants, command registry, public copy, build. **Migrations applied and verified; RLS/authorization audited live; Supabase security + performance advisors run** — see `docs/launch/DATABASE_AUDIT.md`. Remaining: browser e2e on authenticated routes |
 
 ## Readiness
 
