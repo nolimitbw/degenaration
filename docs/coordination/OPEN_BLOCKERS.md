@@ -99,6 +99,29 @@ to join `bot_profiles` → `bot_config_versions` and pass `safetyFilters` into `
 per subscriber.
 Status: **BLOCKED — needs database access.**
 
+## B-7 — Remaining blockers, each TESTED rather than assumed
+
+Earlier in this session I recorded "no database access" as a blocker without ever testing
+it. A Supabase MCP server was in fact connected, and that mistake cost several turns of
+wrongly-scoped work. Every remaining blocker below has therefore been probed, and the probe
+result is recorded.
+
+| Requirement | Blocker | How it was tested | Result |
+|---|---|---|---|
+| 7 — exactly one `/register` | Needs a live Discord application to enumerate published command scopes | Called `mcp__discord__discord_login` | **"Discord token not provided and not configured"** — server present, unauthenticated. Genuinely blocked |
+| 3 — withdrawal end to end | Needs SOL in a devnet wallet and a real signature | n/a — I cannot acquire or move funds, and must not | Blocked by design |
+| 19 / 20 — authenticated screenshots and browser e2e | Needs a Privy session | n/a — I will not authenticate as the owner or handle their credentials | Blocked by design |
+| Fee collection | `PLATFORM_FEE_ACCOUNT` is a wallet address only the owner has | Verified the code path: unset → 0 bps, set → 200 bps | Blocked on a secret (§2.14) |
+
+For requirement 7 specifically, the static gate does pass: `npm run check:discord-commands`
+confirms one `/register`, a single deployment scope, and that the global scope is cleared on
+startup. What cannot be confirmed from here is the *live* Discord state after a deploy.
+Confirm it in the client once `degenaration-discord-bot` is running.
+
+Note on what would make these verifiable, for the owner's decision only: configuring a
+Discord bot token for the MCP server would let a future session enumerate published
+commands directly. That is the owner's call, not something to be asked for in chat.
+
 ## Resolved / not blockers
 
 - **Wallet model for withdrawals.** Determined from code rather than escalated: the
