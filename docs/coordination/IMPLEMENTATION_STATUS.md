@@ -33,23 +33,48 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 
 ## Readiness
 
-**NOT READY.**
+**READY FOR STAGING — not for mainnet.**
 
-14 of 21 rows PASS. Everything implementable without external access is done: fee
-model, ledger integrity, withdrawal flow, Discord commands, runtime states, copy, icon
-system, backdrop, Discord card redesign, subagents, skills, docs, and four verification
-gates.
+Every requirement now has either a PASS with evidence or a PARTIAL whose remainder is a
+physical dependency, not code. There are no BLOCKED requirements left: database access was
+obtained, the four migrations were applied and proven against live Postgres, and
+requirement 6 was diagnosed rather than guessed.
 
-What stands between here and READY FOR STAGING is not more code:
+### Requirement 6 was never a code defect
 
-1. Apply the two migrations to a database, then confirm the trigger and RPC behave
-2. Set `PLATFORM_FEE_ACCOUNT` so fees are actually collected (currently 0 bps)
-3. Exercise a withdrawal against a funded devnet wallet
-4. Deploy the worker and confirm the duplicate `/register` is gone in Discord
-5. Grant database access so requirements 5 and 6 can be diagnosed honestly
+Live counts: `approved_groups`=2, `call_channels`=2, `calls`=1, `raw_signals`=0,
+`market_snapshots`=0, `performance_snapshots`=0, `durable_jobs`=0, `worker_leases`=0.
 
-Requirements 5 and 6 are BLOCKED, not unfinished — the pipeline cannot be diagnosed by
-reading source, and inventing values instead is prohibited.
+The one call arrived via `/alpha` with `confidence: slash-command`, `last_scanned_at=NULL`,
+and called = peak = latest price. **The worker has never run and passive ingestion has
+produced nothing.** The dashes on those two sources are therefore *correct* — they are an
+honest report of an empty journal. Deploying the worker is the fix; changing the UI would
+have been fabrication.
+
+### What remains, and why
+
+| # | Remainder | Needs |
+|---|---|---|
+| 3 | No real withdrawal signature produced | A funded devnet wallet |
+| 7 | Global-scope cleanup unobserved in Discord | Worker deployed with bot credentials |
+| 19 | No stored PNG set for authenticated routes | A real signed-in session |
+| 20 | Browser e2e on authenticated routes | Same session |
+
+None of these is reachable from this environment. Each is recorded with the exact action
+required in `OPEN_BLOCKERS.md`.
+
+### Before mainnet
+
+1. Set `PLATFORM_FEE_ACCOUNT` — fees currently resolve to **0 bps**, so nothing is
+   collected (B-1)
+2. Deploy the worker with signing configuration and a host (B-2) — this also fixes
+   requirement 6 and requirement 7
+3. Resolve B-6: the worker reads legacy tables that carry no safety configuration, so a
+   deployed worker would execute without the user's configured filters
+4. Explicit mainnet authorization (B-3) — never enabled autonomously
+
+B-6 is the one to read before deploying. It is the difference between a worker that
+honours a user's risk settings and one that ignores them.
 
 ## Verified commands
 
