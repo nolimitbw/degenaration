@@ -13,17 +13,17 @@ the video content is reviewable at all — Claude Code cannot process video dire
 
 | ID | Source | Extracted frames | Reviewed by |
 | --- | --- | --- | --- |
-| R1 | `DISCORD BOT AND KOL BOT AFFILIATE .mov` | `~/.codex/tmp/degen-sheets/affiliate/` (3 sheets) | Codex |
-| R2 | `DISCORD BOT PLAN FULL VIDEO OF VISION.mov` | `~/.codex/tmp/degen-sheets/discord/` (6 sheets) | Codex |
+| R1 | `DISCORD BOT AND KOL BOT AFFILIATE .mov` | `~/.codex/tmp/degen-sheets/affiliate/` (3 sheets) | Codex, **Claude (sheet 01)** |
+| R2 | `DISCORD BOT PLAN FULL VIDEO OF VISION.mov` | `~/.codex/tmp/degen-sheets/discord/` (6 sheets) | Codex, **Claude (sheet 02)** |
 | R3 | `FULL VIDEO OF IDEA OF FULL DESIGN AND FUNCTIONAL OF KOL BOT.mov` | `~/.codex/tmp/degen-sheets/kol/` (12 sheets) | Codex, **Claude (sheet 03)** |
-| R4 | `How it looks like when its done, you can edit your setups .mov` | `~/.codex/tmp/degen-sheets/manager/` (2 sheets) | Codex |
+| R4 | `How it looks like when its done, you can edit your setups .mov` | `~/.codex/tmp/degen-sheets/manager/` (2 sheets) | Codex, **Claude (sheet 01)** |
 | R5 | `PORTFOLIO FULL PLAN.mov` | `~/.codex/tmp/degen-sheets/portfolio/` (2 sheets) | Codex, **Claude (sheet 01)** |
 | R6 | `explanation on KOL BOT.png` | source image | Codex, **Claude** |
 | R7–R9 | Winning / losing / portfolio PnL card references | source images | Codex, **Claude** |
 
-> The contact sheets live in `~/.codex/tmp/`, which is temporary. **Copy them somewhere
-> durable before they are cleared**, or the only reviewable form of the video references
-> is lost.
+> The contact sheets lived in `~/.codex/tmp/`, which gets cleared. They are now copied to
+> `~/Desktop/DEGENARATION/SETTINGS AND FUNCTIONS IDEA/extracted-frames/` alongside the
+> source videos. Every recording has now been reviewed at least in part.
 
 ## What Claude verified directly (2026-07-30)
 
@@ -77,6 +77,25 @@ design".
 `app/api/product/pnl-card/route.tsx` already satisfies this: 1600×900, gold on black,
 code-generated geometric backdrop, DegenAration wordmark, 106px hero percentage,
 entry / current / duration / source tiles, referral QR, risk disclaimer. No borrowed art.
+
+## Where the reference and the specification disagree
+
+**Discord marketplace card.** R2 renders each server as a large square tile — roughly a
+1:1 image occupying the top third of the card — with the performance figures as a compact
+strip of outcome counts (CALLS / +10% / 2X / 5X+) and an inline timeframe toggle per card.
+
+§8.1 instead specifies a **52–64px avatar in a header row** and a five-metric performance
+row (win rate, median return, average return, maximum drawdown, eligible calls).
+
+The implementation follows §8.1. The Authority and Priority Order in the master
+specification places the specification (rank 3) above visual references (rank 7), so where
+they conflict the specification wins. This is recorded rather than silently resolved: if
+the owner prefers the reference's larger tile and outcome-count strip, that is a
+specification change, not a bug fix.
+
+Adopted from R2 regardless of the above, because they do not conflict with §8.1: the
+per-card channel scope selector (`Channel (optional) — All channels`, already present) and
+showing the creator fee on the card.
 
 ## Palette rule
 
