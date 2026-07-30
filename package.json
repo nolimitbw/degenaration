@@ -16,7 +16,9 @@
     "lint": "node scripts/check-code-quality.mjs",
     "verify:withdrawal": "node scripts/verify-withdrawal-devnet.mjs",
     "verify:discord-live": "node scripts/verify-discord-commands-live.mjs",
-    "codex:plans": "node scripts/codex-plans.mjs"
+    "codex:plans": "node scripts/codex-plans.mjs",
+    "handoff": "node scripts/handoff.mjs",
+    "handoff:check": "node scripts/handoff.mjs --check"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.35.1",
