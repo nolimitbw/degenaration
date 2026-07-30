@@ -5,6 +5,12 @@ Read these files before modifying product behavior:
 - @docs/launch/FINAL_LAUNCH_SPEC.md
 - @docs/coordination/IMPLEMENTATION_STATUS.md
 - @docs/coordination/AI_HANDOFF.md
+- @docs/coordination/CODEX_PLANS.md
+
+**See what Codex planned before planning anything yourself:** `npm run codex:plans` reads
+Codex's own `update_plan` calls out of its session logs. The `codex-plans` skill explains
+when to run it. A plan step is Codex's intent, not proof the work exists — verify against
+IMPLEMENTATION_STATUS.md.
 
 Mandatory rules:
 

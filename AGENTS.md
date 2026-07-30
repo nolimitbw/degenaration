@@ -6,6 +6,10 @@ Two agents share this repository: Claude Code (primary implementer) and Codex
 (independent reviewer of committed checkpoints). Never edit the same working tree
 concurrently. Codex findings go in `docs/coordination/CODEX_REVIEW.md`.
 
+Codex's own plan history is extracted from its session logs into
+`docs/coordination/CODEX_PLANS.md` (`npm run codex:plans`). Refresh it after a planning
+session so Claude can see the current direction without guessing.
+
 Mandatory rules:
 
 - Preserve working functionality; make targeted, reversible changes.
