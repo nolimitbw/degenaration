@@ -53,3 +53,17 @@ revoke execute on function public.app_user_withdrawable_state(text, text)
   from public, anon, authenticated;
 grant execute on function public.app_user_withdrawable_state(text, text)
   to service_role;
+
+-- ---------------------------------------------------------------------------------------
+-- Raw signal deduplication (applied as degenaration_raw_signal_hash_dedupe)
+--
+-- The pre-existing constraint UNIQUE (source_type, source_ref, external_event_id) is
+-- defeatable by NULL: Postgres compares NULLs as distinct in a unique index, so two
+-- identical deliveries with external_event_id NULL both insert. Verified against the live
+-- database -- the same message body inserted twice was ACCEPTED.
+--
+-- content_hash is NOT NULL, so anchoring dedupe on it cannot be defeated the same way.
+-- The original constraint is retained: when an external event id IS present it is the
+-- stronger signal, because it survives an edited message body.
+create unique index if not exists raw_signals_source_content_unique
+  on app_private.raw_signals (source_type, source_ref, content_hash);

@@ -52,8 +52,20 @@ if (/create table if not exists app_private\.raw_signals[\s\S]{0,900}?content_ha
 }
 
 // Deduplication must be enforced by the database, not by application convention.
-if (/raw_signals[\s\S]{0,900}?unique/i.test(sql)) {
-  ok("raw_signals has a uniqueness constraint");
+//
+// This check previously just looked for the word "unique" near the table and passed. That
+// was a FALSE PASS: the constraint that existed was
+// UNIQUE (source_type, source_ref, external_event_id), and Postgres treats NULLs as
+// distinct in a unique index, so two identical deliveries with a NULL external_event_id
+// both inserted. Confirmed against the live database before being fixed.
+//
+// A dedupe constraint is only trustworthy if every column in it is NOT NULL, so require
+// one anchored on content_hash, which is.
+if (/unique index[^;]*raw_signals[^;]*content_hash/i.test(sql)) {
+  ok("raw_signals dedupe is anchored on content_hash (NOT NULL, so NULLs cannot defeat it)");
+} else if (/raw_signals[\s\S]{0,900}?unique/i.test(sql)) {
+  fail("raw_signals has a uniqueness constraint, but none anchored on content_hash — a NULL "
+     + "in any nullable column of the constraint lets duplicates through");
 } else {
   fail("raw_signals has no uniqueness constraint; duplicates can be journaled twice");
 }
