@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { isEditable, normalizeWhileTyping } from "@/lib/numeric-input";
 
 /** Small modal to edit the shared quick-buy SOL preset amounts (up to 4). */
 export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: number[]; loaded: boolean; onSave: (next: number[]) => Promise<{ error: any }> }) {
@@ -47,8 +48,15 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
                 <label key={i} className="block">
                   <span className="font-mono text-[10px] uppercase text-dim">Preset {i + 1}</span>
                   <input
-                    type="number" step="0.01" min="0.01" value={v}
-                    onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? e.target.value : x)))}
+                    type="text" inputMode="decimal" autoComplete="off" value={v}
+                    onChange={(e) => {
+                      // Draft presets are already held as strings, which is the correct
+                      // editing shape. They only lacked a validity gate, so a stray
+                      // character or a second dot could be saved.
+                      const next = normalizeWhileTyping(e.target.value);
+                      if (!isEditable(next, { decimals: 4 })) return;
+                      setDraft((d) => d.map((x, j) => (j === i ? next : x)));
+                    }}
                     className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-gold-400"
                   />
                 </label>

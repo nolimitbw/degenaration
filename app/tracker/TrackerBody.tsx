@@ -8,6 +8,7 @@ import { fetchPortfolio, fetchBalance, fmtUsd, getMyCopySubs, saveCopySub, remov
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { useAutomationStatus } from "@/lib/useAutomationStatus";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 type Tracked = { address: string; label: string };
 type SmartWallet = { address: string; catches: { symbol: string; mint: string; multiple: number }[]; catchCount: number; bestMultiple: number; avgMultiple: number };
@@ -36,7 +37,12 @@ function CopyPanel({ settings, onChange, onStart, onCancel, busy = false }: { se
     <label className="block">
       <span className="font-mono text-[10px] uppercase text-dim">{label}</span>
       <div className="mt-0.5 flex items-center gap-1">
-        <input type="number" step={step} value={settings[key]} onChange={(e) => onChange({ ...settings, [key]: +e.target.value })}
+        <NumericTextInput
+          value={settings[key]}
+          onChange={(next) => onChange({ ...settings, [key]: next })}
+          decimals={4}
+          min={0}
+          ariaLabel={label}
           className="w-full rounded border border-edge bg-panel px-2 py-1 text-xs text-ink outline-none focus:border-gold-400" />
         {suffix && <span className="font-mono text-[10px] text-dim">{suffix}</span>}
       </div>

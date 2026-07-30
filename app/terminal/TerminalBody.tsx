@@ -12,6 +12,7 @@ import { getNet } from "@/lib/net";
 import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { useAutomationStatus } from "@/lib/useAutomationStatus";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const SELL_PCTS = [25, 50, 75, 100];
@@ -401,8 +402,7 @@ export default function TerminalBody() {
             <>
               <label className="mt-4 block">
                 <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
-                <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} disabled={tradeLocked}
-                  className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50" />
+                <NumericTextInput value={amount} onChange={setAmount} decimals={4} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50" />
                 {!amountOk && <span className="mt-1 block font-mono text-[10px] text-danger">Use an amount above 0 and at most 100 SOL.</span>}
               </label>
               <div className="mt-2 grid grid-cols-4 gap-1">
@@ -416,8 +416,7 @@ export default function TerminalBody() {
 
           <label className="mt-4 block">
             <span className="font-mono text-[11px] uppercase text-dim">Max slippage %</span>
-            <input type="number" value={slippage} onChange={(e) => setSlippage(+e.target.value)} disabled={tradeLocked}
-              className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50" />
+            <NumericTextInput value={slippage} onChange={setSlippage} decimals={4} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50" />
             {!slippageOk && <span className="mt-1 block font-mono text-[10px] text-danger">Use slippage between 0.01% and 20%.</span>}
           </label>
 
@@ -431,8 +430,7 @@ export default function TerminalBody() {
               </label>
               <label className="block">
                 <span className="font-mono text-[11px] uppercase text-dim">Target $</span>
-                <input type="number" step="any" value={limitTarget || ""} onChange={(e) => setLimitTarget(+e.target.value)} disabled={tradeLocked}
-                  className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50" />
+                <NumericTextInput value={limitTarget || 0} onChange={setLimitTarget} decimals={4} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50" />
               </label>
             </div>
           )}

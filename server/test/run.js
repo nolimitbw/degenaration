@@ -349,6 +349,72 @@ test("one subscriber's filters cannot leak into another's decision", () => {
   assert.strictEqual(looseVerdict.ok, true);   // no bound set
 });
 
+console.log("numeric input editing rules (spec 5)");
+const num = require("../../lib/numeric-input");
+const SOLF = num.PRESETS.sol;
+
+test("an empty field is a valid editing state, so the field can be cleared", () => {
+  // The defect: numeric state + Number("") -> 0 -> re-render "0". Clearing was impossible.
+  assert.strictEqual(num.isEditable("", SOLF), true);
+});
+test("a trailing dot is editable and is NOT committed early", () => {
+  // The defect: Number("0.") === 0 ate the dot, so 0.5 could never be typed.
+  assert.strictEqual(num.isEditable("0.", SOLF), true);
+  assert.strictEqual(num.isCommittable("0."), false);
+  assert.strictEqual(num.isCommittable("0.5"), true);
+});
+test("a leading zero is stripped, so typing 5 into a zero field gives 5 not 05", () => {
+  assert.strictEqual(num.normalizeWhileTyping("05"), "5");
+  assert.strictEqual(num.normalizeWhileTyping("0"), "0");
+  assert.strictEqual(num.normalizeWhileTyping("0.5"), "0.5");
+  assert.strictEqual(num.normalizeWhileTyping("00012"), "12");
+});
+test("blur resolves partial input instead of leaving it broken", () => {
+  assert.strictEqual(num.resolveOnBlur("", SOLF).value, 0);
+  assert.strictEqual(num.resolveOnBlur(".", SOLF).value, 0);
+  assert.strictEqual(num.resolveOnBlur("0.", SOLF).value, 0);
+  assert.strictEqual(num.resolveOnBlur(".5", SOLF).value, 0.5);
+  assert.strictEqual(num.resolveOnBlur("5.", SOLF).value, 5);
+});
+test("small decimals survive — 0.01 must not round to 0", () => {
+  assert.strictEqual(num.isEditable("0.01", SOLF), true);
+  assert.strictEqual(num.resolveOnBlur("0.01", SOLF).value, 0.01);
+});
+test("precision beyond the field's decimals is rejected at keystroke time", () => {
+  assert.strictEqual(num.isEditable("0.12345", SOLF), false);   // sol preset is 4dp
+  assert.strictEqual(num.isEditable("0.1234", SOLF), true);
+  assert.strictEqual(num.isEditable("1.5", num.PRESETS.integer), false);
+});
+test("exponent, separators and stray characters are rejected", () => {
+  for (const bad of ["1e5", "1,5", "1 5", "abc", "1.2.3", "--5", "+5"]) {
+    assert.strictEqual(num.isEditable(bad, SOLF), false, bad);
+  }
+});
+test("negatives are rejected unless the field allows them", () => {
+  assert.strictEqual(num.isEditable("-5", SOLF), false);
+  assert.strictEqual(num.isEditable("-5", { decimals: 2, allowNegative: true }), true);
+});
+test("blur clamps to the field bounds", () => {
+  assert.strictEqual(num.resolveOnBlur("999", { ...SOLF, max: 100 }).value, 100);
+  assert.strictEqual(num.resolveOnBlur("0", { ...SOLF, min: 1 }).value, 1);
+  assert.strictEqual(num.resolveOnBlur("50", num.PRESETS.percent).value, 50);
+  assert.strictEqual(num.resolveOnBlur("150", num.PRESETS.percent).value, 100);
+});
+test("NaN never reaches state", () => {
+  assert.strictEqual(num.resolveOnBlur("abc", SOLF).value, 0);
+  assert.ok(Number.isFinite(num.resolveOnBlur("", SOLF).value));
+});
+test("display trims trailing zeros but keeps a bare zero", () => {
+  assert.strictEqual(num.format(0.5, 4), "0.5");
+  assert.strictEqual(num.format(0, 4), "0");
+  assert.strictEqual(num.format(1.0, 4), "1");
+  assert.strictEqual(num.format(0.01, 4), "0.01");
+});
+test("a pasted value is validated by the same rule as typing", () => {
+  assert.strictEqual(num.isEditable("2.5", SOLF), true);
+  assert.strictEqual(num.isEditable("2.5abc", SOLF), false);
+});
+
 console.log("user withdrawals (spec 12 / 22.2)");
 const wd = require("../../lib/withdrawal");
 const OWNER = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";

@@ -19,6 +19,7 @@ import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { formatPercentBps, formatSol, formatWhen, productFetch, solToLamports, type KolStrategy } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -303,7 +304,7 @@ function CopyField({ label, value, onChange, suffix, step }: { label: string; va
     <label className="block">
       <span className="field-label">{label}</span>
       <span className="field-control mt-1.5 flex items-center px-3">
-        <input type="number" value={value} step={step} min={0} onChange={(event) => onChange(Number(event.target.value))} className="min-w-0 flex-1 bg-transparent font-mono text-xs outline-none" />
+        <NumericTextInput value={value} onChange={onChange} decimals={4} min={0} className="min-w-0 flex-1 bg-transparent font-mono text-xs outline-none" />
         <span className="font-mono text-[9px] text-dim">{suffix}</span>
       </span>
     </label>

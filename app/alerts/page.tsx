@@ -1,6 +1,7 @@
 "use client";
 import AppShell from "@/components/AppShell";
 import { useEffect, useRef, useState } from "react";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 type Alert = { id: string; mint: string; label: string; kind: "above" | "below"; target: number; fired?: boolean };
 
@@ -58,7 +59,7 @@ export default function Alerts() {
         <select value={kind} onChange={e => setKind(e.target.value as any)} className="h-11 sm:h-auto rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
           <option value="above">above</option><option value="below">below</option>
         </select>
-        <input type="number" step="any" value={target || ""} onChange={e => setTarget(+e.target.value)} placeholder="$ price" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+        <NumericTextInput value={target || 0} onChange={setTarget} decimals={4} className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
         <button onClick={add} className="rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-white shadow-gold">+ Alert</button>
       </div>
 

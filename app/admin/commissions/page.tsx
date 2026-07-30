@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchBalance } from "@/lib/queries";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 type FeeConfig = { platformFeeBps?: number; feeWalletConfigured?: boolean; publicFeeWallet?: string | null; withdrawalsConfigured?: boolean };
 const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -168,8 +169,7 @@ export default function Commissions() {
         </label>
         <label className="mt-3 block">
           <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
-          <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(+e.target.value)}
-            className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-gold-400" />
+          <NumericTextInput value={amount} onChange={setAmount} decimals={2} className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-gold-400" />
           {amount > 0 && !validAmount && <span className="mt-1 block font-mono text-[10px] text-danger">{!balanceLoaded ? "Wait for the fee wallet balance first." : "Use an amount below the fee wallet balance and at most 10,000 SOL."}</span>}
         </label>
         <button onClick={withdraw} disabled={!canWithdraw}

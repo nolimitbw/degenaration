@@ -10,6 +10,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import Candles from "@/components/Candles";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
 const SOL = "So11111111111111111111111111111111111111112";
@@ -325,14 +326,14 @@ export default function LiveMarketTerminal() {
           <label className="mt-5 block">
             <span className="field-label">Buy allocation</span>
             <span className="field-control mt-1.5 flex items-center px-3">
-              <input
-                type="number"
-                min="0.01"
-                max="100"
-                step="0.1"
+              <NumericTextInput
+                min={0.01}
+                max={100}
+                decimals={4}
                 value={buyAmount}
-                onChange={(event) => setBuyAmount(Number(event.target.value))}
-                className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none"
+                onChange={setBuyAmount}
+                ariaLabel="Buy allocation"
+                className="min-w-0 flex-1 bg-transparent font-mono text-sm text-ink outline-none"
               />
               <span className="font-mono text-[9px] text-dim">SOL</span>
             </span>
@@ -356,14 +357,14 @@ export default function LiveMarketTerminal() {
             <label className="block">
               <span className="field-label">Price drop trigger</span>
               <span className="field-control mt-1.5 flex items-center px-3">
-                <input
-                  type="number"
-                  min="1"
-                  max="99"
-                  step="1"
+                <NumericTextInput
+                  min={1}
+                  max={99}
+                  decimals={2}
                   value={dropPercent}
-                  onChange={(event) => setDropPercent(Number(event.target.value))}
-                  className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none"
+                  onChange={setDropPercent}
+                  ariaLabel="Price drop trigger"
+                  className="min-w-0 flex-1 bg-transparent font-mono text-sm text-ink outline-none"
                 />
                 <span className="font-mono text-[9px] text-dim">%</span>
               </span>
@@ -371,14 +372,14 @@ export default function LiveMarketTerminal() {
             <label className="block">
               <span className="field-label">Capital ceiling</span>
               <span className="field-control mt-1.5 flex items-center px-3">
-                <input
-                  type="number"
-                  min="0.1"
-                  max="100"
-                  step="0.5"
+                <NumericTextInput
+                  min={0.1}
+                  max={100}
+                  decimals={4}
                   value={capitalLimit}
-                  onChange={(event) => setCapitalLimit(Number(event.target.value))}
-                  className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none"
+                  onChange={setCapitalLimit}
+                  ariaLabel="Capital ceiling"
+                  className="min-w-0 flex-1 bg-transparent font-mono text-sm text-ink outline-none"
                 />
                 <span className="font-mono text-[9px] text-dim">SOL</span>
               </span>

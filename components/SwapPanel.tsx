@@ -6,6 +6,7 @@ import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/sola
 import { getBase58Decoder } from "@solana/kit";
 import { fetchWithTimeout } from "@/lib/server/guard";
 import { getSolanaAddress } from "@/lib/solanaWallet";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -80,8 +81,7 @@ export default function SwapPanel() {
       </p>
       <label className="mt-4 block">
         <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL) → BONK</span>
-        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(+e.target.value)}
-          className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400" />
+        <NumericTextInput value={amount} onChange={setAmount} decimals={2} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400" />
       </label>
       <button onClick={run} disabled={busy || amount <= 0}
         className="mt-4 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">

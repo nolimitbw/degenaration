@@ -30,6 +30,7 @@ import {
   type ProductBot
 } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
+import { NumericTextInput } from "@/components/product/NumericField";
 import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 
 type TpLevel = { targetBps: number; sellBps: number; trailingBps: number };
@@ -1030,13 +1031,24 @@ function NumberField({
   max?: number;
   compact?: boolean;
 }) {
+  // A whole-number step means a whole-number field, so the decimal point is rejected at
+  // keystroke time rather than accepted and then silently truncated.
+  const decimals = Number.isInteger(step) ? 0 : 4;
   const update = (next: number) => onChange(Math.min(max, Math.max(min, Number(next.toFixed(6)))));
   return (
     <label className={compact ? "block min-w-64" : "block"}>
       <span className="field-label">{label}</span>
       <span className="field-control mt-1.5 flex overflow-hidden">
         <button type="button" onClick={() => update(value - step)} className="grid h-11 w-10 shrink-0 place-items-center border-r border-edge text-dim hover:text-ink" aria-label={`Decrease ${label}`}><Minus size={13} /></button>
-        <input type="number" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} className="min-w-0 flex-1 appearance-none bg-transparent px-2 text-center font-mono text-xs outline-none [&::-webkit-inner-spin-button]:appearance-none" />
+        <NumericTextInput
+          value={value}
+          onChange={onChange}
+          min={min}
+          max={max}
+          decimals={decimals}
+          ariaLabel={label}
+          className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-xs text-ink outline-none"
+        />
         <span className="self-center pr-2 font-mono text-[9px] text-dim">{unit}</span>
         <button type="button" onClick={() => update(value + step)} className="grid h-11 w-10 shrink-0 place-items-center border-l border-edge text-dim hover:text-ink" aria-label={`Increase ${label}`}><Plus size={13} /></button>
       </span>
@@ -1047,7 +1059,14 @@ function NumberField({
 function CompactNumber({ value, onChange, suffix, disabled = false }: { value: number; onChange: (value: number) => void; suffix: string; disabled?: boolean }) {
   return (
     <label className={`flex min-h-11 sm:min-h-9 min-w-36 items-center rounded-md border border-edge bg-void px-2 ${disabled ? "opacity-45" : "focus-within:border-gold-400"}`}>
-      <input type="number" value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))} className="min-w-0 flex-1 bg-transparent font-mono text-xs outline-none" />
+      <NumericTextInput
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        min={0}
+        decimals={4}
+        className="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
+      />
       <span className="ml-2 font-mono text-[8px] text-dim">{suffix}</span>
     </label>
   );

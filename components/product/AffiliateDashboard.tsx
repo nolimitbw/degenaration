@@ -29,6 +29,7 @@ import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch, s
 import { emailFromPrivyUser } from "@/lib/admin";
 import { validateReferralSlug } from "@/lib/referral-rules";
 import { getSolanaAddress } from "@/lib/solanaWallet";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 type Scope = "discord" | "kol" | "referrals" | "payouts";
 type Period = "24h" | "7d" | "30d" | "3m";
@@ -745,7 +746,7 @@ function PayoutModal({
       <div role="dialog" aria-modal="true" aria-labelledby="payout-title" className="w-full max-w-lg rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 text-lg font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
         <div className="space-y-4 p-5">
-          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><input type="number" value={amount} min={0.1} step={0.01} onChange={(event) => setAmount(Number(event.target.value))} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="font-mono text-[10px] text-dim">SOL</span></span></label>
+          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={0.1} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="font-mono text-[10px] text-dim">SOL</span></span></label>
           <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono text-xs" /></label>
           <div className="divide-y divide-edge rounded-md border border-edge bg-void px-3">
             <div className="flex justify-between py-3 text-xs text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>

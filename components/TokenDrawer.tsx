@@ -8,6 +8,7 @@ import { useQuickBuyPresets } from "@/lib/useQuickBuyPresets";
 import { useExecuteBuy } from "@/lib/useExecuteBuy";
 import { X } from "lucide-react";
 import Candles from "./Candles";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const SOL = "So11111111111111111111111111111111111111112";
 
@@ -142,14 +143,14 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
         <div className="mt-4 rounded-lg border border-edge bg-void p-4">
           <label className="block">
             <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
-            <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} className="mt-1 w-full rounded-md border border-edge bg-panel px-3 py-2 font-mono outline-none focus:border-gold-400" />
+            <NumericTextInput value={amount} onChange={setAmount} decimals={4} className="mt-1 w-full rounded-md border border-edge bg-panel px-3 py-2 font-mono outline-none focus:border-gold-400" />
           </label>
           <div className="mt-2 grid grid-cols-4 gap-1">
             {PRESETS.map((a, i) => <button key={i} onClick={() => setAmount(a)} className="rounded border border-edge py-1.5 font-mono text-xs text-dim transition hover:border-gold-400 hover:text-gold-400">{a}</button>)}
           </div>
           <label className="mt-3 block">
             <span className="font-mono text-[11px] uppercase text-dim">Max slippage %</span>
-            <input type="number" value={slippage} onChange={(e) => setSlippage(+e.target.value)} className="mt-1 w-full rounded-md border border-edge bg-panel px-3 py-2 font-mono outline-none focus:border-info" />
+            <NumericTextInput value={slippage} onChange={setSlippage} decimals={4} className="mt-1 w-full rounded-md border border-edge bg-panel px-3 py-2 font-mono outline-none focus:border-info" />
           </label>
           {sim && !sim.error && (
             <div className="mt-3 space-y-1 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[11px]">

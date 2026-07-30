@@ -7,6 +7,7 @@ import { getCallSources, getMySubscriptions, saveSubscription, type CallSource }
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { useAutomationStatus } from "@/lib/useAutomationStatus";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
 const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
@@ -187,7 +188,7 @@ function NumberField({ label, suffix, value, step, min = 0, max = 1000, onChange
       <span className="font-mono text-[10px] uppercase text-dim">{label}</span>
       <span className="mt-1.5 flex min-h-11 items-center overflow-hidden rounded-md border border-edge bg-void focus-within:border-gold-400">
         <button type="button" onClick={() => update(value - step)} aria-label={`Decrease ${label}`} className="grid h-11 w-11 shrink-0 place-items-center border-r border-edge text-dim transition hover:bg-edge/50 hover:text-ink"><Minus size={14} /></button>
-        <input type="number" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} className="min-w-0 flex-1 appearance-none bg-transparent px-3 text-center font-mono text-sm outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+        <NumericTextInput value={value} onChange={onChange} decimals={4} min={min} max={max} className="min-w-0 flex-1 appearance-none bg-transparent px-3 text-center font-mono text-sm outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
         <span className="font-mono text-[10px] text-dim">{suffix}</span>
         <button type="button" onClick={() => update(value + step)} aria-label={`Increase ${label}`} className="grid h-11 w-11 shrink-0 place-items-center border-l border-edge text-dim transition hover:bg-edge/50 hover:text-ink"><Plus size={14} /></button>
       </span>

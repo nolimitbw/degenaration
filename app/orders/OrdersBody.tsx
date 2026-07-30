@@ -5,6 +5,7 @@ import { fmtUsd, createLimitOrder, getMyLimitOrders, cancelLimitOrder, type DbLi
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { automationLabel, useAutomationStatus } from "@/lib/useAutomationStatus";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const POLL_MS = 20000;
 const MINT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -113,9 +114,9 @@ export default function OrdersBody() {
         <select value={trigger} onChange={(e) => setTrigger(e.target.value as any)} className="h-11 sm:h-auto rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
           <option value="below">price ≤</option><option value="above">price ≥</option>
         </select>
-        <input type="number" step="any" value={target || ""} onChange={(e) => setTarget(+e.target.value)} placeholder="$ target" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <input type="number" step="0.1" value={amount} onChange={(e) => setAmount(+e.target.value)} placeholder="SOL" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <input type="number" step="0.1" value={slippage} onChange={(e) => setSlippage(+e.target.value)} placeholder="Slippage %" className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-info" />
+        <NumericTextInput value={target || 0} onChange={setTarget} decimals={4} className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+        <NumericTextInput value={amount} onChange={setAmount} decimals={4} className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
+        <NumericTextInput value={slippage} onChange={setSlippage} decimals={4} className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-info" />
         {draftError && <p className="col-span-full font-mono text-[11px] text-dim">{draftError}</p>}
         <button onClick={create} disabled={!!draftError} className="col-span-full rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-white shadow-gold disabled:cursor-not-allowed disabled:opacity-50">+ Create limit order</button>
       </div>
