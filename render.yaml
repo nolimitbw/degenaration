@@ -1,4 +1,5 @@
 services:
+  # 1. Automation worker. Runs the execution engine and the performance scanner.
   - type: web
     name: degenaration-worker
     runtime: node
@@ -23,11 +24,69 @@ services:
         sync: false
       - key: MAINNET_RPC
         sync: false
+      # Read by server/engine/rugcheck.js and safety.js as the RPC fallback.
+      - key: SOLANA_RPC_URL
+        sync: false
       - key: PRIVY_APP_ID
         sync: false
       - key: PRIVY_APP_SECRET
         sync: false
       - key: PRIVY_AUTHORIZATION_KEY
         sync: false
+      # Until this is set, configuredPlatformFeeBps() returns 0 and NO fee is collected.
       - key: PLATFORM_FEE_ACCOUNT
+        sync: false
+      # Shared secret for engine <-> site calls (server/engine/index.js).
+      - key: BOT_SHARED_SECRET
+        sync: false
+
+  # 2. Discord gateway bot. Previously ABSENT from this file, which is why it has never
+  #    run as a managed service — and therefore why raw_signals is empty and the two
+  #    approved sources show no measured performance. It is a separate program with its
+  #    own package.json (discord.js), so it needs its own service and its own rootDir.
+  #
+  #    A worker type, not web: it holds a gateway connection and serves no HTTP.
+  - type: worker
+    name: degenaration-discord-bot
+    runtime: node
+    plan: free
+    rootDir: server/bot
+    buildCommand: npm ci
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      # Without this the bot cannot connect to Discord at all.
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      # Where parsed calls are posted. Without it, nothing is ever ingested.
+      - key: INGEST_URL
+        sync: false
+      # Authenticates bot -> site requests (server/bot/store.js).
+      - key: BOT_SHARED_SECRET
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: BOT_REGISTER_URL
+        sync: false
+      - key: BOT_APPROVED_CHANNELS_URL
+        sync: false
+      - key: BOT_GUILD_STATUS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      # Optional. Approved-channel refresh interval; defaults in code when unset.
+      - key: CHANNELS_REFRESH_MS
+        sync: false
+      # Optional relay/notification targets.
+      - key: RELAY_CHANNEL_ID
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: BOT_BUILD
         sync: false
