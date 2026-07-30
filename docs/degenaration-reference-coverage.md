@@ -103,12 +103,20 @@ affiliate dashboard, portfolio workspace, security-filter editor, and PnL card r
 all exist now. Rather than restate them here, requirement-level status with evidence
 lives in `docs/coordination/IMPLEMENTATION_STATUS.md`, which is the single tracker.
 
-Remaining reference-specific gaps:
+Remaining reference-specific gaps, after verifying each against the code rather than
+against the previous revision's claims:
 
-| Gap | Reference | Note |
+| Gap | Reference | Status |
 | --- | --- | --- |
-| ~9 security filters missing vs the reference set | R3 | Coverage gap; structure already correct |
-| Portfolio `Main Stats` column not implemented | R5 | Swaps, gas fees, buys vs sells, wins vs losses, unique tokens, scams |
-| MC Distribution view | R5 | Not implemented |
-| Swaps tab | R5 | Portfolio has Overview / Positions / Trades / Deposits & withdrawals |
-| Stored screenshot evidence per surface | §22.6 | Authenticated routes need a real session |
+| Security filter coverage | R3 | **CLOSED.** The earlier "~9 filters short" claim was wrong — it misread "15 checks enabled" as the total available. Actual inventory is 25 ranges + 10 flags = 35, exceeding the reference's 24. A one-to-one diff found exactly one missing, DEX Paid, now added. |
+| Filters were never enforced | R3 | **CLOSED in the enforcement layer.** Nothing read `safetyFilters`; `rugCheck` hardcoded a $10,000 liquidity floor. `server/engine/safety.js` now applies the user's own bounds and fails closed on missing evidence. Handing it per-subscriber config at execution time is OPEN_BLOCKERS B-6. |
+| Portfolio Main Stats column | R5 | **CLOSED.** The earlier "not implemented" claim was also wrong — a Statistics panel already existed. Buy/sell volume, wins/losses counts, and separated gas fees were genuinely missing and are now added via `lib/portfolio-stats.js`. |
+| MC Distribution view | R5 | **NOT IMPLEMENTED, deliberately.** Needs per-position market cap data that no wired provider returns. Inventing the distribution is what §9.6 and §23 forbid. |
+| Swaps tab | R5 | **Equivalent exists.** R5 has Portfolio / Trades / Swaps; DegenAration has Overview / Positions / Trades / Deposits & withdrawals, which covers the same records with an extra cash-movement view. |
+| Stored screenshot evidence per surface | §22.6 | Open. Authenticated routes need a real session. Responsive audit results are in `docs/launch/RELEASE_EVIDENCE.md`. |
+
+## Lesson recorded
+
+Two of the gaps above were asserted from this document's previous revision rather than
+from the code, and both were wrong. Verify a claim against the implementation before
+reporting it — a stale tracker is worse than no tracker, because it reads as evidence.
