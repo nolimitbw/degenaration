@@ -154,10 +154,12 @@ Stated plainly so none of this reads as covered:
   Portfolio populated and empty, withdrawal modal, Wallet, PnL cards, Admin diagnostics).
   Public routes were audited programmatically at all four widths; the authenticated ones
   need a real Privy session, which cannot be created from this environment.
-- **No real withdrawal signature.** The transaction the endpoint builds is verified
-  structurally (decodes to a correct transfer, exact lamports, unsigned), but the on-chain
-  landing check needs the devnet faucet, which is currently 429 rate-limited here. A funded
-  wallet closes this.
+- **The Privy signing UI is unexercised.** The transaction itself is now fully proven —
+  `npm run verify:withdrawal` runs 16/16 against a local `solana-test-validator`: it
+  confirms on chain, the destination receives exactly the requested lamports, the source
+  retains the rent-exempt minimum, and a subsequent Max withdrawal still retains the
+  reserve. What remains untested is the browser flow where a real Privy wallet signs, which
+  needs the owner's wallet.
 - **Discord global-command cleanup unobserved live.** `npm run verify:discord-live` exists
   to confirm it; it needs the deployed bot's credentials.
 - **No browser e2e on authenticated routes.** Same session dependency.

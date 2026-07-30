@@ -22,13 +22,33 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const wd = require(join(root, "lib/withdrawal.js"));
 const web3 = require(join(root, "node_modules/@solana/web3.js"));
 
-const RPC = "https://api.devnet.solana.com";
+// A local validator (solana-test-validator) is preferred when present: unlimited
+// airdrops, no rate limit, and nothing leaves the machine. Falls back to public devnet.
+// Override with SOLANA_TEST_RPC.
+const LOCAL_RPC = "http://127.0.0.1:8899";
+const DEVNET_RPC = "https://api.devnet.solana.com";
+
+async function reachable(url) {
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }),
+      signal: AbortSignal.timeout(2500)
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+const RPC = process.env.SOLANA_TEST_RPC
+  || (await reachable(LOCAL_RPC) ? LOCAL_RPC : DEVNET_RPC);
+const isLocal = RPC === LOCAL_RPC;
 let failures = 0;
 const fail = (m) => { failures += 1; console.log(`  FAIL ${m}`); };
 const ok = (m) => console.log(`  ok   ${m}`);
 const skip = (m) => console.log(`  skip ${m}`);
 
-console.log("withdrawal transaction, real devnet chain");
+console.log(`withdrawal transaction, real chain — ${isLocal ? "LOCAL VALIDATOR" : "public devnet"} (${RPC})`);
 
 const connection = new web3.Connection(RPC, "confirmed");
 
@@ -105,7 +125,7 @@ if (!structuralValidation.ok) {
 // Part 2: on-chain landing. Opportunistic — the public devnet faucet is frequently
 // rate-limited, and a flaky faucet must not fail the gate.
 // ---------------------------------------------------------------------------------------
-console.log("  -- on-chain (requires the devnet faucet)");
+console.log(`  -- on-chain (${isLocal ? "local validator: unlimited airdrops" : "requires the devnet faucet"})`);
 
 // Confirm devnet is reachable before attributing any failure to our own code.
 try {
@@ -125,7 +145,7 @@ const AIRDROP = 1_000_000_000; // 1 SOL, devnet play money
 try {
   const sig = await connection.requestAirdrop(owner.publicKey, AIRDROP);
   await connection.confirmTransaction(sig, "confirmed");
-  ok(`funded a throwaway devnet wallet with ${AIRDROP / 1e9} SOL`);
+  ok(`funded a throwaway wallet with ${AIRDROP / 1e9} SOL`);
 } catch (e) {
   const reason = /429|Too Many Requests/.test(String(e.message || e)) ? "rate limited (429)" : String(e.message || e).slice(0, 60);
   skip(`devnet faucet ${reason} — on-chain landing NOT verified`);
@@ -187,7 +207,7 @@ try {
   signature = await web3.sendAndConfirmTransaction(connection, transaction, [owner], {
     commitment: "confirmed"
   });
-  ok(`transaction confirmed on devnet: ${signature}`);
+  ok(`transaction confirmed on ${isLocal ? "the local validator" : "devnet"}: ${signature}`);
 } catch (e) {
   fail(`the transaction the endpoint builds did NOT land: ${String(e.message || e).slice(0, 160)}`);
   console.error(`\nverify-withdrawal-devnet: ${failures} failure(s)`);
@@ -219,7 +239,7 @@ if (remainingSpendable < after) {
   fail("Max withdrawal would drain the account below rent exemption");
 }
 
-console.log(`\nchain: devnet · owner ${owner.publicKey.toBase58()} · tx ${signature}`);
+console.log(`\nchain: ${isLocal ? "local validator" : "devnet"} · owner ${owner.publicKey.toBase58()} · tx ${signature}`);
 
 if (failures > 0) {
   console.error(`\nverify-withdrawal-devnet: ${failures} failure(s)`);
