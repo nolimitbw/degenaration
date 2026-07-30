@@ -11,7 +11,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 0 | Phase 1 focused audit | §20.1 | PASS | `1db7062`; `docs/launch/RELEASE_CHECKLIST.md` F-1..F-7; baseline `npm run check` exit 0 |
 | 0b | Coordination + instruction scaffolding | §0, §4.0–4.1 | PASS | `1db7062` |
 | 1 | Single-source 200 bps fee, integer math | §13.1 | PASS | `60e9ce8`; 6 duplicates removed; float math deleted; 54 tests |
-| 2 | Creator 70/20 bps + referral allocation, balanced ledger | §13.2–13.5 | PARTIAL | `60e9ce8`, `5fa6460`; `allocatePlatformFee()` + DB trigger + generated retained column; **migration not applied to a database; runtime write path not yet emitting allocations** |
+| 2 | Creator 70/20 bps + referral allocation, balanced ledger | §13.2–13.5 | PARTIAL | `60e9ce8`, `5fa6460`, `2061d95`; `allocatePlatformFee()`, DB trigger, generated retained column, and the accrual trigger now writes referral entries plus an allocation offset so the ledger sums to the collected fee. `commission_revenue_summary` view derives §13.6 figures from the books. **Migrations not applied to a database** |
 | 3 | Self-service user principal withdrawal | §12 | PARTIAL | `47dec45`; endpoint + rules module + real modal; 11 withdrawal tests; **not exercised against a funded wallet** |
 | 4 | Affiliate payout rules kept separate | §12.6 | PASS | `47dec45`; test asserts principal withdrawal ignores the 0.1 SOL minimum and 0.043 SOL fee |
 | 5 | Discord/KOL signal journal end-to-end | §9 | PARTIAL | `d792d7f`; outcome + aggregation layer implemented (`lib/call-outcomes.js`) with 12 §22.3 fixture tests: buckets, drawdown bps, distribution, minimum-sample gate, dedupe, edits. Schema + parser contract gated by `npm run verify:performance-journal`. **Live ingestion→journal path still untraceable without database access — B-4** |
@@ -28,7 +28,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 16 | Claude review subagents | §4.0A | PASS | `.claude/agents/degenaration-{ui,financial,performance,release}-*.md` |
 | 17 | Repository skills | §4.2 | PASS | `.agents/skills/degenaration-{financial-integrity,ui,performance-journal,release-audit}/SKILL.md` |
 | 18 | Launch documentation set | §4.3 | PASS | All 9 written under `docs/launch/` |
-| 19 | Visual regression evidence | §22.6 | PARTIAL | `docs/launch/RELEASE_EVIDENCE.md`; no horizontal overflow at 375/768/1440, home + affiliate observed; **no captured screenshot set — most routes need an authenticated session with data** |
+| 19 | Visual regression evidence | §22.6 | PARTIAL | `38d8284`; programmatic audit at all four required widths — no overflow, no off-screen controls, 9 sub-44px touch targets found and fixed. 5 routes observed live incl. Discord cards with stubbed data. **No stored PNG set — authenticated routes need a real session** |
 | 20 | Release gates | §24 | PARTIAL | `c2b7c09`; `npm run check` exit 0 gates typecheck, **lint**, 82 tests, fee + journal invariants, command registry, public copy, build. e2e, migration dry run, and RLS tests need a database |
 
 ## Readiness

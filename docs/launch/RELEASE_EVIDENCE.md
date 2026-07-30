@@ -31,6 +31,27 @@ Dev server at `localhost:3000`, Next.js 15.5.22.
 | `/` | 375×812 | `scrollWidth === clientWidth` — no horizontal overflow |
 | `/` | 768×1024 | `scrollWidth === clientWidth` — no horizontal overflow |
 | `/affiliate` | 800×650 | Unauthenticated state renders cleanly: title `Affiliate`, subtitle `Track creator and referral earnings.` per §6.2, no filler eyebrow, no spinner. No console errors. |
+| `/bots` | 800×650 | §6.2 copy live; DiscordSignal, KolStrategy, DegenBot and RiskShield glyphs render. No console errors. |
+| `/bots/discord` | desktop + 375 | Redesigned cards verified with a stubbed API response covering a measured and an unmeasured source. No cover art, 56px avatar, health dot with text, `Tracking started [date]` on the unmeasured card. Cards stack one per row at 343px. |
+| `/bots/kol/new` | desktop | Section order matches §11.1; summary shows Maximum exposure and one fee row with info affordances. |
+
+### Responsive audit — §22.6 required widths
+
+Programmatic audit at each width on `/`, measuring horizontal overflow, off-screen
+controls, and sub-minimum touch targets:
+
+| Width | Horizontal overflow | Off-screen controls | Sub-44px controls |
+|---|---|---|---|
+| 375 | none (`scrollWidth === clientWidth`) | 0 | 0 after fix (**9 before**) |
+| 768 | none | 0 | — |
+| 1024 | none | 0 | compact by design (32px above `sm`) |
+| 1440 | none | 0 of 32 controls | compact by design |
+
+The audit found 9 controls under the 44px minimum (§7.4): chart refresh and timeframe
+buttons at 32px, buy-amount presets at 36px, mobile menu trigger at 40px. Fixed with
+responsive sizing so mobile meets 44px while desktop keeps professional density —
+verified 44px at 375px and 32px at 1024px. Bare number inputs measuring 20px were
+assessed as false positives; their bordered wrapper is the tap target.
 
 ### Copy changes confirmed on the rendered page
 
