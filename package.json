@@ -13,7 +13,9 @@
     "check:visible-copy": "node scripts/check-visible-copy.mjs",
     "verify:performance-journal": "node scripts/verify-performance-journal.mjs",
     "check": "npm run typecheck && npm run lint && npm run test && npm run verify:fee-ledger && npm run verify:performance-journal && npm run check:discord-commands && npm run check:visible-copy && npm run build",
-    "lint": "node scripts/check-code-quality.mjs"
+    "lint": "node scripts/check-code-quality.mjs",
+    "verify:withdrawal": "node scripts/verify-withdrawal-devnet.mjs",
+    "verify:discord-live": "node scripts/verify-discord-commands-live.mjs"
   },
   "dependencies": {
     "@privy-io/react-auth": "^3.35.1",
