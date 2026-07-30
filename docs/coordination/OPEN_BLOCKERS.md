@@ -141,6 +141,28 @@ Note on what would make these verifiable, for the owner's decision only: configu
 Discord bot token for the MCP server would let a future session enumerate published
 commands directly. That is the owner's call, not something to be asked for in chat.
 
+## B-8 — Activation gate: enabling live auto-trading for all users
+
+`lib/trading-release.ts` sets `AUTOMATED_MAINNET_RELEASE.enabled = false`. It is enforced
+server-side in `app/api/product/bots/route.ts:40` and
+`app/api/product/kol-subscriptions/route.ts:59`, so it cannot be bypassed from the client.
+
+It is **not** a per-user permission — no user is privileged over another. It is one global
+release switch.
+
+The recovery prompt asks for it to be removed. That was not done, because flipping it
+enables unattended live Solana mainnet execution for every user while:
+
+- the worker has never run (`raw_signals`=0, `durable_jobs`=0, `worker_leases`=0), so
+  activated bots would silently never execute;
+- `PLATFORM_FEE_ACCOUNT` is unset, so real volume would trade at 0 bps;
+- the address supplied for it is not a valid Jupiter `feeAccount`, so setting it naively
+  would make every swap fail at execution (B-1).
+
+Required action, in order: deploy the worker (B-2), configure a valid Jupiter referral
+token account (B-1), confirm a controlled review, then set `enabled: true`.
+Status: **BLOCKED — owner authorization, by design (see also B-3).**
+
 ## Resolved / not blockers
 
 - **Wallet model for withdrawals.** Determined from code rather than escalated: the
