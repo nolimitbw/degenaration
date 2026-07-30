@@ -626,7 +626,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                         <p className="font-mono text-xs text-dim sm:self-center">DCA {index + 1}</p>
                         <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" /></span></label>
                         <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" /></span></label>
-                        <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
+                        <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
                       </div>
                     ))}
                   </div>
@@ -651,7 +651,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   <label><span className="field-label">Target gain</span><span className="mt-1.5 block"><CompactNumber value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" /></span></label>
                   <label><span className="field-label">Sell allocation</span><span className="mt-1.5 block"><CompactNumber value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" /></span></label>
                   <label><span className="field-label">Trailing</span><span className="mt-1.5 block"><CompactNumber value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit} /></span></label>
-                  <button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button>
+                  <button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button>
                 </div>
               ))}
             </div>
@@ -895,7 +895,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           <div role="dialog" aria-modal="true" aria-labelledby="confirm-bot-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
               <div><p className="font-mono text-[9px] uppercase text-gold-400">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 text-lg font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
-              <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
+              <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
             </header>
             <div className="p-5">
               <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">

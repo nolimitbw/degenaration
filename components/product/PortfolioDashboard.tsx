@@ -152,7 +152,7 @@ export default function PortfolioDashboard() {
         description="Balances, positions, performance, and transactions."
         actions={
           <>
-            <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
+            <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
             <button type="button" onClick={() => setDepositOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowDownToLine size={15} /> Deposit</button>
             <button type="button" onClick={() => setWithdrawOpen(true)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><ArrowUpFromLine size={15} /> Withdraw</button>
             <button
@@ -512,7 +512,7 @@ function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClos
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={onClose}><div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}><header className="flex items-center justify-between border-b border-edge p-5"><h2 className="text-lg font-semibold text-ink">{title}</h2><button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close"><X size={15} /></button></header><div className="p-5">{children}</div></div></div>;
+  return <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={onClose}><div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}><header className="flex items-center justify-between border-b border-edge p-5"><h2 className="text-lg font-semibold text-ink">{title}</h2><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close"><X size={15} /></button></header><div className="p-5">{children}</div></div></div>;
 }
 
 function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: { type: "portfolio" | "position"; id?: string }; period: Period; getAccessToken: () => Promise<string | null>; onClose: () => void }) {
@@ -561,7 +561,7 @@ function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: 
   return (
     <div className="fixed inset-0 z-[110] grid place-items-center bg-black/80 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}>
-        <header className="flex items-center justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Authoritative PnL card</p><h2 className="mt-2 text-lg font-semibold text-ink">Share performance</h2></div><button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close share preview"><X size={15} /></button></header>
+        <header className="flex items-center justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Authoritative PnL card</p><h2 className="mt-2 text-lg font-semibold text-ink">Share performance</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close share preview"><X size={15} /></button></header>
         <div className="grid min-h-96 place-items-center bg-void p-5">{url ? <img src={url} alt="DegenAration PnL share card" className="max-h-[62vh] w-full rounded-md object-contain" /> : error ? <div className="max-w-md text-center"><ShieldAlert className="mx-auto text-gold-400" /><p className="mt-3 text-sm font-semibold text-ink">Card unavailable</p><p className="mt-2 text-xs leading-5 text-dim">{error}</p></div> : <Loader2 className="animate-spin text-gold-400" />}</div>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={download} disabled={!url} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink disabled:opacity-40"><Download size={14} /> Download PNG</button><button type="button" onClick={shareNative} disabled={!url} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-40"><Share2 size={14} /> Share</button></footer>
       </div>

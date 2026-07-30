@@ -134,7 +134,7 @@ export default function Trenches() {
               onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDrawer(t); } }}
               className="group gradient-border flex cursor-pointer flex-col rounded-lg border border-edge p-4 transition hover:shadow-gold">
               <div className="flex w-full items-center gap-3 text-left">
-                {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{t.symbol?.slice(0,2)}</div>}
+                {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-full bg-edge font-mono text-xs">{t.symbol?.slice(0,2)}</div>}
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1 truncate font-mono font-bold">{t.symbol}{t.risks?.includes("Brand new") && <span className="rounded bg-danger/20 px-1 text-[9px] text-danger">new</span>}</p>
                   <p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p>

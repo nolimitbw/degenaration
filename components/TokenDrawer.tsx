@@ -80,13 +80,13 @@ export default function TokenDrawer({ token, onClose }: { token: any | null; onC
         <div className="p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {token.image ? <img src={token.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-10 w-10 place-items-center rounded-full bg-edge font-mono text-xs">{token.symbol?.slice(0, 2)}</div>}
+            {token.image ? <img src={token.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-full bg-edge font-mono text-xs">{token.symbol?.slice(0, 2)}</div>}
             <div>
               <p className="flex items-center gap-1 font-mono font-bold">{token.symbol}{(token.ageMs != null && token.ageMs < 3600000) && <span className="rounded bg-danger/20 px-1 text-[9px] text-danger">new</span>}</p>
               <p className="font-mono text-[11px] text-dim">{token.name} · {fmtAge(token.ageMs)}</p>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" title="Close" className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-edge/40 hover:text-ink"><X aria-hidden="true" size={17} /></button>
+          <button onClick={onClose} aria-label="Close" title="Close" className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-edge/40 hover:text-ink"><X aria-hidden="true" size={17} /></button>
         </div>
 
         {/* links */}

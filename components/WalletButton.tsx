@@ -51,7 +51,7 @@ export default function WalletButton() {
       <button
         type="button"
         onClick={login}
-        className="inline-flex min-h-10 items-center gap-2 rounded-md bg-gold-400 px-3 text-xs font-semibold text-[#17110c] transition hover:brightness-110"
+        className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-3 text-xs font-semibold text-[#17110c] transition hover:brightness-110"
       >
         <Wallet aria-hidden="true" size={14} />
         Connect wallet
@@ -98,7 +98,7 @@ export default function WalletButton() {
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-gold-400/55 px-3 font-mono text-xs text-gold-400 transition hover:border-gold-400 hover:bg-gold-400/5"
+        className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/55 px-3 font-mono text-xs text-gold-400 transition hover:border-gold-400 hover:bg-gold-400/5"
       >
         <Wallet aria-hidden="true" size={14} />
         {short}
@@ -117,7 +117,7 @@ export default function WalletButton() {
               <button
                 type="button"
                 onClick={copyAddress}
-                className="mt-2 flex min-h-10 w-full items-center justify-between gap-3 rounded-md border border-edge bg-void px-3 text-left"
+                className="mt-2 flex min-h-11 sm:min-h-10 w-full items-center justify-between gap-3 rounded-md border border-edge bg-void px-3 text-left"
               >
                 <span className="truncate font-mono text-[11px] text-ink">{address}</span>
                 <Copy aria-hidden="true" size={14} className="shrink-0 text-dim" />
@@ -131,7 +131,7 @@ export default function WalletButton() {
                 type="button"
                 onClick={createSolanaWallet}
                 disabled={busy === "create"}
-                className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-3 text-xs font-semibold text-[#17110c] disabled:opacity-50"
+                className="mt-3 inline-flex min-h-11 sm:min-h-10 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-3 text-xs font-semibold text-[#17110c] disabled:opacity-50"
               >
                 {busy === "create" ? <Loader2 aria-hidden="true" size={14} className="animate-spin" /> : <Wallet aria-hidden="true" size={14} />}
                 Create Solana wallet
@@ -142,7 +142,7 @@ export default function WalletButton() {
                   setOpen(false);
                   linkWallet({ walletChainType: "solana-only" });
                 }}
-                className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+                className="mt-2 inline-flex min-h-11 sm:min-h-10 w-full items-center justify-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
               >
                 <ExternalLink aria-hidden="true" size={14} />
                 Link existing wallet
@@ -155,7 +155,7 @@ export default function WalletButton() {
               href="/portfolio"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex min-h-10 items-center gap-3 rounded-md px-3 text-xs font-medium text-ink transition hover:bg-void"
+              className="flex min-h-11 sm:min-h-10 items-center gap-3 rounded-md px-3 text-xs font-medium text-ink transition hover:bg-void"
             >
               <WalletCards aria-hidden="true" size={15} className="text-dim" />
               Open portfolio
@@ -165,7 +165,7 @@ export default function WalletButton() {
               role="menuitem"
               onClick={signOut}
               disabled={busy === "logout"}
-              className="mt-1 flex min-h-10 w-full items-center gap-3 rounded-md border-t border-edge px-3 text-left text-xs font-medium text-down transition hover:bg-down/5 disabled:opacity-50"
+              className="mt-1 flex min-h-11 sm:min-h-10 w-full items-center gap-3 rounded-md border-t border-edge px-3 text-left text-xs font-medium text-down transition hover:bg-down/5 disabled:opacity-50"
             >
               {busy === "logout" ? <Loader2 aria-hidden="true" size={15} className="animate-spin" /> : <LogOut aria-hidden="true" size={15} />}
               Sign out

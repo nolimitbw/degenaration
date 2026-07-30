@@ -134,7 +134,7 @@ export function Segmented<T extends string>({
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`min-w-14 rounded-sm px-3 text-xs font-medium transition ${
+          className={`min-h-11 min-w-14 rounded-sm px-3 text-xs font-medium transition sm:min-h-8 ${
             value === option.value ? "bg-gold-400 text-[#17110c]" : "text-dim hover:text-ink"
           }`}
         >

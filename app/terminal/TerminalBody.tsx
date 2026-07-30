@@ -486,7 +486,7 @@ export default function TerminalBody() {
           <div className="w-full max-w-md rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">{preview?.side === "sell" ? "Sell preview" : "Buy preview"}</h3>
-              <button onClick={closePreview} disabled={executing} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink disabled:cursor-not-allowed disabled:opacity-40">x</button>
+              <button onClick={closePreview} disabled={executing} aria-label="Close" className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink disabled:cursor-not-allowed disabled:opacity-40">x</button>
             </div>
             {previewLoading ? (
               <div className="flex items-center justify-center gap-2 py-8 text-sm text-dim"><span className="h-4 w-4 animate-spin rounded-full border-2 border-edge border-t-gold-400" /> Fetching quote…</div>

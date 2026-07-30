@@ -55,7 +55,7 @@ function Notifications() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative grid h-10 w-10 place-items-center rounded-md border border-edge text-dim transition hover:border-gold-400/60 hover:text-ink"
+        className="relative grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim transition hover:border-gold-400/60 hover:text-ink"
         aria-label="Notifications"
         aria-expanded={open}
       >
@@ -110,7 +110,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim lg:hidden"
+            className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim lg:hidden"
             aria-label="Open navigation"
           >
             <Menu aria-hidden="true" size={19} />
@@ -153,7 +153,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {admin && (
               <Link
                 href="/admin"
-                className={`grid h-10 w-10 place-items-center rounded-md border transition ${
+                className={`grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border transition ${
                   isActivePath(path, "/admin") ? "border-gold-400/60 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"
                 }`}
                 aria-label="Owner console"
@@ -180,7 +180,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             <div className="flex items-center justify-between">
               <Logo />
-              <button type="button" onClick={() => setMobileOpen(false)} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim" aria-label="Close navigation">
+              <button type="button" onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim" aria-label="Close navigation">
                 <X aria-hidden="true" size={19} />
               </button>
             </div>

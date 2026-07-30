@@ -135,7 +135,7 @@ export default function BotManagerPage() {
           <span><strong className="text-gold-400">{counts.paused}</strong> paused</span>
           <span><strong className="text-ink">{counts.drafts}</strong> drafts</span>
         </div>
-        <button type="button" onClick={load} className="ml-auto grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh bots">
+        <button type="button" onClick={load} className="ml-auto grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh bots">
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>
@@ -192,13 +192,13 @@ export default function BotManagerPage() {
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-1">
                           {isBusy ? (
-                            <span className="grid h-9 w-9 place-items-center"><Loader2 size={15} className="animate-spin text-gold-400" /></span>
+                            <span className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9"><Loader2 size={15} className="animate-spin text-gold-400" /></span>
                           ) : (
                             <>
-                              <Link href={editHref} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Edit ${bot.name}`} title="Edit"><Edit3 size={14} /></Link>
-                              <Link href={`/portfolio?bot=${bot.id}&view=positions`} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`View ${bot.name} positions`} title="Positions"><Eye size={14} /></Link>
+                              <Link href={editHref} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Edit ${bot.name}`} title="Edit"><Edit3 size={14} /></Link>
+                              <Link href={`/portfolio?bot=${bot.id}&view=positions`} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`View ${bot.name} positions`} title="Positions"><Eye size={14} /></Link>
                               {bot.status === "active" ? (
-                                <button type="button" onClick={() => saveBot(bot, "paused")} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-gold-400" aria-label={`Pause ${bot.name}`} title="Pause entries"><Pause size={14} /></button>
+                                <button type="button" onClick={() => saveBot(bot, "paused")} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-gold-400" aria-label={`Pause ${bot.name}`} title="Pause entries"><Pause size={14} /></button>
                               ) : bot.status !== "archived" && (
                                 <button
                                   type="button"
@@ -211,10 +211,10 @@ export default function BotManagerPage() {
                                 </button>
                               )}
                               {bot.kind === "kol" && bot.status !== "archived" && (
-                                <button type="button" onClick={() => saveBot(bot, "draft", true)} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Duplicate ${bot.name}`} title="Duplicate as draft"><Copy size={14} /></button>
+                                <button type="button" onClick={() => saveBot(bot, "draft", true)} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Duplicate ${bot.name}`} title="Duplicate as draft"><Copy size={14} /></button>
                               )}
                               {bot.status !== "archived" && (
-                                <button type="button" onClick={() => saveBot(bot, "archived")} disabled={(bot.openTrades || 0) > 0} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-down disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Archive ${bot.name}`} title={(bot.openTrades || 0) > 0 ? "Close positions before archiving" : "Archive"}><Archive size={14} /></button>
+                                <button type="button" onClick={() => saveBot(bot, "archived")} disabled={(bot.openTrades || 0) > 0} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-down disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Archive ${bot.name}`} title={(bot.openTrades || 0) > 0 ? "Close positions before archiving" : "Archive"}><Archive size={14} /></button>
                               )}
                             </>
                           )}

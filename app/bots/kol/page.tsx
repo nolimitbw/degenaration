@@ -104,7 +104,7 @@ export default function KolMarketplacePage() {
             <option value="fee">Lowest fee</option>
           </select>
         </label>
-        <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh strategies">
+        <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh strategies">
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>

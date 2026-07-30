@@ -92,7 +92,7 @@ function ConfirmDialog({
             <p className="font-mono text-[9px] uppercase text-gold-400">Privileged action</p>
             <h2 id="admin-action-title" className="mt-2 text-base font-semibold text-ink">{action.title}</h2>
           </div>
-          <button type="button" onClick={onCancel} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Close confirmation">
+          <button type="button" onClick={onCancel} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label="Close confirmation">
             <X size={16} />
           </button>
         </header>

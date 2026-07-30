@@ -178,7 +178,7 @@ function ApplicationRow({ app, act }: { app: Application; act: (action: AdminAct
       <p className="line-clamp-2 text-xs leading-5 text-dim">{app.pitch || "No application note supplied."}</p>
       <div className="flex flex-wrap gap-2">
         {inviteUrl && (
-          <a href={inviteUrl} target="_blank" rel="noreferrer" className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Open ${app.server_name} invite`}>
+          <a href={inviteUrl} target="_blank" rel="noreferrer" className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Open ${app.server_name} invite`}>
             <ExternalLink size={14} />
           </a>
         )}

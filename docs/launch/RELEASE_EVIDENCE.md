@@ -53,6 +53,26 @@ responsive sizing so mobile meets 44px while desktop keeps professional density 
 verified 44px at 375px and 32px at 1024px. Bare number inputs measuring 20px were
 assessed as false positives; their bordered wrapper is the tap target.
 
+### Second pass — `/bots/discord` at 375px
+
+The first pass only covered `/`. Auditing the redesigned marketplace route found **10 more
+sub-44px controls that the homepage fix had not touched**, including the shared
+`Segmented` timeframe control at **30px** — used on Discord, KOL, Portfolio, and Affiliate,
+so one component was under-sized on four surfaces.
+
+Fixed in the shared primitives rather than per page: `Segmented`, the app-shell menu /
+notifications / admin / wallet controls, and every `h-9`/`h-10` icon button across 13
+files. All raised to 44px up to `sm` and returning to compact size above it.
+
+| Route | Width | Overflow | Off-screen controls | Sub-44px buttons |
+|---|---|---|---|---|
+| `/bots/discord` | 375 | none | 0 | **0** (10 before) |
+| `/bots/discord` | 1440 | none | 0 | compact by design — Segmented 32px, refresh 40px |
+
+Cards render one per row at 343px on mobile and two per row on wide desktop, per §8.3.
+Verified with a stubbed marketplace response covering a measured and an unmeasured source.
+No console errors at either width.
+
 ### Copy changes confirmed on the rendered page
 
 Read back from `document.body.innerText`, not from source:
