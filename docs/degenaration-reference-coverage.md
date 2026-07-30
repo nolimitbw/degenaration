@@ -114,6 +114,8 @@ against the previous revision's claims:
 | MC Distribution view | R5 | **NOT IMPLEMENTED, deliberately.** Needs per-position market cap data that no wired provider returns. Inventing the distribution is what §9.6 and §23 forbid. |
 | Swaps tab | R5 | **Equivalent exists.** R5 has Portfolio / Trades / Swaps; DegenAration has Overview / Positions / Trades / Deposits & withdrawals, which covers the same records with an extra cash-movement view. |
 | Stored screenshot evidence per surface | §22.6 | Open. Authenticated routes need a real session. Responsive audit results are in `docs/launch/RELEASE_EVIDENCE.md`. |
+| Affiliate metric explanations and FAQ | R1 | **CLOSED.** R1 puts an info affordance on every metric and answers recurring questions as collapsed inline items. Both added; answers are generated from the account's real rate, minimum payout, and processing fee. |
+| Bot manager operational columns | R4 | **PARTIAL.** 30D volume, max capital, and trades-used-of-max added — `volumeLamports` was already in the payload and simply never rendered. **Gas fees is genuinely absent from `ProductBot`** and was not invented; it needs an API field. |
 
 ## Lesson recorded
 

@@ -24,7 +24,7 @@ import {
   StatusPill
 } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
-import { productFetch, type BotKind, type ProductBot } from "@/lib/product-api";
+import { formatSol, productFetch, type BotKind, type ProductBot } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 const TABS = [
@@ -162,9 +162,9 @@ export default function BotManagerPage() {
                   <th className="px-4 py-3">Bot</th>
                   <th className="px-4 py-3">Source / Strategy</th>
                   <th className="px-4 py-3">Version</th>
-                  <th className="px-4 py-3">Open</th>
+                  <th className="px-4 py-3">Trades</th>
                   <th className="px-4 py-3">Followers</th>
-                  <th className="px-4 py-3">30D net PnL</th>
+                  <th className="px-4 py-3">30D net PnL</th><th className="px-4 py-3">30D volume</th><th className="px-4 py-3">Max capital</th>
                   <th className="px-4 py-3">Updated</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -185,9 +185,9 @@ export default function BotManagerPage() {
                         <p className="mt-1 font-mono text-[9px] uppercase text-dim">{bot.kind}{bot.moderationStatus ? ` · ${bot.moderationStatus}` : ""}</p>
                       </td>
                       <td className="px-4 py-4 font-mono text-ink">v{bot.version || 1}</td>
-                      <td className="px-4 py-4 font-mono text-ink">{bot.openTrades || 0}</td>
+                      <td className="px-4 py-4 font-mono text-ink">{bot.openTrades || 0}<span className="text-dim">/{Number(bot.config?.maxOpenTrades) || "--"}</span></td>
                       <td className="px-4 py-4 font-mono text-ink">{bot.followers || 0}</td>
-                      <td className="px-4 py-4 font-mono text-dim">{bot.netPnlLamports == null ? "--" : `${(Number(bot.netPnlLamports) / 1e9).toFixed(3)} SOL`}</td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.netPnlLamports == null ? "--" : `${(Number(bot.netPnlLamports) / 1e9).toFixed(3)} SOL`}</td><td className="px-4 py-4 font-mono text-dim">{bot.volumeLamports == null ? "--" : formatSol(bot.volumeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{bot.config?.maximumCapitalLamports == null ? "--" : formatSol(bot.config.maximumCapitalLamports)}</td>
                       <td className="px-4 py-4 font-mono text-[10px] text-dim">{new Date(bot.updated_at || bot.updatedAt || Date.now()).toLocaleDateString()}</td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-1">
