@@ -7,3 +7,6 @@ server/.env
 *.log
 .DS_Store
 .vercel
+
+# Extracted video contact sheets: large binaries, kept on Desktop instead
+docs/reference-frames/
