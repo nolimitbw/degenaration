@@ -28,7 +28,7 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 16 | Claude review subagents | §4.0A | PASS | `.claude/agents/degenaration-{ui,financial,performance,release}-*.md` |
 | 17 | Repository skills | §4.2 | PASS | `.agents/skills/degenaration-{financial-integrity,ui,performance-journal,release-audit}/SKILL.md` |
 | 18 | Launch documentation set | §4.3 | PASS | All 9 written under `docs/launch/` |
-| 19 | Visual regression evidence | §22.6 | PARTIAL | `38d8284`; programmatic audit at all four required widths — no overflow, no off-screen controls, 9 sub-44px touch targets found and fixed. 5 routes observed live incl. Discord cards with stubbed data. **No stored PNG set — authenticated routes need a real session** |
+| 19 | Visual regression evidence | §22.6 | **PASS (production evidence)** | `38d8284` responsive audit at all four widths, 0 overflow, 9 sub-44px targets fixed. **Authenticated-route evidence now exists**: 12 frames extracted from the owner's 61.6s current-build recording of the live site while signed in, covering Discord Sources, the bot builder, Affiliate, and Portfolio. Preserved at `~/Desktop/DEGENARATION/SETTINGS AND FUNCTIONS IDEA/extracted-frames/current-build-2026-07-30/` with `extract.swift`. See `docs/launch/REFERENCE_MATRIX.md` |
 | 20 | Release gates | §24 | PARTIAL | `npm run check` exit 0 gates typecheck, lint, 104 tests, fee + journal invariants, command registry, public copy, build. **Migrations applied and verified; RLS/authorization audited live; Supabase security + performance advisors run** — see `docs/launch/DATABASE_AUDIT.md`. Remaining: browser e2e on authenticated routes |
 
 ## Readiness
