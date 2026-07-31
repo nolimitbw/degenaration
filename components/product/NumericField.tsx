@@ -47,12 +47,33 @@ type BaseProps = {
 function useNumericText({ value, onChange, min, max, decimals, allowNegative }: BaseProps & { decimals: number }) {
   const [text, setText] = useState(() => format(value, decimals));
   const editing = useRef(false);
+  // The last value THIS field emitted. Anything else arriving in `value` came from outside
+  // — a stepper button, an amount preset, a form reset — and must be shown even mid-edit.
+  const emitted = useRef(value);
 
-  // Resync when the value changes from outside (form reset, loading a saved bot) — but
-  // never while the user is mid-edit, or their caret and partial input would be destroyed.
+  // Resync when the value changes from outside. Skipping this while `editing` was the
+  // original rule, and it was too broad: the stepper and the SOL presets set the parent
+  // value without touching this field's text, so if the input still had focus the effect
+  // refused to update and the box displayed a stale number while the real value moved.
+  //
+  // Chrome hides this because clicking a button blurs the input first. SAFARI DOES NOT
+  // FOCUS BUTTONS ON CLICK, so there the field simply appears frozen while + and − change
+  // the amount underneath it — on the buy-amount control.
+  //
+  // Comparing against `emitted` keeps the property that mattered: the user's own typing
+  // never resyncs (we emitted that value ourselves), so a cleared field stays cleared and
+  // a half-typed "0." keeps its caret.
+  useEffect(() => {
+    if (value === emitted.current) return;
+    emitted.current = value;
+    setText(format(value, decimals));
+  }, [value, decimals]);
+
+  // A decimals change alone must still reformat, which the guard above would skip.
   useEffect(() => {
     if (!editing.current) setText(format(value, decimals));
-  }, [value, decimals]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decimals]);
 
   const rules = { decimals, min, max, allowNegative };
 
@@ -65,12 +86,16 @@ function useNumericText({ value, onChange, min, max, decimals, allowNegative }: 
       // exactly the same gate.
       if (!isEditable(next, rules)) return;
       setText(next);
-      if (isCommittable(next)) onChange(Number(next));
+      if (isCommittable(next)) {
+        emitted.current = Number(next);
+        onChange(Number(next));
+      }
     },
     onBlur: () => {
       editing.current = false;
       const resolved = resolveOnBlur(text, rules);
       setText(resolved.text);
+      emitted.current = resolved.value;
       if (resolved.value !== value) onChange(resolved.value);
     }
   };
