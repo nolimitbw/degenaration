@@ -115,13 +115,61 @@ test("fee label renders as 2.00%", () => {
 });
 
 // The database trigger app_private.validate_execution_fees() recomputes every fee and
-// rejects the row if it disagrees. These vectors pin lib/fee-model.js to the exact SQL
-// formulas in supabase/degenaration-fee-allocation-integrity.sql so a write built in JS
-// can never be rejected by the trigger.
+// rejects the row if it disagrees. These vectors pin lib/fee-model.js to the SQL formulas
+// in supabase/degenaration-fee-allocation-integrity.sql so a write built in JS can never be
+// rejected by the trigger.
+//
+// HOW MUCH THIS PROVES, precisely. `sqlFloorBps` below is a JS RESTATEMENT of the SQL
+// expression, not the SQL itself — these tests run with no database, so they cannot be
+// anything else. On its own that only shows lib/fee-model.js agrees with a transcription,
+// and it would keep passing if the deployed SQL ever diverged from it.
+//
+// The gap is closed by LIVE_SQL_VECTORS below: values executed against the deployed
+// database on 2026-07-31 and pasted back as literals. Those are real observations, so a
+// divergence between the JS model and production shows up here rather than in a ledger.
+// Re-capture them with:
+//
+//   select notional,
+//          floor(notional::numeric * 200 / 10000)::bigint,
+//          floor(notional::numeric *  70 / 10000)::bigint,
+//          floor(notional::numeric *  20 / 10000)::bigint,
+//          floor(floor(notional::numeric * 200 / 10000)::numeric * 1000 / 10000)::bigint
+//
 console.log("fee model parity with the database trigger");
 
-// floor(gross::numeric * bps / 10000)::bigint
+// floor(gross::numeric * bps / 10000)::bigint — a transcription, see the note above.
 const sqlFloorBps = (amount, bps) => (BigInt(amount) * BigInt(bps)) / BigInt(10000);
+
+// [notional, platform@200, creator@70, creator@20, referral@1000-of-fee]
+// Captured from the LIVE database, not computed here.
+const LIVE_SQL_VECTORS = [
+  [1, 0, 0, 0, 0], [3, 0, 0, 0, 0], [7, 0, 0, 0, 0], [33, 0, 0, 0, 0],
+  [99, 1, 0, 0, 0], [100, 2, 0, 0, 0], [333, 6, 2, 0, 0], [999, 19, 6, 1, 1],
+  [1000, 20, 7, 2, 2], [3333, 66, 23, 6, 6], [4999, 99, 34, 9, 9],
+  [5000, 100, 35, 10, 10], [9999, 199, 69, 19, 19], [10000, 200, 70, 20, 20],
+  [33333, 666, 233, 66, 66], [333333, 6666, 2333, 666, 666],
+  [3333333, 66666, 23333, 6666, 6666], [33333333, 666666, 233333, 66666, 66666],
+  [123456789, 2469135, 864197, 246913, 246913],
+  [333333333, 6666666, 2333333, 666666, 666666],
+  [1000000000, 20000000, 7000000, 2000000, 2000000],
+  [1500000007, 30000000, 10500000, 3000000, 3000000],
+  [7777777777, 155555555, 54444444, 15555555, 15555555],
+  [999999999999, 19999999999, 6999999999, 1999999999, 1999999999]
+];
+
+test("fee model matches values captured from the LIVE database", () => {
+  for (const [notional, platform, creatorDiscord, creatorKol, referral] of LIVE_SQL_VECTORS) {
+    const n = BigInt(notional);
+    const d = feeModel.allocatePlatformFee({ notionalLamports: n, sourceKind: "discord", referralEligible: true });
+    const k = feeModel.allocatePlatformFee({ notionalLamports: n, sourceKind: "kol", referralEligible: true });
+    assert.strictEqual(d.platformFeeLamports, BigInt(platform), `platform fee at notional ${notional}`);
+    assert.strictEqual(d.creatorLamports, BigInt(creatorDiscord), `discord creator at notional ${notional}`);
+    assert.strictEqual(k.creatorLamports, BigInt(creatorKol), `kol creator at notional ${notional}`);
+    assert.strictEqual(d.referralLamports, BigInt(referral), `referral at notional ${notional}`);
+    assert.ok(feeModel.isBalancedAllocation(d), `discord allocation balances at ${notional}`);
+    assert.ok(feeModel.isBalancedAllocation(k), `kol allocation balances at ${notional}`);
+  }
+});
 
 test("platform fee matches the SQL expected_platform formula", () => {
   for (const notional of [HUNDRED_SOL, SOL, lam(123456789), lam(12345), lam(50), lam(1)]) {
