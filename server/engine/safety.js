@@ -102,6 +102,22 @@ function evaluateSafety(input) {
     const min = num(config.min);
     const max = num(config.max);
     if (min !== null && value < min) reasons.push(`${key} ${value} below configured minimum ${min}`);
+    // `max: 0` means NO MAXIMUM here, not "a maximum of zero". That convention is what the
+    // `max > 0` guard implements, and the suite pins it: a liquidity filter of
+    // { min: 100000, max: 0 } is expected to pass. The builder ships positive defaults, and
+    // clearing a max field resolves it to 0 — so treating 0 as a real ceiling would block
+    // EVERY token for that bot.
+    //
+    // This was nearly "fixed" as a copy of the clamp() bug in lib/numeric-input.js, which
+    // looked identical. It is not the same: there, no caller used 0 to mean unbounded and
+    // the guard only hid a bug; here it IS the contract. The existing test is what caught
+    // the mistake.
+    //
+    // The residual sharp edge, recorded rather than silently changed: a user who genuinely
+    // wants "priceChangeBps at most 0" (nothing that has already pumped) cannot express it,
+    // because 0 reads as unbounded. Fixing that needs a distinct sentinel — null for
+    // unbounded, 0 for zero — across the builder, the stored config and this module, which
+    // is a config migration, not a one-line change.
     if (max !== null && max > 0 && value > max) reasons.push(`${key} ${value} above configured maximum ${max}`);
   }
 
