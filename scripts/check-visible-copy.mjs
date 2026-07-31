@@ -100,6 +100,62 @@ for (const file of files) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Second pass: API error strings that reach the public UI.
+//
+// lib/server/ is exempt above, which is correct for genuinely server-only text — but it
+// is ALSO where the product APIs build their `error` fields, and lib/product-api.ts
+// `parseResponse` throws that field VERBATIM for the dashboards to render. So
+// "server not configured" and "database request failed" were user-visible while sitting
+// in an exempt directory. The bot builder was observed displaying the first one.
+//
+// This pass scans only the paths whose errors are consumed by productFetch, so it stays
+// low-noise: bot/admin endpoints may keep technical errors, since no public UI shows them.
+const API_ERROR_DIRS = [join("app", "api", "product"), join("lib", "server", "app-bridge.ts")];
+const INTERNAL_VOCAB = [
+  "database", "supabase", "postgres", "rpc", "not configured", "env var",
+  "service role", "admin_key", "secret", "bridge", "internal error", "stack"
+];
+
+const apiFiles = [];
+for (const target of API_ERROR_DIRS) {
+  const full = join(root, target);
+  try {
+    if (statSync(full).isDirectory()) walkAll(full, apiFiles);
+    else apiFiles.push(full);
+  } catch { /* path absent — nothing to scan */ }
+}
+
+function walkAll(dir, out) {
+  for (const entry of readdirSync(dir)) {
+    if (entry === "node_modules" || entry.startsWith(".")) continue;
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) walkAll(full, out);
+    else if (/\.(tsx|ts)$/.test(entry)) out.push(full);
+  }
+}
+
+console.log(`\napi error copy (${apiFiles.length} files)`);
+
+for (const file of apiFiles) {
+  const rel = relative(root, file);
+  readFileSync(file, "utf8").split("\n").forEach((line, index) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
+    // Only string literals assigned to an `error` field cross to the client.
+    const match = line.match(/error:\s*"([^"]+)"/);
+    if (!match) return;
+    const message = match[1].toLowerCase();
+    for (const term of INTERNAL_VOCAB) {
+      if (message.includes(term)) {
+        failures += 1;
+        console.log(`  FAIL ${rel}:${index + 1} — user-visible API error leaks internal language: "${match[1]}"`);
+        break;
+      }
+    }
+  });
+}
+
 if (failures > 0) {
   console.error(`\ncheck-visible-copy: ${failures} problem(s)`);
   process.exit(1);
