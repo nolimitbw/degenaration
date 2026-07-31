@@ -29,30 +29,34 @@ const TABS = [
 
 export default function BotsPage() {
   const { authenticated, getAccessToken } = usePrivy();
-  const [bots, setBots] = useState<ProductBot[]>([]);
+  // null = unknown (still loading, or the request failed). Never [] on failure: an empty
+  // array renders as a confident 0, which tells the user something false.
+  const [bots, setBots] = useState<ProductBot[] | null>(null);
   const [sourceCount, setSourceCount] = useState<number | null>(null);
   const [strategyCount, setStrategyCount] = useState<number | null>(null);
 
   useEffect(() => {
     productFetch<{ sources: unknown[] }>("/api/product/marketplace/discord")
       .then((data) => setSourceCount(data.sources?.length || 0))
-      .catch(() => setSourceCount(0));
+      // Leave it null so the metric shows "--". Reporting 0 approved sources when the
+      // request merely failed states the opposite of the truth — there are two.
+      .catch(() => setSourceCount(null));
     productFetch<{ strategies: unknown[] }>("/api/product/marketplace/kol")
       .then((data) => setStrategyCount(data.strategies?.length || 0))
-      .catch(() => setStrategyCount(0));
+      .catch(() => setStrategyCount(null));
   }, []);
 
   useEffect(() => {
     if (!authenticated) {
-      setBots([]);
+      setBots(null);
       return;
     }
     productFetch<{ bots: ProductBot[] }>("/api/product/bots", { getAccessToken })
       .then((data) => setBots(data.bots || []))
-      .catch(() => setBots([]));
+      .catch(() => setBots(null));
   }, [authenticated, getAccessToken]);
 
-  const active = bots.filter((bot) => bot.status === "active").length;
+  const active = (bots ?? []).filter((bot) => bot.status === "active").length;
 
   return (
     <AppShell>
@@ -130,8 +134,8 @@ export default function BotsPage() {
 
       <section className="mt-6 border-y border-edge bg-panel/40">
         <div className="grid divide-y divide-edge md:grid-cols-3 md:divide-x md:divide-y-0">
-          <Metric label="Your bots" value={authenticated ? bots.length : "--"} detail={authenticated ? "Discord and KOL" : "Connect to view"} />
-          <Metric label="Active now" value={authenticated ? active : "--"} tone={active ? "positive" : "default"} detail="Entries remain globally gated" />
+          <Metric label="Your bots" value={authenticated ? bots?.length ?? "--" : "--"} detail={authenticated ? "Discord and KOL" : "Connect to view"} />
+          <Metric label="Active now" value={authenticated && bots ? active : "--"} tone={active ? "positive" : "default"} detail="Entries remain globally gated" />
           <Metric label="Safety posture" value="Fail closed" detail="Stale or missing required evidence rejects entry" />
         </div>
       </section>
