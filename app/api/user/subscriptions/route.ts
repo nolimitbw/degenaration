@@ -27,6 +27,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const groupId = typeof body?.group_id === "string" ? body.group_id : "";
   if (!isUuid(groupId)) return NextResponse.json({ error: "invalid group" }, { status: 400 });
+  // Defaults to ENABLED when the field is absent. That is correct only because there is no
+  // pause: a copy subscription is created/updated (always on) or deleted, and `saveCopySub`
+  // in lib/queries.ts does not even accept `enabled` in its type, so it can never send it.
+  //
+  // IF A PAUSE IS EVER ADDED, this line silently re-enables a paused subscription on any
+  // settings edit — the bot resumes spending money without the user asking. Add `enabled`
+  // to the client type and read it explicitly before shipping that feature.
+  //
+  // Defaulting on is otherwise the guarded direction here: `enabled` requires a wallet_id
+  // and full ownership verification below, so it routes into MORE checks, not fewer.
   const enabled = body?.enabled !== false;
   const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
   const userPubkey = typeof body?.user_pubkey === "string" ? body.user_pubkey : "";

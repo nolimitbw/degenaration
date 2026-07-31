@@ -26,6 +26,16 @@ export async function POST(req: NextRequest) {
   const leader = body?.leader_wallet;
   const userPubkey = body?.user_pubkey;
   if (!isMint(leader) || !isMint(userPubkey)) return NextResponse.json({ error: "invalid wallet" }, { status: 400 });
+  // Defaults to ENABLED when the field is absent. That is correct only because there is no
+  // pause: a copy subscription is created/updated (always on) or deleted, and `saveCopySub`
+  // in lib/queries.ts does not even accept `enabled` in its type, so it can never send it.
+  //
+  // IF A PAUSE IS EVER ADDED, this line silently re-enables a paused subscription on any
+  // settings edit — the bot resumes spending money without the user asking. Add `enabled`
+  // to the client type and read it explicitly before shipping that feature.
+  //
+  // Defaulting on is otherwise the guarded direction here: `enabled` requires a wallet_id
+  // and full ownership verification below, so it routes into MORE checks, not fewer.
   const enabled = body?.enabled !== false;
   const walletId = typeof body?.wallet_id === "string" ? body.wallet_id.slice(0, 160) : "";
   if (enabled && !walletId) {
