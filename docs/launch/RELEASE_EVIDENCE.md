@@ -334,6 +334,51 @@ existing case, so the count alone would not have shown whether they ran. That di
 the same one that made the JSX regex, the git trailer split, and the RLS probe all read as
 passes while checking nothing.
 
+### The fee was being charged against the wrong mint
+
+Continuing the self-review into `lib/server/fee-account.ts` — the file that decides whether
+a fee is charged and where it lands — found the most consequential defect of the session.
+
+The resolver was called with the swap's **input** mint. Jupiter collects the ExactIn
+platform fee in the **output** mint, and this app sends no `swapMode`, so every swap is
+ExactIn. Confirmed against the live quote endpoint rather than from documentation:
+
+```
+GET /swap/v1/quote  SOL -> BONK  amount=10000000  platformFeeBps=200
+  swapMode    : ExactIn
+  platformFee : {"amount": "511657893", "feeBps": 200}
+```
+
+`511657893` is BONK at 5 decimals. Two percent of the SOL input would be 200000 lamports.
+The fee is denominated in the token received.
+
+**The worker was the dangerous half.** It probed only that `PLATFORM_FEE_ACCOUNT` was some
+initialised token account, then attached it to every swap. On a buy that hands Jupiter a
+wSOL account while the fee is collected in the token being bought — and since Jupiter does
+not validate `feeAccount`, the transaction builds and then fails **on chain**. That is
+precisely the failure the guard was written to prevent, slipping through because the guard
+was checking the wrong mint.
+
+Both fixed. The route resolves against `outputMint`; the worker records the configured
+account's mint at probe time and requests the fee only when the swap's output matches it.
+
+Verified after deploy — both legs still build with the fee correctly skipped, and the
+resolver now targets a different account per leg:
+
+| Leg | Output | Fee account |
+|---|---|---|
+| Sell (BONK → SOL) | wSOL | `AuFCZDtr7PaZxEitCPzKpQZdkRLnpKZxK6Y4MpxAZhDj` — the one tracked in B-1 |
+| Buy (SOL → BONK) | BONK | `97zMsUNUks8h9716eiVUQZ8dsF8DDVppjeemHVGQsQcH` |
+
+**This corrects guidance given repeatedly earlier in this session.** Creating the wSOL
+account was described as the single remaining step for fee collection. It is worth creating
+and it enables the **sell** leg, but it was never going to collect on buys. Charging buys as
+well means an account per token traded and dust across all of them; that is a business
+decision, and Jupiter's Referral Program is the mechanism for it.
+
+Gate tests verified by removal: the BONK-output case fails without the mint check and
+passes once restored.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
