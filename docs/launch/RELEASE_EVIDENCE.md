@@ -442,6 +442,40 @@ that had been living in seven places.
 the validity gate, and `save()` filters on `n > 0`, so an empty or half-typed preset is
 dropped rather than saved as a zero-SOL buy button.
 
+### The withdrawal validator could approve more than the balance
+
+The self-review reached the code that moves user funds. `spendableLamports` subtracted
+`locked` and `pending` without flooring them, so a negative value **added**:
+
+```
+balance 1 SOL, locked -1 SOL  ->  spendable ~2 SOL
+validateWithdrawal then APPROVED 1.5 SOL against a 1 SOL balance
+```
+
+Those figures come from the database, so this guards an accounting bug or a reversal race
+rather than a hostile caller — which is exactly when a silent over-approval is hardest to
+notice. The chain would reject such a transfer, but bounding what can move is this module's
+whole purpose; it should not issue a transaction that cannot settle.
+
+Deductions are now floored at zero and the result capped at balance minus the reserve, so
+no combination of inputs can exceed what the account holds.
+
+**The idempotency key protects nothing, and its comment said it did.** It read "Stable key
+so a retried submission can never create a second transfer". The route returns it and
+nothing consumes it — there is no store of used keys. The comment now records what actually
+prevents a double withdrawal (submit disabled in flight; the user signs every transaction;
+the server holds no keys) and what making it real would require, including the per-attempt
+`requestId` the client does not send — without which two deliberate identical withdrawals
+would collide on one key and the second be refused.
+
+This is the same shape as the database audit asserting "policy denies" for an operation RLS
+does not cover: a claim that reads as protection while nothing enforces it.
+
+**A break-test that proved nothing.** The first attempt removed only the negative floor and
+the suite still passed — the floor and the balance ceiling cover each other, so removing one
+guard proves nothing. Restoring the entire original function fails the suite; the fix passes.
+Sixth instance this session of a check that had to be checked.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
