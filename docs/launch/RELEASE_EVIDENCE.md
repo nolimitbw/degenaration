@@ -241,6 +241,34 @@ but their empty state reads "unapproved, suspended, removed, **or temporarily un
 which already covers a load failure honestly. The API routes' `req.json().catch(() => null)`
 is correct — that is bad-input handling, not a swallowed failure.
 
+### Internal language reaching the public UI
+
+Tracing why the builder had displayed `server not configured` found the general case, not
+just that one string. `lib/product-api.ts` `parseResponse` throws the server's `error` field
+verbatim, and the Portfolio and Affiliate dashboards render whatever it throws — so three
+`lib/server/app-bridge.ts` strings were public, including `database request failed`, which
+names the architecture outright.
+
+Users now read "This is temporarily unavailable. Please try again shortly." Operator detail
+is not lost; it moves to the server log with the operation name:
+
+```
+[app-bridge] app_public_list_discord_marketplace: SUPABASE_URL or ADMIN_KEY is not set
+```
+
+Business errors from the edge function still pass through — those are user-actionable.
+
+**Why the checker missed it.** `check-visible-copy` exempts `lib/server/`, correct for
+server-only text but also where the product APIs build client-bound error fields. A second
+pass now scans `app/api/product/` and `app-bridge` for internal vocabulary in `error:`
+literals, scoped so bot and admin endpoints may keep technical errors.
+
+The new rule was verified **by breaking it** — reintroducing `server not configured` fails
+at the exact line, removing it passes. A check that has never failed proves nothing; the
+JSX regex in this project silently matched nothing three separate times.
+
+Verified after deploy: production marketplace still returns 2 sources, no error.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
