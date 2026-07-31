@@ -68,7 +68,33 @@ Claude Code cannot process video. The five `.mov` files are reviewable only beca
 extracted them into timestamped contact sheets, now preserved at
 `~/Desktop/DEGENARATION/SETTINGS AND FUNCTIONS IDEA/extracted-frames/`.
 
-**The new recording `Screen Recording 2026-07-30 at 7.11.08 PM.mov` is UNREVIEWED.** No
-`ffmpeg` is installed, so no frames could be extracted from it. Its stated defects were
-audited from the code instead, which is how the numeric-input bug above was found and
-confirmed.
+### The current-build recording — NOW REVIEWED
+
+`Screen Recording 2026-07-30 at 7.11.08 PM.mov` (61.6s) was initially unreadable: no
+`ffmpeg`, and every path lookup failed because the filename contains **U+202F, a narrow
+no-break space**, before "PM" rather than a normal space.
+
+Extracted with macOS-native AVFoundation via a small Swift program — no new dependency.
+12 evenly-spaced frames are preserved at
+`~/Desktop/DEGENARATION/SETTINGS AND FUNCTIONS IDEA/extracted-frames/current-build-2026-07-30/`
+along with `extract.swift` so it is repeatable.
+
+**What it shows: the deployed site, with this remediation's work live and working.**
+
+| Observed at | Confirms |
+|---|---|
+| Discord Sources (0:12) | Redesigned cards live — real server avatars for DegenAration and SLPR DEGEN, `APPROVED` badge, `● Connected` health dot **with text**, five-metric row, four-bucket distribution, `Tracking started Jul 18 at 12:03 PM`, `Creator share included in 2% fee`. §6.2 header copy. Nav is exactly Bots / Affiliate / Portfolio |
+| Bot builder (0:33) | §11 ordering live — Stop loss → Security filters → **Execution and retries last**. §11.3 summary shows `Maximum exposure`, and a **single** `Platform fee ⓘ 0.00%` row; the additive creator-fee row is gone. `Automated trading not yet available` |
+| Affiliate (0:48) | §6.2 copy, info affordance on all four metrics, `COMMISSION RATE 0.70%`, clean `No earnings in this period` empty state, `SIGNED-IN CREATOR flipthatsol@gmail.com` — the admin identity working in production |
+
+**Two things the recording proves that were previously only inferred:**
+
+1. `Platform fee 0.00%` renders on the live site, which is the honest result of
+   `PLATFORM_FEE_ACCOUNT` being unset — and confirms the hard-coded `0` bug is fixed in
+   production.
+2. The Discord metrics are dashes with `0 measured` and a real `Tracking started` date.
+   That is exactly the empty-journal state predicted from the database, not a UI fault.
+
+**Not visible in the recording, and therefore still unverified by it:** the PnL share flow,
+and the numeric-input fix — the latter because it was committed *after* this deploy and is
+**not yet in production**.
