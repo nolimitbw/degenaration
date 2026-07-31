@@ -98,3 +98,27 @@ along with `extract.swift` so it is repeatable.
 **Not visible in the recording, and therefore still unverified by it:** the PnL share flow,
 and the numeric-input fix — the latter because it was committed *after* this deploy and is
 **not yet in production**.
+
+### Correction — the recording also showed a defect, which sampling missed
+
+The table above was written from 12 evenly-spaced frames. Reviewing **all** of them found a
+user-blocking bug the sample had skipped, so the row reading "this remediation's work live
+and working" was true but incomplete.
+
+| Observed at | Defect |
+|---|---|
+| Bot builder (0:23) | `APPROVED DISCORD SOURCE` reads **"No options available"**, and the summary says `Source - Not selected` / `Source required` - while the marketplace **in the same recording** lists two approved sources |
+
+The endpoint was never at fault; the live API returns both. `BotBuilder.tsx` used
+`.catch(() => setSources([]))`, so a failed load became an empty list, indistinguishable
+from "no approved sources exist" - no cause, no retry. Bot creation, the product's primary
+flow, looked permanently broken.
+
+Fixed in `3ac6f5f`: bounded request, loading state, explicit error with a **Try again**
+button, and a separate message for the genuinely-empty case. Browser-verified against a
+failing load. The raw API reason is kept out of the UI per §23 and logged instead.
+
+**The lesson is about method, not this bug.** Evenly-spaced sampling is a way to *find*
+things, never a way to conclude nothing is there. Three of the defects fixed in this
+remediation came from the same silent-catch pattern; sampling reported the surface as
+healthy each time.
