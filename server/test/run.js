@@ -904,6 +904,21 @@ test("rejects an unlinked wallet address", () => {
 });
 test("rejects a substituted wallet id", () => {
   assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:owner", tradeWallet, "wallet-attacker"), false);
+
+  // Pin what the check does when Privy's token carries no wallet id: the claimed walletId
+  // becomes unverifiable and is accepted. Safe only because authority comes from the
+  // address binding, which still holds — asserted here so the accepted case can never be
+  // mistaken for a verified one, and so making walletId authoritative fails loudly.
+  const noIdPayload = {
+    sub: "did:privy:owner",
+    linked_accounts: [{ type: "wallet", chain_type: "solana", address: tradeWallet }]
+  };
+  assert.strictEqual(ownsPrivyWallet(noIdPayload, "did:privy:owner", tradeWallet, "anything-at-all"), true,
+    "no id in the token means the claimed walletId cannot be checked");
+  assert.strictEqual(ownsPrivyWallet(noIdPayload, "did:privy:owner", "X".repeat(44), "anything-at-all"), false,
+    "the address binding still rejects a wallet the user does not own");
+  assert.strictEqual(ownsPrivyWallet(noIdPayload, "did:privy:attacker", tradeWallet, "anything-at-all"), false,
+    "the subject binding still rejects another user's identity token");
 });
 
 console.log("referral integrity");
