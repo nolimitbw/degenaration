@@ -528,6 +528,39 @@ how this becomes a real hole later, and nothing recorded it.
 
 Verified the assertions are load-bearing by dropping the address comparison: the suite fails.
 
+### The API input validators had no tests at all
+
+`lib/server/guard.ts` guards the trading path for **41 routes** — which mints are
+addressable, how large a swap may be, what slippage is allowed — and carried no coverage,
+because the plain-node runner cannot require a `.ts` module. That is precisely why
+`fee-model`, `numeric-input`, `withdrawal` and `privy-wallet` are all `.js`. The validators
+now are too, as `lib/server/input-rules.js`, with `guard.ts` re-exporting them so all 41
+routes and its public API are unchanged.
+
+Two defects the new tests pin:
+
+| Defect | Effect |
+|---|---|
+| `validSlippageBps` could return a fraction | Jupiter answers `"Query parameter slippageBps cannot be parsed: ParseIntError"` for `300.7` and returns no quote — the swap fails outright |
+| The rate-limit map never released anything | Entries were overwritten on expiry but never deleted, so it grew by one per distinct ip+path and never shrank |
+
+Neither is reachable from the app today — the UI already rounds slippage, and serverless
+recycling has been masking the map growth. Both are fixed because a sanitiser that emits a
+value the downstream API refuses is not sanitising, and a cache that only grows is a leak
+whether or not the platform currently hides it.
+
+**A silent break caught by the compiler.** Extracting `isMint` as plain JS lost its type
+predicate (`s is string`), which every trading route relies on to narrow `unknown`. `tsc`
+failed immediately; `input-rules.d.ts` now declares the predicate with a note on why it must
+stay one.
+
+New coverage: base58 mint validation, u64 and 100-SOL bounds at their exact boundaries, the
+buy/sell cap asymmetry, exponent and fractional rejection, slippage integrality and cap, and
+that `sanitizeError` leaks neither stack frames nor an unbounded message.
+
+Verified in production after the refactor: a valid swap builds, and `amount: 0`, `"1e9"` and
+a short mint each return **400**, not 500 — so the re-export is correctly wired.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
