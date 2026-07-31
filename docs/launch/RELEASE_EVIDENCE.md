@@ -590,6 +590,33 @@ Verified in production after deploy: the withdrawal endpoint returns **401** wit
 not 503 — so the limiter passes through normally when the bridge is healthy and the
 fail-closed path engages only on real failure.
 
+### Full production sweep after the day's deploys
+
+Ten deploys landed in one day, so the whole app was re-checked rather than trusting that the
+individual verifications compose.
+
+| Check | Result |
+|---|---|
+| 10 routes fetched | all **200**, no error markers |
+| Console errors on the builder | none (only wallet-provider debug noise) |
+| Horizontal overflow at 375 and 685 | none |
+| Sub-44px controls at 375 | **0** |
+| `/bots/kol/new` numeric fields | 27 of 27 clearable, `00` → `0`, junk rejected, zero `type="number"` |
+| `/bots/discord/new` sources | both approved sources populate |
+
+**A false positive worth recording, because the next audit will hit it too.** Counting
+`input[inputmode="decimal"]` on `document` returned **54** on a page whose source renders 27,
+with every section title duplicated and two `<h1>`s. It survived a hard reload, and the
+server HTML had exactly half of everything — which looked like a client-side double mount.
+
+It is not. The second copy lives in `<div id="S:1">`, a **Next.js streaming-SSR placeholder**
+(`S:0`/`S:1`/`S:2` are React's out-of-order streaming slots). The real tree is `.app-shell`
+and contains exactly 1 `<h1>`, 10 sections and 27 fields.
+
+**Scope DOM audits to `.app-shell`.** Querying `document` counts the streaming buffer and
+reports phantom duplicates — and those phantom nodes do not respond to synthetic input,
+which is what produced the "27 of 54 fields are broken" reading that started this.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
