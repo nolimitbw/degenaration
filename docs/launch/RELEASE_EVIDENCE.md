@@ -379,6 +379,43 @@ decision, and Jupiter's Referral Program is the mechanism for it.
 Gate tests verified by removal: the BONK-output case fails without the mint check and
 passes once restored.
 
+### The amount field could show a different number than it would trade
+
+Reviewing the React layer of the numeric work (the pure logic had been reviewed; the
+component had not) found this, and it reproduced on the deployed site:
+
+```
+click into BUY AMOUNT, then press +
+  input shows : 0.6
+  summary says: 0.70
+```
+
+The displayed buy amount and the amount the strategy would actually trade disagreed, on the
+control that decides how much money each entry spends.
+
+The stepper and the SOL presets set the parent value without touching the field's own text,
+and the resync effect was guarded by `if (!editing.current)`. Once the input had focus,
+every external change was ignored and the box kept its old number. Chrome usually hides this
+because clicking a button blurs the input first; **Safari does not focus buttons on click**,
+so there it happens with ordinary use.
+
+The guard now compares against the last value the field itself emitted, so changes it did
+not cause are shown even mid-edit — while the user's own typing still never resyncs, which
+is what keeps a cleared field cleared and a half-typed `0.` intact.
+
+Verified in production with focus held on the input throughout:
+
+| Path | Input | Summary | Agree |
+|---|---|---|---|
+| Stepper `+` | `0.6` | `0.60` | yes |
+| Preset `1 SOL` | `1` | `1.00` | yes |
+
+**A false negative worth recording.** The first attempt to reproduce this used
+`input.focus()` and reported no bug — programmatic focus did not set the editing flag, so
+the test never simulated a user mid-edit and the hypothesis looked disproven. A real click
+reproduced it immediately. Nearly the same failure as the RLS probe earlier: the check ran,
+returned a clean answer, and was measuring the wrong thing.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
