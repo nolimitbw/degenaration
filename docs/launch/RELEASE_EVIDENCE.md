@@ -269,6 +269,42 @@ JSX regex in this project silently matched nothing three separate times.
 
 Verified after deploy: production marketplace still returns 2 sources, no error.
 
+### Displayed numbers checked against the database, not against the API
+
+The site's numbers had only ever been checked against the API that produces them, which
+proves consistency, not truth. Queried live Postgres directly:
+
+| Table | Rows | What the site shows |
+|---|---|---|
+| `app_private.kol_strategies` | 0 | "Live strategies 0" — **true**, not a failure |
+| `raw_signals`, `parsed_signals`, `signal_deliveries` | 0 | Discord metrics as dashes — correct |
+| `durable_jobs`, `worker_leases` | 0 | worker has still never run |
+| `commission_ledger_entries`, `payout_requests` | 0 | no fees collected yet |
+| `trade_executions`, `trade_intents`, `public.trades` | 0 | no trades |
+
+This matters for requirements 6 and 7: the empty Discord performance figures are the honest
+rendering of an empty journal, not a UI defect. It also means **the fee invariants cannot be
+confirmed against live rows** — there are none. What guarantees them today is the database
+constraints, so those were verified instead: every CHECK on the ledger and payout tables
+reports `convalidated = true`, including the balanced-allocation and rate-bounds rules.
+
+### A fee the UI described wrongly
+
+`payout_requests` pins `processing_fee_lamports = 43000000` exactly, which against the
+`gross_lamports >= 100000000` minimum is 43% of the smallest permitted payout. That rate is
+deliberate and specified (`DEGENARATION_MASTER_SPEC.md:1025`), and applies only to creator
+and referral payouts — never to user principal withdrawals. The constraint is correct.
+
+The description was not. The affiliate FAQ called it a **"network processing fee"**; Solana
+network fees are ~0.000005 SOL, and `request_payout` posts this one to
+`commission_ledger_entries` with `account_type = 'platform'`. It is this platform's revenue.
+Verified in SQL before touching the wording rather than inferring from the name.
+
+The confirmation checkbox also hardcoded "0.043 SOL" instead of rendering the server's
+value — a tickbox affirming a fee should state the fee actually being charged. Both fixed;
+the Portfolio table already modelled this correctly with separate Network fee and Platform
+fee columns.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
