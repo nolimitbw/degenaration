@@ -561,6 +561,35 @@ that `sanitizeError` leaks neither stack frames nor an unbounded message.
 Verified in production after the refactor: a valid swap builds, and `amount: 0`, `"1e9"` and
 a short mint each return **400**, not 500 — so the re-export is correctly wired.
 
+### Rate limiting on the withdrawal endpoint
+
+`lib/server/distributed-rate-limit.ts` protects the endpoint that builds fund-moving
+transactions and, being `.ts`, had the same absence of coverage as `guard.ts`. Two gaps:
+
+**The withdrawal POST was the only mutating money route without `failClosed`.** `bots`,
+`kol-subscriptions`, `payouts` and both referral routes all set it. Without it, a bridge
+outage dropped this endpoint back to the in-memory limiter in `guard.ts` — which is **per
+instance**, and therefore no real bound across a serverless fleet.
+
+Setting it costs nothing in availability: `resolveState` already returns 503 when the bridge
+cannot verify the balance, so a request surviving a failed-open limiter was going to fail a
+few lines later regardless. It now fails closed at the first gate rather than the third.
+
+**A malformed success was read as permission:**
+
+```ts
+if (result.data.allowed !== false) return null;   // {} means allowed
+```
+
+Any response missing the field passed, and `failClosed` did **not** cover it — that only
+guards `!result.ok`. A bridge answering 200 with an unexpected body disabled the limit
+entirely, on every route, silently. The check is now positive: `allowed` must be a boolean,
+and anything else takes the configured fail-closed path.
+
+Verified in production after deploy: the withdrawal endpoint returns **401** without a token,
+not 503 — so the limiter passes through normally when the bridge is healthy and the
+fail-closed path engages only on real failure.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
