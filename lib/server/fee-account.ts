@@ -65,8 +65,13 @@ async function accountInfo(address: string) {
 }
 
 /**
- * @param feeMint the mint the fee is taken in — the swap's INPUT mint, which is wrapped
- *                SOL for a buy and therefore stable across most trades.
+ * @param feeMint the mint the fee is actually collected in. For Jupiter's default ExactIn
+ *                mode that is the swap's OUTPUT mint — confirmed against the live quote
+ *                endpoint, where a SOL -> BONK quote with platformFeeBps=200 reports
+ *                platformFee.amount in BONK units, not lamports.
+ *
+ *                Do not pass the input mint. Doing so checks an account for a token the fee
+ *                will never arrive in, which makes the guard below verify the wrong thing.
  */
 export async function resolveFeeAccount(feeMint: string): Promise<Resolution> {
   const configured = process.env.PLATFORM_FEE_ACCOUNT?.trim();

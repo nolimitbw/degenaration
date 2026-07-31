@@ -31,6 +31,16 @@ const FEE_ACCOUNT = process.env.PLATFORM_FEE_ACCOUNT;
 // recoverable; breaking every trade is not.
 let APPLY_FEE = false;
 let feeAccountChecked = false;
+// The mint the configured fee account actually holds. Jupiter collects the ExactIn platform
+// fee in the OUTPUT mint, so the fee may only be requested on a swap whose output IS this
+// mint. Confirmed against the live quote endpoint: SOL -> BONK with platformFeeBps=200
+// reports platformFee.amount in BONK units, not lamports.
+//
+// Without this check the worker would hand Jupiter a wSOL account on a BUY, where the fee
+// is collected in the token being bought. Jupiter does not validate feeAccount, so the
+// transaction would build and then fail ON CHAIN — breaking the trade, which is exactly the
+// failure this guard exists to prevent.
+let FEE_ACCOUNT_MINT = null;
 
 async function feeAccountUsable() {
   if (!FEE_ACCOUNT) return false;
@@ -44,15 +54,24 @@ async function feeAccountUsable() {
       signal: AbortSignal.timeout(6000)
     });
     const value = (await r.json())?.result?.value;
-    const usable = value?.data?.parsed?.type === "account";
+    const parsed = value?.data?.parsed;
+    const usable = parsed?.type === "account";
     if (!usable) {
       console.warn(`[jupiter] platform fee DISABLED — PLATFORM_FEE_ACCOUNT ${FEE_ACCOUNT} is not an initialised token account`);
+      return false;
     }
-    return usable;
+    FEE_ACCOUNT_MINT = parsed?.info?.mint || null;
+    console.info(`[jupiter] platform fee enabled for output mint ${FEE_ACCOUNT_MINT}`);
+    return true;
   } catch {
     console.warn("[jupiter] platform fee DISABLED — could not verify PLATFORM_FEE_ACCOUNT");
     return false;
   }
+}
+
+/** The fee may only be requested when Jupiter would deposit it into the configured account. */
+function feeAppliesToOutput(outputMint) {
+  return APPLY_FEE && Boolean(FEE_ACCOUNT_MINT) && outputMint === FEE_ACCOUNT_MINT;
 }
 
 async function ensureFeeAccountChecked() {
@@ -68,8 +87,10 @@ async function ensureFeeAccountChecked() {
  * — the probe above settles APPLY_FEE before any trade records a fee, because every trade
  * goes through getQuote/buildSwapTx first.
  */
-function __setFeeAccountUsable(usable) {
+function __setFeeAccountUsable(usable, mint) {
   APPLY_FEE = Boolean(usable);
+  // Default to wSOL so existing callers keep the sell-side behaviour they assert on.
+  FEE_ACCOUNT_MINT = usable ? (mint || SOL_MINT) : null;
   feeAccountChecked = true;
 }
 
@@ -103,7 +124,8 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
   url.searchParams.set("outputMint", outputMint);
   url.searchParams.set("amount", String(amountLamports));
   url.searchParams.set("slippageBps", String(slippageBps));
-  if (await ensureFeeAccountChecked()) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+  await ensureFeeAccountChecked();
+  if (feeAppliesToOutput(outputMint)) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) throw new Error(`quote failed (${response.status})`);
   const q = await response.json();
@@ -117,6 +139,9 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
 
 /** Build unsigned swap tx — signed by the USER's delegated session key, never by us. */
 async function buildSwapTx({ quote, userPublicKey }) {
+  // Mirror the quote decision exactly. Requesting platformFeeBps without feeAccount (or the
+  // reverse) makes Jupiter reject the build, so both calls must agree on the same mint.
+  const outputMint = quote?.outputMint;
   const swapBody = {
     quoteResponse: quote,
     userPublicKey,
@@ -124,7 +149,8 @@ async function buildSwapTx({ quote, userPublicKey }) {
     dynamicComputeUnitLimit: true,
     prioritizationFeeLamports: "auto"
   };
-  if (await ensureFeeAccountChecked()) swapBody.feeAccount = FEE_ACCOUNT;
+  await ensureFeeAccountChecked();
+  if (feeAppliesToOutput(outputMint)) swapBody.feeAccount = FEE_ACCOUNT;
   const res = await fetch(`${JUP}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -148,7 +174,7 @@ const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
 
 module.exports = {
   getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports,
-  ensureFeeAccountChecked, __setFeeAccountUsable,
+  ensureFeeAccountChecked, __setFeeAccountUsable, feeAppliesToOutput,
   SOL_MINT, PLATFORM_FEE_BPS,
   // APPLY_FEE is resolved asynchronously by the probe, so it is exposed as a getter
   // rather than a snapshot taken at module load (which was always false).

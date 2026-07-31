@@ -31,7 +31,18 @@ export async function POST(req: NextRequest) {
   // feeAccount, so a wallet address pasted into PLATFORM_FEE_ACCOUNT would build fine and
   // then fail every swap on chain. When no usable account exists the fee is skipped —
   // collecting nothing is recoverable, breaking every trade is not.
-  const resolvedFee = await resolveFeeAccount(inputMint);
+  //
+  // RESOLVE AGAINST THE OUTPUT MINT. This route sends no swapMode, so Jupiter defaults to
+  // ExactIn, and in ExactIn the platform fee is collected in the OUTPUT mint. Verified
+  // against the live quote endpoint: SOL -> BONK with platformFeeBps=200 returns
+  // platformFee.amount = 511657893, which is BONK at 5 decimals, not lamports of SOL.
+  //
+  // This previously passed inputMint, so it checked the wrong token: on a buy it looked for
+  // a wSOL account while Jupiter wanted one for the token being bought. The practical effect
+  // is that the fee is now collected on SELLS (output is wSOL, one stable account) and
+  // skipped on buys unless an account exists for that specific token — which avoids
+  // accumulating dust across every memecoin traded. See OPEN_BLOCKERS B-1.
+  const resolvedFee = await resolveFeeAccount(outputMint);
   const feeAccount = resolvedFee.feeAccount;
   const platformFeeBps = feeAccount ? configuredPlatformFeeBps() : 0;
   const applyFee = platformFeeBps > 0 && Boolean(feeAccount);

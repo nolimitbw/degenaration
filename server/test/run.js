@@ -185,6 +185,20 @@ test("worker fee uses exact integer lamport arithmetic", () => {
   const { platformFeeLamports } = jup;
   assert.strictEqual(platformFeeLamports(HUNDRED_SOL), feeModel.bpsOf(HUNDRED_SOL, 200));
   assert.strictEqual(platformFeeLamports(lam(1)), BigInt(0));
+
+  // Jupiter collects the ExactIn platform fee in the OUTPUT mint, so the fee may only be
+  // requested when the configured account holds that mint. Verified against the live quote
+  // endpoint: SOL -> BONK with platformFeeBps=200 reports platformFee.amount in BONK units.
+  //
+  // Without this gate the worker hands Jupiter a wSOL account on a BUY, the transaction
+  // builds because Jupiter does not validate feeAccount, and it then fails ON CHAIN.
+  const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
+  jup.__setFeeAccountUsable(true, jup.SOL_MINT);
+  assert.strictEqual(jup.feeAppliesToOutput(jup.SOL_MINT), true,  "sell into wSOL collects the fee");
+  assert.strictEqual(jup.feeAppliesToOutput(BONK), false, "buy paying out BONK must NOT request the fee");
+  jup.__setFeeAccountUsable(false);
+  assert.strictEqual(jup.feeAppliesToOutput(jup.SOL_MINT), false, "no usable account, no fee");
+  jup.__setFeeAccountUsable(true, jup.SOL_MINT);
   if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
   else delete process.env.PLATFORM_FEE_ACCOUNT;
   delete require.cache[jupiterPath];

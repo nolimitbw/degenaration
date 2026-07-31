@@ -102,7 +102,48 @@ account existing — no deploy, no code change.
 
 Alternatively use Jupiter's Referral Program and set the referral token account directly.
 
-Status: **SAFE TO SET — fees begin once a fee token account exists.**
+### CORRECTION 2026-07-31 — the fee is collected in the OUTPUT mint, not the input
+
+Everything above understated what the wSOL account does, because the code resolved the fee
+account against the swap's **input** mint. Jupiter's rule for ExactIn — which is the mode
+this app uses, since it sends no `swapMode` — is that the platform fee is collected in the
+**output** mint.
+
+Confirmed against the live quote endpoint rather than from the docs alone:
+
+```
+GET /swap/v1/quote  SOL -> BONK  amount=10000000  platformFeeBps=200
+  swapMode    : ExactIn
+  platformFee : {"amount": "511657893", "feeBps": 200}
+```
+
+`511657893` is BONK at 5 decimals. Two percent of the SOL input would have been 200000
+lamports. The fee is unambiguously denominated in the token being received.
+
+**What this means for the wSOL account.** It is still worth creating, but it collects on
+**sells**, not buys:
+
+| Leg | Output mint | Fee lands in | Collected with only a wSOL account? |
+|---|---|---|---|
+| Sell (token → SOL) | wSOL | wSOL | **yes** |
+| Buy (SOL → token) | the token | that token | no — needs an account for each token |
+
+Charging on buys would mean holding an account for every memecoin traded and accumulating
+dust across all of them. Collecting on the sell leg only, in SOL, is the cleaner default and
+is what the code now does.
+
+**Fixed in code.** `app/api/swap/route.ts` resolves against `outputMint`, and the worker
+(`server/engine/jupiter.js`) records the configured account's mint at probe time and
+requests the fee only when the swap's output matches it. Before this, the worker would have
+handed Jupiter a wSOL account on a buy; Jupiter does not validate `feeAccount`, so the
+transaction would have built and then **failed on chain** — the precise failure the guard
+was written to prevent, slipping through because the guard checked the wrong mint.
+
+**If you want fees on buys too**, that is a business decision with an operational cost, and
+Jupiter's Referral Program is the mechanism — it manages per-mint fee accounts and a claim
+flow. Not done, because it changes what the platform holds.
+
+Status: **SAFE TO SET — sell-leg fees begin once the wSOL account exists.**
 
 ## B-2 — Delegated-signing secrets and a worker host
 
