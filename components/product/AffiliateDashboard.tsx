@@ -722,13 +722,21 @@ function PayoutModal({
   onSuccess: () => void;
 }) {
   const toast = useToast();
-  const [amount, setAmount] = useState(Math.max(0.1, Math.min(lamportsToSol(summary.availableLamports), 1)));
+  // Single source for the payout minimum: the server value, never a repeated literal.
+  const minimum = lamportsToSol(summary.minimumPayoutLamports);
+  const [amount, setAmount] = useState(Math.max(minimum, Math.min(lamportsToSol(summary.availableLamports), 1)));
   const [wallet, setWallet] = useState(defaultWallet);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const fee = lamportsToSol(summary.processingFeeLamports);
   const net = Math.max(0, amount - fee);
-  const invalid = amount < 0.1 || amount > lamportsToSol(summary.availableLamports) || net <= 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet);
+  // Take the minimum from the server rather than repeating 0.1 here. The database pins it
+  // (`payout_requests_gross_lamports_check`: gross_lamports >= 100000000) and the RPC raises
+  // 'minimum payout is 0.1 SOL' below it — but the edge function replaces raised exceptions
+  // with a generic message, so a client that disagrees with the server would produce an
+  // unexplained "temporarily unavailable" on a money action instead of a usable reason.
+  // The same duplicated-constant problem as the 0.043 fee literal removed earlier.
+  const invalid = amount < minimum || amount > lamportsToSol(summary.availableLamports) || net <= 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet);
 
   async function submit() {
     if (invalid || !confirmed) return;
@@ -752,7 +760,7 @@ function PayoutModal({
       <div role="dialog" aria-modal="true" aria-labelledby="payout-title" className="w-full max-w-lg rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
         <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 text-lg font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
         <div className="space-y-4 p-5">
-          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={0.1} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="font-mono text-[10px] text-dim">SOL</span></span></label>
+          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={minimum} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="font-mono text-[10px] text-dim">SOL</span></span></label>
           <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono text-xs" /></label>
           <div className="divide-y divide-edge rounded-md border border-edge bg-void px-3">
             <div className="flex justify-between py-3 text-xs text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>
