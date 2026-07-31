@@ -617,6 +617,41 @@ and contains exactly 1 `<h1>`, 10 sections and 27 fields.
 reports phantom duplicates — and those phantom nodes do not respond to synthetic input,
 which is what produced the "27 of 54 fields are broken" reading that started this.
 
+### A regression the existing tests caught, and the contract behind it
+
+`evaluateSafety` guards its upper bound with `max > 0`, which is character-for-character the
+`clamp()` defect fixed in `lib/numeric-input.js` earlier the same day. It was read the same
+way and removed, with what looked like a convincing demonstration: a bot configured with
+`priceChangeBps` max 0 accepting a token that had pumped 500%.
+
+**It is the opposite case.** In the safety module `max: 0` MEANS no maximum, and two existing
+tests pin it — `{ min: 100000, max: 0 }` is expected to pass. Since the builder resolves a
+cleared max field to `0`, enforcing it as a real ceiling would have blocked **every token**
+for that bot: unattended trading would have stopped silently for anyone who cleared a max.
+
+What separated the two cases was not the code, which is identical, but the callers. In
+`numeric-input.js` every call site was checked first and none used `0` to mean unbounded, so
+the guard only hid a bug. That check was not repeated here before editing.
+
+The full chain was then verified rather than assumed:
+
+| Layer | Behaviour |
+|---|---|
+| `CompactNumber` (filter min and max) | passes `min={0}` and **no `max` prop** |
+| `clamp(value, 0, undefined)` | no maximum applied — the morning change cannot interact |
+| cleared max field | `resolveOnBlur("")` → `0` |
+| `evaluateSafety` | `0` → unbounded |
+
+Coherent end to end: clearing a maximum means "no maximum".
+
+**The residual sharp edge, recorded not silently changed.** A user who genuinely wants
+"priceChangeBps at most 0" cannot express it, because `0` reads as unbounded. A distinct
+sentinel — `null` unbounded, `0` zero — would fix it across the builder, the stored config
+and this module. That is a config migration, and not worth risking a live trading filter
+unprompted.
+
+A sweep confirmed these are the only two instances of the shape in the codebase.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
