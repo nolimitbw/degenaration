@@ -43,6 +43,29 @@ working and 0 bps is collected. Fees begin automatically, with no code change, t
 that wrapped-SOL associated token account exists. Creating it requires one transaction from
 the owner's wallet (any wallet that can create an ATA, or receiving any wSOL).
 
+### DONE 2026-07-31 — set in production, and the guard proven live
+
+`PLATFORM_FEE_ACCOUNT` is now set on Vercel Production to the owner's wallet, and the app
+redeployed. It had never actually been set before this; the earlier instruction to do so did
+not complete.
+
+This is the scenario that would previously have broken every trade — a **wallet** address in
+a variable Jupiter accepts without validating. Probed against the deployed API:
+
+```
+POST https://degenaration.vercel.app/api/swap   (SOL -> BONK, 0.01 SOL)
+  builds: true      platformFeeBps: 0      feeAccountSet: false      error: null
+```
+
+The swap still builds and the fee is declined, which is the guard doing its job. Before it
+existed, this same configuration would have produced a transaction that failed on chain for
+every user, and it would have looked like a trading bug rather than a config mistake.
+
+**Remaining, and it is not a code task:** create the wSOL ATA
+`AuFCZDtr7PaZxEitCPzKpQZdkRLnpKZxK6Y4MpxAZhDj` (re-confirmed absent on mainnet 2026-07-31).
+The resolver re-checks on a 5-minute cache, so fees start on their own within minutes of that
+account existing — no deploy, no code change.
+
 Alternatively use Jupiter's Referral Program and set the referral token account directly.
 
 Status: **SAFE TO SET — fees begin once a fee token account exists.**

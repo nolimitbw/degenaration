@@ -172,6 +172,48 @@ against live Postgres, the journal chain was traced end to end (rolled back), an
 `npm run lint` gates 218 files. A stale evidence file is worse than none, because it reads
 as verification.
 
+## Production verification — 2026-07-31
+
+Deployed to Vercel Production (`dpl_8qyU5qNpQqbbhas71AmbCwRvLDpG`, then a second deploy
+after setting `PLATFORM_FEE_ACCOUNT`). Everything below was measured against the **live
+site**, not the dev server, because the three preceding fixes had only ever existed locally.
+
+### The filmed numeric-input defect, with real keystrokes
+
+`type="number"` count on `/bots/kol/new` in production: **0**. 27 text inputs with
+`inputmode`. Driving the Buy amount field through the browser:
+
+| Input | Result |
+|---|---|
+| triple-click, type `05` | **`5`** — the filmed defect; leading zero stripped |
+| `""` (cleared) | stays empty, field is clearable mid-edit |
+| `0.` | survives mid-edit, so a decimal can be typed at all |
+| `0.25` | accepted |
+| `007` | `7` |
+| `abc`, `1.2.3` | rejected, prior value retained |
+| `0.` then real blur | **`0.01`** — resolved and clamped to the field minimum |
+
+One methodology note: a *synthetic* `focusout` does not reach React's handler, so blur
+resolution first appeared broken. It is not — a genuine click-away resolves correctly. The
+harness was wrong, not the code.
+
+### The source dropdown
+
+`/bots/discord/new` now populates **DegenAration** and **SLPR DEGEN**, with the first
+preselected. The recording showed `No options available` on this same screen.
+
+### The fee guard, exercised with the real footgun
+
+`PLATFORM_FEE_ACCOUNT` is set to a **wallet** address — the exact value that would have
+failed every swap on chain before the resolver existed:
+
+```
+builds: true    platformFeeBps: 0    feeAccountSet: false    error: null
+```
+
+Fee declined, trading unaffected. Fees begin automatically once the wSOL ATA
+`AuFCZDtr7PaZxEitCPzKpQZdkRLnpKZxK6Y4MpxAZhDj` exists (absent as of this check).
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
