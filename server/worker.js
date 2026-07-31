@@ -106,6 +106,20 @@ if (SIGNING_READY) {
 }
 
 // Wallet-diff copy detection needs its own explicit gate until transaction cursors are durable.
+//
+// SETTING COPY_TRADING=on ALSO DROPS PER-SUBSCRIBER SAFETY FILTERS. The Discord-call path
+// below resolves each subscriber's own filters (store.subscriberSafety -> evaluateSafety),
+// which is what closed B-6. The copy watcher does not: engine/copy.js calls rugCheck(mint)
+// with no safety argument, so only the baseline $10,000 liquidity floor applies and every
+// filter a user configured in the builder - liquidity, market cap, mint authority, freeze
+// authority - is ignored.
+//
+// It is also structural, not a missing argument: copy.js runs one rugCheck per detected
+// mint BEFORE the subscriber loop, so a single shared verdict cannot express per-subscriber
+// bounds. Fixing it means moving the check inside the loop, as calls.js already does.
+//
+// This is exactly the defect B-6 was raised for, still present on the gated path. Do not
+// turn this flag on until copy.js enforces subscriber filters. See OPEN_BLOCKERS B-2.
 if (COPY_TRADING_READY) {
   startCopyWatcher({
     loadTrackedWallets: store.loadTrackedWallets, loadSubscribers: store.loadSubscribers,

@@ -183,6 +183,26 @@ Status: **SAFE TO SET — sell-leg fees begin once the wSOL account exists.**
 
 ## B-2 — Delegated-signing secrets and a worker host
 
+**THIRD PRECONDITION — `COPY_TRADING=on` bypasses the safety filters B-6 fixed.**
+
+B-6 is correctly resolved for the path that runs: `server/engine/calls.js` resolves each
+subscriber's own filters through `store.subscriberSafety` and `evaluateSafety`, and
+`worker.js` wires it in.
+
+`server/engine/copy.js` does not. It calls `rugCheck(mint)` with no safety argument, so only
+the baseline $10,000 liquidity floor applies and every filter configured in the builder —
+liquidity, market cap, mint authority, freeze authority — is ignored.
+
+It is structural rather than a missing parameter: `copy.js` runs one `rugCheck` per detected
+mint **before** the subscriber loop, so one shared verdict cannot express per-subscriber
+bounds. `calls.js` already has the right shape — the check moves inside the loop.
+
+**Not live.** `COPY_TRADING_READY = SIGNING_READY && process.env.COPY_TRADING === "on"`, so
+the watcher is off unless that variable is explicitly set. The risk is that enabling it looks
+like a feature flag while it also silently drops safety enforcement for copy trades.
+
+Annotated at the gate in `worker.js`, where the flag is read.
+
 **SECOND PRECONDITION — TP/SL treats submission as settlement.**
 
 `server/engine/signer.js` returns Privy's `hash` the moment the transaction is submitted; it
