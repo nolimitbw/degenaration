@@ -372,6 +372,15 @@ test("a leading zero is stripped, so typing 5 into a zero field gives 5 not 05",
   assert.strictEqual(num.normalizeWhileTyping("05"), "5");
   assert.strictEqual(num.normalizeWhileTyping("0"), "0");
   assert.strictEqual(num.normalizeWhileTyping("0.5"), "0.5");
+  // Regression: an all-zero body stripped to "" and the field erased itself mid-typing.
+  assert.strictEqual(num.normalizeWhileTyping("00"), "0");
+  assert.strictEqual(num.normalizeWhileTyping("000"), "0");
+  assert.strictEqual(num.normalizeWhileTyping("-00"), "-0");
+  // Regression: clamp skipped any max of 0 or below, so an upper bound of 0 did nothing.
+  assert.strictEqual(num.clamp(50, 0, 0), 0);
+  assert.strictEqual(num.clamp(5, null, -1), -1);
+  assert.strictEqual(num.clamp(150, 0, 100), 100);
+  assert.strictEqual(num.clamp(-5, 0, 100), 0);
   assert.strictEqual(num.normalizeWhileTyping("00012"), "12");
 });
 test("blur resolves partial input instead of leaving it broken", () => {
