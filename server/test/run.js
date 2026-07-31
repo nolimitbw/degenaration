@@ -998,6 +998,25 @@ test("round-trips a signed referral capture without exposing an owner id", () =>
   assert.strictEqual(parsed.visitorHash, visitorHash);
   assert.strictEqual(JSON.stringify(parsed).includes("privy"), false);
 });
+test("an absent signing secret disables capture rather than signing weakly", () => {
+  // captureSecret() falls back to "" when neither REFERRAL_SIGNING_SECRET nor ADMIN_KEY is
+  // set. Both halves must refuse it: signing with an empty key would let anyone forge a
+  // capture and claim another creator's referral commission. This is the property that
+  // makes the fallback safe, and nothing asserted it.
+  const vh = "a".repeat(64);
+  assert.strictEqual(createReferralCapture({ code: "alpha-calls", visitorHash: vh }, ""), null);
+  assert.strictEqual(createReferralCapture({ code: "alpha-calls", visitorHash: vh }, undefined), null);
+  assert.strictEqual(verifyReferralCapture("anything.anysig", ""), null);
+});
+
+test("a capture signed with one secret does not verify under another", () => {
+  const vh = "a".repeat(64);
+  const capture = createReferralCapture({ code: "alpha-calls", visitorHash: vh }, "secret-one");
+  assert.ok(capture, "capture created");
+  assert.strictEqual(verifyReferralCapture(capture, "secret-two"), null);
+  assert.ok(verifyReferralCapture(capture, "secret-one"), "still valid under its own secret");
+});
+
 test("rejects tampered and expired referral captures", () => {
   const capture = createReferralCapture({ code: "alpha-calls", visitorHash, now: referralNow }, referralSecret);
   assert.strictEqual(verifyReferralCapture(`${capture}x`, referralSecret, referralNow), null);

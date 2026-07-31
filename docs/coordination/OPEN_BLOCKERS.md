@@ -37,6 +37,42 @@ Applying it is a production database permission change on a financial system, so
 an explicit yes rather than being done unprompted. It is reversible; the rollback statement
 is in the file.
 
+## B-10 — one secret does three jobs (owner decision, low severity)
+
+`ADMIN_KEY` is currently the fallback for two other purposes, because the dedicated
+variables are not set. Production has `ADMIN_KEY`, `BOT_SHARED_SECRET`, the `NEXT_PUBLIC_*`
+values and `PLATFORM_FEE_ACCOUNT` — nothing else.
+
+| Purpose | Variable used | Dedicated variable, unset |
+|---|---|---|
+| app-bridge authentication | `ADMIN_KEY` | — |
+| Referral capture signing | `ADMIN_KEY` | `REFERRAL_SIGNING_SECRET` |
+| Rate-limit subject hashing | `ADMIN_KEY` | `RATE_LIMIT_HASH_SALT` |
+
+`ADMIN_KEY` travels to the edge function on every bridge call, so it has the widest exposure
+of the three and is the least suitable key to also sign referral attribution — a forged
+capture claims another creator's commission.
+
+**Nothing is broken.** The fallbacks are deliberate and fail closed: with no secret at all,
+`createReferralCapture` and `verifyReferralCapture` both return null, so capture is disabled
+rather than signed with an empty key. That property is now asserted in the suite, verified
+by removing the guard.
+
+**Why this is not done unprompted.** Setting `REFERRAL_SIGNING_SECRET` **invalidates every
+referral cookie already issued** — they were signed with `ADMIN_KEY`. Anyone mid-capture in
+the 30-day window loses their attribution, and their referrer loses that commission. That is
+a real cost, so it belongs at a quiet moment and is the owner's call.
+
+To do it:
+
+```
+vercel env add REFERRAL_SIGNING_SECRET production   # paste 32+ random bytes
+vercel env add RATE_LIMIT_HASH_SALT production      # paste a different 32+ random bytes
+```
+
+`RATE_LIMIT_HASH_SALT` is safe to set at any time — it only changes how subjects are
+bucketed, so the effect is one window of reset counters.
+
 ## B-1 — `PLATFORM_FEE_ACCOUNT` is not set (blocks fee collection end-to-end)
 
 Every fee path is gated on this env var. When unset, `platformFeeBps` resolves to `0`
