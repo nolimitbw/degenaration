@@ -416,6 +416,32 @@ the test never simulated a user mid-edit and the hypothesis looked disproven. A 
 reproduced it immediately. Nearly the same failure as the RLS probe earlier: the check ran,
 returned a clean answer, and was measuring the wrong thing.
 
+### Checking my own app-bridge change for masked errors
+
+The message change earlier could have hidden user-actionable errors, so the paths were
+traced rather than assumed. It had not: every non-2xx response the edge function produces is
+internal (`method not allowed`, `bad json`, `unknown operation`, `unauthorized`,
+`bridge operation failed`), and business errors come back as HTTP 200 with `ok: false`,
+which still passes through verbatim.
+
+That trace did surface a real defect. The withdrawal modal hardcoded the **0.1 SOL minimum
+in three places** — the initial amount, the validity check, and the amount field's own `min`,
+which drives blur clamping — while the server already returns `minimumPayoutLamports` and the
+database pins it (`payout_requests_gross_lamports_check`: `gross_lamports >= 100000000`).
+
+It matters more than a tidy-up. If client and server ever disagree, the client lets a submit
+through, the RPC raises `minimum payout is 0.1 SOL`, and the edge function replaces raised
+exceptions with a generic message before it reaches the browser — so the user gets an
+unexplained "temporarily unavailable" on a money action with no way to tell what was wrong.
+The client is what holds the line, so it must read the server's number.
+
+Third instance of the same class today, after the `0.043` fee literal and the platform fee
+that had been living in seven places.
+
+`QuickBuyEditor` was checked in the same pass and is sound: drafts are held as strings with
+the validity gate, and `save()` filters on `n > 0`, so an empty or half-typed preset is
+dropped rather than saved as a zero-SOL buy button.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
