@@ -4,7 +4,21 @@ const { parseCall } = require("../bot/parser");
 
 let pass = 0, fail = 0;
 function test(name, fn) {
-  try { fn(); pass++; console.log("  ✓ " + name); }
+  try {
+    const result = fn();
+    // This runner is synchronous: it never awaited fn(). An async test therefore returned a
+    // pending promise, counted as a pass immediately, and turned its assertions into
+    // unhandled rejections that failed nothing. Two such tests were written and reported
+    // green while asserting nothing at all - caught only by reverting the fix they covered
+    // and seeing the suite still pass.
+    //
+    // Rather than make every call site await, refuse the shape outright. Keep tests
+    // synchronous; if async behaviour needs covering, extract the pure logic and test that.
+    if (result && typeof result.then === "function") {
+      throw new Error("test function returned a promise; this runner is synchronous, so its assertions would never run");
+    }
+    pass++; console.log("  ✓ " + name);
+  }
   catch (e) { fail++; console.log("  ✗ " + name + " — " + e.message); }
 }
 
@@ -397,6 +411,7 @@ test("a malformed safetyFilters value is treated as unreadable, not as empty", (
 });
 test("a range with no enabled flag is not evaluated (row-level opt-in)", () => {
   const { evaluateSafety } = require("../engine/safety");
+
   const verdict = evaluateSafety({
     pair: { liquidity: { usd: 1 } },
     mintInfo: null,
@@ -922,6 +937,31 @@ test("rejects a transaction that the claimed wallet did not sign", () => {
 
 console.log("delegated wallet ownership");
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+console.log("position monitor take-profit shares");
+const { takeProfitShare } = require("../../server/engine/monitor");
+
+test("both take-profit shares come out of the original position, not the remainder", () => {
+  // The API rejects tp1_sell + tp2_sell > 100 and the builder labels it "% allocated", so
+  // 50 + 50 means a full exit. Computing TP2 from the post-TP1 remainder sold 750 of 1000
+  // and left the user holding a quarter of a position configured to be left entirely.
+  const original = 1000;
+  let remaining = original;
+  const tp1 = takeProfitShare(original, remaining, 50);
+  remaining -= tp1;
+  const tp2 = takeProfitShare(original, remaining, 50);
+  remaining -= tp2;
+  assert.strictEqual(tp1, 500);
+  assert.strictEqual(tp2, 500, "TP2 is 50% of the ORIGINAL, not of what TP1 left");
+  assert.strictEqual(remaining, 0, "50% + 50% exits the whole position");
+});
+
+test("a take-profit share never exceeds what the position still holds", () => {
+  assert.strictEqual(takeProfitShare(1000, 300, 90), 300, "capped at the remaining balance");
+  assert.strictEqual(takeProfitShare(1000, 0, 50), 0);
+  assert.ok(takeProfitShare(1000, 1000, 0) === 0, "a zero share sells nothing");
+});
+
 console.log("API input rules (lib/server/input-rules.js)");
 const rules = require("../../lib/server/input-rules");
 
