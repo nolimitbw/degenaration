@@ -183,6 +183,33 @@ Status: **SAFE TO SET — sell-leg fees begin once the wSOL account exists.**
 
 ## B-2 — Delegated-signing secrets and a worker host
 
+**PRECONDITION FOUND 2026-07-31 — deploy exactly ONE instance.**
+
+The worker acquires no lease, though `app_private.worker_leases` exists for it (0 rows). The
+two execution paths are not equally protected:
+
+| Path | Multi-instance safety |
+|---|---|
+| Limit orders | **protected** — `worker_claim_limit_order` claims `where status = 'open'` and reserves daily spend inside the claiming transaction |
+| Copy trades | **not protected** — no claim, no dedupe key; the daily cap lives in a per-process `Map` |
+
+With two instances running, each keeps its own cap map, so a subscriber can spend up to N
+times their configured daily cap, and both instances mirror the same detected buy.
+`bumpDailySpent` writes an absolute total rather than a delta, so concurrent writers also
+overwrite each other's figure, compounding the overspend.
+
+None of this is live — the worker has never run. It matters at the moment of deployment, and
+again at any point someone scales the service past one replica.
+
+Two ways to make it safe:
+
+1. **Deploy one instance and keep it there** — correct today, and the annotation in
+   `server/engine/copy.js` says so at the cap itself.
+2. **Give copy trades the same treatment as limit orders** — a claim that reserves spend
+   atomically, or a lease in `worker_leases` — before scaling. That is real work, not a
+   configuration flag.
+
+
 The 24/7 automation worker in `server/` is code-complete and tested but watch-only. It
 needs owner-held signing configuration and a host before automated execution can run.
 Does not block UI, fee, withdrawal, or journaling work.

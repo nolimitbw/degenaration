@@ -33,6 +33,16 @@ function startCopyWatcher(deps, pollMs = 10000) {
   const snapshots = new Map(); // walletAddress -> holdings map
   let primed = false;
 
+  // SINGLE INSTANCE ONLY. This cap is per PROCESS, and the copy path has no atomic claim -
+  // unlike limit orders, which go through worker_claim_limit_order and reserve spend inside
+  // the claiming transaction. Two workers running at once would each hold their own map, so
+  // a subscriber could spend up to N times their daily cap, and both would mirror the same
+  // detected buy. bumpDailySpent below writes an ABSOLUTE total rather than a delta, so
+  // concurrent writers also lose each other's spend, compounding it.
+  //
+  // app_private.worker_leases exists for exactly this and is currently unused - the worker
+  // acquires no lease. Until it does, deploy exactly one instance. See OPEN_BLOCKERS B-2.
+  //
   // Authoritative per-process daily spend tracking, so the cap actually throttles even
   // within a single 10s tick (before any DB roundtrip). Keyed by subscription id.
   // On first sight we seed from the persisted daily_spent (restart-safe: worst case a user
