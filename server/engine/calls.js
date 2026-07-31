@@ -60,7 +60,14 @@ function startCallWatcher(deps, pollMs = 8000) {
           const verdict = evaluateSafety({
             pair: check.evidence?.pair || null,
             mintInfo: check.evidence?.mintInfo || null,
-            safety: resolved.safety
+            safety: resolved.safety,
+            // nowMs is REQUIRED for tokenAgeMinutes — safety.js derives age from
+            // (nowMs - pair.pairCreatedAt) and yields null evidence without it. Omitting it
+            // made an enabled Token age filter fail closed on EVERY call, so a subscriber
+            // who turned that filter on had a bot that never traded, for a reason that had
+            // nothing to do with their configuration or the token. A week-old token
+            // comfortably past a 60-minute minimum was rejected as "evidence unavailable".
+            nowMs: Date.now()
           });
           if (!verdict.ok) {
             onEvent({ type: "SAFETY_REJECTED", call: c.id, subscription: s.id, mint: c.mint, reasons: verdict.reasons });

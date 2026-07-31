@@ -938,6 +938,32 @@ test("rejects a transaction that the claimed wallet did not sign", () => {
 console.log("delegated wallet ownership");
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+console.log("safety evaluation wiring");
+const { evaluateSafety: evalSafetyWiring } = require("../../server/engine/safety");
+
+test("token age needs nowMs, and its absence blocks every call", () => {
+  // engine/calls.js evaluates each subscriber's filters against the evidence rugCheck
+  // already gathered. It omitted nowMs, and safety.js derives tokenAgeMinutes from
+  // (nowMs - pairCreatedAt), so the evidence was null and the filter failed closed on every
+  // call. A subscriber who enabled Token age had a bot that silently never traded.
+  const pair = {
+    liquidity: { usd: 250000 }, marketCap: 5000000, volume: { h24: 800000 },
+    priceChange: { h24: 12 },
+    pairCreatedAt: 1000,                     // long before nowMs below
+    baseToken: { symbol: "GOOD", name: "Good" }, info: { socials: ["x"] }
+  };
+  const safety = { ranges: { tokenAgeMinutes: { enabled: true, min: 60, max: 0 } }, flags: {} };
+
+  const withoutNow = evalSafetyWiring({ pair, mintInfo: null, safety });
+  assert.strictEqual(withoutNow.ok, false, "no nowMs must block, proving it is required");
+  assert.match(withoutNow.reasons[0], /evidence unavailable/);
+
+  const withNow = evalSafetyWiring({ pair, mintInfo: null, safety, nowMs: 1000 + 7 * 24 * 3600 * 1000 });
+  assert.strictEqual(withNow.ok, true, "a mature token passes once nowMs is supplied");
+  assert.ok(withNow.evaluated.includes("tokenAgeMinutes"));
+});
+
 console.log("position monitor take-profit shares");
 const { takeProfitShare } = require("../../server/engine/monitor");
 
