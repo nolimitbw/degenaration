@@ -76,6 +76,33 @@ Options, for the owner to choose:
 2. Serve marketplace reads through an RPC or view and remove the blanket public policy
 3. Accept it as intended and record that decision
 
+### Option 1 is now written and ready — 2026-07-31
+
+`supabase/degenaration-restrict-public-calls-columns.sql`, **not applied**.
+
+RLS is row-level, so a `USING (true)` policy exposes every column; column-level GRANTs are
+the right tool. Every reader was checked rather than assumed — `app/api/calls`,
+`app/api/call-sources`, `app/api/leaderboard-image`, and `lib/publicSource.ts`, including
+both the primary and legacy fallback column lists. They use **13 columns**. Seventeen are
+readable today that no code path selects:
+
+```
+raw                 <- the raw Discord message text
+message_id, channel_id, channel_name
+confidence, parser_version, parser_confidence, parse_status, rejection_reason
+raw_event_id, parsed_signal_id
+called_liquidity_usd, latest_liquidity_usd
+last_scanned_at, executed_at, edited_at, deleted_at
+```
+
+So option 1 costs nothing functionally — the grant is narrowed to exactly what the app
+already reads, and the file carries verification queries plus the live endpoint checks.
+
+**One correction to the option as originally written:** it proposed dropping `caller` too,
+but `caller` cannot go. The caller leaderboard ranks on it, and all four readers select it.
+Discord display names stay public. If that is not wanted, the leaderboard feature is what
+needs revisiting — not the grant.
+
 ## S-2 — `anon` holds TRUNCATE, which RLS does not cover
 
 **This corrects the table above.** Its Assessment column reads "grant present, policy
