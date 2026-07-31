@@ -3,6 +3,40 @@
 Only genuine external blockers belong here: missing credentials, unavailable provider
 access, or irreversible business decisions. Everything else is implementation work.
 
+## B-9 — `anon` holds TRUNCATE on 11 public tables (owner decision: apply the migration)
+
+Found 2026-07-31 by running the Supabase security advisors and then verifying the results
+against the live catalog, because the advisor's own summary was misleading here.
+
+**Row Level Security does not apply to TRUNCATE.** Postgres checks the privilege and skips
+row policies. Every public table has RLS on with zero `anon` policies — which correctly
+denies anon SELECT/INSERT/UPDATE/DELETE — but the TRUNCATE grant sits outside that:
+
+| Table | anon TRUNCATE | anon policies |
+|---|---|---|
+| `trades`, `profiles`, `journal_entries`, `subscriptions` | true | 0 |
+| `daily_pnl`, `limit_orders`, `copy_subscriptions` | true | 0 |
+| `wallet_pnl_snapshots`, `calls`, `call_channels`, `server_applications` | true | 0 |
+
+These are the broad default grants rather than a decision: `approved_groups` and
+`privy_profiles` in the same schema have no anon grants at all.
+
+**Not exploitable today.** PostgREST exposes no TRUNCATE verb and supabase-js has no
+truncate method, so there is no known path from the publishable key to these statements.
+This is defense in depth, stated plainly so it is neither over- nor under-read. The reason
+to close it is that RLS is doing all the protective work and this is the one operation it
+does not cover.
+
+**Written but deliberately NOT applied:**
+`supabase/degenaration-revoke-anon-destructive-grants.sql`. It revokes only TRUNCATE,
+REFERENCES and TRIGGER — nothing in the repo issues them (the only `truncate` matches are
+the Tailwind class) — and sets matching default privileges so new tables do not re-inherit
+them. SELECT and the write grants are left alone on purpose; the file explains why.
+
+Applying it is a production database permission change on a financial system, so it wants
+an explicit yes rather than being done unprompted. It is reversible; the rollback statement
+is in the file.
+
 ## B-1 — `PLATFORM_FEE_ACCOUNT` is not set (blocks fee collection end-to-end)
 
 Every fee path is gated on this env var. When unset, `platformFeeBps` resolves to `0`
