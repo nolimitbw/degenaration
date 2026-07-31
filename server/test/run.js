@@ -886,6 +886,62 @@ test("rejects a transaction that the claimed wallet did not sign", () => {
 });
 
 console.log("delegated wallet ownership");
+// ---------------------------------------------------------------------------
+console.log("API input rules (lib/server/input-rules.js)");
+const rules = require("../../lib/server/input-rules");
+
+test("mint validation accepts base58 addresses and rejects everything else", () => {
+  assert.strictEqual(rules.isMint("So11111111111111111111111111111111111111112"), true);
+  assert.strictEqual(rules.isMint("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"), true);
+  assert.strictEqual(rules.isMint("0OIl" + "1".repeat(36)), false, "base58 excludes 0 O I l");
+  assert.strictEqual(rules.isMint("short"), false);
+  assert.strictEqual(rules.isMint("1".repeat(45)), false, "too long");
+  assert.strictEqual(rules.isMint(null), false);
+  assert.strictEqual(rules.isMint(12345), false);
+});
+
+test("swap amounts are exact base-unit strings, with the SOL fat-finger cap", () => {
+  // Token balances routinely exceed 2^53, so the value must survive as a string.
+  const big = "18446744073709551615"; // u64 max
+  assert.strictEqual(rules.validBaseUnits(big, false), big, "u64 max is representable exactly");
+  assert.strictEqual(rules.validBaseUnits("18446744073709551616", false), null, "beyond u64 rejected");
+  // 100 SOL cap applies to SOL inputs (buys) only; sells are bounded only by u64.
+  assert.strictEqual(rules.validBaseUnits("100000000000", true), "100000000000", "exactly 100 SOL allowed");
+  assert.strictEqual(rules.validBaseUnits("100000000001", true), null, "over 100 SOL rejected on a buy");
+  assert.strictEqual(rules.validBaseUnits("100000000001", false), "100000000001", "no cap on a sell");
+  assert.strictEqual(rules.validBaseUnits("0", true), null);
+  assert.strictEqual(rules.validBaseUnits("-1", true), null);
+  assert.strictEqual(rules.validBaseUnits("1.5", true), null, "fractional base units are meaningless");
+  assert.strictEqual(rules.validBaseUnits(1.5, true), null);
+  assert.strictEqual(rules.validBaseUnits(null, true), null);
+  assert.strictEqual(rules.validBaseUnits("1e9", true), null, "exponent notation rejected");
+});
+
+test("slippage is always an integer, because Jupiter refuses anything else", () => {
+  // Verified against the live quote endpoint: slippageBps=300.7 returns
+  // "Query parameter slippageBps cannot be parsed: ParseIntError" and the swap fails.
+  for (const input of [300.7, 1.5, 299.999, "300.7", 2000.9]) {
+    const out = rules.validSlippageBps(input);
+    assert.ok(Number.isInteger(out), `slippage from ${input} must be an integer, got ${out}`);
+  }
+  assert.strictEqual(rules.validSlippageBps(300.7), 300, "floors rather than rounds");
+  assert.strictEqual(rules.validSlippageBps(5000), 2000, "capped at 20%");
+  assert.strictEqual(rules.validSlippageBps(2000.9), 2000, "cap cannot be exceeded by rounding");
+  assert.strictEqual(rules.validSlippageBps(0), 300, "below 1 falls back to the default");
+  assert.strictEqual(rules.validSlippageBps("abc"), 300);
+  assert.strictEqual(rules.validSlippageBps(null), 300);
+  assert.strictEqual(rules.validSlippageBps(undefined), 300);
+});
+
+test("sanitized errors leak neither a stack nor an unbounded message", () => {
+  const e = new TypeError("boom\n    at Object.<anonymous> (/srv/app/secret-path.js:12:7)");
+  const out = rules.sanitizeError(e);
+  assert.strictEqual(out.includes("secret-path"), false, "no stack frames");
+  assert.strictEqual(out.includes("\n"), false, "single line");
+  assert.strictEqual(out, "boom");
+  assert.ok(rules.sanitizeError(new Error("x".repeat(500))).length <= 200, "length bounded");
+});
+
 const { ownsPrivyWallet } = require("../../lib/server/privy-wallet");
 const identityPayload = {
   sub: "did:privy:owner",
