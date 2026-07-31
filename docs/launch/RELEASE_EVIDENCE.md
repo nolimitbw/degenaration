@@ -305,6 +305,35 @@ value — a tickbox affirming a fee should state the fee actually being charged.
 the Portfolio table already modelled this correctly with separate Network fee and Platform
 fee columns.
 
+### Self-review of the session's own changes
+
+Eighteen commits landed in one day across 22 code files, and the numeric layer — which
+touches every money entry field in the product — had had no independent pass. Reviewing it
+found two real defects in the pure logic that the existing 122 tests did not cover:
+
+| Defect | Effect |
+|---|---|
+| `clamp` had a `max > 0` guard | `clamp(50, 0, 0)` returned 50 — any maximum of zero or below was silently ignored |
+| `normalizeWhileTyping("00")` returned `""` | typing a second zero erased the field |
+
+The `max > 0` guard reads like a "0 means unlimited" convention. Every call site was checked
+before removing it: all maxima in the product are real positive limits (100 trades, 99%,
+10080 minutes, 10000 bps), so the guard only ever hid a bug.
+
+Verified in production after deploy: `00` → `0`, `000` → `0`, `05` → `5`, `0.25` unchanged.
+
+**Deliberately not changed.** A value above `max` still commits to parent state mid-typing,
+because clamping happens on blur. Clamping the minimum while typing would fight the user
+(a min of 0.01 would jump the field as soon as `0` was typed), and the server already
+rejects out-of-range payloads through `boundedInteger` and the relational checks in
+`lib/server/bot-validation.ts`. Recorded rather than turned into a worse behaviour.
+
+**The tests were verified by breaking the fix.** Both bugs reintroduced → suite fails;
+restored → passes. Test count stayed 122 throughout because these are assertions inside an
+existing case, so the count alone would not have shown whether they ran. That distinction is
+the same one that made the JSX regex, the git trailer split, and the RLS probe all read as
+passes while checking nothing.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
