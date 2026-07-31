@@ -108,7 +108,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const limited = await distributedRateLimit(req, { limit: 10, windowSeconds: 60 });
+  // failClosed, like every other mutating money route (bots, kol-subscriptions, payouts,
+  // both referral routes). This one was the only one without it, which read as an oversight
+  // rather than a decision: when the bridge is unavailable the limiter silently fell back to
+  // the in-memory limiter, which is PER INSTANCE and therefore no real bound across a
+  // serverless fleet.
+  //
+  // It costs nothing in availability. resolveState below already returns 503 when the
+  // bridge cannot verify the balance, so a request that gets past a failed-open limiter was
+  // going to fail a few lines later anyway. This just fails closed at the first gate.
+  const limited = await distributedRateLimit(req, { limit: 10, windowSeconds: 60, failClosed: true });
   if (limited) return limited;
 
   const user = await requirePrivyUser(req);
