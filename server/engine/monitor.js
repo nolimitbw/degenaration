@@ -24,6 +24,25 @@ function takeProfitShare(original, remaining, percent) {
  * getPrice(mint) -> current USD price (DexScreener)
  * submitSigned(tx, userPubkey) -> signs with user's delegated session key + sends
  */
+/**
+ * KNOWN GAP, and deliberately not patched here — see OPEN_BLOCKERS B-2.
+ *
+ * `submitSigned` resolves as soon as Privy SUBMITS the transaction; `signAndSend` in
+ * signer.js returns `res.hash` without waiting for confirmation. This function then marks
+ * `p.open = false` (or `filled.tpN = true`) immediately, so a sell that fails on chain -
+ * slippage exceeded, blockhash expired, insufficient balance - is recorded as an exit that
+ * happened. The position keeps falling with its stop-loss believed spent.
+ *
+ * Both obvious fixes are wrong on their own:
+ *
+ *   - Retry when unconfirmed: a sell that DID land but was slow to confirm gets sold twice.
+ *   - Leave state untouched on error: the next 5s tick re-fires the same sell, same result.
+ *
+ * The correct shape is a pending state that blocks re-firing until the signature resolves
+ * confirmed or failed, which needs the position to survive a restart. `positions` here is an
+ * in-memory array with no persistence, so that is a design change rather than a patch, and
+ * getting it wrong double-sells a user's position. It is written up rather than guessed at.
+ */
 function startMonitor({ positions, getPrice, submitSigned, onEvent }) {
   const tick = async () => {
     for (const p of positions.filter(x => x.open)) {

@@ -183,6 +183,32 @@ Status: **SAFE TO SET — sell-leg fees begin once the wSOL account exists.**
 
 ## B-2 — Delegated-signing secrets and a worker host
 
+**SECOND PRECONDITION — TP/SL treats submission as settlement.**
+
+`server/engine/signer.js` returns Privy's `hash` the moment the transaction is submitted; it
+does not wait for confirmation. `server/engine/monitor.js` then marks the position closed, or
+the take-profit level filled, immediately after that call resolves.
+
+So a sell that **fails on chain** — slippage exceeded, blockhash expired, insufficient
+balance — is recorded as an exit that happened. The position keeps falling with its
+stop-loss believed spent, and nothing retries. This is a safety mechanism that silently
+does not fire, which is the worst failure shape for unattended trading.
+
+Not patched, because both obvious fixes are wrong on their own:
+
+| Fix | Why it fails |
+|---|---|
+| Retry when unconfirmed | a sell that DID land but confirmed slowly gets sold twice |
+| Leave state untouched on error | the next 5s tick re-fires the same sell |
+
+The correct shape is a pending state that blocks re-firing until the signature resolves
+confirmed or failed — which requires positions to survive a restart. `positions` is an
+in-memory array today with no persistence, so this is a design change, not a patch, and
+getting it wrong double-sells a user's position.
+
+**This should be resolved before the worker manages real positions**, and it is independent
+of the single-instance precondition below.
+
 **PRECONDITION FOUND 2026-07-31 — deploy exactly ONE instance.**
 
 The worker acquires no lease, though `app_private.worker_leases` exists for it (0 rows). The
