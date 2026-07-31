@@ -487,6 +487,31 @@ test("rent and network fee reserve is retained", () => {
 test("spendable never goes negative", () => {
   assert.strictEqual(wd.spendableLamports({ balanceLamports: BigInt(0) }), BigInt(0));
   assert.strictEqual(wd.spendableLamports({ balanceLamports: SOL, lockedLamports: SOL * BigInt(5) }), BigInt(0));
+  // A negative locked or pending figure must never INCREASE what can be withdrawn. Before
+  // this was floored, balance 1 SOL with locked -1 SOL reported ~2 SOL spendable and
+  // validateWithdrawal approved 1.5 SOL against a 1 SOL balance. These values come from the
+  // database, so this guards an accounting bug rather than a hostile caller.
+  assert.strictEqual(
+    wd.spendableLamports({ balanceLamports: SOL, lockedLamports: -SOL }),
+    wd.spendableLamports({ balanceLamports: SOL, lockedLamports: BigInt(0) })
+  );
+  assert.strictEqual(
+    wd.spendableLamports({ balanceLamports: SOL, pendingWithdrawalLamports: -SOL }),
+    wd.spendableLamports({ balanceLamports: SOL, pendingWithdrawalLamports: BigInt(0) })
+  );
+  // Spendable can never exceed what the account actually holds, whatever the inputs claim.
+  assert.ok(wd.spendableLamports({ balanceLamports: SOL, lockedLamports: -SOL * BigInt(9) }) < SOL);
+  {
+    const over = wd.validateWithdrawal({
+      owner: "FSF99fXBhfr15KBzjA2uQWf8vmAnawd3eTD5LdcTQbh9",
+      destination: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      balanceLamports: SOL,
+      lockedLamports: -SOL,
+      amountLamports: SOL + BigInt(500000000)
+    });
+    assert.strictEqual(over.ok, false, "must not approve more than the balance");
+    assert.strictEqual(over.code, "exceeds-spendable");
+  }
 });
 test("invalid and self-destination addresses are rejected", () => {
   assert.strictEqual(withdraw({ destination: "not-an-address" }).code, "invalid-destination");
