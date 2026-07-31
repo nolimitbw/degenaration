@@ -843,11 +843,16 @@ const feeAccount = "F".repeat(44);
 const swapTransaction = {
   transaction: {
     signatures: [tradeSignature],
-    message: { accountKeys: [
-      { pubkey: tradeWallet, signer: true },
-      { pubkey: "T".repeat(44), signer: false },
-      { pubkey: feeAccount, signer: false }
-    ] }
+    message: {
+      accountKeys: [
+        { pubkey: tradeWallet, signer: true },
+        { pubkey: "T".repeat(44), signer: false },
+        { pubkey: feeAccount, signer: false }
+      ],
+      // A real swap carries an actual Jupiter instruction. The fixture used to rely on the
+      // log line alone, which is exactly the weakness the verifier no longer accepts.
+      instructions: [{ programId: "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" }]
+    }
   },
   meta: {
     err: null,
@@ -862,6 +867,36 @@ const swapTransaction = {
     ]
   }
 };
+test("a forged Jupiter log line is not proof of a swap", () => {
+  // logMessages is program-writable: any program can emit "Program JUP6Lkb... invoke [1]"
+  // via msg!. Paired with a self-transfer to move a token balance, a log-only check let a
+  // transaction that never touched Jupiter be recorded as a trade. Proof must come from an
+  // actual instruction.
+  const forged = JSON.parse(JSON.stringify(swapTransaction));
+  forged.transaction.message.instructions = [{ programId: "F".repeat(43) + "k" }];
+  forged.meta.innerInstructions = [];
+  forged.meta.logMessages = ["Program JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4 invoke [1]"];
+  const result = analyzeSwapTransaction(forged, {
+    signature: tradeSignature, userPubkey: tradeWallet, mint: tradeMint, side: "buy", feeAccount: null
+  });
+  assert.strictEqual(result.ok, false);
+  assert.match(result.error, /not a Jupiter swap/);
+});
+
+test("Jupiter reached through a CPI still verifies", () => {
+  // Aggregators and bots frequently invoke Jupiter from an inner instruction; requiring a
+  // top-level match only would reject those legitimately.
+  const viaCpi = JSON.parse(JSON.stringify(swapTransaction));
+  viaCpi.transaction.message.instructions = [{ programId: "R".repeat(43) + "k" }];
+  viaCpi.meta.innerInstructions = [
+    { index: 0, instructions: [{ programId: "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" }] }
+  ];
+  const result = analyzeSwapTransaction(viaCpi, {
+    signature: tradeSignature, userPubkey: tradeWallet, mint: tradeMint, side: "buy", feeAccount: null
+  });
+  assert.strictEqual(result.ok, true, result.error);
+});
+
 test("derives token amount and fee from confirmed balance deltas", () => {
   const result = analyzeSwapTransaction(swapTransaction, {
     signature: tradeSignature, userPubkey: tradeWallet, mint: tradeMint, side: "buy", feeAccount
