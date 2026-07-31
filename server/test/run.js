@@ -939,6 +939,41 @@ console.log("delegated wallet ownership");
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
+console.log("subscriber safety wiring");
+const storeSource = require("node:fs").readFileSync(
+  require("node:path").join(__dirname, "..", "engine", "store.js"), "utf8");
+
+test("loadGroupSubscribers selects the columns subscriberSafety depends on", () => {
+  // subscriberSafety reads bot_profile_id, config_version_id and extended_config off the
+  // row. If the SELECT ever drops one, `fromBuilder` goes false and `config` undefined, so
+  // EVERY subscriber reads as a legacy row with no filters — the exact B-6 defect, restored
+  // silently by an innocuous query edit, with no error anywhere to notice it.
+  const line = storeSource.split("\n").find((l) => l.includes("loadGroupSubscribers"));
+  assert.ok(line, "loadGroupSubscribers must exist");
+  for (const column of ["bot_profile_id", "config_version_id", "extended_config"]) {
+    assert.ok(line.includes(column), `loadGroupSubscribers must select ${column}`);
+  }
+});
+
+test("a builder subscription with unreadable filters refuses to execute", () => {
+  const store = require("../../server/engine/store");
+  // Builder row (has bot_profile_id) but no readable config: must be a refusal, never
+  // "no filters configured".
+  const refused = store.subscriberSafety({ id: "s1", bot_profile_id: "b1" });
+  assert.strictEqual(refused.ok, false, "must refuse, not fall back to unfiltered");
+  // Legacy row with no builder linkage: baseline checks only, allowed to run.
+  const legacy = store.subscriberSafety({ id: "s2" });
+  assert.strictEqual(legacy.ok, true);
+  assert.strictEqual(legacy.safety, null);
+  // Builder row with filters present: they are returned and used.
+  const configured = store.subscriberSafety({
+    id: "s3", config_version_id: "v1",
+    extended_config: { safetyFilters: { ranges: { liquidityUsd: { enabled: true, min: 1, max: 0 } }, flags: {} } }
+  });
+  assert.strictEqual(configured.ok, true);
+  assert.ok(configured.safety.ranges.liquidityUsd.enabled);
+});
+
 console.log("safety evaluation wiring");
 const { evaluateSafety: evalSafetyWiring } = require("../../server/engine/safety");
 
