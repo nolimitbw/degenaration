@@ -476,6 +476,27 @@ the suite still passed — the floor and the balance ceiling cover each other, s
 guard proves nothing. Restoring the entire original function fails the suite; the fix passes.
 Sixth instance this session of a check that had to be checked.
 
+### JS-to-SQL fee parity, verified against the deployed database
+
+`lib/fee-model.js` has **no production callers** — the live allocation runs in SQL, and the
+JS model is the specification the trigger is checked against. So the question that matters
+is whether the two agree, and the standing test did not answer it: it compared the model to
+`sqlFloorBps`, a JavaScript restatement of the SQL written in the same file. That proves
+agreement with a transcription and would keep passing if production diverged.
+
+Executed the real formulas against the deployed project and compared:
+
+| Vectors | Components | Result |
+|---|---|---|
+| 24 notionals (1 → 999999999999) | platform @200, discord creator @70, kol creator @20, referral @1000-of-fee | **JS matches the live database on every one**, and every allocation balances |
+
+Those observed values are now literals in the suite as `LIVE_SQL_VECTORS`, so the standing
+test is pinned to production behaviour rather than to its own restatement, with the
+re-capture query in the comment.
+
+Verified by drifting `DISCORD_CREATOR_BPS` 70 → 71: the live-vector test fails at notional
+999. Restored, 123 pass.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
