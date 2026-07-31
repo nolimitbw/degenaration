@@ -287,7 +287,13 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
               },
               {
                 q: "When do I get paid?",
-                a: `Request a payout once your available balance reaches ${formatSol(summary.minimumPayoutLamports)}. A ${formatSol(summary.processingFeeLamports)} network processing fee is deducted, and the exact gross, fee, and net are shown before you confirm.`
+                // NOT a "network" fee. Solana network fees are ~0.000005 SOL; this is a fixed
+                // platform charge and the RPC posts it to commission_ledger_entries with
+                // account_type = 'platform'. Calling it a network fee told users the chain
+                // takes 0.043 SOL when this platform books it as revenue. The Portfolio
+                // trade table already keeps "Network fee" and "Platform fee" as separate
+                // columns — this string was the one place that conflated them.
+                a: `Request a payout once your available balance reaches ${formatSol(summary.minimumPayoutLamports)}. A fixed ${formatSol(summary.processingFeeLamports)} platform processing fee is deducted, and the exact gross, fee, and net are shown before you confirm.`
               },
               {
                 q: "Can I change my reward rate?",
@@ -753,7 +759,7 @@ function PayoutModal({
             <div className="flex justify-between py-3 text-xs text-dim"><span>Processing/admin fee</span><span className="font-mono text-ink">-{fee.toFixed(3)} SOL</span></div>
             <div className="flex justify-between py-3 text-xs font-semibold text-ink"><span>Net wallet payout</span><span className="font-mono">{net.toFixed(3)} SOL</span></div>
           </div>
-          <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I confirm the destination, gross amount, fixed 0.043 SOL fee, and net payout. I understand this request is pending until reviewed and reconciled.</label>
+          <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I confirm the destination, gross amount, fixed {formatSol(summary.processingFeeLamports)} processing fee, and net payout. I understand this request is pending until reviewed and reconciled.</label>
         </div>
         <footer className="flex justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={onClose} className="min-h-11 rounded-md border border-edge px-5 text-sm font-semibold text-ink">Cancel</button><button type="button" onClick={submit} disabled={invalid || !confirmed || busy} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c] disabled:opacity-40">{busy && <Loader2 size={14} className="animate-spin" />}Submit request</button></footer>
       </div>
