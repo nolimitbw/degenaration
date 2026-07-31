@@ -497,6 +497,37 @@ re-capture query in the comment.
 Verified by drifting `DISCORD_CREATOR_BPS` 70 → 71: the live-vector test fails at notional
 999. Restored, 123 pass.
 
+### Authentication review
+
+The highest-stakes code not previously covered. `lib/server/privy.ts` is sound: tokens are
+verified against Privy's JWKS with issuer and audience pinned, `jose` enforces `exp` and
+`nbf`, a missing subject throws, and every failure path closes to 401.
+
+`ownsPrivyWallet` has one fail-open, now named rather than left implicit:
+
+| Token contents | Client claim | Result |
+|---|---|---|
+| linked account has an id | different id | **rejected** |
+| linked account has **no** id | anything | **accepted** |
+
+**Not a vulnerability.** Authority comes from the ADDRESS → USER binding, which holds in
+every case — the identity token must share the access token's subject, and that subject must
+have the Solana address among its linked accounts. Verified directly: a wrong address or a
+wrong subject is rejected even with the id absent. Callers build against the verified
+address, pass `walletId` alongside it rather than instead of it, and the server holds no
+keys, so it cannot move funds either way.
+
+**Left as is rather than tightened.** Requiring an id that Privy may legitimately omit would
+break withdrawals for those accounts, and there is no exploitable gap to justify that risk
+on a live financial app.
+
+The behaviour is now asserted in the suite, with the condition under which it stops being
+safe recorded at the function: the moment anything treats `walletId` as authoritative —
+choosing a signing wallet, keying a balance lookup — the id must become mandatory. That is
+how this becomes a real hole later, and nothing recorded it.
+
+Verified the assertions are load-bearing by dropping the address comparison: the suite fails.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
