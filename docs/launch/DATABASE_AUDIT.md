@@ -76,6 +76,56 @@ Options, for the owner to choose:
 2. Serve marketplace reads through an RPC or view and remove the blanket public policy
 3. Accept it as intended and record that decision
 
+## S-2 — `anon` holds TRUNCATE, which RLS does not cover
+
+**This corrects the table above.** Its Assessment column reads "grant present, policy
+denies" for eleven tables. That is true for SELECT, INSERT, UPDATE and DELETE. It is **not**
+true for TRUNCATE: Postgres checks the TRUNCATE privilege and skips row policies entirely,
+so no policy can deny it.
+
+Re-checked 2026-07-31 with `has_table_privilege`:
+
+| Tables | anon TRUNCATE | anon policies |
+|---|---|---|
+| `trades`, `profiles`, `journal_entries`, `subscriptions`, `daily_pnl` | true | 0 |
+| `limit_orders`, `copy_subscriptions`, `wallet_pnl_snapshots` | true | 0 |
+| `calls`, `call_channels`, `server_applications` | true | 0 |
+| `approved_groups`, `privy_profiles` | **false** | 0 |
+
+The last row matters: two tables in the same schema carry no anon grants at all, so this is
+the broad default rather than a decision anyone made.
+
+**Not exploitable through the REST API.** PostgREST exposes no TRUNCATE verb and supabase-js
+has no truncate method, so there is no known path from the publishable key to these
+statements. Recorded as defense in depth, not a breach — the point is that RLS is doing all
+the protective work here and this is the one operation outside it.
+
+Migration written and **not applied**:
+`supabase/degenaration-revoke-anon-destructive-grants.sql`. Tracked as B-9.
+
+### Method note
+
+The first probe written for this reported three tables as blocked when they were not. It
+did `SET ROLE anon`, ran the SELECT, then inserted the result into a temp table — while
+still `anon`. The insert failed, the handler caught it, and the failure was recorded as
+though the SELECT had been denied. Rewritten to `RESET ROLE` before recording.
+
+A check that fails for the wrong reason is indistinguishable from a check that passes. This
+is the third time in this project that pattern has produced a confident wrong answer, after
+the `[^>]*` JSX regex and the `%b` git trailer split.
+
+## Two database decisions to make before the worker runs
+
+S-1 and S-2 are both cheap now and expensive later, for the same reason: the tables are
+nearly empty, and the worker is what fills them.
+
+| | Decision | If deferred |
+|---|---|---|
+| S-1 | Whether raw Discord message bodies and caller names stay world-readable | Every ingested call becomes publicly readable as it is written |
+| S-2 | Whether to revoke anon TRUNCATE/REFERENCES/TRIGGER | Grant keeps widening as new tables inherit the default |
+
+Neither blocks the worker. Both are easier to settle before it starts writing than after.
+
 ## Performance advisor
 
 All findings are `INFO`, all of the form "index has never been used" — roughly 45 of them,
