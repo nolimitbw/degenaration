@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
@@ -129,6 +129,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [sourceId, setSourceId] = useState(searchParams.get("source") || "");
   const [channelId, setChannelId] = useState("");
   const [sources, setSources] = useState<DiscordSource[]>([]);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [sourcesError, setSourcesError] = useState("");
   const [buyAmountSol, setBuyAmountSol] = useState(0.5);
   const [maximumCapitalSol, setMaximumCapitalSol] = useState(3);
   const [dailyLossSol, setDailyLossSol] = useState(1);
@@ -202,15 +204,36 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     };
   }, [confirmStatus, securityOpen]);
 
-  useEffect(() => {
+  const loadSources = useCallback(() => {
     if (kind !== "discord") return;
-    productFetch<{ sources: DiscordSource[] }>("/api/product/marketplace/discord?period=7d&sort=performance")
+    setSourcesError("");
+    setSourcesLoading(true);
+    productFetch<{ sources: DiscordSource[] }>(
+      "/api/product/marketplace/discord?period=7d&sort=performance",
+      undefined,
+      { signal: AbortSignal.timeout(15000) }
+    )
       .then((data) => {
         setSources(data.sources || []);
         setSourceId((current) => current || data.sources?.[0]?.id || "");
       })
-      .catch(() => setSources([]));
+      .catch((reason) => {
+        // Previously `.catch(() => setSources([]))`. A failed load then rendered as
+        // "No options available", which is indistinguishable from "no approved sources
+        // exist" — so the primary creation flow looked broken with no cause and no retry.
+        // Observed in the owner's recording: the marketplace listed two approved sources
+        // while this dropdown showed none.
+        setSources([]);
+        // The raw API reason ("server not configured", provider codes) is internal
+        // language that must not reach the public UI (spec §23). Show a product-language
+        // message and keep the detail in the console for support.
+        console.error("[bot-builder] approved source load failed:", reason);
+        setSourcesError("Approved sources could not be loaded right now.");
+      })
+      .finally(() => setSourcesLoading(false));
   }, [kind]);
+
+  useEffect(() => { loadSources(); }, [loadSources]);
 
   useEffect(() => {
     if (!botId || !authenticated) return;
@@ -491,7 +514,24 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <div className="grid gap-4 lg:grid-cols-2">
               <TextField label="Bot name" value={name} onChange={setName} maxLength={80} />
               {kind === "discord" ? (
-                <SelectField label="Approved Discord source" value={sourceId} onChange={setSourceId} options={sources.map((item) => ({ value: item.id, label: item.name }))} />
+                <div>
+                  <SelectField
+                    label="Approved Discord source"
+                    value={sourceId}
+                    onChange={setSourceId}
+                    options={sources.map((item) => ({ value: item.id, label: item.name }))}
+                  />
+                  {sourcesLoading && <p className="mt-1.5 text-[11px] text-dim">Loading approved sources…</p>}
+                  {!sourcesLoading && sourcesError && (
+                    <p role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-danger">
+                      {sourcesError}
+                      <button type="button" onClick={loadSources} className="inline-flex min-h-8 items-center rounded border border-edge px-2 font-semibold text-ink">Try again</button>
+                    </p>
+                  )}
+                  {!sourcesLoading && !sourcesError && sources.length === 0 && (
+                    <p className="mt-1.5 text-[11px] text-dim">No approved sources yet. Browse Discord Sources to see communities awaiting approval.</p>
+                  )}
+                </div>
               ) : (
                 <SelectField label="Visibility" value={visibility} onChange={(value) => setVisibility(value as "private" | "public")} options={[{ value: "private", label: "Private draft" }, { value: "public", label: "Public after review" }]} />
               )}
