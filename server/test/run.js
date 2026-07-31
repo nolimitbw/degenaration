@@ -939,6 +939,17 @@ console.log("delegated wallet ownership");
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
+test("a dexscreener link yields whatever the URL carries, pair address included", () => {
+  // Pins current behaviour rather than blessing it: the parser cannot tell a pair address
+  // from a mint, and the engine's token endpoint returns nothing for a pair, so the call is
+  // skipped. Documented in parser.js; if the engine gains a pair fallback, this is where
+  // the expectation changes.
+  const pairAddress = "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9";
+  const parsed = parseCall(`new call dexscreener.com/solana/${pairAddress} ape now`);
+  assert.strictEqual(parsed.mint, pairAddress, "extracted verbatim, pair or mint alike");
+  assert.strictEqual(parsed.confidence, "high", "a link is still higher confidence than a bare address");
+});
+
 console.log("subscriber safety wiring");
 const storeSource = require("node:fs").readFileSync(
   require("node:path").join(__dirname, "..", "engine", "store.js"), "utf8");
