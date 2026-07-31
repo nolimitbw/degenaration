@@ -214,6 +214,33 @@ builds: true    platformFeeBps: 0    feeAccountSet: false    error: null
 Fee declined, trading unaffected. Fees begin automatically once the wSOL ATA
 `AuFCZDtr7PaZxEitCPzKpQZdkRLnpKZxK6Y4MpxAZhDj` exists (absent as of this check).
 
+### The silent-failure sweep — fourth instance
+
+After fixing this pattern three times reactively (Affiliate, Portfolio, the Discord bot
+builder), the codebase was swept for the rest of it rather than waiting for a user to find
+the next one. `grep` for catch handlers that discard the reason, then triage by what the
+failure actually renders as.
+
+One genuine defect: `app/bots/page.tsx` caught to `0`, so a failed marketplace request
+rendered **"Approved sources 0"** as if measured. Verified in production that the marketplace
+returns 2 — a user whose request failed was told there were none, on the page whose purpose
+is to send them to a source. `setBots([])` did the same to "Your bots".
+
+Both paths verified after deploy:
+
+| Condition | Approved sources | Live strategies |
+|---|---|---|
+| API failing (local, no server creds) | `--` | `--` |
+| API healthy (production) | **2** | **0** |
+
+That production `0` is a *measured* zero — no KOL strategies are published yet — which is
+the whole point of the change: `0` now means counted, `--` means unknown.
+
+Triaged and deliberately left alone: the Discord and KOL detail pages also catch to null,
+but their empty state reads "unapproved, suspended, removed, **or temporarily unavailable**",
+which already covers a load failure honestly. The API routes' `req.json().catch(() => null)`
+is correct — that is bad-input handling, not a swallowed failure.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
