@@ -16,6 +16,10 @@ const { startLimitWatcher } = require("./engine/limits");
 const { startCopyWatcher } = require("./engine/copy");
 const { startCallWatcher } = require("./engine/calls");
 const { startPerformanceScanner } = require("./engine/performance");
+const { startSettlementWatcher } = require("./engine/settlement");
+const { startMonitor } = require("./engine/monitor");
+const { confirmSignature, fetchReceivedAmount } = require("./engine/confirm");
+const { missingExitPath } = require("./engine/exit-path");
 const signer = require("./engine/signer");
 const store = require("./engine/store");
 
@@ -68,30 +72,33 @@ if (SIGNING_READY) {
 }
 
 /**
- * SAFETY GATE — there is no automated exit path. See docs/adr/ADR-001-worker-deployment.md.
+ * SAFETY GATE — the exit path must exist before signing may be enabled.
+ * See docs/adr/ADR-001-worker-deployment.md, action item 4.
  *
- * Under SIGNING_READY this worker starts up to three BUY paths and has no automated SELL
- * path at all: engine/monitor.js exports startMonitor, nothing calls it, and nothing
- * produces the open positions it takes as a parameter. Enabling signing in that state turns
- * a user's configured stop loss into a promise this code cannot keep — the worker buys, the
- * token falls, and no code sells.
+ * A worker that can buy but not sell turns a user's configured stop loss into a promise the
+ * code cannot keep: the worker buys, the token falls, and nothing sells. That was the state
+ * this gate was written for — `startMonitor` existed but was never called, and nothing
+ * produced the positions it takes as a parameter.
  *
- * WHY THIS IS DERIVED RATHER THAN DECLARED. A `const EXITS_WIRED = false` could be flipped
- * by anyone who wanted the worker to boot, which makes it exactly as weak as the document it
- * is meant to enforce. `store.loadOpenPositions` is the narrowest thing that MUST exist
- * before the monitor can be handed a single position, so this guard retires itself when
- * position tracking is actually built and not one moment earlier.
+ * WHY THIS IS DERIVED RATHER THAN DECLARED. A `const EXITS_WIRED = true` could be flipped by
+ * anyone who wanted the worker to boot, making it exactly as weak as the document it
+ * enforces. Naming the store functions the path genuinely cannot work without means the
+ * gate retires itself when the path is really built, and re-arms the moment one is removed
+ * or renamed.
  *
- * It is necessary, not sufficient: a loader alone does not mean the monitor is started or
- * that confirmation is awaited (ADR-001 findings 2 and 3). Re-read that record before
- * removing this.
+ * It is necessary, not sufficient. It proves the pieces exist, not that they are correct —
+ * that is what server/test/run.js covers: the pending-exit block, the confirmation
+ * classifier, and the settlement transitions.
  */
-if (SIGNING_READY && typeof store.loadOpenPositions !== "function") {
+const missing = missingExitPath(store);
+
+if (SIGNING_READY && missing.length) {
   console.error(
     "[worker] REFUSING TO START — DELEGATED_SIGNING=on but this worker has no way to exit a position.\n" +
-    "         engine/monitor.js is never started, and store.loadOpenPositions does not exist,\n" +
-    "         so take-profit and stop-loss can never fire on anything this worker buys.\n" +
-    "         Users' configured stop losses would be silently unenforced.\n" +
+    `         Missing from engine/store.js: ${missing.join(", ")}\n` +
+    "         Without the full capture-and-exit path, take-profit and stop-loss cannot fire\n" +
+    "         on anything this worker buys, and users' configured stop losses would be\n" +
+    "         silently unenforced.\n" +
     "         See docs/adr/ADR-001-worker-deployment.md, action item 4.\n" +
     "         To run measurement only, set DELEGATED_SIGNING=off — the performance scanner\n" +
     "         runs outside every signing gate and needs none of this."
@@ -132,8 +139,27 @@ if (SIGNING_READY) {
     loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
     subscriberSafety: store.subscriberSafety,
     claimCallExecution: store.claimCallExecution, finishCallExecution: store.finishCallExecution,
+    submitCallExecution: store.submitCallExecution,
     completeCall: store.completeCall, markCallExecuted: store.markCallExecuted, signAndSend,
-    recordCopy: store.recordCopy, onEvent: log("call")
+    onEvent: log("call")
+  });
+
+  // Resolves submitted buys against the chain, records the trade only once it landed, and
+  // opens the position the monitor below watches. Without this nothing produces positions.
+  startSettlementWatcher({
+    loadSubmitted: store.loadSubmittedExecutions,
+    confirmSignature, fetchReceivedAmount, getPrice,
+    openPosition: store.openPosition, settleExecution: store.settleCallExecution,
+    recordTrade: store.recordTrade, onEvent: log("settle")
+  });
+
+  // Take-profit / stop-loss. Every exit is claimed atomically and confirmed on chain before
+  // it counts as filled, so a sell that fails cannot leave a stop-loss believed spent.
+  startMonitor({
+    loadOpenPositions: store.loadOpenPositions, getPrice,
+    claimExit: store.claimPositionExit, settleExit: store.settlePositionExit,
+    recordPendingExit: store.recordPositionExitSig,
+    signAndSend, confirmSignature, recordTrade: store.recordTrade, onEvent: log("monitor")
   });
 }
 

@@ -1017,21 +1017,23 @@ test("both take-profit shares come out of the original position, not the remaind
   // The API rejects tp1_sell + tp2_sell > 100 and the builder labels it "% allocated", so
   // 50 + 50 means a full exit. Computing TP2 from the post-TP1 remainder sold 750 of 1000
   // and left the user holding a quarter of a position configured to be left entirely.
-  const original = 1000;
+  // Amounts are BigInt: raw token amounts for high-supply mints exceed 2^53, where float
+  // arithmetic would silently mis-size a sell.
+  const original = BigInt(1000);
   let remaining = original;
   const tp1 = takeProfitShare(original, remaining, 50);
   remaining -= tp1;
   const tp2 = takeProfitShare(original, remaining, 50);
   remaining -= tp2;
-  assert.strictEqual(tp1, 500);
-  assert.strictEqual(tp2, 500, "TP2 is 50% of the ORIGINAL, not of what TP1 left");
-  assert.strictEqual(remaining, 0, "50% + 50% exits the whole position");
+  assert.strictEqual(tp1, BigInt(500));
+  assert.strictEqual(tp2, BigInt(500), "TP2 is 50% of the ORIGINAL, not of what TP1 left");
+  assert.strictEqual(remaining, BigInt(0), "50% + 50% exits the whole position");
 });
 
 test("a take-profit share never exceeds what the position still holds", () => {
-  assert.strictEqual(takeProfitShare(1000, 300, 90), 300, "capped at the remaining balance");
-  assert.strictEqual(takeProfitShare(1000, 0, 50), 0);
-  assert.ok(takeProfitShare(1000, 1000, 0) === 0, "a zero share sells nothing");
+  assert.strictEqual(takeProfitShare(1000, 300, 90), BigInt(300), "capped at the remaining balance");
+  assert.strictEqual(takeProfitShare(1000, 0, 50), BigInt(0));
+  assert.strictEqual(takeProfitShare(1000, 1000, 0), BigInt(0), "a zero share sells nothing");
 });
 
 console.log("API input rules (lib/server/input-rules.js)");
@@ -1198,28 +1200,281 @@ test("maps only the declared Solana networks", () => {
     SUPABASE_SERVICE_KEY: "fake-key-for-test",
     COPY_TRADING: "off"
   };
-  const run = (env) => spawnSync(process.execPath, [workerPath], {
-    env: { ...baseEnv, ...env }, encoding: "utf8", timeout: 20000
+  const { EXIT_PATH_REQUIREMENTS, missingExitPath } = require("../engine/exit-path");
+  const run = (env, timeout = 20000) => spawnSync(process.execPath, [workerPath], {
+    env: { ...baseEnv, ...env }, encoding: "utf8", timeout
   });
 
-  test("worker refuses to start with signing on while no exit path exists", () => {
-    const r = run({
-      DELEGATED_SIGNING: "on",
-      PRIVY_APP_ID: "x", PRIVY_APP_SECRET: "y", PRIVY_AUTHORIZATION_KEY: "z"
-    });
-    assert.strictEqual(r.status, 1);
-    assert.match(r.stderr, /REFUSING TO START/);
-    assert.match(r.stderr, /no way to exit a position/);
-  });
-
-  test("the refusal is derived from the store, not a flag someone can flip", () => {
-    // If a position loader ever exists, the guard must stop firing on its own. Proving the
-    // predicate is what the guard actually reads keeps it honest.
+  test("the exit path is now wired, so the guard no longer refuses", () => {
+    // The guard's contract is that it retires itself once the path genuinely exists. This
+    // asserts the real store satisfies the real requirement list — no duplicated copy.
     const store = require("../engine/store");
-    assert.strictEqual(typeof store.loadOpenPositions, "undefined");
-    const wouldRefuse = (s) => typeof s.loadOpenPositions !== "function";
-    assert.strictEqual(wouldRefuse(store), true);
-    assert.strictEqual(wouldRefuse({ loadOpenPositions: () => [] }), false);
+    assert.deepStrictEqual(missingExitPath(store), []);
+  });
+
+  test("the guard re-arms the moment any single piece is removed", () => {
+    // A guard that can only ever pass is not a guard. Every requirement must individually
+    // be load-bearing, or one could be deleted without the gate noticing.
+    const store = require("../engine/store");
+    for (const name of EXIT_PATH_REQUIREMENTS) {
+      const crippled = { ...store, [name]: undefined };
+      assert.deepStrictEqual(missingExitPath(crippled), [name], `${name} is not load-bearing`);
+    }
+  });
+
+  test("worker boots with signing on and starts the exit path", () => {
+    // Spawned rather than unit-tested: the guard's value is that it controls the PROCESS.
+    // The worker runs forever, so it is killed by the timeout — status is null, and what
+    // matters is that it never printed the refusal and did start.
+    const r = run({
+      DELEGATED_SIGNING: "on", PORT: "18791",
+      PRIVY_APP_ID: "x", PRIVY_APP_SECRET: "y", PRIVY_AUTHORIZATION_KEY: "z"
+    }, 6000);
+    assert.doesNotMatch(r.stderr || "", /REFUSING TO START/);
+    assert.match(r.stdout || "", /signing ENABLED/);
+  });
+
+  test("worker still refuses when a store function is missing", () => {
+    // Proves the refusal path is alive rather than merely unreachable, by running the same
+    // predicate the process runs against a store with one piece knocked out.
+    const store = require("../engine/store");
+    const crippled = { ...store, loadOpenPositions: undefined };
+    assert.deepStrictEqual(missingExitPath(crippled), ["loadOpenPositions"]);
+  });
+}
+
+// --- confirmation classifier (submission is not settlement) ---
+console.log("transaction confirmation");
+{
+  const { classifySignatureStatus, tokenDeltaFromMeta, EXPIRY_MS } = require("../engine/confirm");
+
+  test("a landed transaction with no error is confirmed", () => {
+    assert.strictEqual(classifySignatureStatus({ status: { confirmationStatus: "confirmed", err: null }, elapsedMs: 0 }), "confirmed");
+    assert.strictEqual(classifySignatureStatus({ status: { confirmationStatus: "finalized", err: null }, elapsedMs: 0 }), "confirmed");
+  });
+
+  test("a landed transaction with an error is failed", () => {
+    assert.strictEqual(classifySignatureStatus({ status: { confirmationStatus: "finalized", err: { InstructionError: [] } }, elapsedMs: 0 }), "failed");
+  });
+
+  test("'processed' is NOT treated as settled", () => {
+    // A processed transaction can still be dropped by the cluster. Counting it as confirmed
+    // would mark a sell filled that may never land.
+    assert.strictEqual(classifySignatureStatus({ status: { confirmationStatus: "processed", err: null }, elapsedMs: 0 }), "pending");
+  });
+
+  test("an unseen signature stays pending inside the blockhash window", () => {
+    // This is the state that BLOCKS re-firing. Collapsing it either way is the double-sell
+    // / unenforced-stop-loss bug this whole module exists to prevent.
+    assert.strictEqual(classifySignatureStatus({ status: null, elapsedMs: 1000 }), "pending");
+    assert.strictEqual(classifySignatureStatus({ status: null, elapsedMs: EXPIRY_MS - 1 }), "pending");
+  });
+
+  test("an unseen signature past the blockhash window is expired", () => {
+    // Past ~150 slots the transaction can never be included, so retrying is safe.
+    assert.strictEqual(classifySignatureStatus({ status: null, elapsedMs: EXPIRY_MS + 1 }), "expired");
+  });
+
+  test("the expiry window is well clear of the blockhash lifetime", () => {
+    // Declaring 'expired' too early re-fires a sell that may still land. The margin over
+    // the ~60-80s blockhash lifetime is the safety.
+    assert.ok(EXPIRY_MS >= 120_000, "expiry window must leave margin over blockhash lifetime");
+  });
+
+  test("received amount comes from the balance delta, not the quote", () => {
+    const meta = {
+      preTokenBalances: [{ owner: "USER", mint: "MINT", uiTokenAmount: { amount: "100" } }],
+      postTokenBalances: [{ owner: "USER", mint: "MINT", uiTokenAmount: { amount: "1000100" } }]
+    };
+    assert.strictEqual(tokenDeltaFromMeta(meta, "USER", "MINT"), BigInt(1000000));
+  });
+
+  test("another wallet's balance change is not counted as ours", () => {
+    const meta = {
+      preTokenBalances: [],
+      postTokenBalances: [{ owner: "SOMEONE_ELSE", mint: "MINT", uiTokenAmount: { amount: "999" } }]
+    };
+    assert.strictEqual(tokenDeltaFromMeta(meta, "USER", "MINT"), BigInt(0));
+  });
+
+  test("a raw amount beyond 2^53 survives without precision loss", () => {
+    // High-supply memecoins exceed the safe integer range. Float math here would mis-size
+    // a sell by an amount the wallet does not hold.
+    const big = "9007199254740993000";
+    const meta = {
+      preTokenBalances: [],
+      postTokenBalances: [{ owner: "USER", mint: "MINT", uiTokenAmount: { amount: big } }]
+    };
+    assert.strictEqual(tokenDeltaFromMeta(meta, "USER", "MINT").toString(), big);
+  });
+}
+
+// --- position exit state machine ---
+console.log("position exit state machine");
+{
+  const { decideExit, resolveExit, takeProfitShare, normalizePosition, MAX_EXIT_ATTEMPTS } = require("../engine/monitor");
+
+  const position = (over = {}) => normalizePosition({
+    id: "p1", user_pubkey: "USER", wallet_id: "W", mint: "MINT",
+    entry_price_usd: 1, amount_raw: 1000, original_amount_raw: 1000,
+    tp1: 200, tp1_sell: 50, tp2: 500, tp2_sell: 50, stop_loss: 20,
+    slippage_bps: 300, filled_tp1: false, filled_tp2: false, status: "open",
+    exit_attempts: 0, ...over
+  });
+
+  test("a pending exit BLOCKS any new exit — the core invariant", () => {
+    // Without this, a slow-confirming sell is re-fired every 5s tick and the position is
+    // sold several times over.
+    const p = position({
+      status: "exiting", pending_exit_kind: "SL", pending_exit_sig: "SIG",
+      pending_exit_amount_raw: 1000, pending_exit_claim_token: "T", pending_exit_at: new Date().toISOString()
+    });
+    assert.strictEqual(decideExit({ position: p, price: 0.01 }), null);
+  });
+
+  test("stop-loss fires on the whole remaining position", () => {
+    const d = decideExit({ position: position(), price: 0.79 }); // -21%, past a 20% stop
+    assert.strictEqual(d.kind, "SL");
+    assert.strictEqual(d.amountRaw, BigInt(1000));
+  });
+
+  test("stop-loss does not fire above the threshold", () => {
+    assert.strictEqual(decideExit({ position: position(), price: 0.81 }), null);
+  });
+
+  test("take-profit shares come out of the ORIGINAL position, not the remainder", () => {
+    // 50% + 50% must exit the position entirely. Computing TP2 from the post-TP1 remainder
+    // sells 750 of 1000 and silently leaves the user holding 250.
+    const afterTp1 = position({ amount_raw: 500, original_amount_raw: 1000, filled_tp1: true });
+    const d = decideExit({ position: afterTp1, price: 5 });
+    assert.strictEqual(d.kind, "TP2");
+    assert.strictEqual(d.amountRaw, BigInt(500));
+  });
+
+  test("a take-profit share can never exceed what is left", () => {
+    assert.strictEqual(takeProfitShare(1000, 200, 50), BigInt(200));
+    assert.strictEqual(takeProfitShare(1000, 0, 50), BigInt(0));
+  });
+
+  test("share math is exact for amounts beyond 2^53", () => {
+    const huge = BigInt("9007199254740993000");
+    assert.strictEqual(takeProfitShare(huge, huge, 50), huge / BigInt(2));
+  });
+
+  test("a confirmed take-profit reduces the position and marks only its own level", () => {
+    const p = position({
+      status: "exiting", pending_exit_kind: "TP1", pending_exit_sig: "S",
+      pending_exit_amount_raw: 500, pending_exit_claim_token: "T"
+    });
+    const s = resolveExit({ position: p, verdict: "confirmed" });
+    assert.strictEqual(s.amountRaw, "500");
+    assert.strictEqual(s.status, "open");
+    assert.strictEqual(s.filledTp1, true);
+    assert.strictEqual(s.filledTp2, false);
+  });
+
+  test("a confirmed stop-loss closes the position", () => {
+    const p = position({
+      status: "exiting", pending_exit_kind: "SL", pending_exit_sig: "S",
+      pending_exit_amount_raw: 1000, pending_exit_claim_token: "T"
+    });
+    const s = resolveExit({ position: p, verdict: "confirmed" });
+    assert.strictEqual(s.status, "closed");
+    assert.strictEqual(s.amountRaw, "0");
+  });
+
+  test("a FAILED sell does not mark the level filled and returns the position to open", () => {
+    // This is the stop-loss-believed-spent bug. A failed sell must leave the trigger armed.
+    const p = position({
+      status: "exiting", pending_exit_kind: "SL", pending_exit_sig: "S",
+      pending_exit_amount_raw: 1000, pending_exit_claim_token: "T"
+    });
+    const s = resolveExit({ position: p, verdict: "failed" });
+    assert.strictEqual(s.status, "open");
+    assert.strictEqual(s.amountRaw, "1000");
+    assert.strictEqual(s.filledTp1, false);
+    assert.strictEqual(s.attempts, 1);
+  });
+
+  test("an EXPIRED sell is treated as retryable, not as filled", () => {
+    const p = position({
+      status: "exiting", pending_exit_kind: "TP1", pending_exit_sig: "S",
+      pending_exit_amount_raw: 500, pending_exit_claim_token: "T"
+    });
+    const s = resolveExit({ position: p, verdict: "expired" });
+    assert.strictEqual(s.status, "open");
+    assert.strictEqual(s.filledTp1, false);
+  });
+
+  test("a still-pending verdict produces NO state change at all", () => {
+    const p = position({
+      status: "exiting", pending_exit_kind: "SL", pending_exit_sig: "S",
+      pending_exit_amount_raw: 1000, pending_exit_claim_token: "T"
+    });
+    assert.strictEqual(resolveExit({ position: p, verdict: "pending" }), null);
+  });
+
+  test("repeated failures park the position instead of retrying forever", () => {
+    const p = position({
+      status: "exiting", pending_exit_kind: "SL", pending_exit_sig: "S",
+      pending_exit_amount_raw: 1000, pending_exit_claim_token: "T",
+      exit_attempts: MAX_EXIT_ATTEMPTS - 1
+    });
+    const s = resolveExit({ position: p, verdict: "failed" });
+    assert.strictEqual(s.status, "error");
+    assert.match(s.error, /needs attention/);
+  });
+
+  test("a closed position fires nothing", () => {
+    assert.strictEqual(decideExit({ position: position({ status: "closed" }), price: 0.01 }), null);
+  });
+
+  test("an unusable price fires nothing rather than guessing", () => {
+    assert.strictEqual(decideExit({ position: position(), price: 0 }), null);
+    assert.strictEqual(decideExit({ position: position(), price: NaN }), null);
+  });
+}
+
+// --- buy settlement ---
+console.log("buy settlement");
+{
+  const { decideSettlement, buildPosition } = require("../engine/settlement");
+
+  test("only a confirmed buy opens a position", () => {
+    assert.deepStrictEqual(decideSettlement({ verdict: "confirmed" }), { status: "succeeded", openPosition: true });
+  });
+
+  test("a failed or expired buy settles without a position", () => {
+    assert.strictEqual(decideSettlement({ verdict: "failed" }).status, "failed");
+    assert.strictEqual(decideSettlement({ verdict: "failed" }).openPosition, false);
+    assert.strictEqual(decideSettlement({ verdict: "expired" }).status, "failed");
+  });
+
+  test("a pending buy is NOT settled either way", () => {
+    assert.strictEqual(decideSettlement({ verdict: "pending" }), null);
+  });
+
+  const execution = {
+    user_pubkey: "USER", wallet_id: "W", mint: "MINT", tx_signature: "SIG",
+    slippage_bps: 300, tp1: 200, tp1_sell: 50, tp2: 500, tp2_sell: 50, stop_loss: 20
+  };
+
+  test("a position is sized from tokens actually received", () => {
+    const p = buildPosition({ execution, receivedRaw: BigInt("1234567890123456789"), entryPriceUsd: 0.5 });
+    assert.strictEqual(p.amountRaw, "1234567890123456789");
+    assert.strictEqual(p.entrySig, "SIG");
+    assert.strictEqual(p.stopLoss, 20);
+  });
+
+  test("a zero fill does not become a position", () => {
+    // A position the wallet cannot cover generates sells that always fail.
+    assert.strictEqual(buildPosition({ execution, receivedRaw: BigInt(0), entryPriceUsd: 0.5 }), null);
+  });
+
+  test("a missing entry price does not become a position", () => {
+    // Every trigger is a ratio against entry; without it the stop-loss is meaningless.
+    assert.strictEqual(buildPosition({ execution, receivedRaw: BigInt(100), entryPriceUsd: 0 }), null);
+    assert.strictEqual(buildPosition({ execution, receivedRaw: BigInt(100), entryPriceUsd: NaN }), null);
   });
 }
 

@@ -212,31 +212,36 @@ like a feature flag while it also silently drops safety enforcement for copy tra
 
 Annotated at the gate in `worker.js`, where the flag is read.
 
-**SECOND PRECONDITION — TP/SL treats submission as settlement.**
+**SECOND PRECONDITION — RESOLVED 2026-08-01. TP/SL no longer treats submission as settlement.**
 
-`server/engine/signer.js` returns Privy's `hash` the moment the transaction is submitted; it
-does not wait for confirmation. `server/engine/monitor.js` then marks the position closed, or
-the take-profit level filled, immediately after that call resolves.
+The defect: `signer.js` returned Privy's `hash` on submission, and `monitor.js` marked the
+position closed or the take-profit filled immediately after. A sell that failed on chain was
+recorded as an exit that happened, so the position kept falling with its stop-loss believed
+spent. Both naive repairs were wrong alone — retry-when-unconfirmed double-sells a slow
+confirmation, leave-untouched re-fires every 5s tick — so it needed a state machine, not a
+patch.
 
-So a sell that **fails on chain** — slippage exceeded, blockhash expired, insufficient
-balance — is recorded as an exit that happened. The position keeps falling with its
-stop-loss believed spent, and nothing retries. This is a safety mechanism that silently
-does not fire, which is the worst failure shape for unattended trading.
+Built, and the whole path with it, because the monitor also had no producer: `startMonitor`
+was never called and nothing created the positions it took as a parameter.
 
-Not patched, because both obvious fixes are wrong on their own:
-
-| Fix | Why it fails |
+| Piece | Where |
 |---|---|
-| Retry when unconfirmed | a sell that DID land but confirmed slowly gets sold twice |
-| Leave state untouched on error | the next 5s tick re-fires the same sell |
+| Confirmation verdicts (`confirmed`/`failed`/`expired`/`pending`) | `server/engine/confirm.js` |
+| Exit state machine with a blocking pending state | `server/engine/monitor.js` |
+| Buy submission separated from settlement; opens positions | `server/engine/settlement.js` |
+| Durable state, atomic claims, idempotent capture | `supabase/degenaration-position-exit-state.sql`, `degenaration-buy-settlement.sql` |
 
-The correct shape is a pending state that blocks re-firing until the signature resolves
-confirmed or failed — which requires positions to survive a restart. `positions` is an
-in-memory array today with no persistence, so this is a design change, not a patch, and
-getting it wrong double-sells a user's position.
+**Proven against live Postgres** (both migrations applied; test transactions rolled back):
+a replayed buy signature opens one position and reports `duplicate`; a second worker's exit
+claim is rejected with `exit unavailable`; stale claim tokens cannot record a signature or
+settle; a CHECK constraint rejects `exiting` without a claim token; a failed buy returns the
+reserved daily-cap spend, and settling twice does not refund twice.
 
-**This should be resolved before the worker manages real positions**, and it is independent
-of the single-instance precondition below.
+38 tests cover the pure decision cores, including that `processed` is not treated as settled,
+that an unseen signature stays `pending` inside the blockhash window and `expired` past it,
+and that a failed sell leaves the trigger armed rather than marked filled.
+
+Remaining in this area: the copy path below, and item (e) of ADR-001 action 4.
 
 **PRECONDITION FOUND 2026-07-31 — deploy exactly ONE instance.**
 

@@ -19,12 +19,16 @@ function pickNewCalls(calls, seen) {
  *  loadPendingCalls() -> [{ id, group_id, mint, symbol, executed_at }]
  *  loadGroupSubscribers(groupId) -> [{ user_pubkey, wallet_id, size_sol, slippage_bps, daily_cap_sol, daily_spent }]
  *  claimCallExecution(callId, subscriptionId) / finishCallExecution(...)
+ *  submitCallExecution(callId, subscriptionId, claimToken, sig) -> records the signature
  *  completeCall(callId) / markCallExecuted(id)
  *  signAndSend(tx, walletId) -> signature
- *  recordCopy(evt) / onEvent(evt)
+ *  onEvent(evt)
+ *
+ * The trade ledger row and the position are written by engine/settlement.js once the
+ * signature is confirmed, not here — see the submission comment below.
  */
 function startCallWatcher(deps, pollMs = 8000) {
-  const { loadPendingCalls, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, markCallExecuted, signAndSend, recordCopy = async () => {}, onEvent = () => {},
+  const { loadPendingCalls, loadGroupSubscribers, claimCallExecution, finishCallExecution, submitCallExecution, completeCall, markCallExecuted, signAndSend, onEvent = () => {},
     // Resolves a subscriber's own safety filters. Defaults to "no builder config", which
     // keeps legacy rows on the platform baseline rather than failing them closed.
     subscriberSafety = () => ({ ok: true, safety: null, fromBuilder: false }) } = deps;
@@ -86,14 +90,16 @@ function startCallWatcher(deps, pollMs = 8000) {
         try {
           const { tx } = await buyToken(c.mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300);
           sig = await signAndSend(tx, claim.wallet_id); // walletId signs the tx built for user_pubkey
-          const finished = await finishCallExecution(c.id, s.id, claim.claim_token, "succeeded", sig, null);
-          if (!finished?.ok) throw new Error(finished?.error || "could not persist call execution");
-          try {
-            await recordCopy({ mint: c.mint, user: claim.user_pubkey, privy_user_id: claim.privy_user_id, group_id: c.group_id, size: claim.size_sol, sig, kind: "call" });
-          } catch (e) {
-            onEvent({ type: "RECORD_ERROR", call: c.id, subscription: s.id, sig, error: e.message });
-          }
-          onEvent({ type: "CALL_BUY", group: c.group_id, mint: c.mint, user: claim.user_pubkey, sig });
+          // SUBMITTED, not succeeded. signAndSend returns as soon as Privy sends the
+          // transaction, and a swap can still fail on chain for slippage or an expired
+          // blockhash. engine/settlement.js resolves this signature against the chain and
+          // only then records the trade and opens the position the TP/SL monitor watches.
+          //
+          // Confirmation is not awaited here on purpose: it can take up to two minutes to
+          // reach a terminal verdict, and this loop runs once per subscriber.
+          const submitted = await submitCallExecution(c.id, s.id, claim.claim_token, sig);
+          if (!submitted?.ok) throw new Error(submitted?.error || "could not persist call execution");
+          onEvent({ type: "CALL_BUY_SUBMITTED", group: c.group_id, mint: c.mint, user: claim.user_pubkey, sig });
         } catch (e) {
           if (!sig) {
             try { await finishCallExecution(c.id, s.id, claim.claim_token, "failed", null, e.message); }

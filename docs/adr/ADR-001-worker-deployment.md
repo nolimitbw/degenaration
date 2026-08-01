@@ -197,15 +197,25 @@ without `startMonitor` being wired in, every argument in this record is void.
        environment, not only in `render.yaml`.
 3. [ ] Verify `raw_signals` begins incrementing, then close requirements 6 and 7 on measured
        data rather than on deployment alone.
-4. [ ] **Before signing is ever enabled — code work, in this order.** Item one is a
+4. [x] **Before signing is ever enabled — code work, in this order.** Item one is a
        feature, not a fix; scope it as such rather than as a wiring change:
-       a. capture `amountRaw` and `entryPriceUsd` when a buy fills, and persist the open
-          position (the `positions` table exists and is unused);
-       b. load open positions on worker start, so a restart does not abandon them;
-       c. make `signer.js` await confirmation, and give each position a pending state that
-          blocks re-firing until a signature resolves — the engine header explains why
-          retry-on-unconfirmed and leave-untouched are both wrong alone;
-       d. only then start `startMonitor` from `worker.js`, behind `SIGNING_READY`;
-       e. give the copy path an atomic claim and a durable spend counter, or enforce a
-          single instance through `worker_leases`.
+       a. [x] capture `amountRaw` and `entryPriceUsd` when a buy fills, and persist the open
+          position — done in `server/engine/settlement.js`. Note the table did **not**
+          exist: `supabase/add-positions-table.sql` was written but never applied, verified
+          against the live catalog, so the migration creates it as well as extending it.
+          The size comes from the transaction's own token balance delta, not the quote's
+          `outAmount`, which is an estimate the fill misses by up to the slippage tolerance;
+       b. [x] load open positions on worker start — `store.loadOpenPositions`, which reads
+          `open` and `exiting` rows so a restart resumes an in-flight exit rather than
+          abandoning or duplicating it;
+       c. [x] confirmation is awaited before anything counts as settled — `engine/confirm.js`
+          classifies a signature as confirmed / failed / expired / pending, and `pending` is
+          the state that blocks re-firing. `processed` is deliberately not treated as
+          settled, and the expiry window is 120s rather than the ~80s blockhash lifetime
+          because declaring expiry early re-fires a sell that may still land;
+       d. [x] `startMonitor` and `startSettlementWatcher` are started from `worker.js` behind
+          `SIGNING_READY`. The boot guard now checks the whole capture-and-exit path rather
+          than one loader, and a test proves each requirement is individually load-bearing;
+       e. [ ] give the copy path an atomic claim and a durable spend counter, or enforce a
+          single instance through `worker_leases`. **Still open** — this is the last item.
 5. [ ] Keep B-3 closed until 4 is done and reviewed. This record does not authorize mainnet.

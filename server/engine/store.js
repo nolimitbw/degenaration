@@ -121,12 +121,72 @@ const finishCallExecution = (callId, subscriptionId, claimToken, status, sig, er
 });
 const completeCall = (callId) => sbRpc("worker_complete_call", { p_call_id: callId });
 
+// Submission is recorded separately from settlement: a signature exists, but whether it
+// landed is not known yet. engine/settlement.js resolves these against the chain.
+const submitCallExecution = (callId, subscriptionId, claimToken, sig) => sbRpc("worker_submit_call_execution", {
+  p_call_id: callId, p_subscription_id: subscriptionId, p_claim_token: claimToken, p_sig: sig
+});
+const loadSubmittedExecutions = async () => {
+  const res = await sbRpc("worker_load_submitted_executions", { p_limit: 100 });
+  return res?.executions || [];
+};
+const settleCallExecution = (callId, subscriptionId, claimToken, status, error) => sbRpc("worker_settle_call_execution", {
+  p_call_id: callId, p_subscription_id: subscriptionId, p_claim_token: claimToken,
+  p_status: status, p_error: error || null
+});
+
 // Track calls for 30 days so every source's public score comes from the same live data.
 const loadPerformanceCalls = () => {
   const since = encodeURIComponent(new Date(Date.now() - 30 * 86_400_000).toISOString());
   return sbGet(`calls?called_at=gte.${since}&select=id,mint,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd&order=called_at.desc&limit=1000`);
 };
 const updateCallPerformance = (id, update) => sbPatch(`calls?id=eq.${id}`, update);
+
+// ---- positions (TP/SL exit path) ----
+//
+// `loadOpenPositions` existing is also what retires the worker's start-up refusal guard:
+// worker.js will not boot with signing enabled while the worker has no way to exit a
+// position. Do not rename it without reading that guard.
+const loadOpenPositions = () => sbGet(
+  "positions?status=in.(open,exiting)&select=id,user_pubkey,wallet_id,privy_user_id,group_id,mint,entry_price_usd,amount_raw,original_amount_raw,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,filled_tp1,filled_tp2,status,pending_exit_kind,pending_exit_sig,pending_exit_amount_raw,pending_exit_claim_token,pending_exit_at,exit_attempts&order=created_at.asc&limit=500",
+  true
+);
+
+/** Capture a filled buy as an open position. Idempotent on the entry signature. */
+const openPosition = (position) => sbRpc("worker_open_position", {
+  p_user_pubkey: position.userPubkey,
+  p_wallet_id: position.walletId || null,
+  p_mint: position.mint,
+  p_entry_price_usd: position.entryPriceUsd,
+  p_amount_raw: position.amountRaw,
+  p_entry_sig: position.entrySig,
+  p_slippage_bps: position.slippageBps ?? 300,
+  p_tp1: position.tp1 ?? null,
+  p_tp1_sell: position.tp1Sell ?? 0,
+  p_tp2: position.tp2 ?? null,
+  p_tp2_sell: position.tp2Sell ?? 0,
+  p_stop_loss: position.stopLoss ?? null,
+  p_privy_user_id: position.privyUserId || null,
+  p_group_id: position.groupId || null,
+  p_user_id: position.userId || null
+});
+
+const claimPositionExit = (id, kind, amountRaw) => sbRpc("worker_claim_position_exit", {
+  p_id: id, p_kind: kind, p_amount_raw: amountRaw
+});
+const recordPositionExitSig = (id, claimToken, sig) => sbRpc("worker_record_position_exit_sig", {
+  p_id: id, p_claim_token: claimToken, p_sig: sig
+});
+const settlePositionExit = (id, claimToken, settlement) => sbRpc("worker_settle_position_exit", {
+  p_id: id,
+  p_claim_token: claimToken,
+  p_status: settlement.status,
+  p_amount_raw: settlement.amountRaw,
+  p_filled_tp1: settlement.filledTp1,
+  p_filled_tp2: settlement.filledTp2,
+  p_attempts: settlement.attempts,
+  p_error: settlement.error || null
+});
 
 // ---- on-chain holdings (for copy detection) ----
 async function getHoldings(address) {
@@ -144,4 +204,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance };
+module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, submitCallExecution, loadSubmittedExecutions, settleCallExecution };
