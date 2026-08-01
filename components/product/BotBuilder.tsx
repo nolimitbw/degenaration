@@ -6,10 +6,8 @@ import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
 import {
   AlertTriangle,
-  Bot,
   Check,
   ChevronDown,
-  CircleHelp,
   Loader2,
   Minus,
   Plus,
@@ -98,6 +96,18 @@ const PRESETS = {
   "Last Alpha Calls": { priceDropBps: 1500, lookbackMinutes: 1440, riskTier: "high" }
 } as const;
 
+const PRESET_NAMES = Object.keys(PRESETS) as Array<keyof typeof PRESETS>;
+
+function numberOr(value: unknown, fallback: number) {
+  if (value == null || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function isPresetName(value: unknown): value is keyof typeof PRESETS {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(PRESETS, value);
+}
+
 function defaultFilters() {
   return Object.fromEntries(FILTERS.map((filter) => [filter.key, { enabled: ["liquidityUsd", "marketCapUsd", "top10HolderBps", "minimumRouteLiquidityUsd", "maximumPriceImpactBps"].includes(filter.key), min: filter.min, max: filter.max }])) as Record<string, FilterValue>;
 }
@@ -179,6 +189,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [securityOpen, setSecurityOpen] = useState(false);
   const [walletCreating, setWalletCreating] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
+  const [previewError, setPreviewError] = useState("");
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(Boolean(botId));
@@ -245,39 +256,51 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         setDescription(bot.description || "");
         setSourceId(bot.sourceGroupId || "");
         setChannelId(config.channelId || "");
-        setBuyAmountSol(Number(config.buyAmountLamports || 0) / 1e9 || 0.5);
-        setMaximumCapitalSol(Number(config.maximumCapitalLamports || 0) / 1e9 || 3);
-        setDailyLossSol(Number(config.dailyLossLimitLamports || 0) / 1e9 || 1);
-        setPerTokenSol(Number(config.perTokenExposureLamports || 0) / 1e9 || 1);
-        setMaxOpenTrades(Number(config.maxOpenTrades || 3));
+        setBuyAmountSol(numberOr(config.buyAmountLamports, 500_000_000) / 1e9);
+        setMaximumCapitalSol(numberOr(config.maximumCapitalLamports, 3_000_000_000) / 1e9);
+        setDailyLossSol(numberOr(config.dailyLossLimitLamports, 1_000_000_000) / 1e9);
+        setPerTokenSol(numberOr(config.perTokenExposureLamports, 1_000_000_000) / 1e9);
+        setMaxOpenTrades(numberOr(config.maxOpenTrades, 3));
         setEntryMode(config.entryMode === "limit" ? "limit" : "market");
-        setSlippageBps(Number(config.slippageBps || 300));
+        setSlippageBps(numberOr(config.slippageBps, 300));
         setPriorityStrategy(config.priorityFeeStrategy || "auto");
-        setPriorityFeeMax(Number(config.priorityFeeMaxLamports || 500000));
-        setAutoRetryCount(Number(config.autoRetryCount || 0));
-        setLimitRetryCount(Number(config.limitRetryCount || 0));
-        setQuoteExpirationSeconds(Number(config.quoteExpirationSeconds || 30));
-        setCooldownSeconds(Number(config.cooldownSeconds || 900));
+        setPriorityFeeMax(numberOr(config.priorityFeeMaxLamports, 500_000));
+        setAutoRetryCount(numberOr(config.autoRetryCount, 0));
+        setLimitRetryCount(numberOr(config.limitRetryCount, 0));
+        setQuoteExpirationSeconds(numberOr(config.quoteExpirationSeconds, 30));
+        setCooldownSeconds(numberOr(config.cooldownSeconds, 900));
         setSimulationRequired(config.simulationRequired !== false);
         setFirstCallOnly(Boolean(config.firstCallOnly));
-        if (Array.isArray(config.takeProfit?.levels)) setTpLevels(config.takeProfit.levels);
+        if (Array.isArray(config.takeProfit?.levels)) {
+          setTpLevels(config.takeProfit.levels.map((level: Partial<TpLevel>) => ({
+            targetBps: numberOr(level.targetBps, 10000),
+            sellBps: numberOr(level.sellBps, 1000),
+            trailingBps: numberOr(level.trailingBps, 0)
+          })));
+        }
         setTrailingTakeProfit(Boolean(config.takeProfit?.trailing));
-        setStopBps(Number(config.stopLoss?.stopBps || 4000));
+        setStopBps(numberOr(config.stopLoss?.stopBps, 4000));
         setTrailingStop(Boolean(config.stopLoss?.trailing));
         setDynamicStop(Boolean(config.stopLoss?.dynamic));
-        setStopDelaySeconds(Number(config.stopLoss?.delaySeconds || 5));
+        setStopDelaySeconds(numberOr(config.stopLoss?.delaySeconds, 5));
         setFreezeAfterStop(config.stopLoss?.freezeAfterStop !== false);
         setEmergencyExit(config.stopLoss?.emergencyExit !== false);
         setVisibility(bot.visibility || "private");
         setManualMints(Array.isArray(config.manualMints) ? config.manualMints.join("\n") : "");
-        setPriceDropBps(Number(config.trigger?.priceDropBps || 1200));
+        setPriceDropBps(numberOr(config.trigger?.priceDropBps, 1200));
         setReferenceMode(config.trigger?.referenceMode === "moving-average" ? "moving-average" : "recent-ath");
-        setLookbackMinutes(Number(config.trigger?.lookbackMinutes || 60));
+        setLookbackMinutes(numberOr(config.trigger?.lookbackMinutes, 60));
         setDcaEnabled(Boolean(config.dca?.enabled));
-        if (Array.isArray(config.dca?.levels)) setDcaLevels(config.dca.levels);
-        setDcaExpirationMinutes(Number(config.dca?.expirationMinutes || 240));
-        setAutoRefreshMinutes(Number(config.scanner?.autoRefreshMinutes || 15));
-        setPreviewCount(Number(config.scanner?.previewCount || 10));
+        if (Array.isArray(config.dca?.levels)) {
+          setDcaLevels(config.dca.levels.map((level: Partial<DcaLevel>) => ({
+            dropBps: numberOr(level.dropBps, 1000),
+            buyAmountSol: numberOr(level.buyAmountSol, 0.25)
+          })));
+        }
+        setDcaExpirationMinutes(numberOr(config.dca?.expirationMinutes, 240));
+        if (isPresetName(config.scanner?.preset)) setPreset(config.scanner.preset);
+        setAutoRefreshMinutes(numberOr(config.scanner?.autoRefreshMinutes, 15));
+        setPreviewCount(numberOr(config.scanner?.previewCount, 10));
         setDegenMode(Boolean(config.scanner?.degenMode));
         setRiskTier(config.riskTier || "high");
         if (config.safetyFilters?.ranges) setFilters((current) => ({ ...current, ...config.safetyFilters.ranges }));
@@ -291,11 +314,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const tpAllocationBps = tpLevels.reduce((total, level) => total + level.sellBps, 0);
   const dcaCapital = dcaEnabled ? dcaLevels.reduce((total, level) => total + level.buyAmountSol, 0) : 0;
   const requiredCapital = (buyAmountSol + dcaCapital) * maxOpenTrades;
+  const enabledSafetyCount = Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length;
+  const totalSafetyCount = FILTERS.length + FLAG_FILTERS.length;
   const creatorFeeBps = kind === "discord" ? source?.creatorFeeBps ?? DISCORD_CREATOR_BPS : KOL_CREATOR_BPS;
-  const creatorFeeLamports = useMemo(
-    () => bpsOf(solToLamports(buyAmountSol), creatorFeeBps),
-    [buyAmountSol, creatorFeeBps]
-  );
   // Was hard-coded to 0, so the builder told users the platform fee was 0.00% while the
   // swap routes were charging 200 bps. The real rate comes from the server, which
   // reports 0 only while PLATFORM_FEE_ACCOUNT is unset.
@@ -320,11 +341,21 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (perTokenSol < buyAmountSol || perTokenSol > maximumCapitalSol) return "Per-token exposure must cover one buy and remain inside maximum capital.";
     if (tpAllocationBps > 10000) return "Take-profit sell allocations cannot exceed 100%.";
     if (tpLevels.some((level) => level.targetBps <= 0 || level.sellBps <= 0)) return "Take-profit targets and allocations must be positive.";
+    if (tpLevels.some((level, index) => index > 0 && level.targetBps <= tpLevels[index - 1].targetBps)) return "Take-profit targets must increase from one level to the next.";
     if (stopBps <= 0 || stopBps > 10000) return "Stop loss must be between 0.01% and 100%.";
-    if (kind === "kol" && dcaEnabled && buyAmountSol + dcaCapital > maximumCapitalSol) return "Entry plus DCA capital exceeds the maximum.";
+    if (kind === "kol" && dcaEnabled) {
+      if (dcaLevels.length < 1 || dcaLevels.some((level) => level.dropBps <= 0 || level.buyAmountSol <= 0)) return "DCA levels need a positive drop and buy amount.";
+      if (dcaLevels.some((level, index) => index > 0 && level.dropBps <= dcaLevels[index - 1].dropBps)) return "DCA drops must increase from one level to the next.";
+      if (buyAmountSol + dcaCapital > maximumCapitalSol) return "Entry plus DCA capital exceeds the maximum.";
+    }
+    const invalidRange = FILTERS.find((definition) => {
+      const value = filters[definition.key];
+      return value?.enabled && value.max > 0 && value.min > value.max;
+    });
+    if (invalidRange) return `${invalidRange.label} minimum cannot exceed its maximum.`;
     if (slippageBps < 1 || slippageBps > 2000) return "Slippage must be between 0.01% and 20%.";
     return null;
-  }, [buyAmountSol, dailyLossSol, dcaCapital, dcaEnabled, kind, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, tpAllocationBps, tpLevels]);
+  }, [buyAmountSol, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, filters, kind, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, tpAllocationBps, tpLevels]);
 
   function updateTp(index: number, patch: Partial<TpLevel>) {
     setTpLevels((current) => current.map((level, levelIndex) => levelIndex === index ? { ...level, ...patch } : level));
@@ -361,6 +392,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   async function runPreview() {
     setPreviewing(true);
     setPreview(null);
+    setPreviewError("");
     try {
       if (kind === "discord") {
         setPreview(source ? [{
@@ -382,8 +414,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           };
         }));
       }
-    } catch {
-      setPreview([]);
+    } catch (reason) {
+      console.error("[bot-builder] candidate preview failed:", reason);
+      setPreviewError("Current candidates could not be loaded right now.");
     } finally {
       setPreviewing(false);
     }
@@ -506,33 +539,14 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-px overflow-hidden rounded-md border border-edge bg-edge">
           <FormSection
-            title="Identity and source"
-            description={kind === "discord" ? "Choose the approved community this bot follows." : "Name the strategy and choose its visibility."}
-            summary={kind === "discord" ? source?.name || "Source required" : visibility === "public" ? "Public strategy" : "Private strategy"}
+            title="Bot identity"
+            description="Name this setup before choosing where it trades."
+            summary={name || "Name required"}
             defaultOpen
           >
             <div className="grid gap-4 lg:grid-cols-2">
               <TextField label="Bot name" value={name} onChange={setName} maxLength={80} />
-              {kind === "discord" ? (
-                <div>
-                  <SelectField
-                    label="Approved Discord source"
-                    value={sourceId}
-                    onChange={setSourceId}
-                    options={sources.map((item) => ({ value: item.id, label: item.name }))}
-                  />
-                  {sourcesLoading && <p className="mt-1.5 text-[11px] text-dim">Loading approved sources…</p>}
-                  {!sourcesLoading && sourcesError && (
-                    <p role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-danger">
-                      {sourcesError}
-                      <button type="button" onClick={loadSources} className="inline-flex min-h-8 items-center rounded border border-edge px-2 font-semibold text-ink">Try again</button>
-                    </p>
-                  )}
-                  {!sourcesLoading && !sourcesError && sources.length === 0 && (
-                    <p className="mt-1.5 text-[11px] text-dim">No approved sources yet. Browse Discord Sources to see communities awaiting approval.</p>
-                  )}
-                </div>
-              ) : (
+              {kind === "kol" && (
                 <SelectField label="Visibility" value={visibility} onChange={(value) => setVisibility(value as "private" | "public")} options={[{ value: "private", label: "Private draft" }, { value: "public", label: "Public after review" }]} />
               )}
             </div>
@@ -546,22 +560,77 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={600} rows={3} className="field-control resize-y px-3 py-2.5" placeholder="Describe the signal logic and intended risk profile." />
               </label>
             </details>
-            {kind === "discord" && (
+          </FormSection>
+
+          <FormSection
+            title="Execution wallet"
+            description="Use the verified Solana wallet that owns this bot's trades."
+            summary={walletAddress ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}` : "Wallet required to activate"}
+            defaultOpen
+          >
+            <div className="flex flex-col gap-4 rounded-md border border-edge bg-void px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="field-label">Selected wallet</p>
+                <p className="mt-2 truncate font-mono text-sm text-ink">{walletAddress || "Not connected"}</p>
+                <p className={`mt-1 text-[11px] ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required to activate"}</p>
+              </div>
+              {!walletAddress && (
+                <button
+                  type="button"
+                  onClick={setupWallet}
+                  disabled={walletCreating}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-gold-400/45 px-3 text-xs font-semibold text-gold-400 disabled:opacity-50"
+                >
+                  {walletCreating ? <Loader2 aria-hidden="true" size={14} className="animate-spin" /> : <WalletCards aria-hidden="true" size={14} />}
+                  {authenticated ? "Create Solana wallet" : "Connect account"}
+                </button>
+              )}
+            </div>
+          </FormSection>
+
+          {kind === "discord" && (
+            <FormSection
+              title="Discord source"
+              description="Choose an approved server and either one channel or all approved channels."
+              summary={source?.name || "Source required"}
+              defaultOpen
+            >
               <div className="grid gap-4 lg:grid-cols-2">
+                <div>
+                  <SelectField
+                    label="Approved Discord server"
+                    value={sourceId}
+                    onChange={(value) => {
+                      setSourceId(value);
+                      setChannelId("");
+                    }}
+                    options={sources.map((item) => ({ value: item.id, label: item.name }))}
+                  />
+                  {sourcesLoading && <p className="mt-1.5 text-[11px] text-dim">Loading approved sources…</p>}
+                  {!sourcesLoading && sourcesError && (
+                    <p role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-danger">
+                      {sourcesError}
+                      <button type="button" onClick={loadSources} className="inline-flex min-h-8 items-center rounded border border-edge px-2 font-semibold text-ink">Try again</button>
+                    </p>
+                  )}
+                  {!sourcesLoading && !sourcesError && sources.length === 0 && (
+                    <p className="mt-1.5 text-[11px] text-dim">No approved sources yet. Browse Discord Sources to see communities awaiting approval.</p>
+                  )}
+                </div>
                 <SelectField
-                  label="Call channel"
+                  label="Discord channel"
                   value={channelId}
                   onChange={setChannelId}
                   options={[{ value: "", label: "All approved channels" }, ...(source?.channels || []).map((channel) => ({ value: channel.id, label: channel.name || channel.id }))]}
                 />
-                <div className="rounded-md border border-edge bg-void px-4 py-3">
-                  <p className="field-label">Source performance</p>
-                  <p className="mt-2 font-mono text-sm text-ink">{source?.measuredCalls || 0} measured calls · {source?.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} 2x rate</p>
-                  <p className="mt-1 text-[11px] text-dim">{formatPercentBps(creatorFeeBps)} creator fee on confirmed copied notional</p>
-                </div>
               </div>
-            )}
-          </FormSection>
+              <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-3">
+                <SourceStat label="Measured calls" value={source ? String(source.measuredCalls) : "--"} />
+                <SourceStat label="2x rate" value={source?.winRate == null ? "Collecting data" : `${source.winRate.toFixed(1)}%`} />
+                <SourceStat label="Creator share" value={formatPercentBps(creatorFeeBps)} />
+              </div>
+            </FormSection>
+          )}
 
           <FormSection
             title="Funding and exposure"
@@ -592,28 +661,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <NumberField label="Per-token exposure" value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} />
               </div>
             </details>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-md border border-edge bg-void px-4 py-3">
-                <p className="field-label">Execution wallet</p>
-                <p className="mt-2 truncate font-mono text-sm text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</p>
-                <p className={`mt-1 text-[11px] ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required to activate"}</p>
-                {!walletAddress && (
-                  <button
-                    type="button"
-                    onClick={setupWallet}
-                    disabled={walletCreating}
-                    className="mt-3 inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-gold-400/45 px-3 text-xs font-semibold text-gold-400 disabled:opacity-50"
-                  >
-                    {walletCreating ? <Loader2 aria-hidden="true" size={14} className="animate-spin" /> : <WalletCards aria-hidden="true" size={14} />}
-                    {authenticated ? "Create Solana wallet" : "Connect account"}
-                  </button>
-                )}
-              </div>
-              <div className="rounded-md border border-edge bg-void px-4 py-3">
-                <p className="field-label">Minimum planned capital</p>
-                <p className="mt-2 font-mono text-sm text-ink">{requiredCapital.toFixed(3)} SOL</p>
-                <p className="mt-1 text-[11px] text-dim">Entries plus configured DCA levels</p>
-              </div>
+            <div className="rounded-md border border-edge bg-void px-4 py-3">
+              <p className="field-label">Minimum planned capital</p>
+              <p className="mt-2 font-mono text-sm text-ink">{requiredCapital.toFixed(3)} SOL</p>
+              <p className="mt-1 text-[11px] text-dim">Entry and configured DCA amounts across the maximum simultaneous trades.</p>
             </div>
           </FormSection>
 
@@ -632,7 +683,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <div>
                   <span className="field-label">Scanner quick set</span>
                   <div className="mt-1.5 grid grid-cols-2 gap-2">
-                    {(Object.keys(PRESETS) as Array<keyof typeof PRESETS>).map((value) => (
+                    {PRESET_NAMES.map((value) => (
                       <button key={value} type="button" onClick={() => applyPreset(value)} className={`min-h-11 rounded-md border px-3 text-left text-xs font-medium ${preset === value ? "border-gold-400 bg-gold-400/10 text-ink" : "border-edge bg-void text-dim hover:text-ink"}`}>{value}</button>
                     ))}
                   </div>
@@ -665,8 +716,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     {dcaLevels.map((level, index) => (
                       <div key={index} className="grid gap-3 p-3 sm:grid-cols-[64px_repeat(2,minmax(0,1fr))_36px] sm:items-end">
                         <p className="font-mono text-xs text-dim sm:self-center">DCA {index + 1}</p>
-                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" /></span></label>
-                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" /></span></label>
+                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} additional drop`} value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" /></span></label>
+                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} buy amount`} value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" /></span></label>
                         <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
                       </div>
                     ))}
@@ -689,9 +740,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               {tpLevels.map((level, index) => (
                 <div key={index} className="grid gap-3 p-3 sm:grid-cols-[52px_repeat(3,minmax(0,1fr))_36px] sm:items-end">
                   <p className="font-mono text-xs text-dim sm:self-center">TP {index + 1}</p>
-                  <label><span className="field-label">Target gain</span><span className="mt-1.5 block"><CompactNumber value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" /></span></label>
-                  <label><span className="field-label">Sell allocation</span><span className="mt-1.5 block"><CompactNumber value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" /></span></label>
-                  <label><span className="field-label">Trailing</span><span className="mt-1.5 block"><CompactNumber value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit} /></span></label>
+                  <label><span className="field-label">Target gain</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} target gain`} value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" /></span></label>
+                  <label><span className="field-label">Sell allocation</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} sell allocation`} value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" /></span></label>
+                  <label><span className="field-label">Trailing</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} trailing distance`} value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit} /></span></label>
                   <button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button>
                 </div>
               ))}
@@ -723,7 +774,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           <FormSection
             title="Security filters"
             description="Only open this when you need to change the recommended safeguards."
-            summary={`${Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length} checks enabled`}
+            summary={`${enabledSafetyCount} checks enabled`}
           >
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-edge bg-void px-4 py-3">
               <div>
@@ -759,6 +810,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     <p className={`max-w-[42%] text-right text-[10px] ${item.pass ? "text-up" : "text-down"}`}>{item.reason}</p>
                   </div>
                 ))}
+              </div>
+            )}
+            {previewError && (
+              <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-down/35 bg-down/5 px-4 py-3 text-xs text-down">
+                <span>{previewError}</span>
+                <button type="button" onClick={runPreview} className="min-h-9 rounded-md border border-down/35 px-3 font-semibold text-ink">Try again</button>
               </div>
             )}
           </FormSection>
@@ -868,7 +925,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <div>
                 <p className="font-mono text-[9px] uppercase text-gold-400">Advanced safeguards</p>
                 <h2 id="security-filter-title" className="mt-2 text-lg font-semibold text-ink">Security filters</h2>
-                <p className="mt-1 text-[11px] leading-5 text-dim">Disabled checks are listed in the final review. Enabled checks reject missing or stale evidence.</p>
+                <p className="mt-1 text-[11px] leading-5 text-dim">The final review shows enabled and disabled counts. Enabled checks reject missing or stale evidence.</p>
               </div>
               <button type="button" onClick={() => setSecurityOpen(false)} className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-edge text-dim" aria-label="Close security filters"><X size={16} /></button>
             </header>
@@ -910,8 +967,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                             <tr key={definition.key} className="border-t border-edge">
                               <td className="px-3 py-3 text-xs font-medium text-ink">{definition.label}<span className="ml-1 font-mono text-[9px] text-dim">({definition.unit})</span></td>
                               <td className="px-3 py-3 font-mono text-[9px] text-dim">{definition.source}</td>
-                              <td className="px-3 py-3"><CompactNumber value={value.min} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, min: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
-                              <td className="px-3 py-3"><CompactNumber value={value.max} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, max: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
+                              <td className="px-3 py-3"><CompactNumber ariaLabel={`${definition.label} minimum`} value={value.min} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, min: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
+                              <td className="px-3 py-3"><CompactNumber ariaLabel={`${definition.label} maximum`} value={value.max} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, max: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
                               <td className="px-3 py-3"><button type="button" role="switch" aria-label={`Require ${definition.label}`} aria-checked={value.enabled} onClick={() => setFilters((current) => ({ ...current, [definition.key]: { ...value, enabled: !value.enabled } }))} className={`relative h-6 w-11 rounded-full transition ${value.enabled ? "bg-gold-400" : "bg-edge"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${value.enabled ? "left-6" : "left-1"}`} /></button></td>
                             </tr>
                           );
@@ -924,7 +981,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
 
             <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-edge bg-panel px-5 py-4">
-              <p className="font-mono text-[9px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length} total checks enabled</p>
+              <p className="font-mono text-[9px] text-dim">{enabledSafetyCount} total checks enabled</p>
               <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Done</button>
             </footer>
           </div>
@@ -938,25 +995,54 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <div><p className="font-mono text-[9px] uppercase text-gold-400">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 text-lg font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
               <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
             </header>
-            <div className="p-5">
-              <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
-                {[
-                  ["Source", kind === "discord" ? `${source?.name || "Not selected"} · ${channelId ? source?.channels.find((channel) => channel.id === channelId)?.name || channelId : "All approved channels"}` : `${preset} scanner preset`],
-                  ["Wallet", walletAddress || "Not connected"],
-                  ["Entry", `${buyAmountSol} SOL · ${entryMode} · ${maxOpenTrades} maximum trades`],
-                  ["Capital", `${maximumCapitalSol} SOL maximum · ${dailyLossSol} SOL daily loss limit`],
-                  ["Take profit", tpLevels.map((level) => `+${level.targetBps / 100}% / sell ${level.sellBps / 100}%`).join(" · ")],
-                  ["Stop loss", `-${stopBps / 100}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`],
-                  ["Execution", `${slippageBps / 100}% slippage · ${priorityStrategy} priority up to ${priorityFeeMax.toLocaleString()} lamports`],
-                  ["Retries", `${autoRetryCount} auto · ${limitRetryCount} limit · ${quoteExpirationSeconds}s quote`],
-                  ["Cooldown", `${Math.round(cooldownSeconds / 60)} minutes${firstCallOnly ? " · first call only" : ""}`],
-                  ["Security", `${Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length} enabled · missing data fails closed`],
-                  ["Fees", `${formatPercentBps(platformFeeBps)} platform · ${formatPercentBps(creatorFeeBps)} creator`],
-                  ["Worst-case planned exposure", `${maximumCapitalSol.toFixed(3)} SOL before network and route costs`]
-                ].map(([label, value]) => (
-                  <div key={label} className="bg-void p-3"><p className="field-label">{label}</p><p className="mt-1.5 break-words text-xs leading-5 text-ink">{value}</p></div>
-                ))}
-              </div>
+            <div className="space-y-4 p-5">
+              {[
+                {
+                  title: "Main settings",
+                  items: [
+                    ["Bot", `${name} · ${kind === "discord" ? "Discord Bot" : "KOL Bot"}`],
+                    ["Source", kind === "discord" ? `${source?.name || "Not selected"} · ${channelId ? source?.channels.find((channel) => channel.id === channelId)?.name || channelId : "All approved channels"}` : `${preset} scanner preset`],
+                    ["Wallet", walletAddress || "Not connected"],
+                    ...(kind === "kol" ? [["Visibility", visibility === "public" ? "Public after review" : "Private draft"]] : [])
+                  ]
+                },
+                {
+                  title: "Buy settings",
+                  items: [
+                    ["Entry", `${buyAmountSol} SOL · ${entryMode} · ${maxOpenTrades} maximum trades`],
+                    ["Capital", `${maximumCapitalSol} SOL maximum · ${dailyLossSol} SOL daily loss limit · ${perTokenSol} SOL per token`],
+                    ...(kind === "kol" ? [
+                      ["Trigger", `-${priceDropBps / 100}% from ${referenceMode === "recent-ath" ? "recent ATH" : "moving average"} over ${lookbackMinutes} minutes`],
+                      ["DCA", dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(3)} SOL per trade` : "Off"]
+                    ] : [])
+                  ]
+                },
+                {
+                  title: "Sell settings",
+                  items: [
+                    ["Take profit", tpLevels.map((level) => `+${level.targetBps / 100}% / sell ${level.sellBps / 100}%${trailingTakeProfit ? ` / trail ${level.trailingBps / 100}%` : ""}`).join(" · ")],
+                    ["Stop loss", `-${stopBps / 100}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}${freezeAfterStop ? " · freeze after stop" : ""}`]
+                  ]
+                },
+                {
+                  title: "Advanced settings",
+                  items: [
+                    ["Execution", `${slippageBps / 100}% slippage · ${priorityStrategy} priority up to ${priorityFeeMax.toLocaleString()} lamports`],
+                    ["Retries and cooldown", `${autoRetryCount} auto · ${limitRetryCount} limit · ${quoteExpirationSeconds}s quote · ${Math.round(cooldownSeconds / 60)}m cooldown${firstCallOnly ? " · first call only" : ""}`],
+                    ["Security", `${enabledSafetyCount} enabled · ${totalSafetyCount - enabledSafetyCount} off · missing data fails closed`],
+                    ["Fees and exposure", `${formatPercentBps(platformFeeBps)} platform fee · creator receives ${formatPercentBps(creatorFeeBps)} from that fee · ${maximumCapitalSol.toFixed(3)} SOL capital ceiling`]
+                  ]
+                }
+              ].map((group) => (
+                <section key={group.title}>
+                  <h3 className="mb-2 font-mono text-[9px] uppercase tracking-[0.1em] text-gold-400">{group.title}</h3>
+                  <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
+                    {group.items.map(([label, value]) => (
+                      <div key={label} className="bg-void p-3"><p className="field-label">{label}</p><p className="mt-1.5 break-words text-xs leading-5 text-ink">{value}</p></div>
+                    ))}
+                  </div>
+                </section>
+              ))}
               <div className="mt-4 flex gap-3 rounded-md border border-gold-400/35 bg-gold-400/5 p-3 text-xs leading-5 text-dim">
                 <AlertTriangle className="mt-0.5 shrink-0 text-gold-400" size={16} />
                 <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds, and automated trading is not yet available.</p>
@@ -1096,19 +1182,20 @@ function NumberField({
   );
 }
 
-function CompactNumber({ value, onChange, suffix, disabled = false }: { value: number; onChange: (value: number) => void; suffix: string; disabled?: boolean }) {
+function CompactNumber({ ariaLabel, value, onChange, suffix, disabled = false }: { ariaLabel: string; value: number; onChange: (value: number) => void; suffix: string; disabled?: boolean }) {
   return (
-    <label className={`flex min-h-11 sm:min-h-9 min-w-36 items-center rounded-md border border-edge bg-void px-2 ${disabled ? "opacity-45" : "focus-within:border-gold-400"}`}>
+    <span className={`flex min-h-11 sm:min-h-9 min-w-36 items-center rounded-md border border-edge bg-void px-2 ${disabled ? "opacity-45" : "focus-within:border-gold-400"}`}>
       <NumericTextInput
         value={value}
         onChange={onChange}
         disabled={disabled}
         min={0}
         decimals={4}
+        ariaLabel={ariaLabel}
         className="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
       />
       <span className="ml-2 font-mono text-[8px] text-dim">{suffix}</span>
-    </label>
+    </span>
   );
 }
 
@@ -1131,6 +1218,15 @@ function SummaryRow({ label, value, hint }: { label: string; value: string; hint
         {hint && <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono text-[8px] leading-none text-dim">i</span>}
       </dt>
       <dd className="max-w-[58%] text-right font-mono text-[10px] leading-4 text-ink">{value}</dd>
+    </div>
+  );
+}
+
+function SourceStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-void px-4 py-3">
+      <p className="field-label">{label}</p>
+      <p className="mt-2 font-mono text-xs leading-5 text-ink">{value}</p>
     </div>
   );
 }
