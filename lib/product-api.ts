@@ -23,6 +23,9 @@ export type ProductBot = {
   sampleSize?: number;
   netPnlLamports?: number | string | null;
   volumeLamports?: number | string | null;
+  networkFeesLamports?: number | string | null;
+  platformFeesLamports?: number | string | null;
+  creatorFeesLamports?: number | string | null;
   openTrades?: number;
   followers?: number;
   created_at?: string;

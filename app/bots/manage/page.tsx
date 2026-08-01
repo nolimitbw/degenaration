@@ -6,6 +6,7 @@ import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import {
   Archive,
   Bot,
+  CircleHelp,
   Copy,
   Edit3,
   Eye,
@@ -13,7 +14,8 @@ import {
   Pause,
   Play,
   Plus,
-  RefreshCw
+  RefreshCw,
+  X
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import {
@@ -42,6 +44,7 @@ export default function BotManagerPage() {
   const [bots, setBots] = useState<ProductBot[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<ProductBot | null>(null);
 
   const load = useCallback(() => {
     if (!authenticated) {
@@ -62,6 +65,20 @@ export default function BotManagerPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!archiveTarget) return;
+    const previousOverflow = document.body.style.overflow;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && busy !== archiveTarget.id) setArchiveTarget(null);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", close);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", close);
+    };
+  }, [archiveTarget, busy]);
+
   const counts = useMemo(() => ({
     active: bots?.filter((bot) => bot.status === "active").length || 0,
     paused: bots?.filter((bot) => bot.status === "paused").length || 0,
@@ -71,7 +88,7 @@ export default function BotManagerPage() {
   async function saveBot(bot: ProductBot, status: ProductBot["status"], duplicate = false) {
     if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
       toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
-      return;
+      return false;
     }
     setBusy(bot.id);
     try {
@@ -93,8 +110,10 @@ export default function BotManagerPage() {
       });
       toast(duplicate ? "Draft duplicated" : `Bot ${status === "active" ? "resumed" : status}`);
       load();
+      return true;
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : "Could not update bot", "err");
+      return false;
     } finally {
       setBusy(null);
     }
@@ -166,7 +185,7 @@ export default function BotManagerPage() {
         )}
         {!!bots?.length && (
           <div className="overflow-x-auto rounded-md border border-edge">
-            <table className="w-full min-w-[1180px] text-left">
+            <table className="w-full min-w-[1280px] text-left">
               <thead className="bg-panel font-mono text-[9px] uppercase tracking-[0.06em] text-dim">
                 <tr>
                   <th className="px-4 py-3">Status</th>
@@ -175,7 +194,7 @@ export default function BotManagerPage() {
                   <th className="px-4 py-3">Version</th>
                   <th className="px-4 py-3">Trades</th>
                   <th className="px-4 py-3">Followers</th>
-                  <th className="px-4 py-3">30D net PnL</th><th className="px-4 py-3">30D volume</th><th className="px-4 py-3">Max capital</th>
+                  <th className="px-4 py-3">30D net PnL</th><th className="px-4 py-3">30D volume</th><th className="px-4 py-3">30D fees</th><th className="px-4 py-3">Max capital</th>
                   <th className="px-4 py-3">Updated</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -184,6 +203,7 @@ export default function BotManagerPage() {
                 {bots.map((bot) => {
                   const editHref = `/bots/${bot.kind}/${bot.id}/edit`;
                   const isBusy = busy === bot.id;
+                  const totalFees = botFeeTotal(bot);
                   return (
                     <tr key={bot.id} className="border-t border-edge bg-void/45 text-xs transition hover:bg-panel">
                       <td className="px-4 py-4"><StatusPill status={bot.status} /></td>
@@ -198,7 +218,16 @@ export default function BotManagerPage() {
                       <td className="px-4 py-4 font-mono text-ink">v{bot.version || 1}</td>
                       <td className="px-4 py-4 font-mono text-ink">{bot.openTrades || 0}<span className="text-dim">/{Number(bot.config?.maxOpenTrades) || "--"}</span></td>
                       <td className="px-4 py-4 font-mono text-ink">{bot.followers || 0}</td>
-                      <td className="px-4 py-4 font-mono text-dim">{bot.netPnlLamports == null ? "--" : `${(Number(bot.netPnlLamports) / 1e9).toFixed(3)} SOL`}</td><td className="px-4 py-4 font-mono text-dim">{bot.volumeLamports == null ? "--" : formatSol(bot.volumeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{bot.config?.maximumCapitalLamports == null ? "--" : formatSol(bot.config.maximumCapitalLamports)}</td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.netPnlLamports == null ? "--" : `${(Number(bot.netPnlLamports) / 1e9).toFixed(3)} SOL`}</td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.volumeLamports == null ? "--" : formatSol(bot.volumeLamports)}</td>
+                      <td className="px-4 py-4 font-mono text-dim">
+                        <div className="flex items-center gap-1.5">
+                          <p>{totalFees == null ? "--" : formatSol(totalFees)}</p>
+                          <span tabIndex={0} aria-label={feeBreakdown(bot)} title={feeBreakdown(bot)} className="text-dim outline-none focus:text-gold-400"><CircleHelp aria-hidden="true" size={12} /></span>
+                        </div>
+                        <p className="mt-1 text-[9px]">Gas {bot.networkFeesLamports == null ? "--" : formatSol(bot.networkFeesLamports)}</p>
+                      </td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.config?.maximumCapitalLamports == null ? "--" : formatSol(bot.config.maximumCapitalLamports)}</td>
                       <td className="px-4 py-4 font-mono text-[10px] text-dim">{new Date(bot.updated_at || bot.updatedAt || Date.now()).toLocaleDateString()}</td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-1">
@@ -225,7 +254,7 @@ export default function BotManagerPage() {
                                 <button type="button" onClick={() => saveBot(bot, "draft", true)} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Duplicate ${bot.name}`} title="Duplicate as draft"><Copy size={14} /></button>
                               )}
                               {bot.status !== "archived" && (
-                                <button type="button" onClick={() => saveBot(bot, "archived")} disabled={(bot.openTrades || 0) > 0} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-down disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Archive ${bot.name}`} title={(bot.openTrades || 0) > 0 ? "Close positions before archiving" : "Archive"}><Archive size={14} /></button>
+                                <button type="button" onClick={() => setArchiveTarget(bot)} disabled={(bot.openTrades || 0) > 0} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-down disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Archive ${bot.name}`} title={(bot.openTrades || 0) > 0 ? "Close positions before archiving" : "Archive"}><Archive size={14} /></button>
                               )}
                             </>
                           )}
@@ -239,6 +268,52 @@ export default function BotManagerPage() {
           </div>
         )}
       </div>
+
+      {archiveTarget && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && busy !== archiveTarget.id) setArchiveTarget(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="archive-bot-title" className="w-full max-w-lg overflow-hidden rounded-md border border-edge bg-panel shadow-2xl">
+            <header className="flex items-center justify-between gap-4 border-b border-edge p-5">
+              <div><p className="font-mono text-[9px] uppercase text-gold-400">Bot lifecycle</p><h2 id="archive-bot-title" className="mt-2 text-lg font-semibold text-ink">Archive {archiveTarget.name}?</h2></div>
+              <button type="button" onClick={() => setArchiveTarget(null)} disabled={busy === archiveTarget.id} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim disabled:opacity-40" aria-label="Close archive confirmation"><X size={16} /></button>
+            </header>
+            <div className="space-y-4 p-5">
+              <p className="text-sm leading-6 text-dim">The bot leaves active management and cannot open new positions. Its versions, executions, performance, and financial history remain available.</p>
+              <div className="rounded-md border border-edge bg-void p-3 text-xs text-dim"><span className="font-semibold text-ink">Open positions:</span> {archiveTarget.openTrades || 0}</div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setArchiveTarget(null)} disabled={busy === archiveTarget.id} className="min-h-11 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40">Cancel</button>
+                <button
+                  type="button"
+                  disabled={busy === archiveTarget.id || (archiveTarget.openTrades || 0) > 0}
+                  onClick={async () => { if (await saveBot(archiveTarget, "archived")) setArchiveTarget(null); }}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-md bg-down px-4 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {busy === archiveTarget.id && <Loader2 size={14} className="animate-spin" />}
+                  Archive bot
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </AppShell>
   );
+}
+
+function botFeeTotal(bot: ProductBot) {
+  const values = [bot.networkFeesLamports, bot.platformFeesLamports, bot.creatorFeesLamports];
+  if (values.every((value) => value == null)) return null;
+  try {
+    return values.reduce((total, value) => total + BigInt(value || 0), BigInt(0));
+  } catch {
+    return null;
+  }
+}
+
+function feeBreakdown(bot: ProductBot) {
+  const item = (label: string, value: number | string | null | undefined) => `${label}: ${value == null ? "unavailable" : formatSol(value)}`;
+  return [
+    item("Network", bot.networkFeesLamports),
+    item("Platform", bot.platformFeesLamports),
+    item("Creator", bot.creatorFeesLamports)
+  ].join(" · ");
 }
