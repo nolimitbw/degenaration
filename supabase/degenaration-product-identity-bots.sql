@@ -104,6 +104,10 @@ create index if not exists bot_profiles_marketplace_idx
   on app_private.bot_profiles (kind, visibility, status, published_at desc)
   where visibility = 'public' and status in ('active', 'paused');
 
+create unique index if not exists bot_profiles_owner_discord_source_unique
+  on app_private.bot_profiles (owner_privy_user_id, source_group_id)
+  where kind = 'discord' and source_group_id is not null and status <> 'archived';
+
 create table if not exists app_private.bot_config_versions (
   id uuid primary key default gen_random_uuid(),
   bot_id uuid not null references app_private.bot_profiles(id) on delete restrict,

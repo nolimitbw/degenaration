@@ -10,7 +10,8 @@ Updated: 2026-08-01
 | Marketplace migration local apply/rerun | PASS | `npm run verify:marketplace-migration`. |
 | Marketplace production apply/live query | BLOCKED | Requires confirmed deployment target or authorization; see E-1. |
 | Strict typecheck/lint/unit/integration suite | PENDING | Rerun after each financial vertical slice and once at final gate. |
-| Authenticated browser lifecycle | PENDING | Secure test session and browser fixtures still required. |
+| Bot lifecycle database contract | PASS | `npm run verify:bot-lifecycle` covers ownership, hydration, versioning, transitions, duplication rules, archival, entry snapshots, and the activity journal. |
+| Authenticated browser lifecycle | BLOCKED | Non-production Privy test identity or authenticated test session required; see E-6. |
 | Subscriber configuration integrity | PENDING | Audit/migration/tests not yet complete. |
 | Discord end-to-end ingestion | BLOCKED | Controlled application credentials/guild required for live proof; fixtures remain internally testable. |
 | Losing PnL integrity | PENDING | Durable sell-leg/exit-price linkage not yet complete. |
@@ -20,4 +21,3 @@ Updated: 2026-08-01
 | Responsive/accessibility evidence | PENDING | Full 390/768/1024/1440 primary-surface pass remains. |
 | Security/dependency/secret scan | PENDING | Run after implementation and resolve BLOCKER/HIGH findings. |
 | Production deploy or push | NOT AUTHORIZED | Do not push or deploy in this task. |
-

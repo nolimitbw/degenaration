@@ -34,6 +34,44 @@ export type ProductBot = {
   updatedAt?: string;
 };
 
+export type BotActivitySignal = {
+  id: string;
+  status: string;
+  parseStatus: string;
+  mint: string | null;
+  confidenceBps: number | null;
+  reason: string | null;
+  sourceType: string;
+  sourceRef: string;
+  receivedAt: string;
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+export type BotActivityExecution = {
+  id: string;
+  intentKind: string;
+  side: string;
+  mint: string;
+  state: string;
+  executionMode: string;
+  requestedInputBaseUnits: string;
+  executionStatus: string | null;
+  attempt: number | null;
+  txSignature: string | null;
+  grossNotionalLamports: string | null;
+  networkFeeLamports: string | null;
+  priorityFeeLamports: string | null;
+  platformFeeLamports: string | null;
+  creatorFeeLamports: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  submittedAt: string | null;
+  confirmedAt: string | null;
+  reconciledAt: string | null;
+};
+
 export type DiscordSource = {
   id: string;
   name: string;

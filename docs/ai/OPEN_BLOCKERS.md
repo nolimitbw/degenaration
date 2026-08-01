@@ -12,4 +12,4 @@ Only external requirements belong here. Internally solvable work stays in
 | E-3 | Production worker | Provide a worker host, RPC/indexer configuration, Privy delegated-signing credentials, health alert destination, and deployment authorization. | BLOCKED |
 | E-4 | Mainnet fee collection | Create/configure the correct Jupiter output-mint fee account or referral account; a wallet address alone is not a valid per-mint fee account. | BLOCKED |
 | E-5 | Mainnet activation | Explicit controlled-mainnet authorization after staging, signer, reconciliation, provider, fee, withdrawal, alerting, and emergency-control gates pass. | BLOCKED |
-
+| E-6 | Authenticated browser evidence | Provide a non-production Privy test identity with a delegated dev/staging wallet, or an existing authenticated test browser session. No production funds are required. | BLOCKED |
