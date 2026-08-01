@@ -10,3 +10,6 @@ server/.env
 
 # Extracted video contact sheets: large binaries, kept on Desktop instead
 docs/reference-frames/
+
+.references/
+tsconfig.tsbuildinfo
