@@ -1,6 +1,8 @@
 -- Extend the public Discord marketplace response with authoritative activity and PnL.
 -- Apply after the product ledger, execution integrity, and Discord public profile scripts.
--- Rollback by reapplying the prior app_public_list_discord_marketplace definition.
+-- Rollback only this RPC by reapplying the app_public_list_discord_marketplace function
+-- and its revoke/grant block from degenaration-discord-public-profiles.sql. This script
+-- has no table DDL or DML, so rollback does not require restoring marketplace data.
 
 create or replace function public.app_public_list_discord_marketplace(
   p_secret text,

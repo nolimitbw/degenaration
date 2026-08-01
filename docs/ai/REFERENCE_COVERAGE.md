@@ -18,7 +18,7 @@ Updated: 2026-08-01
 | Area | Implemented surface | Reference coverage | Known exact gap |
 | --- | --- | --- | --- |
 | Product shell | `components/AppShell.tsx` | Focused Bots/Affiliate/Portfolio navigation | New multi-viewport task evidence pending |
-| Discord marketplace | `/bots/discord` | Source cards, filtering, periods, real avatar, accepted/rejected/executed calls, processing/execution timestamps, freshness, and three ledger windows | Forward RPC migration and live-card evidence pending; responsive failure state is captured at three widths |
+| Discord marketplace | `/bots/discord` | Source cards, filtering, periods, real avatar, accepted/rejected/executed calls, processing/execution timestamps, freshness, and three ledger windows | Forward RPC migration passes isolated PostgreSQL apply/rerun, authorization, preservation, and null-unknown tests; production apply and live-card evidence remain pending; responsive failure state is captured at three widths |
 | Discord setup | `components/product/BotBuilder.tsx` | Source/channel, budget, TP/SL, filters, retries, review/save | Order aligned and desktop evidence captured; authenticated source/save proof pending |
 | KOL marketplace/setup | `/bots/kol`, `BotBuilder` | Presets, trigger, DCA, filters, preview, exits, execution | Three-width builder evidence captured; DEX selection stays hidden until worker-enforced |
 | Bot manager/edit | `/bots/manage`, edit routes | Separate kinds, status/actions, actual config/version save, 30D fees/gas, safe archive confirmation | Preset/zero-value hydration and fee display fixed; authenticated lifecycle/edit proof remains |
