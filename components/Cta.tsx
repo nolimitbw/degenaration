@@ -18,7 +18,7 @@ export default function Cta() {
         </div>
         <div className="cta-actions flex flex-wrap gap-3 lg:justify-end">
           <Magnetic strength={0.5}>
-            <Link href="/calls" className="btn-cosmic inline-flex min-h-12 items-center px-6 py-3 font-bold">
+            <Link href="/bots/discord" className="btn-cosmic inline-flex min-h-12 items-center px-6 py-3 font-bold">
               Review call sources
             </Link>
           </Magnetic>

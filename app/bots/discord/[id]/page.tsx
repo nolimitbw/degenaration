@@ -38,7 +38,7 @@ export default function DiscordSourceDetailsPage() {
       <PageHeader
         eyebrow="Bots / Discord / Source"
         title={source?.name || "Discord source"}
-        description="Measured call history and approved channel coverage. Past performance is not a guarantee of future execution."
+        description="Measured call history and approved channel coverage."
         actions={
           <>
             <Link href="/bots/discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>

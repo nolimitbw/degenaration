@@ -40,19 +40,23 @@ export default function BotManagerPage() {
   const toast = useToast();
   const [kind, setKind] = useState<BotKind>("discord");
   const [bots, setBots] = useState<ProductBot[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!authenticated) {
       setBots([]);
+      setLoadError(null);
       return;
     }
     setBots(null);
+    setLoadError(null);
     productFetch<{ bots: ProductBot[] }>(`/api/product/bots?kind=${kind}`, { getAccessToken })
       .then((data) => setBots(data.bots || []))
       .catch((reason) => {
-        setBots([]);
-        toast(reason instanceof Error ? reason.message : "Could not load bots", "err");
+        const message = reason instanceof Error ? reason.message : "Could not load bots";
+        setLoadError(message);
+        toast(message, "err");
       });
   }, [authenticated, getAccessToken, kind, toast]);
 
@@ -105,7 +109,7 @@ export default function BotManagerPage() {
           <EmptyState
             icon={Bot}
             title="Connect to manage your bots"
-            description="Your bot configurations are private and only returned for the authenticated Privy user."
+            description="Your bot configurations are private and only returned for your authenticated account."
             action={<button type="button" onClick={login} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Connect account</button>}
           />
         </div>
@@ -144,7 +148,14 @@ export default function BotManagerPage() {
       </p>
 
       <div className="mt-5">
-        {bots == null && <div className="grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>}
+        {bots == null && !loadError && <div className="grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>}
+        {bots == null && loadError && (
+          <div className="rounded-md border border-edge bg-panel p-6">
+            <p className="text-sm font-semibold text-ink">Bots could not be loaded</p>
+            <p className="mt-1 text-xs leading-5 text-dim">{loadError}</p>
+            <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+          </div>
+        )}
         {bots?.length === 0 && (
           <EmptyState
             icon={Bot}

@@ -79,7 +79,7 @@ export default function Groups() {
               </dl>
 
               <Link
-                href="/calls"
+                href="/bots/discord"
                 className="mt-auto inline-flex min-h-11 items-center justify-center border border-white/15 px-4 py-2 text-sm font-bold text-haze transition group-hover:border-grape group-hover:text-grape"
               >
                 Review calls -&gt;

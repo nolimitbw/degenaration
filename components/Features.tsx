@@ -6,7 +6,7 @@ const FEATURES = [
   { code: "01", title: "Trenches", body: "Live feed of fresh Solana launches and trending tokens, straight from the chain.", href: "/trenches" },
   { code: "02", title: "Explorer", body: "A real token screener with live price, MC, liquidity and volume.", href: "/explorer" },
   { code: "03", title: "Trading terminal", body: "DexScreener charts, Market and Limit orders, slippage, take-profit and stop-loss.", href: "/terminal" },
-  { code: "04", title: "Discord calls", body: "Sources ranked by independently tracked call performance. Choose only the ones you trust.", href: "/calls" },
+  { code: "04", title: "Discord calls", body: "Sources ranked by independently tracked call performance. Choose only the ones you trust.", href: "/bots/discord" },
   { code: "05", title: "Wallet tracker", body: "Follow top traders' wallets and watch their moves live, on-chain.", href: "/tracker" },
   { code: "06", title: "Holdings & PnL", body: "Your portfolio value and trading performance over time, in one dashboard.", href: "/holdings" }
 ];

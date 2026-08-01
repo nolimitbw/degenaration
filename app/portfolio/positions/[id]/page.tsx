@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { ArrowLeft, ExternalLink, Loader2, Share2, WalletCards } from "lucide-react";
+import { ArrowLeft, ExternalLink, Loader2, RefreshCw, Share2, WalletCards } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { EmptyState, PageHeader, StatusPill } from "@/components/product/Primitives";
 import type { PortfolioSummary } from "@/components/product/PortfolioDashboard";
@@ -21,15 +21,23 @@ export default function PositionDetailsPage() {
   const id = typeof params.id === "string" ? params.id : "";
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!authenticated || !UUID.test(id)) return;
     setLoading(true);
+    setLoadError(null);
     productFetch<PortfolioSummary>("/api/product/portfolio?period=3m", { getAccessToken })
       .then(setSummary)
-      .catch((reason) => toast(reason instanceof Error ? reason.message : "Could not load position", "err"))
+      .catch((reason) => {
+        const message = reason instanceof Error ? reason.message : "Could not load position";
+        setLoadError(message);
+        toast(message, "err");
+      })
       .finally(() => setLoading(false));
   }, [authenticated, getAccessToken, id, toast]);
+
+  useEffect(() => { load(); }, [load]);
 
   const position = summary?.positions.find((row) => row.id === id);
   const executions = useMemo(() => {
@@ -52,7 +60,7 @@ export default function PositionDetailsPage() {
       <PageHeader
         eyebrow="Private position record"
         title="Position details"
-        description="Reconciled position state, costs, realized result, fees, and matching execution history."
+        description="Costs, realized result, fees, and matching execution history."
       />
 
       {!authenticated && (
@@ -60,7 +68,7 @@ export default function PositionDetailsPage() {
           <EmptyState
             icon={WalletCards}
             title="Connect to view this position"
-            description="Position records are scoped to your verified Privy account."
+            description="Position records are private to your account."
             action={<button type="button" onClick={login} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Connect account</button>}
           />
         </div>
@@ -72,6 +80,14 @@ export default function PositionDetailsPage() {
 
       {authenticated && loading && (
         <div className="mt-6 grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>
+      )}
+
+      {authenticated && !loading && UUID.test(id) && loadError && !summary && (
+        <div className="mt-6 rounded-md border border-edge bg-panel p-6">
+          <p className="text-sm font-semibold text-ink">Position could not be loaded</p>
+          <p className="mt-1 text-xs leading-5 text-dim">{loadError}</p>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+        </div>
       )}
 
       {authenticated && !loading && summary && !position && (
