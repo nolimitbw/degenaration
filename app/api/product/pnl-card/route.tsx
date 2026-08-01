@@ -12,6 +12,8 @@ export const runtime = "nodejs";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const TRUSTED_QUOTES = new Set([SOL_MINT, USDC_MINT]);
+const CARD_WIDTH = 1600;
+const CARD_HEIGHT = 900;
 
 type Position = {
   id: string;
@@ -139,6 +141,7 @@ export async function GET(req: NextRequest) {
   });
   const referralCode = affiliateResult.ok ? affiliateResult.data?.referralCode : null;
   const shareUrl = referralCode ? `https://degenaration.vercel.app/r/${referralCode}` : "https://degenaration.vercel.app";
+  const shareLabel = shareUrl.replace(/^https:\/\//, "");
   const qr = await QRCode.toDataURL(shareUrl, { margin: 0, width: 220, color: { dark: "#17191b", light: "#f3f0eb" } });
 
   let card: {
@@ -247,7 +250,7 @@ export async function GET(req: NextRequest) {
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", padding: "72px 84px", position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 34, borderBottom: "1px solid #383632" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            <div style={{ width: 54, height: 54, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #c29463", color: "#c29463", fontSize: 26, fontWeight: 800 }}>D</div>
+            <BrandMark />
             <div style={{ display: "flex", fontSize: 31, fontWeight: 750 }}>Degen<span style={{ color: "#c29463" }}>A</span>ration</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#9d9992", fontSize: 16 }}>
@@ -274,6 +277,7 @@ export async function GET(req: NextRequest) {
           <div style={{ width: 300, display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-end" }}>
             <div style={{ width: 220, height: 220, display: "flex", padding: 10, background: "#f3f0eb" }}><img src={qr} width="200" height="200" alt="" /></div>
             <div style={{ display: "flex", marginTop: 16, color: "#9d9992", fontSize: 14 }}>SCAN VERIFIED SHARE URL</div>
+            <div style={{ display: "flex", marginTop: 8, color: "#cbc6bd", fontSize: 13 }}>{shareLabel}</div>
           </div>
         </div>
 
@@ -282,18 +286,29 @@ export async function GET(req: NextRequest) {
             <span>{card.context}</span>
             <span style={{ marginTop: 8 }}>Generated {generatedAt} · Trading is high risk. Not financial advice.</span>
           </div>
-          <div style={{ display: "flex", color: "#cbc6bd", fontSize: 16 }}>degenaration.vercel.app</div>
+          <div style={{ display: "flex", color: "#cbc6bd", fontSize: 16 }}>{shareLabel}</div>
         </div>
       </div>
     </div>,
     {
-      width: 1600,
-      height: 900,
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
       headers: {
         "Content-Disposition": `inline; filename=degenaration-${card.variant}-pnl.png`,
-        "Cache-Control": "private, no-store"
+        "Cache-Control": "private, no-store",
+        "X-DegenAration-Share-Url": shareUrl
       }
     }
+  );
+}
+
+function BrandMark() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 48 48" width="54" height="54">
+      <path d="M19 6h13l10 10v16L32 42H19V31h9l3-3v-8l-3-3h-9V6Z" fill="#f3f0eb" />
+      <path d="M6 10h8v8H6v-8Zm3 13h13v8H9v-8Zm-3 13h8v8H6v-8Z" fill="#c29463" />
+      <path d="M22 20h5l2 2v4l-2 2h-5v-8Z" fill="#0d0e0f" />
+    </svg>
   );
 }
 

@@ -518,6 +518,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: { type: "portfolio" | "position"; id?: string }; period: Period; getAccessToken: () => Promise<string | null>; onClose: () => void }) {
   const toast = useToast();
   const [url, setUrl] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState("https://degenaration.vercel.app");
   const [error, setError] = useState("");
   useEffect(() => {
     let objectUrl = "";
@@ -529,6 +530,7 @@ function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: 
         const data = await response.json().catch(() => null);
         throw new Error(data?.error || "Card is not available");
       }
+      setShareUrl(response.headers.get("x-degenaration-share-url") || "https://degenaration.vercel.app");
       objectUrl = URL.createObjectURL(await response.blob());
       setUrl(objectUrl);
     }).catch((reason) => setError(reason instanceof Error ? reason.message : "Card unavailable"));
@@ -548,9 +550,9 @@ function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: 
     const blob = await fetch(url).then((response) => response.blob());
     const file = new File([blob], `degenaration-${subject.type}-pnl.png`, { type: "image/png" });
     try {
-      if (navigator.share && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "DegenAration PnL" });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: "DegenAration PnL", text: shareUrl });
       else {
-        await navigator.clipboard.writeText("https://degenaration.vercel.app");
+        await navigator.clipboard.writeText(shareUrl);
         toast("Share link copied");
       }
     } catch {
