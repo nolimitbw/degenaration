@@ -131,6 +131,37 @@ partial step, and should be described to users as such.
 look like a bug but are an honest empty journal. Deferring does not make findings 1–3 less
 true; it only delays discovering them under load.
 
+## Verified after this record was drafted
+
+The recommendation was originally read off the gate structure. It has since been **run**.
+
+Starting the worker with the shipped defaults and watching which subsystems log:
+
+```
+[worker]      starting — signing DISABLED (watch-only)
+[worker]      health listening on :8787
+[performance] {"type":"PERFORMANCE_LOAD_ERROR","error":"fetch failed"}
+```
+
+One measurement subsystem, and nothing else. No `[limit]`, no `[call]`, no `[copy]` — the
+trading watchers never start. (The fetch error is the throwaway Supabase URL used for the
+test; it is the scanner genuinely trying to work.)
+
+**One guard now closes all three findings.** `server/worker.js` refuses to boot when
+`DELEGATED_SIGNING=on` while `store.loadOpenPositions` does not exist. Because
+`startLimitWatcher` and `startCallWatcher` sit inside `if (SIGNING_READY)` (line 123) and
+`startCopyWatcher` inside `if (COPY_TRADING_READY)` (line 155), which itself requires
+`SIGNING_READY` — every path that can reach findings 1, 2 and 3 is downstream of that one
+check. They are unreachable until position tracking genuinely exists.
+
+| Configuration | Observed |
+|---|---|
+| `DELEGATED_SIGNING=on` | exit 1, refuses, prints the remedy |
+| `DELEGATED_SIGNING=off` | boots, scanner only, stays running |
+
+This does not make findings 1–3 fixed. It makes them **unreachable by accident**, which is a
+different and weaker claim, and the one this record relies on.
+
 ## Trade-off Analysis
 
 The real question is not "worker or no worker" — it is **whether measurement and execution
