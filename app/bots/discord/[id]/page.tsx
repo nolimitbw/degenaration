@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, BadgeCheck, Bot, RadioTower } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import { DiscordActivityGrid, DiscordCallCounts, DiscordPerformanceGrid } from "@/components/product/DiscordMarketplaceMetrics";
 import { DiscordSourceAvatar } from "@/components/product/DiscordSourceVisual";
 import ScannerPulseIcon from "@/components/icons/ScannerPulseIcon";
 import { EmptyState, Metric, PageHeader, ProductTabs, Segmented, StatusPill } from "@/components/product/Primitives";
@@ -65,15 +66,25 @@ export default function DiscordSourceDetailsPage() {
                 {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Source performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]} /></div>
-              <div className="grid grid-cols-2 divide-x divide-y divide-edge sm:grid-cols-4 lg:grid-cols-7 lg:divide-y-0 py-4">
+              <div className="grid grid-cols-2 divide-x divide-y divide-edge py-4 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
                 <Metric label="Eligible calls" value={source.eligibleCalls} />
                 <Metric label="Measured" value={source.measuredCalls} />
-                <Metric label="2x rate" value={source.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} tone="positive" />
+                <Metric label="2x rate" value={source.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} />
                 <Metric label="Median peak" value={source.medianReturnX == null ? "--" : `${source.medianReturnX.toFixed(2)}x`} />
                 <Metric label="Average peak" value={source.averageReturnX == null ? "--" : `${source.averageReturnX.toFixed(2)}x`} />
                 <Metric label="Max drawdown" value={formatPercentBps(source.maxDrawdownBps)} tone={source.maxDrawdownBps == null ? "default" : "negative"} />
-                <Metric label="Creator fee" value={formatPercentBps(source.creatorFeeBps)} />
               </div>
+            </section>
+
+            <section className="overflow-hidden rounded-md border border-edge bg-panel">
+              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Source activity</h2><p className="mt-1 text-[11px] text-dim">Processing, execution, and scanner state from authoritative records.</p></header>
+              <DiscordActivityGrid source={source} />
+              <div className="border-t border-edge"><DiscordCallCounts source={source} /></div>
+            </section>
+
+            <section className="overflow-hidden rounded-md border border-edge bg-panel">
+              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Ledger performance</h2><p className="mt-1 text-[11px] text-dim">Net PnL appears only after reconciled execution history exists.</p></header>
+              <DiscordPerformanceGrid source={source} />
             </section>
 
             <section className="rounded-md border border-edge bg-panel">
@@ -103,6 +114,7 @@ export default function DiscordSourceDetailsPage() {
               <div className="flex gap-3"><BadgeCheck className="shrink-0 text-up" size={17} /><div><p className="text-xs font-semibold text-ink">Admin approved</p><p className="mt-1 text-[11px] leading-5 text-dim">Signals still pass parser, token, route, and user filter checks.</p></div></div>
               <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Last signal</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.lastSignalAt)}</p></div></div>
               <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Profile synchronization</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.profileSyncedAt)} · {source.integrationHealth}</p></div></div>
+              <div className="rounded-md border border-edge bg-void p-3"><p className="font-mono text-[9px] uppercase text-dim">Creator commission</p><p className="mt-2 text-xs text-ink">{formatPercentBps(source.creatorFeeBps)} included in the 2% platform fee</p></div>
               <div className="rounded-md border border-edge bg-void p-3"><p className="font-mono text-[9px] uppercase text-dim">Minimum history</p><p className="mt-2 text-xs text-ink">{source.measuredCalls >= 5 ? "Measured sample is available." : `Tracking — ${source.measuredCalls} of 5 calls measured so far.`}</p></div>
               <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Use this source</Link>
             </div>

@@ -23,6 +23,7 @@ import {
   StatusPill
 } from "@/components/product/Primitives";
 import { DiscordSourceAvatar, IntegrationHealthDot } from "@/components/product/DiscordSourceVisual";
+import { DiscordActivityGrid, DiscordCallCounts, DiscordPerformanceGrid } from "@/components/product/DiscordMarketplaceMetrics";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
 import { safeDiscordBotInstall, safeDiscordInvite } from "@/lib/external-url";
 
@@ -181,47 +182,35 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         )}
       </header>
 
-      <div className="grid grid-cols-2 divide-x divide-y divide-edge border-b border-edge py-4 sm:grid-cols-5 sm:divide-y-0">
+      <div className="border-b border-edge"><DiscordActivityGrid source={source} /></div>
+      <div className="border-b border-edge"><DiscordPerformanceGrid source={source} /></div>
+
+      <div className="grid grid-cols-2 divide-x divide-y divide-edge border-b border-edge py-4 sm:grid-cols-4 sm:divide-y-0">
         <Metric label="Win rate" value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "--"} tone={measured ? "positive" : "default"} />
-        <Metric label="Median return" value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"} />
         <Metric label="Average return" value={measured && source.averageReturnX != null ? `${source.averageReturnX.toFixed(2)}x` : "--"} />
+        <Metric label="Median return" value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"} />
         <Metric label="Max drawdown" value={measured ? formatPercentBps(source.maxDrawdownBps) : "--"} tone={source.maxDrawdownBps != null ? "negative" : "default"} />
-        <Metric label="Eligible calls" value={source.eligibleCalls} detail={`${source.measuredCalls} measured`} />
       </div>
 
       <div className="p-5">
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            ["<50%", source.under50, "text-down"],
-            ["+50%", source.plus50, "text-gold-300"],
-            ["2x", source.twoX, "text-up"],
-            ["5x+", source.fiveX, "text-up"]
-          ].map(([label, value, tone]) => (
-            <div key={label as string} className="rounded-sm border border-edge bg-void px-3 py-2 text-center">
-              <p className={`font-mono text-sm font-semibold tabular-nums ${tone}`}>{value}</p>
-              <p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p>
-            </div>
-          ))}
-        </div>
+        <div className="overflow-hidden rounded-md border border-edge"><DiscordCallCounts source={source} /></div>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-edge pt-4">
           <div className="min-w-0">
-            {/* An unmeasured source states when tracking began, rather than repeating a
-                large repeated error block on every card (§6.2). */}
             {measured ? (
-              <p className="font-mono text-[10px] text-dim">Last call {formatWhen(source.lastSignalAt)}</p>
+              <p className="font-mono text-[10px] text-dim">{source.measuredCalls} measured calls in this period</p>
             ) : (
               <p
                 className="font-mono text-[10px] text-dim"
                 title="Performance appears after eligible calls receive enough market data."
               >
-                Tracking started {formatWhen(source.approvedAt)}
+                {source.approvedAt ? `Tracking started ${formatWhen(source.approvedAt)}` : "No eligible calls yet"}
               </p>
             )}
             <p
               className="mt-1 font-mono text-[10px] text-dim"
               title={`The creator receives ${formatPercentBps(source.creatorFeeBps)} of executed notional, paid out of the 2.00% platform fee. You are not charged extra.`}
             >
-              Creator share included in 2% fee
+              {formatPercentBps(source.creatorFeeBps)} creator commission included in 2% fee
             </p>
           </div>
           <div className="flex shrink-0 gap-2">

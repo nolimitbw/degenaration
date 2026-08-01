@@ -47,6 +47,9 @@ export type DiscordSource = {
   marketplaceVisible: boolean;
   integrationHealth: "pending" | "healthy" | "degraded" | "unavailable";
   eligibleCalls: number;
+  acceptedCalls?: number;
+  rejectedCalls?: number;
+  executedCalls?: number;
   measuredCalls: number;
   under50: number;
   plus50: number;
@@ -56,13 +59,24 @@ export type DiscordSource = {
   medianReturnX: number | null;
   winRate: number | null;
   maxDrawdownBps: number | null;
+  performance1d?: DiscordSourcePerformance | null;
+  performance7d?: DiscordSourcePerformance | null;
+  performance30d?: DiscordSourcePerformance | null;
   activeFollowers: number;
   channels: Array<{ id: string; name: string | null }>;
   dataFreshnessAt: string | null;
   lastSignalAt: string | null;
+  lastProcessedCallAt?: string | null;
+  lastSuccessfulExecutionAt?: string | null;
   profileSyncedAt: string | null;
   lastVerifiedAt: string | null;
   approvedAt: string | null;
+};
+
+export type DiscordSourcePerformance = {
+  sampleSize: number;
+  netPnlLamports: number | string | null;
+  asOf: string;
 };
 
 export type KolStrategy = {
