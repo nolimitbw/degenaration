@@ -1184,6 +1184,45 @@ test("maps only the declared Solana networks", () => {
   assert.strictEqual(resolveCaip2("mainnet"), CAIP2.mainnet);
 });
 
+// --- worker refuses to sign while it cannot exit a position (ADR-001 finding 1) ---
+// Spawned rather than unit-tested: the guard's whole value is that it stops the PROCESS,
+// and a test of the predicate alone would still pass if someone deleted the process.exit.
+{
+  const { spawnSync } = require("node:child_process");
+  const path = require("node:path");
+  const workerPath = path.join(__dirname, "..", "worker.js");
+  const baseEnv = {
+    ...process.env,
+    WORKER_NET: "devnet",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SERVICE_KEY: "fake-key-for-test",
+    COPY_TRADING: "off"
+  };
+  const run = (env) => spawnSync(process.execPath, [workerPath], {
+    env: { ...baseEnv, ...env }, encoding: "utf8", timeout: 20000
+  });
+
+  test("worker refuses to start with signing on while no exit path exists", () => {
+    const r = run({
+      DELEGATED_SIGNING: "on",
+      PRIVY_APP_ID: "x", PRIVY_APP_SECRET: "y", PRIVY_AUTHORIZATION_KEY: "z"
+    });
+    assert.strictEqual(r.status, 1);
+    assert.match(r.stderr, /REFUSING TO START/);
+    assert.match(r.stderr, /no way to exit a position/);
+  });
+
+  test("the refusal is derived from the store, not a flag someone can flip", () => {
+    // If a position loader ever exists, the guard must stop firing on its own. Proving the
+    // predicate is what the guard actually reads keeps it honest.
+    const store = require("../engine/store");
+    assert.strictEqual(typeof store.loadOpenPositions, "undefined");
+    const wouldRefuse = (s) => typeof s.loadOpenPositions !== "function";
+    assert.strictEqual(wouldRefuse(store), true);
+    assert.strictEqual(wouldRefuse({ loadOpenPositions: () => [] }), false);
+  });
+}
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -67,6 +67,38 @@ if (SIGNING_READY) {
   }
 }
 
+/**
+ * SAFETY GATE — there is no automated exit path. See docs/adr/ADR-001-worker-deployment.md.
+ *
+ * Under SIGNING_READY this worker starts up to three BUY paths and has no automated SELL
+ * path at all: engine/monitor.js exports startMonitor, nothing calls it, and nothing
+ * produces the open positions it takes as a parameter. Enabling signing in that state turns
+ * a user's configured stop loss into a promise this code cannot keep — the worker buys, the
+ * token falls, and no code sells.
+ *
+ * WHY THIS IS DERIVED RATHER THAN DECLARED. A `const EXITS_WIRED = false` could be flipped
+ * by anyone who wanted the worker to boot, which makes it exactly as weak as the document it
+ * is meant to enforce. `store.loadOpenPositions` is the narrowest thing that MUST exist
+ * before the monitor can be handed a single position, so this guard retires itself when
+ * position tracking is actually built and not one moment earlier.
+ *
+ * It is necessary, not sufficient: a loader alone does not mean the monitor is started or
+ * that confirmation is awaited (ADR-001 findings 2 and 3). Re-read that record before
+ * removing this.
+ */
+if (SIGNING_READY && typeof store.loadOpenPositions !== "function") {
+  console.error(
+    "[worker] REFUSING TO START — DELEGATED_SIGNING=on but this worker has no way to exit a position.\n" +
+    "         engine/monitor.js is never started, and store.loadOpenPositions does not exist,\n" +
+    "         so take-profit and stop-loss can never fire on anything this worker buys.\n" +
+    "         Users' configured stop losses would be silently unenforced.\n" +
+    "         See docs/adr/ADR-001-worker-deployment.md, action item 4.\n" +
+    "         To run measurement only, set DELEGATED_SIGNING=off — the performance scanner\n" +
+    "         runs outside every signing gate and needs none of this."
+  );
+  process.exit(1);
+}
+
 console.log(`[worker] starting — signing ${SIGNING_READY ? "ENABLED" : "DISABLED (watch-only)"}`);
 
 http.createServer((req, res) => {
