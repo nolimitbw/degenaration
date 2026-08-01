@@ -192,25 +192,45 @@ Status: **SAFE TO SET — sell-leg fees begin once the wSOL account exists.**
 
 ## B-2 — Delegated-signing secrets and a worker host
 
-**THIRD PRECONDITION — `COPY_TRADING=on` bypasses the safety filters B-6 fixed.**
+**THIRD PRECONDITION — RESOLVED 2026-08-01. Copy trades now enforce each subscriber's own
+filters, and claim atomically.**
 
-B-6 is correctly resolved for the path that runs: `server/engine/calls.js` resolves each
-subscriber's own filters through `store.subscriberSafety` and `evaluateSafety`, and
-`worker.js` wires it in.
+Two defects made `COPY_TRADING=on` dangerous, and both are fixed in `b15e66b`.
 
-`server/engine/copy.js` does not. It calls `rugCheck(mint)` with no safety argument, so only
-the baseline $10,000 liquidity floor applies and every filter configured in the builder —
-liquidity, market cap, mint authority, freeze authority — is ignored.
+*Safety filters were ignored.* `copy.js` called `rugCheck(mint)` once per detected mint
+**before** the subscriber loop, so only the baseline liquidity floor applied and every filter
+configured in the builder was dropped. It was structural, not a missing argument — one shared
+verdict cannot express per-subscriber bounds. The evaluation moved inside the loop, the shape
+`calls.js` already used.
 
-It is structural rather than a missing parameter: `copy.js` runs one `rugCheck` per detected
-mint **before** the subscriber loop, so one shared verdict cannot express per-subscriber
-bounds. `calls.js` already has the right shape — the check moves inside the loop.
+It could not have been fixed earlier: `copy_subscriptions` had **no per-bot configuration
+column at all**, so there was nothing for `subscriberSafety` to read and the fix would have
+been cosmetic. `supabase/degenaration-copy-execution-integrity.sql` adds `extended_config`.
+Legacy rows without it stay on the platform baseline rather than failing closed, so the
+migration cannot silently disable an existing subscription.
 
-**Not live.** `COPY_TRADING_READY = SIGNING_READY && process.env.COPY_TRADING === "on"`, so
-the watcher is off unless that variable is explicitly set. The risk is that enabling it looks
-like a feature flag while it also silently drops safety enforcement for copy trades.
+*The daily cap was not enforceable across instances.* The cap lived in a per-process `Map`
+and `bumpDailySpent` PATCHed an **absolute** total, so two instances clobbered each other's
+figure and a subscriber could spend several times their cap. There was also no dedupe, so
+both instances mirrored the same buy. Replaced with an atomic claim that reserves the spend
+in the same transaction and is unique per detected buy.
 
-Annotated at the gate in `worker.js`, where the flag is read.
+**Proven against live Postgres** (self-rolling-back transactions, no data left behind):
+
+| Property | Result |
+|---|---|
+| First claim reserves the cap atomically | `daily_spent` 0 → 1 |
+| Second instance, same detected buy | refused — `execution already claimed` |
+| Loser's reservation rolled back | spent stays **1, not 2** |
+| Genuinely new buy | claims; next one refused `daily cap reached` |
+| Repeat buy of same mint in cooldown | refused — `mint on cooldown` |
+| **Failed** settle returns the reservation | spent → 0, so failures cannot park a bot |
+
+The dedupe key derives from the **leader's post-buy balance**, which every instance reads
+from the same chain state — a wall-clock or per-process value would differ between instances
+and the unique index would stop deduplicating anything.
+
+This removes the "deploy exactly one instance" precondition for the copy path.
 
 **SECOND PRECONDITION — RESOLVED 2026-08-01. TP/SL no longer treats submission as settlement.**
 
@@ -241,33 +261,26 @@ reserved daily-cap spend, and settling twice does not refund twice.
 that an unseen signature stays `pending` inside the blockhash window and `expired` past it,
 and that a failed sell leaves the trigger armed rather than marked filled.
 
-Remaining in this area: the copy path below, and item (e) of ADR-001 action 4.
+Remaining in this area: item (e) of ADR-001 action 4.
 
-**PRECONDITION FOUND 2026-07-31 — deploy exactly ONE instance.**
+**PRECONDITION FOUND 2026-07-31 — RESOLVED 2026-08-01. All three execution paths now claim
+atomically.**
 
-The worker acquires no lease, though `app_private.worker_leases` exists for it (0 rows). The
-two execution paths are not equally protected:
+The worker still acquires no lease (`app_private.worker_leases` exists, 0 rows), but a lease
+is no longer what stands between this and a second replica — each path now reserves its own
+spend inside the claiming transaction:
 
 | Path | Multi-instance safety |
 |---|---|
-| Limit orders | **protected** — `worker_claim_limit_order` claims `where status = 'open'` and reserves daily spend inside the claiming transaction |
-| Copy trades | **not protected** — no claim, no dedupe key; the daily cap lives in a per-process `Map` |
+| Limit orders | `worker_claim_limit_order` claims `where status = 'open'` and reserves spend in the claiming transaction |
+| Discord calls | `worker_claim_call_execution`, one claim per (call, subscription) |
+| Copy trades | `worker_claim_copy_execution` — **added `b15e66b`**, unique per (subscription, detected buy), cap reserved in the same transaction |
 
-With two instances running, each keeps its own cap map, so a subscriber can spend up to N
-times their configured daily cap, and both instances mirror the same detected buy.
-`bumpDailySpent` writes an absolute total rather than a delta, so concurrent writers also
-overwrite each other's figure, compounding the overspend.
+The copy path was the gap: no claim, no dedupe key, and a per-process `Map` for the cap that
+two instances could not share. Fixed and verified live — see the table above.
 
-None of this is live — the worker has never run. It matters at the moment of deployment, and
-again at any point someone scales the service past one replica.
-
-Two ways to make it safe:
-
-1. **Deploy one instance and keep it there** — correct today, and the annotation in
-   `server/engine/copy.js` says so at the cap itself.
-2. **Give copy trades the same treatment as limit orders** — a claim that reserves spend
-   atomically, or a lease in `worker_leases` — before scaling. That is real work, not a
-   configuration flag.
+Scaling past one replica is now a question of duplicated RPC/provider load and the in-memory
+holdings baselines in `copy.js` re-priming on restart, not of double-spending a user's cap.
 
 
 The 24/7 automation worker in `server/` is code-complete and tested but watch-only. It

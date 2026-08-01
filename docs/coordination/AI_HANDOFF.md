@@ -66,9 +66,13 @@ Changing any of them re-breaks something that was fixed.
 6. **`body` is transparent; the canvas colour lives on `html`.** Moving it back to `body`
    hides `DegenBackdrop` behind it.
 
-7. **`copy.js` is deliberately still on the platform safety baseline.**
-   `copy_subscriptions` has no `extended_config` column, so there is no per-bot config to
-   honour there yet. This is recorded, not an oversight.
+7. ~~**`copy.js` is deliberately still on the platform safety baseline.**~~
+   **SUPERSEDED 2026-08-01 by `b15e66b` — do not restore this behaviour.** The reason it was
+   deliberate no longer holds: `copy_subscriptions` now HAS `extended_config`
+   (`supabase/degenaration-copy-execution-integrity.sql`), so there is per-bot config to
+   honour, and `copy.js` resolves each subscriber's own filters inside the subscriber loop.
+   It also claims atomically per detected buy. Reverting either would reintroduce the
+   filter bypass and the multi-instance cap overspend. See OPEN_BLOCKERS B-2.
 
 8. **The two Discord sources showing dashes is CORRECT.** Live DB: `raw_signals`=0,
    `market_snapshots`=0, `durable_jobs`=0. The worker has never run. Replacing dashes with
