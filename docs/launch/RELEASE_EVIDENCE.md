@@ -652,6 +652,44 @@ unprompted.
 
 A sweep confirmed these are the only two instances of the shape in the codebase.
 
+### Correction — the unpushed count reported during this work was wrong
+
+Session notes repeatedly stated 99–101 commits unpushed, and warned the work existed only on
+one machine. Both were wrong. That number came from `git rev-list --count master..HEAD`, and
+`master` is a stale local branch sitting at `2f03090`. It measures the size of the feature
+branch, not what is missing from the remote.
+
+`origin/claude/degenaration-launch-remediation` exists and was current through
+`29291c9`. The genuine figure is **23 unpushed commits** — the most recent stretch only.
+
+`scripts/handoff.mjs` had this right the whole time (`git rev-list --count origin/$branch..HEAD`,
+line 68). The generated table said 12 while the prose said 99; the generated number was the
+correct one. When a script and a hand count disagree, the script is measuring something
+defined and the hand count is measuring whatever was convenient.
+
+### The worker now refuses to run without an exit path
+
+ADR-001 closed with a warning that setting `DELEGATED_SIGNING=on` before automated exits
+exist would void its reasoning. That warning is now enforced: `server/worker.js` exits 1 with
+the reason and the remedy, following the precedent already in the file (it refuses to start
+when signing is requested without Privy credentials).
+
+The check is **derived, not declared**. A `const EXITS_WIRED = false` could be flipped by
+anyone who wanted the process to boot, making it exactly as weak as the document it replaces.
+It reads `store.loadOpenPositions` — the narrowest thing that must exist before the monitor
+can be handed a position — so it retires itself when position tracking is genuinely built.
+Necessary, not sufficient: a loader does not imply the monitor is started or that
+confirmation is awaited, and the comment says so.
+
+| Configuration | Result |
+|---|---|
+| `DELEGATED_SIGNING=on` | **exit 1**, refuses, prints the remedy |
+| `DELEGATED_SIGNING=off` | boots and keeps running — watch-only unaffected |
+
+The test spawns the process rather than unit-testing the predicate, because the guard's value
+is that it stops the process; a predicate test would still pass if someone deleted the
+`process.exit`. Verified by disabling the guard — suite fails, then passes once restored.
+
 ## Readiness
 
 **READY FOR STAGING — not for mainnet.**
