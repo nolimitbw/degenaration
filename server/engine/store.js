@@ -60,7 +60,9 @@ const loadTrackedWallets = async () => {
   const rows = await sbGet("copy_subscriptions?enabled=eq.true&select=leader_wallet", true);
   return [...new Set((rows || []).map((r) => r.leader_wallet))].map((address) => ({ address }));
 };
-const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss`, true);
+// `extended_config` carries the subscriber's own safety filters, which this path previously
+// could not honour because the column did not exist on this table.
+const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss,extended_config`, true);
 
 /**
  * A subscriber's own safety filters, or null when the row predates the bot builder.
@@ -135,6 +137,27 @@ const settleCallExecution = (callId, subscriptionId, claimToken, status, error) 
   p_status: status, p_error: error || null
 });
 
+// ---- copy-trade executions ----
+const claimCopyExecution = (subscriptionId, leaderWallet, mint, key) => sbRpc("worker_claim_copy_execution", {
+  p_subscription_id: subscriptionId, p_leader_wallet: leaderWallet, p_mint: mint, p_dedupe_key: key
+});
+const submitCopyExecution = (subscriptionId, key, claimToken, sig) => sbRpc("worker_submit_copy_execution", {
+  p_subscription_id: subscriptionId, p_dedupe_key: key, p_claim_token: claimToken, p_sig: sig
+});
+const settleCopyExecution = (subscriptionId, key, claimToken, status, error) => sbRpc("worker_settle_copy_execution", {
+  p_subscription_id: subscriptionId, p_dedupe_key: key, p_claim_token: claimToken,
+  p_status: status, p_error: error || null
+});
+
+/**
+ * One reconciler handles both execution sources, so it settles through this dispatcher
+ * rather than knowing which table a row came from. `source` is supplied by
+ * worker_load_submitted_executions.
+ */
+const settleExecution = (execution, status, error) => execution.source === "copy"
+  ? settleCopyExecution(execution.subscription_id, execution.dedupe_key, execution.claim_token, status, error)
+  : settleCallExecution(execution.call_id, execution.subscription_id, execution.claim_token, status, error);
+
 // Track calls for 30 days so every source's public score comes from the same live data.
 const loadPerformanceCalls = () => {
   const since = encodeURIComponent(new Date(Date.now() - 30 * 86_400_000).toISOString());
@@ -204,4 +227,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, submitCallExecution, loadSubmittedExecutions, settleCallExecution };
+module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };

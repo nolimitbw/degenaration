@@ -67,7 +67,7 @@ function buildPosition({ execution, receivedRaw, entryPriceUsd }) {
  *   fetchReceivedAmount(sig, owner, mint)            -> raw tokens received
  *   getPrice(mint)                                   -> current USD price
  *   openPosition(position)                           -> idempotent on entry signature
- *   settleExecution(callId, subId, claimToken, status, error)
+ *   settleExecution(execution, status, error)   dispatches on execution.source
  *   recordTrade(evt)
  */
 function startSettlementWatcher(deps, pollMs = POLL_MS) {
@@ -92,7 +92,7 @@ function startSettlementWatcher(deps, pollMs = POLL_MS) {
 
     if (!decision.openPosition) {
       try {
-        await settleExecution(execution.call_id, execution.subscription_id, execution.claim_token, "failed", decision.error);
+        await settleExecution(execution, "failed", decision.error);
         onEvent({ type: "BUY_FAILED", sig, mint: execution.mint, verdict });
       } catch (e) {
         onEvent({ type: "SETTLE_ERROR", sig, error: e.message });
@@ -129,7 +129,7 @@ function startSettlementWatcher(deps, pollMs = POLL_MS) {
       // would leave a confirmed buy with no position and nothing to retry it.
       const opened = await openPosition(position);
       if (!opened?.ok) throw new Error(opened?.error || "could not open position");
-      await settleExecution(execution.call_id, execution.subscription_id, execution.claim_token, "succeeded", null);
+      await settleExecution(execution, "succeeded", null);
     } catch (e) {
       onEvent({ type: "SETTLE_ERROR", sig, mint: execution.mint, error: e.message });
       return;
@@ -139,7 +139,7 @@ function startSettlementWatcher(deps, pollMs = POLL_MS) {
       await recordTrade({
         privy_user_id: execution.privy_user_id, user_pubkey: execution.user_pubkey,
         group_id: execution.group_id, mint: execution.mint, side: "buy",
-        size: execution.amount_sol, sig, kind: "call"
+        size: execution.amount_sol, sig, kind: execution.source === "copy" ? "copy" : "call"
       });
     } catch (e) {
       onEvent({ type: "RECORD_ERROR", sig, error: e.message });

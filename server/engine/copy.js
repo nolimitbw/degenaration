@@ -7,6 +7,7 @@
  * balance increases, since the last snapshot is treated as a buy signal.
  */
 const { rugCheck } = require("./rugcheck");
+const { evaluateSafety } = require("./safety");
 const { buyToken } = require("./jupiter");
 
 // Pure, testable: mints that are new or increased between two holdings snapshots.
@@ -21,41 +22,40 @@ function detectBuys(prev, curr) {
 }
 
 /**
+ * Pure: a key identifying one detected buy, stable ACROSS worker instances.
+ *
+ * Derived from the leader's post-buy balance, which every instance reads from the same
+ * chain state. A timestamp or per-process counter would differ between instances and the
+ * unique index built on this key would stop deduplicating anything.
+ */
+function dedupeKey(leaderWallet, mint, leaderBalance) {
+  return `${leaderWallet}:${mint}:${String(leaderBalance)}`;
+}
+
+/**
  * deps:
  *  loadTrackedWallets() -> [{ address }]
  *  loadSubscribers(walletAddress) -> [{ user_pubkey, size_sol, slippage_bps, daily_cap_sol, daily_spent }]
  *  getHoldings(address) -> { [mint]: amount }        (RPC getTokenAccountsByOwner)
  *  signAndSend(tx, userPubkey) -> signature
- *  recordCopy(evt) / onEvent(evt)
+ *  claimCopyExecution(subId, leaderWallet, mint, dedupeKey) -> atomic claim + cap reservation
+ *  submitCopyExecution(subId, dedupeKey, claimToken, sig)   -> records the signature
+ *  subscriberSafety(row) -> { ok, safety } — the subscriber's OWN filters
+ *  onEvent(evt)
+ *
+ * The trade ledger row and the position are written by engine/settlement.js once the
+ * signature is confirmed, not here.
  */
 function startCopyWatcher(deps, pollMs = 10000) {
-  const { loadTrackedWallets, loadSubscribers, getHoldings, signAndSend, bumpDailySpent = async () => {}, recordCopy = () => {}, onEvent = () => {} } = deps;
+  const {
+    loadTrackedWallets, loadSubscribers, getHoldings, signAndSend,
+    claimCopyExecution, submitCopyExecution, onEvent = () => {},
+    // Resolves a subscriber's own safety filters. Defaults to "no builder config", which
+    // keeps legacy rows on the platform baseline rather than failing them closed.
+    subscriberSafety = () => ({ ok: true, safety: null, fromBuilder: false })
+  } = deps;
   const snapshots = new Map(); // walletAddress -> holdings map
   let primed = false;
-
-  // SINGLE INSTANCE ONLY. This cap is per PROCESS, and the copy path has no atomic claim -
-  // unlike limit orders, which go through worker_claim_limit_order and reserve spend inside
-  // the claiming transaction. Two workers running at once would each hold their own map, so
-  // a subscriber could spend up to N times their daily cap, and both would mirror the same
-  // detected buy. bumpDailySpent below writes an ABSOLUTE total rather than a delta, so
-  // concurrent writers also lose each other's spend, compounding it.
-  //
-  // app_private.worker_leases exists for exactly this and is currently unused - the worker
-  // acquires no lease. Until it does, deploy exactly one instance. See OPEN_BLOCKERS B-2.
-  //
-  // Authoritative per-process daily spend tracking, so the cap actually throttles even
-  // within a single 10s tick (before any DB roundtrip). Keyed by subscription id.
-  // On first sight we seed from the persisted daily_spent (restart-safe: worst case a user
-  // is blocked slightly early, never overspent). On a UTC-day rollover we reset to 0.
-  const spent = new Map(); // subId -> { day, amount }
-  const utcDay = () => new Date().toISOString().slice(0, 10);
-  function spentSoFar(s) {
-    const day = utcDay();
-    const rec = spent.get(s.id);
-    if (!rec) { spent.set(s.id, { day, amount: s.daily_spent || 0 }); return spent.get(s.id).amount; }
-    if (rec.day !== day) { rec.day = day; rec.amount = 0; } // new UTC day — reset
-    return rec.amount;
-  }
 
   const runTick = async () => {
     let wallets = [];
@@ -69,26 +69,69 @@ function startCopyWatcher(deps, pollMs = 10000) {
       if (!prev || !primed) continue; // first pass just primes baselines, never mirrors
 
       for (const mint of detectBuys(prev, curr)) {
-        // safety gate before mirroring anyone in
+        // Baseline platform gate, and the evidence each subscriber's own filters are then
+        // evaluated against — so the per-subscriber check costs no extra round trip.
         let check; try { check = await rugCheck(mint); } catch { check = { ok: false, reasons: ["check failed"] }; }
         if (!check.ok) { onEvent({ type: "SKIP", wallet: w.address, mint, reasons: check.reasons }); continue; }
 
+        const key = dedupeKey(w.address, mint, curr[mint]);
         let subs = [];
         try { subs = await loadSubscribers(w.address); } catch { subs = []; }
         for (const s of subs) {
           if (!s.wallet_id) { onEvent({ type: "NO_WALLET", user: s.user_pubkey }); continue; }
-          if (spentSoFar(s) + s.size_sol > s.daily_cap_sol) { onEvent({ type: "CAP", user: s.user_pubkey }); continue; }
+
+          // PER-SUBSCRIBER SAFETY. This used to run only as the single shared rugCheck
+          // above, so every filter a user configured in the builder was ignored on this
+          // path. One verdict cannot express different subscribers' bounds, so the
+          // evaluation belongs here, inside the loop — the shape calls.js already uses.
+          const resolved = subscriberSafety(s);
+          if (!resolved.ok) {
+            // Filters exist but cannot be read. Running the bot unfiltered would ignore the
+            // risk settings the user chose, so it does not execute.
+            onEvent({ type: "SAFETY_UNAVAILABLE", wallet: w.address, subscription: s.id, reason: resolved.reason });
+            continue;
+          }
+          if (resolved.safety) {
+            const verdict = evaluateSafety({
+              pair: check.evidence?.pair || null,
+              mintInfo: check.evidence?.mintInfo || null,
+              safety: resolved.safety,
+              // Required for tokenAgeMinutes: safety.js derives age from
+              // (nowMs - pair.pairCreatedAt) and yields null evidence without it, which
+              // would fail an enabled age filter closed on every single call.
+              nowMs: Date.now()
+            });
+            if (!verdict.ok) {
+              onEvent({ type: "SAFETY_REJECTED", wallet: w.address, subscription: s.id, mint, reasons: verdict.reasons });
+              continue;
+            }
+          }
+
+          // Claim BEFORE building the swap. The claim reserves the daily-cap spend inside
+          // its own transaction and is unique per (subscription, detected buy), so a second
+          // worker instance loses the race instead of mirroring the same buy and spending
+          // the cap twice. This replaced a per-process Map that two instances could not
+          // share and an absolute-total write that they clobbered.
+          let claim;
+          try { claim = await claimCopyExecution(s.id, w.address, mint, key); }
+          catch (e) { onEvent({ type: "CLAIM_ERROR", subscription: s.id, mint, error: e.message }); continue; }
+          if (!claim?.ok || !claim?.claim_token) {
+            onEvent({ type: "CLAIM_SKIPPED", subscription: s.id, mint, reason: claim?.error || "execution unavailable" });
+            continue;
+          }
+
+          let sig = null;
           try {
-            const { tx } = await buyToken(mint, s.size_sol, s.user_pubkey, s.slippage_bps || 300);
-            const sig = await signAndSend(tx, s.wallet_id); // walletId signs; user_pubkey built the tx
-            // Count the spend immediately (in-memory) so same-tick copies respect the cap,
-            // then persist the running total for the UI.
-            const rec = spent.get(s.id); rec.amount += s.size_sol;
-            try { await bumpDailySpent(s.id, rec.amount); } catch { /* non-fatal: in-memory cap still holds */ }
-            await recordCopy({ wallet: w.address, mint, user: s.user_pubkey, privy_user_id: s.privy_user_id, size: s.size_sol, sig, kind: "copy" });
-            onEvent({ type: "COPY", wallet: w.address, mint, user: s.user_pubkey, sig });
+            const { tx } = await buyToken(mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300);
+            sig = await signAndSend(tx, claim.wallet_id); // walletId signs; user_pubkey built the tx
+            // SUBMITTED, not succeeded. engine/settlement.js confirms this signature against
+            // the chain, records the trade only if it landed, and opens the position that
+            // gives this copy trade a working stop-loss.
+            const submitted = await submitCopyExecution(s.id, key, claim.claim_token, sig);
+            if (!submitted?.ok) throw new Error(submitted?.error || "could not persist copy execution");
+            onEvent({ type: "COPY_SUBMITTED", wallet: w.address, mint, user: claim.user_pubkey, sig });
           } catch (e) {
-            onEvent({ type: "EXEC_ERROR", user: s.user_pubkey, mint, error: e.message });
+            onEvent({ type: sig ? "PERSIST_ERROR" : "EXEC_ERROR", subscription: s.id, mint, sig, error: e.message });
           }
         }
       }
@@ -103,4 +146,4 @@ function startCopyWatcher(deps, pollMs = 10000) {
   tick();
 }
 
-module.exports = { detectBuys, startCopyWatcher };
+module.exports = { detectBuys, dedupeKey, startCopyWatcher };

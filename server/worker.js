@@ -149,7 +149,7 @@ if (SIGNING_READY) {
   startSettlementWatcher({
     loadSubmitted: store.loadSubmittedExecutions,
     confirmSignature, fetchReceivedAmount, getPrice,
-    openPosition: store.openPosition, settleExecution: store.settleCallExecution,
+    openPosition: store.openPosition, settleExecution: store.settleExecution,
     recordTrade: store.recordTrade, onEvent: log("settle")
   });
 
@@ -163,26 +163,21 @@ if (SIGNING_READY) {
   });
 }
 
-// Wallet-diff copy detection needs its own explicit gate until transaction cursors are durable.
+// Wallet-diff copy detection keeps its own explicit gate: detection is a holdings diff held
+// in process memory, so a restart re-primes its baselines rather than resuming a cursor.
 //
-// SETTING COPY_TRADING=on ALSO DROPS PER-SUBSCRIBER SAFETY FILTERS. The Discord-call path
-// below resolves each subscriber's own filters (store.subscriberSafety -> evaluateSafety),
-// which is what closed B-6. The copy watcher does not: engine/copy.js calls rugCheck(mint)
-// with no safety argument, so only the baseline $10,000 liquidity floor applies and every
-// filter a user configured in the builder - liquidity, market cap, mint authority, freeze
-// authority - is ignored.
-//
-// It is also structural, not a missing argument: copy.js runs one rugCheck per detected
-// mint BEFORE the subscriber loop, so a single shared verdict cannot express per-subscriber
-// bounds. Fixing it means moving the check inside the loop, as calls.js already does.
-//
-// This is exactly the defect B-6 was raised for, still present on the gated path. Do not
-// turn this flag on until copy.js enforces subscriber filters. See OPEN_BLOCKERS B-2.
+// The two defects that previously made this flag dangerous are fixed. It now resolves each
+// subscriber's own safety filters inside the loop (store.subscriberSafety -> evaluateSafety,
+// the shape that closed B-6), and every execution goes through an atomic claim that reserves
+// the daily cap in the same transaction and is unique per detected buy — so a second
+// instance loses the race instead of mirroring the same buy and spending the cap twice.
 if (COPY_TRADING_READY) {
   startCopyWatcher({
     loadTrackedWallets: store.loadTrackedWallets, loadSubscribers: store.loadSubscribers,
-    getHoldings: store.getHoldings, signAndSend, bumpDailySpent: store.bumpDailySpent,
-    recordCopy: store.recordCopy, onEvent: log("copy")
+    getHoldings: store.getHoldings, signAndSend,
+    subscriberSafety: store.subscriberSafety,
+    claimCopyExecution: store.claimCopyExecution, submitCopyExecution: store.submitCopyExecution,
+    onEvent: log("copy")
   });
 }
 
