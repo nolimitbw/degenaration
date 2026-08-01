@@ -33,6 +33,25 @@ web app (`lib/useExecuteSell.ts`). Users configure `tp1`, `tp1_sell`, `tp2`, `tp
 table whose own migration comment says "the 24/7 monitor reads these open rows to fire
 per-subscription TP/SL sells" is never read or written.
 
+**This is deeper than a missing `require`, and the first draft of this record understated
+it.** `startMonitor({ positions, ... })` takes its positions as a parameter, and there is no
+producer for them anywhere:
+
+- `server/engine/store.js` has no open-position loader — no function in it mentions positions.
+- Nothing under `server/` reads or writes any positions table.
+- **The underlying data is never captured.** After a successful buy, `calls.js` calls
+  `finishCallExecution(...)` and `recordCopy({ mint, user, privy_user_id, group_id, size,
+  sig, kind })`. `size` is the SOL spent. The token amount received and the entry price are
+  never recorded — and `startMonitor` needs `amountRaw` and `entryPriceUsd` to evaluate a
+  single trigger.
+- `positions` is an in-memory array with no persistence, so a restart would drop every open
+  position even once the data existed.
+
+The engine's own header already says the correct fix needs a pending state that survives a
+restart. Combined with the above, restoring automated exits is **building position tracking
+end to end** — capture on fill, persistence, reload on start, and confirmation-aware state —
+not wiring an existing component back in.
+
 **2. Submission is treated as settlement.** `server/engine/signer.js` returns Privy's
 transaction hash on submit without awaiting confirmation, and every caller treats that as
 done — `limits.js` marks the order `filled`, `calls.js` marks the execution `succeeded`,
@@ -147,9 +166,15 @@ without `startMonitor` being wired in, every argument in this record is void.
        environment, not only in `render.yaml`.
 3. [ ] Verify `raw_signals` begins incrementing, then close requirements 6 and 7 on measured
        data rather than on deployment alone.
-4. [ ] **Before signing is ever enabled — code work, in this order:**
-       wire `startMonitor` into `worker.js` so an automated sell path exists at all;
-       await confirmation in `signer.js` before any caller records settlement;
-       give the copy path an atomic claim and a durable spend counter, or enforce a single
-       instance through `worker_leases`.
+4. [ ] **Before signing is ever enabled — code work, in this order.** Item one is a
+       feature, not a fix; scope it as such rather than as a wiring change:
+       a. capture `amountRaw` and `entryPriceUsd` when a buy fills, and persist the open
+          position (the `positions` table exists and is unused);
+       b. load open positions on worker start, so a restart does not abandon them;
+       c. make `signer.js` await confirmation, and give each position a pending state that
+          blocks re-firing until a signature resolves — the engine header explains why
+          retry-on-unconfirmed and leave-untouched are both wrong alone;
+       d. only then start `startMonitor` from `worker.js`, behind `SIGNING_READY`;
+       e. give the copy path an atomic claim and a durable spend counter, or enforce a
+          single instance through `worker_leases`.
 5. [ ] Keep B-3 closed until 4 is done and reviewed. This record does not authorize mainnet.
