@@ -37,6 +37,15 @@ Applying it is a production database permission change on a financial system, so
 an explicit yes rather than being done unprompted. It is reversible; the rollback statement
 is in the file.
 
+**Corrected 2026-07-31 — the first draft only revoked from `anon`.** Verifying the migration
+against the live catalog before asking anyone to run it showed `authenticated` holds the
+*identical* grant set on all eleven tables, TRUNCATE included. Revoking one role would have
+half-closed the gap, and the weaker half: the anon key is already public, but an
+authenticated session is obtained by signing up. Both migrations now name both roles.
+
+Both were also checked to apply cleanly — all eleven tables exist and `anon` currently holds
+TRUNCATE on each; all thirteen columns S-1 grants exist on `public.calls`.
+
 ## B-10 — one secret does three jobs (owner decision, low severity)
 
 `ADMIN_KEY` is currently the fallback for two other purposes, because the dedicated

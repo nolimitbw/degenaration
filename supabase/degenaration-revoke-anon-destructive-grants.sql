@@ -51,6 +51,10 @@
 
 begin;
 
+-- BOTH roles, not just anon. Verified on the live catalog 2026-07-31: `authenticated` holds
+-- the identical grant set on all eleven tables, TRUNCATE included. Revoking only anon would
+-- half-close the gap, and the weaker half at that — an authenticated session is obtained by
+-- signing up, whereas the anon key is already public.
 revoke truncate, references, trigger on table
   public.trades,
   public.profiles,
@@ -63,20 +67,21 @@ revoke truncate, references, trigger on table
   public.calls,
   public.call_channels,
   public.server_applications
-from anon;
+from anon, authenticated;
 
 -- Stop future tables from inheriting the same grants. Without this, the next `create table`
 -- in public re-introduces exactly what was just revoked.
 alter default privileges in schema public
-  revoke truncate, references, trigger on tables from anon;
+  revoke truncate, references, trigger on tables from anon, authenticated;
 
 commit;
 
 -- VERIFY (expect every row false):
 --   select c.relname,
---          has_table_privilege('anon','public.'||quote_ident(c.relname),'TRUNCATE') as truncate_
+--          has_table_privilege('anon','public.'||quote_ident(c.relname),'TRUNCATE') as anon_,
+--          has_table_privilege('authenticated','public.'||quote_ident(c.relname),'TRUNCATE') as auth_
 --   from pg_class c join pg_namespace n on n.oid=c.relnamespace
 --   where n.nspname='public' and c.relkind='r' order by 1;
 --
 -- ROLLBACK if anything unexpected breaks:
---   grant truncate, references, trigger on all tables in schema public to anon;
+--   grant truncate, references, trigger on all tables in schema public to anon, authenticated;

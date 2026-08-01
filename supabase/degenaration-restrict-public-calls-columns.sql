@@ -36,7 +36,11 @@
 
 begin;
 
-revoke select on table public.calls from anon;
+-- BOTH roles. `authenticated` holds the same table-wide SELECT, and the policy is
+-- USING (true) for role `public`, which covers logged-in users too — so revoking only anon
+-- would leave every hidden column readable to anyone who signed up. Verified on the live
+-- catalog 2026-07-31.
+revoke select on table public.calls from anon, authenticated;
 
 grant select (
   id,
@@ -52,7 +56,7 @@ grant select (
   peak_price_usd,
   latest_price_usd,
   called_at
-) on table public.calls to anon;
+) on table public.calls to anon, authenticated;
 
 commit;
 
@@ -67,4 +71,4 @@ commit;
 --   curl -s "https://degenaration.vercel.app/api/call-sources" | head -c 200
 --
 -- ROLLBACK:
---   grant select on table public.calls to anon;
+--   grant select on table public.calls to anon, authenticated;
