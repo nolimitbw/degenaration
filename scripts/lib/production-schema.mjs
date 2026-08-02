@@ -249,6 +249,56 @@ export const PRODUCTION_TABLES = {
   }
 };
 
+// The worker's live position ledger. Distinct from app_private.positions, which the
+// Portfolio and PnL cards read and which no code path writes. See OPEN_BLOCKERS I-1.
+Object.assign(PRODUCTION_TABLES, {
+  "public.positions": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "user_id", type: "uuid" },
+      { name: "user_pubkey", type: "text", notNull: true },
+      { name: "wallet_id", type: "text" },
+      { name: "mint", type: "text", notNull: true },
+      { name: "entry_price_usd", type: "numeric", notNull: true },
+      { name: "amount_raw", type: "numeric", notNull: true },
+      { name: "tp1", type: "numeric" },
+      { name: "tp1_sell", type: "integer", default: "50" },
+      { name: "tp2", type: "numeric" },
+      { name: "tp2_sell", type: "integer", default: "25" },
+      { name: "stop_loss", type: "integer" },
+      { name: "slippage_bps", type: "integer", notNull: true, default: "300" },
+      { name: "filled_tp1", type: "boolean", notNull: true, default: "false" },
+      { name: "filled_tp2", type: "boolean", notNull: true, default: "false" },
+      { name: "status", type: "text", notNull: true, default: "'open'::text" },
+      { name: "entry_sig", type: "text" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "closed_at", type: "timestamp with time zone" },
+      { name: "privy_user_id", type: "text" },
+      { name: "group_id", type: "uuid" },
+      { name: "original_amount_raw", type: "numeric" },
+      { name: "pending_exit_kind", type: "text" },
+      { name: "pending_exit_sig", type: "text" },
+      { name: "pending_exit_amount_raw", type: "numeric" },
+      { name: "pending_exit_claim_token", type: "uuid" },
+      { name: "pending_exit_at", type: "timestamp with time zone" },
+      { name: "exit_attempts", type: "integer", notNull: true, default: "0" },
+      { name: "last_exit_error", type: "text" }
+    ],
+    primaryKey: "primary key (id)",
+    checks: [
+      `check (amount_raw >= 0::numeric and coalesce(original_amount_raw, 0::numeric) >= 0::numeric
+        and coalesce(pending_exit_amount_raw, 0::numeric) >= 0::numeric)`,
+      "check ((status = 'exiting'::text) = (pending_exit_claim_token is not null))",
+      "check (pending_exit_kind is null or pending_exit_kind = any (array['SL'::text, 'TP1'::text, 'TP2'::text]))",
+      "check (status = any (array['open'::text, 'exiting'::text, 'closed'::text, 'error'::text]))"
+    ],
+    uniqueIndexes: [
+      `create unique index positions_entry_sig_unique
+         on public.positions (entry_sig) where entry_sig is not null`
+    ]
+  }
+});
+
 // ---- Discord marketplace ----
 // public.calls and public.call_channels carry NO foreign key to approved_groups in
 // production, so none is declared here. The previous hand-written fixture added one,

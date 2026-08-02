@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
+import { renderTable, assertSchemaParity } from "./lib/production-schema.mjs";
 
 const repo = process.cwd();
 const db = new PGlite();
@@ -67,6 +68,8 @@ await db.exec(`
     value jsonb not null
   );
   insert into app_private.system_flags values ('mainnet_execution_enabled', 'true'::jsonb);
+
+  ${renderTable("public.positions")}
 
   create table app_private.positions (
     id uuid primary key default gen_random_uuid(),
@@ -412,6 +415,34 @@ assert.equal(positionAfterEdit.rows[0].config_version_id, versionTwoId);
 assert.equal(positionAfterEdit.rows[0].entry_config_snapshot.slippageBps, 425);
 
 await db.query("update app_private.positions set status = 'closed', closed_at = now() where bot_id = $1", [botId]);
+
+// The worker opens positions in public.positions, not in the product ledger the check
+// above uses. Closing the product-ledger row must NOT be enough to archive a bot that
+// still holds a live worker position — before this case existed, it was.
+const subscriptionGroup = await db.query(
+  "select group_id from public.subscriptions where bot_profile_id = $1", [botId]
+);
+assert.ok(subscriptionGroup.rows[0]?.group_id, "the discord bot must own a subscription");
+await db.query(`
+  insert into public.positions (
+    user_pubkey, privy_user_id, group_id, mint, entry_price_usd,
+    amount_raw, original_amount_raw, status, entry_sig
+  ) values (
+    '11111111111111111111111111111111', 'user-a', $1,
+    '11111111111111111111111111111111', 0.0001, 1000, 1000, 'open', 'worker-entry-sig'
+  )
+`, [subscriptionGroup.rows[0].group_id]);
+await assert.rejects(
+  () => call("app_user_save_mainnet_bot_draft", [
+    "lifecycle-test-secret", "user-a", payload({ id: botId, status: "archived", config: editedConfig })
+  ]),
+  /open positions/i,
+  "archival must fail closed on the worker's position ledger too"
+);
+await db.query(
+  "update public.positions set status = 'closed', closed_at = now() where entry_sig = 'worker-entry-sig'"
+);
+
 const archived = await call("app_user_save_mainnet_bot_draft", [
   "lifecycle-test-secret", "user-a", payload({ id: botId, status: "archived", config: editedConfig })
 ]);

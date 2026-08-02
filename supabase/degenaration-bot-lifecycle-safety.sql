@@ -20,10 +20,34 @@ begin
     raise exception 'archived bot cannot be restored' using errcode = '23514';
   end if;
 
-  if old.status <> 'archived' and new.status = 'archived' and exists (
-    select 1
-    from app_private.positions p
-    where p.bot_id = old.id and p.status in ('opening', 'open', 'closing')
+  -- Two position ledgers exist and only one of them is written today.
+  --
+  -- app_private.positions is the product ledger the Portfolio and PnL cards read. No
+  -- code path inserts into it — the worker opens positions in public.positions through
+  -- public.worker_open_position. Checking only the product ledger therefore made this
+  -- guard unfireable: a bot holding genuinely open positions would archive cleanly.
+  --
+  -- Both are checked until one ledger becomes authoritative, so the guard fails closed
+  -- whichever way that lands. See docs/ai/OPEN_BLOCKERS.md I-1.
+  --
+  -- public.positions carries no bot_id, so the bot reaches its positions through its
+  -- subscription's Discord source, scoped to the bot owner. KOL bots have no such link
+  -- because the worker does not execute KOL strategies yet.
+  if old.status <> 'archived' and new.status = 'archived' and (
+    exists (
+      select 1
+      from app_private.positions p
+      where p.bot_id = old.id and p.status in ('opening', 'open', 'closing')
+    )
+    or exists (
+      select 1
+      from public.subscriptions s
+      join public.positions wp on wp.group_id = s.group_id
+      where s.bot_profile_id = old.id
+        and wp.privy_user_id = old.owner_privy_user_id
+        and wp.status in ('open', 'exiting')
+        and wp.closed_at is null
+    )
   ) then
     raise exception 'bot has open positions' using errcode = '23514';
   end if;

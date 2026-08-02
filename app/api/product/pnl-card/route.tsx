@@ -182,6 +182,20 @@ export async function GET(req: NextRequest) {
     if (!UUID_RE.test(id)) return NextResponse.json({ error: "invalid position id" }, { status: 400 });
     const position = (portfolioResult.data?.positions || []).find((item: Position) => item.id === id) as Position | undefined;
     if (!position) return NextResponse.json({ error: "position not found" }, { status: 404 });
+    // A closed position holds no tokens, so marketValue() rejects it and the caller was
+    // told fresh market evidence was unavailable. That blamed the price providers for a
+    // product limit: a closed trade's average exit price cannot be derived, because no
+    // ledger links a position to the executions that closed it. Say so plainly instead
+    // of reporting a provider fault, and never infer an exit price. See OPEN_BLOCKERS I-1.
+    const heldBaseUnits = /^\d+$/.test(position.quantityBaseUnits || "")
+      ? BigInt(position.quantityBaseUnits)
+      : BigInt(0);
+    if (position.status === "closed" || position.closed_at || heldBaseUnits === BigInt(0)) {
+      return NextResponse.json(
+        { error: "Share cards are available for open positions. This position is closed." },
+        { status: 409 }
+      );
+    }
     let live;
     try {
       live = await marketValue(position);
