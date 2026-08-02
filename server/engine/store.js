@@ -60,25 +60,41 @@ const loadTrackedWallets = async () => {
   const rows = await sbGet("copy_subscriptions?enabled=eq.true&select=leader_wallet", true);
   return [...new Set((rows || []).map((r) => r.leader_wallet))].map((address) => ({ address }));
 };
+// DEPLOY ORDER: kill_switch, subscriber_config_version_id and subscriber_config_snapshot
+// come from supabase/degenaration-subscriber-config-versioning.sql. PostgREST answers a
+// select naming an unknown column with 400, so that migration MUST be applied before this
+// worker build runs. It is not applied yet — see docs/ai/OPEN_BLOCKERS.md E-1.
+//
 // `extended_config` carries the subscriber's own safety filters, which this path previously
 // could not honour because the column did not exist on this table.
-const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&leader_wallet=eq.${wallet}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss,extended_config`, true);
+const loadSubscribers = (wallet) => sbGet(`copy_subscriptions?enabled=eq.true&kill_switch=eq.false&leader_wallet=eq.${wallet}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,tp1,tp1_sell,tp2,tp2_sell,stop_loss,extended_config,subscriber_config_version_id,subscriber_config_snapshot`, true);
 
 /**
  * A subscriber's own safety filters, or null when the row predates the bot builder.
  *
- * `extended_config` is the full bot config written at save time, so no extra round trip
- * and no cross-schema read of app_private.bot_config_versions is needed.
+ * Versioned rows read the snapshot copied beside their immutable version pointer. Legacy
+ * rows use an explicit compatibility marker rather than falling through as empty config.
  *
- * Returns `{ ok: false }` when the row came from the builder (it has a bot_profile_id or a
- * config_version_id) but its filters cannot be read. Callers MUST treat that as a refusal
+ * Returns `{ ok: false }` when a versioned row or builder row has no readable filters.
+ * Callers MUST treat that as a refusal
  * to execute rather than as "no filters configured" — silently running a bot without the
  * user's risk settings is the failure this guards against.
  */
 function subscriberSafety(subscription) {
   const row = subscription || {};
-  const fromBuilder = Boolean(row.bot_profile_id || row.config_version_id);
-  const config = row.extended_config;
+  const versioned = Boolean(row.subscriber_config_version_id);
+  const fromBuilder = Boolean(row.bot_profile_id || row.config_version_id || versioned);
+  // The snapshot column is NOT NULL DEFAULT '{}', so an unversioned row carries an empty
+  // object, and `{}` is truthy. Falling back on truthiness would let that empty default
+  // shadow a real extended_config and run a configured bot with NO filters at all —
+  // exactly the bypass the ok/false guard below exists to prevent.
+  const snapshot = row.subscriber_config_snapshot;
+  const hasSnapshot = snapshot && typeof snapshot === "object" && Object.keys(snapshot).length > 0;
+  const config = hasSnapshot ? snapshot : row.extended_config;
+
+  if (versioned && config?.compatibilityMode === "legacy-baseline") {
+    return { ok: true, safety: null, fromBuilder: false, compatibilityMode: "legacy-baseline" };
+  }
 
   if (config && typeof config === "object" && config.safetyFilters && typeof config.safetyFilters === "object") {
     return { ok: true, safety: config.safetyFilters, fromBuilder };
@@ -108,7 +124,7 @@ const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}
 // ---- discord call execution ----
 const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50", true);
 const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
-const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,bot_profile_id,config_version_id,extended_config`, true);
+const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&kill_switch=eq.false&group_id=eq.${groupId}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,bot_profile_id,config_version_id,extended_config,subscriber_config_version_id,subscriber_config_snapshot`, true);
 const claimCallExecution = (callId, subscriptionId) => sbRpc("worker_claim_call_execution", {
   p_call_id: callId,
   p_subscription_id: subscriptionId

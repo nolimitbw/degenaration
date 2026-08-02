@@ -961,7 +961,10 @@ test("loadGroupSubscribers selects the columns subscriberSafety depends on", () 
   // silently by an innocuous query edit, with no error anywhere to notice it.
   const line = storeSource.split("\n").find((l) => l.includes("loadGroupSubscribers"));
   assert.ok(line, "loadGroupSubscribers must exist");
-  for (const column of ["bot_profile_id", "config_version_id", "extended_config"]) {
+  for (const column of [
+    "bot_profile_id", "config_version_id", "extended_config",
+    "subscriber_config_version_id", "subscriber_config_snapshot"
+  ]) {
     assert.ok(line.includes(column), `loadGroupSubscribers must select ${column}`);
   }
 });
@@ -983,6 +986,45 @@ test("a builder subscription with unreadable filters refuses to execute", () => 
   });
   assert.strictEqual(configured.ok, true);
   assert.ok(configured.safety.ranges.liquidityUsd.enabled);
+});
+
+test("an explicitly versioned legacy row uses the compatibility baseline", () => {
+  const compatible = subscriberSafety({
+    subscriber_config_version_id: "risk-v1",
+    subscriber_config_snapshot: { compatibilityMode: "legacy-baseline" }
+  });
+  assert.strictEqual(compatible.ok, true);
+  assert.strictEqual(compatible.safety, null);
+  assert.strictEqual(compatible.compatibilityMode, "legacy-baseline");
+});
+
+test("a versioned row with a missing snapshot refuses to execute", () => {
+  const refused = subscriberSafety({ subscriber_config_version_id: "risk-v2" });
+  assert.strictEqual(refused.ok, false);
+});
+
+test("an empty snapshot column does not shadow the row's real filters", () => {
+  // subscriber_config_snapshot is NOT NULL DEFAULT '{}', so an unversioned row carries
+  // an empty object — and `{}` is truthy. Preferring it on truthiness alone would drop
+  // the configured filters and run the bot completely unfiltered.
+  const row = {
+    bot_profile_id: "b1",
+    subscriber_config_snapshot: {},
+    extended_config: { safetyFilters: { ranges: { liquidityUsd: { enabled: true, min: 5000 } }, flags: {} } }
+  };
+  const resolved = subscriberSafety(row);
+  assert.strictEqual(resolved.ok, true);
+  assert.strictEqual(resolved.safety.ranges.liquidityUsd.min, 5000);
+});
+
+test("a populated snapshot wins over a stale extended_config", () => {
+  const resolved = subscriberSafety({
+    subscriber_config_version_id: "risk-v3",
+    subscriber_config_snapshot: { safetyFilters: { ranges: { liquidityUsd: { enabled: true, min: 9000 } }, flags: {} } },
+    extended_config: { safetyFilters: { ranges: { liquidityUsd: { enabled: true, min: 1 } }, flags: {} } }
+  });
+  assert.strictEqual(resolved.ok, true);
+  assert.strictEqual(resolved.safety.ranges.liquidityUsd.min, 9000);
 });
 
 console.log("safety evaluation wiring");
