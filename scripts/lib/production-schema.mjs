@@ -299,6 +299,62 @@ Object.assign(PRODUCTION_TABLES, {
   }
 });
 
+// ---- Affiliate payouts ----
+Object.assign(PRODUCTION_TABLES, {
+  "app_private.payout_requests": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "owner_privy_user_id", type: "text", notNull: true },
+      { name: "asset", type: "text", notNull: true, default: "'SOL'::text" },
+      { name: "chain", type: "text", notNull: true, default: "'solana'::text" },
+      { name: "destination_wallet", type: "text", notNull: true },
+      { name: "gross_lamports", type: "bigint", notNull: true },
+      { name: "processing_fee_lamports", type: "bigint", notNull: true, default: "43000000" },
+      {
+        name: "net_lamports", type: "bigint", generated: true,
+        expression: "(gross_lamports - processing_fee_lamports)"
+      },
+      { name: "status", type: "text", notNull: true, default: "'requested'::text" },
+      { name: "requested_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "reviewed_at", type: "timestamp with time zone" },
+      { name: "processed_at", type: "timestamp with time zone" },
+      { name: "tx_signature", type: "text" },
+      { name: "decision_reason", type: "text" },
+      { name: "correlation_id", type: "uuid", notNull: true, default: "gen_random_uuid()" }
+    ],
+    primaryKey: "primary key (id)",
+    checks: [
+      "check (asset = 'SOL'::text)",
+      "check (chain = 'solana'::text)",
+      // The 0.1 SOL minimum and 0.043 SOL processing fee of spec 12.6, enforced in the
+      // schema. Principal withdrawals are a separate path and must not inherit these.
+      "check (gross_lamports > processing_fee_lamports)",
+      "check (gross_lamports >= 100000000)",
+      "check (processing_fee_lamports = 43000000)",
+      `check (status = any (array['requested'::text, 'reviewing'::text, 'approved'::text,
+        'processing'::text, 'confirmed'::text, 'failed'::text, 'rejected'::text,
+        'reversed'::text]))`
+    ]
+  },
+
+  "app_private.admin_audit_log": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "actor_privy_user_id", type: "text", notNull: true },
+      { name: "action", type: "text", notNull: true },
+      { name: "target_type", type: "text", notNull: true },
+      { name: "target_id", type: "text" },
+      { name: "reason", type: "text" },
+      { name: "previous_state", type: "jsonb" },
+      { name: "next_state", type: "jsonb" },
+      { name: "correlation_id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "request_ip_hash", type: "text" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" }
+    ],
+    primaryKey: "primary key (id)"
+  }
+});
+
 // ---- Discord marketplace ----
 // public.calls and public.call_channels carry NO foreign key to approved_groups in
 // production, so none is declared here. The previous hand-written fixture added one,

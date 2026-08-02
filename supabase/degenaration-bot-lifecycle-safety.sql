@@ -39,12 +39,28 @@ begin
       from app_private.positions p
       where p.bot_id = old.id and p.status in ('opening', 'open', 'closing')
     )
+    -- Attributed directly. Works for every bot kind, including KOL bots, which have no
+    -- source_group_id, and for copy-opened positions, which carry group_id NULL.
+    or exists (
+      select 1
+      from public.positions wp
+      where wp.bot_profile_id = old.id
+        and wp.status in ('open', 'exiting')
+        and wp.closed_at is null
+    )
+    -- Fallback for positions opened before bot_profile_id existed. Scoped to the
+    -- subscription's own owner identity, not just its source: a Discord source is shared,
+    -- so matching on group alone would attribute another user's position to this bot.
+    -- Both owner columns are compared because a Supabase-auth subscription carries
+    -- user_id with privy_user_id null.
     or exists (
       select 1
       from public.subscriptions s
       join public.positions wp on wp.group_id = s.group_id
       where s.bot_profile_id = old.id
-        and wp.privy_user_id = old.owner_privy_user_id
+        and wp.bot_profile_id is null
+        and wp.privy_user_id is not distinct from s.privy_user_id
+        and wp.user_id is not distinct from s.user_id
         and wp.status in ('open', 'exiting')
         and wp.closed_at is null
     )

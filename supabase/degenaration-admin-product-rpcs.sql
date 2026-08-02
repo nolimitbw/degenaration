@@ -285,12 +285,27 @@ begin
     raise exception 'transaction signature required' using errcode = '22023';
   end if;
 
+  -- 'fail' was absent from this chain, so it matched no disjunct and nothing raised: a
+  -- payout could be failed from ANY state, including one already failed or confirmed.
+  -- Combined with the reversal below firing only for 'rejected', that left the requester's
+  -- reservation debit in place with no path back — the creator's available balance was
+  -- reduced permanently. A payout is only failable once it is being sent.
   if lower(p_action) = 'review' and v_payout.status <> 'requested'
     or lower(p_action) = 'approve' and v_payout.status not in ('requested', 'reviewing')
     or lower(p_action) = 'processing' and v_payout.status <> 'approved'
     or lower(p_action) = 'confirm' and v_payout.status <> 'processing'
+    or lower(p_action) = 'fail' and v_payout.status not in ('approved', 'processing')
     or lower(p_action) = 'reject' and v_payout.status not in ('requested', 'reviewing', 'approved') then
     raise exception 'invalid payout transition' using errcode = '23514';
+  end if;
+
+  -- A signature means lamports may already have left the treasury. Reversing the
+  -- reservation would credit the creator for funds they were also sent. That needs
+  -- on-chain reconciliation by a human, not a state flip.
+  if lower(p_action) = 'fail'
+    and nullif(trim(coalesce(v_payout.tx_signature, '')), '') is not null then
+    raise exception 'payout already has a transaction signature and must be reconciled'
+      using errcode = '23514';
   end if;
 
   update app_private.payout_requests
@@ -302,7 +317,11 @@ begin
   where id = p_payout_id
   returning * into v_payout;
 
-  if v_next_status = 'rejected' then
+  -- Both terminal non-payment outcomes must return the reservation. 'failed' was omitted,
+  -- so a failed payout kept the debit and the creator simply lost the balance. The
+  -- idempotency keys are per payout and a payout reaches at most one of these states, so
+  -- the reversal is written exactly once.
+  if v_next_status in ('rejected', 'failed') then
     insert into app_private.commission_ledger_entries (
       account_owner_privy_user_id, account_type, source_type, source_id,
       payout_request_id, amount_lamports, idempotency_key, correlation_id, metadata
@@ -311,7 +330,7 @@ begin
       v_payout.id, v_payout.gross_lamports,
       'payout:' || v_payout.id::text || ':reservation-reversal',
       v_payout.correlation_id,
-      jsonb_build_object('kind', 'payout-rejected')
+      jsonb_build_object('kind', 'payout-' || v_next_status)
     )
     on conflict (idempotency_key) do nothing;
 
@@ -323,7 +342,7 @@ begin
       v_payout.id, -v_payout.processing_fee_lamports,
       'payout:' || v_payout.id::text || ':fee-reversal',
       v_payout.correlation_id,
-      jsonb_build_object('kind', 'payout-rejected')
+      jsonb_build_object('kind', 'payout-' || v_next_status)
     )
     on conflict (idempotency_key) do nothing;
   end if;

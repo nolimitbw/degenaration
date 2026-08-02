@@ -10,6 +10,7 @@ const rpcSql = await readFile(`${repo}/supabase/degenaration-product-rpcs.sql`, 
 const draftSql = await readFile(`${repo}/supabase/degenaration-mainnet-draft-storage.sql`, "utf8");
 const safetySql = await readFile(`${repo}/supabase/degenaration-bot-lifecycle-safety.sql`, "utf8");
 const activitySql = await readFile(`${repo}/supabase/degenaration-bot-activity.sql`, "utf8");
+const attributionSql = await readFile(`${repo}/supabase/degenaration-position-bot-attribution.sql`, "utf8");
 
 function section(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -211,8 +212,11 @@ await db.exec(`
   grant execute on function public.app_user_get_bot(text, text, uuid) to service_role;
 `);
 await db.exec(draftSql);
+await db.exec(attributionSql);
+await db.exec(attributionSql);
 await db.exec(safetySql);
 await db.exec(safetySql);
+await assertSchemaParity(db, ["public.positions"], assert);
 await db.exec(activitySql);
 await db.exec(activitySql);
 
@@ -443,6 +447,40 @@ await db.query(
   "update public.positions set status = 'closed', closed_at = now() where entry_sig = 'worker-entry-sig'"
 );
 
+// A position opened through the copy path carries group_id NULL, and a KOL bot has no
+// source group at all, so a group-based join can never see either. Attribution by
+// bot_profile_id is what makes the guard fire for every bot kind.
+await db.query(`
+  insert into public.positions (
+    user_pubkey, privy_user_id, group_id, bot_profile_id, mint, entry_price_usd,
+    amount_raw, original_amount_raw, status, entry_sig
+  ) values (
+    '11111111111111111111111111111111', 'user-a', null, $1,
+    '11111111111111111111111111111111', 0.0001, 1000, 1000, 'open', 'ungrouped-entry-sig'
+  )
+`, [botId]);
+await assert.rejects(
+  () => call("app_user_save_mainnet_bot_draft", [
+    "lifecycle-test-secret", "user-a", payload({ id: botId, status: "archived", config: editedConfig })
+  ]),
+  /open positions/i,
+  "a position with no source group must still block archival when it is attributed to the bot"
+);
+await db.query(
+  "update public.positions set status = 'closed', closed_at = now() where entry_sig = 'ungrouped-entry-sig'"
+);
+
+// A wallet-copy position belongs to no bot, so it must NOT block an unrelated bot.
+await db.query(`
+  insert into public.positions (
+    user_pubkey, privy_user_id, group_id, bot_profile_id, mint, entry_price_usd,
+    amount_raw, original_amount_raw, status, entry_sig
+  ) values (
+    '11111111111111111111111111111111', 'user-a', null, null,
+    '11111111111111111111111111111111', 0.0001, 1000, 1000, 'open', 'wallet-copy-entry-sig'
+  )
+`);
+
 const archived = await call("app_user_save_mainnet_bot_draft", [
   "lifecycle-test-secret", "user-a", payload({ id: botId, status: "archived", config: editedConfig })
 ]);
@@ -508,7 +546,10 @@ console.log(JSON.stringify({
   configurationVersions: 6,
   pauseResumeArchive: "PASS",
   archivedTerminal: "PASS",
+  schemaParity: "PASS",
   openPositionArchiveGuard: "PASS",
+  ungroupedPositionBlocksArchive: "PASS",
+  walletCopyPositionDoesNotBlockArchive: "PASS",
   entrySnapshotRetention: "PASS",
   discordSourceUniqueness: "PASS",
   kolDuplicate: "PASS",
