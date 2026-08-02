@@ -249,6 +249,246 @@ export const PRODUCTION_TABLES = {
   }
 };
 
+// ---- Discord marketplace ----
+// public.calls and public.call_channels carry NO foreign key to approved_groups in
+// production, so none is declared here. The previous hand-written fixture added one,
+// which meant orphaned calls — which production permits — were never exercised.
+
+Object.assign(PRODUCTION_TABLES, {
+  "public.approved_groups": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "name", type: "text", notNull: true },
+      { name: "discord_channel_id", type: "text" },
+      { name: "members", type: "text" },
+      { name: "win_rate", type: "integer" },
+      { name: "pnl_30d", type: "text" },
+      { name: "tag", type: "text" },
+      { name: "active", type: "boolean", notNull: true, default: "true" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "discord_guild_id", type: "text" },
+      { name: "public_slug", type: "text" },
+      { name: "referral_code", type: "text" },
+      { name: "bio", type: "text" },
+      { name: "avatar_url", type: "text" },
+      { name: "discord_invite_url", type: "text" },
+      { name: "server_application_id", type: "uuid" },
+      { name: "owner_privy_user_id", type: "text" },
+      { name: "creator_fee_bps", type: "integer", notNull: true, default: "70" },
+      { name: "verification_status", type: "text", notNull: true, default: "'approved'::text" },
+      { name: "last_verified_at", type: "timestamp with time zone" },
+      { name: "suspended_at", type: "timestamp with time zone" },
+      { name: "removed_at", type: "timestamp with time zone" },
+      { name: "removal_reason", type: "text" },
+      { name: "banner_url", type: "text" },
+      { name: "discord_description", type: "text" },
+      { name: "owner_display_name", type: "text" },
+      { name: "marketplace_visible", type: "boolean", notNull: true, default: "true" },
+      { name: "integration_health", type: "text", notNull: true, default: "'pending'::text" },
+      { name: "profile_synced_at", type: "timestamp with time zone" },
+      { name: "profile_sync_failed_at", type: "timestamp with time zone" },
+      { name: "profile_sync_error", type: "text" },
+      // NOT NULL DEFAULT now() in production. A nullable fixture column made the
+      // seven-day integration grace window unreachable, because coalesce(null, null)
+      // >= now() - interval '7 days' is NULL, never true.
+      { name: "profile_sync_grace_started_at", type: "timestamp with time zone", notNull: true, default: "now()" }
+    ],
+    primaryKey: "primary key (id)",
+    checks: [
+      "check (creator_fee_bps >= 0 and creator_fee_bps <= 1000)",
+      `check (integration_health = any (array['pending'::text, 'healthy'::text,
+        'degraded'::text, 'unavailable'::text]))`,
+      `check (verification_status = any (array['pending'::text, 'approved'::text,
+        'suspended'::text, 'removed'::text]))`
+    ]
+  },
+
+  "public.calls": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "group_id", type: "uuid" },
+      { name: "group_name", type: "text" },
+      { name: "caller", type: "text" },
+      { name: "mint", type: "text", notNull: true },
+      { name: "symbol", type: "text" },
+      { name: "called_mcap", type: "numeric" },
+      { name: "peak_mcap", type: "numeric" },
+      { name: "called_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "message_id", type: "text" },
+      { name: "raw", type: "text" },
+      { name: "executed_at", type: "timestamp with time zone" },
+      { name: "channel_id", type: "text" },
+      { name: "channel_name", type: "text" },
+      { name: "confidence", type: "text" },
+      { name: "called_price_usd", type: "numeric" },
+      { name: "peak_price_usd", type: "numeric" },
+      { name: "latest_price_usd", type: "numeric" },
+      { name: "latest_mcap", type: "numeric" },
+      { name: "called_liquidity_usd", type: "numeric" },
+      { name: "latest_liquidity_usd", type: "numeric" },
+      { name: "last_scanned_at", type: "timestamp with time zone" },
+      { name: "parser_version", type: "text" },
+      { name: "parser_confidence", type: "numeric" },
+      { name: "parse_status", type: "text", notNull: true, default: "'accepted'::text" },
+      { name: "rejection_reason", type: "text" },
+      { name: "raw_event_id", type: "uuid" },
+      { name: "parsed_signal_id", type: "uuid" },
+      { name: "edited_at", type: "timestamp with time zone" },
+      { name: "deleted_at", type: "timestamp with time zone" }
+    ],
+    primaryKey: "primary key (id)"
+  },
+
+  "public.call_channels": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "guild_id", type: "text", notNull: true },
+      { name: "guild_name", type: "text" },
+      { name: "channel_id", type: "text", notNull: true },
+      { name: "channel_name", type: "text" },
+      { name: "group_id", type: "uuid" },
+      { name: "registered_by", type: "text" },
+      { name: "status", type: "text", notNull: true, default: "'pending'::text" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "guild_member_count", type: "integer" },
+      { name: "approved_at", type: "timestamp with time zone" },
+      { name: "owner_privy_user_id", type: "text" },
+      { name: "permissions_checked_at", type: "timestamp with time zone" },
+      { name: "last_verified_at", type: "timestamp with time zone" },
+      { name: "decision_reason", type: "text" },
+      { name: "removed_at", type: "timestamp with time zone" },
+      { name: "last_submitted_at", type: "timestamp with time zone", default: "now()" }
+    ],
+    primaryKey: "primary key (id)",
+    uniques: ["unique (channel_id)"],
+    checks: [
+      "check (guild_member_count is null or guild_member_count >= 0)",
+      `check (status = any (array['pending'::text, 'changes_requested'::text,
+        'approved'::text, 'rejected'::text, 'suspended'::text, 'removed'::text]))`
+    ]
+  },
+
+  "app_private.performance_snapshots": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "subject_type", type: "text", notNull: true },
+      { name: "subject_id", type: "text", notNull: true },
+      { name: "period", type: "text", notNull: true },
+      { name: "as_of", type: "timestamp with time zone", notNull: true },
+      { name: "sample_size", type: "integer", notNull: true, default: "0" },
+      { name: "net_pnl_lamports", type: "bigint" },
+      { name: "realized_pnl_lamports", type: "bigint" },
+      { name: "volume_lamports", type: "bigint" },
+      { name: "network_fees_lamports", type: "bigint" },
+      { name: "platform_fees_lamports", type: "bigint" },
+      { name: "creator_fees_lamports", type: "bigint" },
+      { name: "max_drawdown_bps", type: "integer" },
+      { name: "win_rate_bps", type: "integer" },
+      { name: "metrics", type: "jsonb", notNull: true, default: "'{}'::jsonb" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" }
+    ],
+    primaryKey: "primary key (id)",
+    uniques: ["unique (subject_type, subject_id, period, as_of)"],
+    checks: [
+      "check (period = any (array['1d'::text, '7d'::text, '30d'::text, '3m'::text, 'all'::text]))",
+      "check (sample_size >= 0)",
+      `check (subject_type = any (array['discord-source'::text, 'kol-strategy'::text,
+        'bot'::text, 'portfolio'::text]))`
+    ]
+  },
+
+  "app_private.trade_executions": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "intent_id", type: "uuid", notNull: true },
+      { name: "owner_privy_user_id", type: "text", notNull: true },
+      { name: "execution_mode", type: "text", notNull: true },
+      { name: "status", type: "text", notNull: true, default: "'created'::text" },
+      { name: "attempt", type: "integer", notNull: true, default: "1" },
+      { name: "tx_signature", type: "text" },
+      { name: "slot", type: "bigint" },
+      { name: "gross_notional_lamports", type: "bigint", notNull: true, default: "0" },
+      { name: "network_fee_lamports", type: "bigint", notNull: true, default: "0" },
+      { name: "priority_fee_lamports", type: "bigint", notNull: true, default: "0" },
+      { name: "platform_fee_lamports", type: "bigint", notNull: true, default: "0" },
+      { name: "creator_fee_lamports", type: "bigint", notNull: true, default: "0" },
+      { name: "platform_fee_bps_snapshot", type: "integer", notNull: true, default: "0" },
+      { name: "creator_fee_bps_snapshot", type: "integer", notNull: true, default: "0" },
+      { name: "creator_privy_user_id_snapshot", type: "text" },
+      { name: "source_group_id_snapshot", type: "uuid" },
+      { name: "strategy_id_snapshot", type: "uuid" },
+      { name: "submitted_at", type: "timestamp with time zone" },
+      { name: "confirmed_at", type: "timestamp with time zone" },
+      { name: "reconciled_at", type: "timestamp with time zone" },
+      { name: "error_code", type: "text" },
+      { name: "error_message", type: "text" },
+      { name: "correlation_id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "updated_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "referral_fee_lamports", type: "bigint", notNull: true, default: "0" },
+      { name: "referral_share_bps_snapshot", type: "integer", notNull: true, default: "0" },
+      { name: "referrer_privy_user_id_snapshot", type: "text" },
+      // GENERATED ALWAYS ... STORED in production. The balance identity
+      // creator + referral + retained === platform_fee holds by construction, so this
+      // column must never be written. Emitting it as a plain DEFAULT would be a lie the
+      // fixture could not even execute — a DEFAULT cannot reference another column.
+      {
+        name: "retained_fee_lamports", type: "bigint", generated: true,
+        expression: "((platform_fee_lamports - creator_fee_lamports) - referral_fee_lamports)"
+      }
+    ],
+    primaryKey: "primary key (id)",
+    uniques: ["unique (intent_id, attempt)"],
+    checks: [
+      "check (attempt > 0)",
+      "check (creator_fee_bps_snapshot >= 0 and creator_fee_bps_snapshot <= 10000)",
+      "check (creator_fee_lamports >= 0)",
+      "check (execution_mode = any (array['paper'::text, 'solana-devnet'::text, 'solana-mainnet'::text]))",
+      "check (gross_notional_lamports >= 0)",
+      "check (network_fee_lamports >= 0)",
+      "check (platform_fee_bps_snapshot >= 0 and platform_fee_bps_snapshot <= 10000)",
+      "check (platform_fee_lamports >= 0)",
+      "check (priority_fee_lamports >= 0)",
+      "check (referral_fee_lamports >= 0)",
+      "check (referral_share_bps_snapshot >= 0 and referral_share_bps_snapshot <= 10000)",
+      `check (status = any (array['created'::text, 'submitted'::text, 'confirmed'::text,
+        'reconciled'::text, 'failed'::text, 'dropped'::text, 'expired'::text]))`
+    ]
+  },
+
+  "app_private.commission_ledger_entries": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "account_owner_privy_user_id", type: "text" },
+      { name: "account_type", type: "text", notNull: true },
+      { name: "source_type", type: "text", notNull: true },
+      { name: "source_id", type: "text" },
+      { name: "execution_id", type: "uuid" },
+      { name: "payout_request_id", type: "uuid" },
+      { name: "amount_lamports", type: "bigint", notNull: true },
+      { name: "rate_bps", type: "integer" },
+      { name: "gross_notional_lamports", type: "bigint" },
+      { name: "available_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "idempotency_key", type: "text", notNull: true },
+      { name: "correlation_id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "metadata", type: "jsonb", notNull: true, default: "'{}'::jsonb" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" }
+    ],
+    primaryKey: "primary key (id)",
+    uniques: ["unique (idempotency_key)"],
+    checks: [
+      "check (account_type = any (array['creator'::text, 'platform'::text, 'referral'::text]))",
+      "check (amount_lamports <> 0)",
+      "check (gross_notional_lamports is null or gross_notional_lamports >= 0)",
+      `check ((account_type = any (array['creator'::text, 'referral'::text])
+        and account_owner_privy_user_id is not null) or account_type = 'platform'::text)`,
+      "check (rate_bps is null or (rate_bps >= 0 and rate_bps <= 10000))",
+      `check (source_type = any (array['discord'::text, 'kol'::text, 'referral'::text,
+        'payout'::text, 'reversal'::text, 'adjustment'::text]))`
+    ]
+  }
+});
+
 /** `create table` DDL for one captured table, in production's exact column shape. */
 export function renderTable(qualifiedName) {
   const table = PRODUCTION_TABLES[qualifiedName];
@@ -256,7 +496,8 @@ export function renderTable(qualifiedName) {
 
   const parts = table.columns.map((column) => {
     const bits = [`  ${column.name} ${column.type}`];
-    if (column.default !== undefined) bits.push(`default ${column.default}`);
+    if (column.generated) bits.push(`generated always as ${column.expression} stored`);
+    else if (column.default !== undefined) bits.push(`default ${column.default}`);
     if (column.notNull) bits.push("not null");
     return bits.join(" ");
   });
