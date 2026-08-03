@@ -44,6 +44,7 @@ const operations: Record<string, string[]> = {
   app_user_upsert_wallet: [
     "p_secret", "p_privy_user_id", "p_wallet_address", "p_privy_wallet_id", "p_label"
   ],
+  app_user_primary_wallet: ["p_secret", "p_privy_user_id"],
   app_user_save_bot: ["p_secret", "p_privy_user_id", "p_payload"],
   // The other half of app/api/product/bots/route.ts:50-52. An ACTIVE bot goes to
   // app_user_save_bot; anything else goes here. Without this entry the draft branch answers
