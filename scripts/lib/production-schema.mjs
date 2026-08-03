@@ -503,6 +503,58 @@ Object.assign(PRODUCTION_TABLES, {
     ]
   },
 
+  // Captured 2026-08-04. app_user_withdrawable_state reads this table and nothing else, so
+  // it is the entire authoritative basis for "how much of my balance is locked".
+  "app_private.app_users": {
+    columns: [
+      { name: "privy_user_id", type: "text", notNull: true },
+      { name: "display_name", type: "text" },
+      { name: "status", type: "text", notNull: true, default: "'active'::text" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "updated_at", type: "timestamp with time zone", notNull: true, default: "now()" }
+    ],
+    primaryKey: "primary key (privy_user_id)",
+    checks: ["check (status = any (array['active'::text, 'suspended'::text, 'closed'::text]))"]
+  },
+
+  "app_private.trade_intents": {
+    columns: [
+      { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
+      { name: "owner_privy_user_id", type: "text", notNull: true },
+      { name: "bot_id", type: "uuid" },
+      { name: "config_version_id", type: "uuid" },
+      { name: "signal_delivery_id", type: "uuid" },
+      { name: "intent_kind", type: "text", notNull: true },
+      { name: "side", type: "text", notNull: true },
+      { name: "mint", type: "text", notNull: true },
+      // numeric, NOT bigint. The RPC casts the sum to ::bigint::text on the way out, so a
+      // fractional or oversized value here becomes a rounding or overflow surprise there.
+      { name: "requested_input_base_units", type: "numeric", notNull: true },
+      { name: "execution_mode", type: "text", notNull: true },
+      { name: "state", type: "text", notNull: true, default: "'created'::text" },
+      { name: "idempotency_key", type: "text", notNull: true },
+      { name: "safety_snapshot", type: "jsonb", notNull: true, default: "'{}'::jsonb" },
+      { name: "quote_expires_at", type: "timestamp with time zone" },
+      { name: "claimed_at", type: "timestamp with time zone" },
+      { name: "created_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "updated_at", type: "timestamp with time zone", notNull: true, default: "now()" },
+      { name: "terminal_at", type: "timestamp with time zone" }
+    ],
+    primaryKey: "primary key (id)",
+    uniques: ["unique (idempotency_key)"],
+    checks: [
+      "check (requested_input_base_units > (0)::numeric)",
+      "check (side = any (array['buy'::text, 'sell'::text]))",
+      `check (intent_kind = any (array['entry'::text, 'dca'::text, 'take-profit'::text,
+        'stop-loss'::text, 'emergency-exit'::text, 'manual'::text]))`,
+      "check (execution_mode = any (array['paper'::text, 'solana-devnet'::text, 'solana-mainnet'::text]))",
+      `check (state = any (array['created'::text, 'validating'::text, 'ready'::text,
+        'claimed'::text, 'submitting'::text, 'submitted'::text, 'confirmed'::text,
+        'reconciled'::text, 'failed'::text, 'expired'::text, 'cancelled'::text,
+        'quarantined'::text]))`
+    ]
+  },
+
   "app_private.trade_executions": {
     columns: [
       { name: "id", type: "uuid", notNull: true, default: "gen_random_uuid()" },
