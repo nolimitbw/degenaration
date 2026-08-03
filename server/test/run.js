@@ -947,6 +947,63 @@ test("maps only the declared Solana networks", () => {
   assert.strictEqual(resolveCaip2("mainnet"), CAIP2.mainnet);
 });
 
+// ---- funds-incident runtime hotfix: wallet identity extraction ----
+//
+// The registration route records which wallet a user owns, and takes the address ONLY from
+// the verified Privy identity token. These assertions are the whole safety property: if
+// solanaWalletFromPayload ever accepted an address the token does not carry, the request body
+// would get to choose which wallet the ledger attributes a balance to.
+console.log("wallet registration identity binding");
+{
+  const { solanaWalletFromPayload, ownsPrivyWallet } = require("../../lib/server/privy-wallet");
+  const ADDR = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1";
+  const OTHER = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
+  const account = { type: "wallet", chain_type: "solana", address: ADDR, id: "pw-1" };
+  const USER = "did:privy:owner";
+
+  test("extracts the Solana wallet from a verified token", () => {
+    assert.deepStrictEqual(
+      solanaWalletFromPayload({ sub: USER, linked_accounts: [account] }, USER),
+      { address: ADDR, walletId: "pw-1", delegated: false }
+    );
+  });
+  test("a token for a different subject yields nothing", () => {
+    assert.strictEqual(solanaWalletFromPayload({ sub: "did:privy:attacker", linked_accounts: [account] }, USER), null);
+  });
+  test("an Ethereum wallet is not accepted as a Solana wallet", () => {
+    assert.strictEqual(solanaWalletFromPayload(
+      { sub: USER, linked_accounts: [{ type: "wallet", chain_type: "ethereum", address: "0xabc" }] }, USER), null);
+  });
+  test("a malformed address in the token is refused, not recorded", () => {
+    assert.strictEqual(solanaWalletFromPayload(
+      { sub: USER, linked_accounts: [{ type: "wallet", chain_type: "solana", address: "0OIl-not-base58" }] }, USER), null);
+  });
+  test("a string-encoded linked_accounts claim is parsed, not dropped", () => {
+    assert.strictEqual(solanaWalletFromPayload(
+      { sub: USER, linked_accounts: JSON.stringify([account]) }, USER).address, ADDR);
+  });
+  test("delegation state is carried through", () => {
+    assert.strictEqual(solanaWalletFromPayload(
+      { sub: USER, linked_accounts: [{ ...account, delegated: true }] }, USER).delegated, true);
+  });
+  // The withdrawal path asks a DIFFERENT question and must keep asking it: a withdrawal names
+  // the wallet it spends from, and that name is verified against the token.
+  test("withdrawal ownership check remains address-bound", () => {
+    assert.strictEqual(ownsPrivyWallet({ sub: USER, linked_accounts: [account] }, USER, ADDR, "pw-1"), true);
+    assert.strictEqual(ownsPrivyWallet({ sub: USER, linked_accounts: [account] }, USER, OTHER, "pw-1"), false);
+  });
+  // Client and server must select the same account or Portfolio, Withdraw and trading would
+  // disagree about which wallet is "yours".
+  test("client getSolanaAddress and server extraction select the same account", () => {
+    const clientRule = (u) => (u.linkedAccounts || []).find(
+      (a) => a.type === "wallet" && a.chainType === "solana")?.address;
+    assert.strictEqual(
+      clientRule({ linkedAccounts: [{ type: "wallet", chainType: "solana", address: ADDR }] }),
+      solanaWalletFromPayload({ sub: USER, linked_accounts: [account] }, USER).address
+    );
+  });
+}
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

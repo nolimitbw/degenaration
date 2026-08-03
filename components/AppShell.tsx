@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import ReferralCaptureCompletion from "@/components/ReferralCaptureCompletion";
+import WalletRegistration from "@/components/WalletRegistration";
 import { useIsAdmin } from "@/lib/admin";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
@@ -104,6 +105,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell min-h-screen">
       <ReferralCaptureCompletion />
+      <WalletRegistration />
 
       <header className="sticky top-0 z-40 border-b border-edge bg-void/95 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-3 px-4 lg:px-6">
