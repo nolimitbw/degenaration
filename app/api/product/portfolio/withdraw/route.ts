@@ -6,8 +6,7 @@ import {
   REQUIRED_RESERVE_LAMPORTS,
   isSolanaAddress,
   spendableLamports,
-  validateWithdrawal,
-  withdrawalIdempotencyKey
+  validateWithdrawal
 } from "@/lib/withdrawal";
 
 /**
@@ -47,29 +46,38 @@ async function walletBalanceLamports(address: string): Promise<bigint | null> {
   }
 }
 
-/** Authoritative locked capital. Never trust a client-supplied figure (§12.5). */
-async function lockedLamports(privyUserId: string): Promise<{ ok: true; locked: bigint } | { ok: false }> {
-  const result = await callPrivyRpc<{ lockedLamports?: string; inFlightIntents?: number }>(
-    "app_user_withdrawable_state",
-    { p_privy_user_id: privyUserId }
-  );
+/** Authoritative committed capital. Never trust a client-supplied figure (§12.5). */
+async function committedLamports(
+  privyUserId: string
+): Promise<{ ok: true; locked: bigint; pending: bigint } | { ok: false }> {
+  const result = await callPrivyRpc<{
+    lockedLamports?: string;
+    inFlightIntents?: number;
+    pendingWithdrawalLamports?: string;
+  }>("app_user_withdrawable_state", { p_privy_user_id: privyUserId });
   if (!result.ok) return { ok: false };
   try {
-    return { ok: true, locked: BigInt(String(result.data?.lockedLamports ?? "0")) };
+    return {
+      ok: true,
+      locked: BigInt(String(result.data?.lockedLamports ?? "0")),
+      // A withdrawal the user already asked for that has not settled. Deducting it is what
+      // stops a second request being approved against lamports the first is about to spend.
+      pending: BigInt(String(result.data?.pendingWithdrawalLamports ?? "0"))
+    };
   } catch {
     return { ok: false };
   }
 }
 
 async function resolveState(req: NextRequest, address: string, privyUserId: string) {
-  const [balance, locked] = await Promise.all([
+  const [balance, committed] = await Promise.all([
     walletBalanceLamports(address),
-    lockedLamports(privyUserId)
+    committedLamports(privyUserId)
   ]);
 
   // Fail closed on an unverifiable financial state, but as a TEMPORARY operational
   // error with retry — never as a permission or feature-disabled message (§12.4).
-  if (balance == null || !locked.ok) {
+  if (balance == null || !committed.ok) {
     return {
       ok: false as const,
       response: NextResponse.json(
@@ -78,7 +86,7 @@ async function resolveState(req: NextRequest, address: string, privyUserId: stri
       )
     };
   }
-  return { ok: true as const, balance, locked: locked.locked };
+  return { ok: true as const, balance, locked: committed.locked, pending: committed.pending };
 }
 
 export async function GET(req: NextRequest) {
@@ -95,11 +103,16 @@ export async function GET(req: NextRequest) {
   const state = await resolveState(req, address, user.privyUserId);
   if (!state.ok) return state.response;
 
-  const spendable = spendableLamports({ balanceLamports: state.balance, lockedLamports: state.locked });
+  const spendable = spendableLamports({
+    balanceLamports: state.balance,
+    lockedLamports: state.locked,
+    pendingWithdrawalLamports: state.pending
+  });
   return NextResponse.json(
     {
       balanceLamports: state.balance.toString(),
       lockedLamports: state.locked.toString(),
+      pendingWithdrawalLamports: state.pending.toString(),
       spendableLamports: spendable.toString(),
       reserveLamports: REQUIRED_RESERVE_LAMPORTS.toString()
     },
@@ -148,7 +161,8 @@ export async function POST(req: NextRequest) {
     destination: to,
     amountLamports: body?.amountLamports,
     balanceLamports: state.balance,
-    lockedLamports: state.locked
+    lockedLamports: state.locked,
+    pendingWithdrawalLamports: state.pending
   });
   if (!validation.ok) {
     return NextResponse.json(
@@ -158,10 +172,46 @@ export async function POST(req: NextRequest) {
         lockedLamports: validation.lockedLamports?.toString(),
         spendableLamports: spendableLamports({
           balanceLamports: state.balance,
-          lockedLamports: state.locked
+          lockedLamports: state.locked,
+          pendingWithdrawalLamports: state.pending
         }).toString()
       },
       { status: 400 }
+    );
+  }
+
+  // Durable intent BEFORE a transaction is built. A retried fetch, a second tab, or a
+  // duplicated request collides on the server-derived idempotency key and is told about the
+  // withdrawal already in flight instead of being handed a second one to sign. The server is
+  // non-custodial and cannot broadcast anything itself, so refusing to BUILD is the only
+  // duplicate protection it can offer — and until now it offered none: the idempotency key
+  // was generated and discarded.
+  const intent = await callPrivyRpc<{
+    id: string; idempotencyKey: string; replay: boolean; state: string; txSignature: string | null;
+  }>("app_user_open_withdrawal_intent", {
+    p_privy_user_id: user.privyUserId,
+    p_wallet_address: from,
+    p_destination_address: to,
+    p_amount_lamports: validation.amountLamports.toString()
+  });
+  if (!intent.ok) {
+    return NextResponse.json(
+      { error: "Withdrawal is temporarily unavailable. Try again in a moment.", retryable: true },
+      { status: 503 }
+    );
+  }
+  if (intent.data.replay) {
+    return NextResponse.json(
+      {
+        error: intent.data.txSignature
+          ? "This withdrawal has already been sent and is confirming."
+          : "This withdrawal is already in progress.",
+        code: "WITHDRAWAL_IN_PROGRESS",
+        withdrawalId: intent.data.id,
+        state: intent.data.state,
+        txSignature: intent.data.txSignature
+      },
+      { status: 409 }
     );
   }
 
@@ -186,12 +236,8 @@ export async function POST(req: NextRequest) {
       amountLamports: validation.amountLamports.toString(),
       destination: to,
       lastValidBlockHeight,
-      idempotencyKey: withdrawalIdempotencyKey({
-        owner: from,
-        destination: to,
-        amountLamports: validation.amountLamports.toString(),
-        requestId: body?.requestId
-      })
+      withdrawalId: intent.data.id,
+      idempotencyKey: intent.data.idempotencyKey
     });
   } catch (e: any) {
     return NextResponse.json({ error: sanitizeError(e), retryable: true }, { status: 502 });

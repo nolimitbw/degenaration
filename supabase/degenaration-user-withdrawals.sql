@@ -23,6 +23,7 @@ as $$
 declare
   v_locked numeric;
   v_intents integer;
+  v_pending numeric := 0;
 begin
   if not app_private.admin_secret_ok(p_secret) then
     raise exception 'unauthorized' using errcode = '42501';
@@ -50,14 +51,28 @@ begin
     and side = 'buy'
     and reserved_lamports > 0;
 
+  -- Withdrawals the user has already asked for and that have not settled. Without this a
+  -- second request could be approved against a balance the first is about to spend, and the
+  -- chain would decide which one lands.
+  --
+  -- to_regclass rather than a hard reference: this function is deployed today and the
+  -- withdrawal_intents table arrives with degenaration-withdrawal-intents.sql. A hard
+  -- reference would make the deploy order load-bearing, and getting it wrong would break
+  -- every withdrawal availability check rather than merely under-reporting one figure.
+  if to_regclass('app_private.withdrawal_intents') is not null then
+    execute $q$
+      select coalesce(sum(amount_lamports), 0)
+      from app_private.withdrawal_intents
+      where owner_privy_user_id = $1 and state in ('created', 'signing', 'submitted')
+    $q$ into v_pending using p_privy_user_id;
+  end if;
+
   -- Lamports are returned as text so a large value cannot lose precision when it is
   -- parsed as a JavaScript number.
   return jsonb_build_object(
     'lockedLamports', v_locked::bigint::text,
     'inFlightIntents', v_intents,
-    -- Not tracked yet: there is no withdrawal-intent table, so this is always 0 and the
-    -- caller must not read it as "verified none pending". Step 4 makes it real.
-    'pendingWithdrawalLamports', '0'
+    'pendingWithdrawalLamports', v_pending::bigint::text
   );
 end;
 $$;

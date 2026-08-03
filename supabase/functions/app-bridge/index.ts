@@ -77,6 +77,16 @@ const operations: Record<string, string[]> = {
   ],
   app_user_portfolio_summary: ["p_secret", "p_privy_user_id", "p_period"],
   app_user_withdrawable_state: ["p_secret", "p_privy_user_id"],
+  app_user_open_withdrawal_intent: [
+    "p_secret", "p_privy_user_id", "p_wallet_address", "p_destination_address", "p_amount_lamports"
+  ],
+  app_user_record_withdrawal_signature: [
+    "p_secret", "p_privy_user_id", "p_intent_id", "p_tx_signature"
+  ],
+  app_user_settle_withdrawal: [
+    "p_secret", "p_privy_user_id", "p_intent_id", "p_outcome", "p_error"
+  ],
+  app_user_list_withdrawals: ["p_secret", "p_privy_user_id", "p_limit"],
   app_user_record_pnl_card: [
     "p_secret", "p_privy_user_id", "p_card_type", "p_subject_type",
     "p_subject_id", "p_snapshot", "p_referral_code", "p_render_version"
