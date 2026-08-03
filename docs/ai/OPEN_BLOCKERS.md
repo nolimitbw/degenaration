@@ -7,7 +7,27 @@ they change which record is authoritative for money — implementable, but not s
 
 ## Owner decisions
 
-### I-1 — Two position ledgers exist and only one is written
+### I-1 — Two position ledgers exist and only one is written — **DECIDED 2026-08-04**
+
+**Resolved as a decision. `app_private` is authoritative; the worker's journal is demoted to
+an operational queue. The full inventory, rationale, formulas, invariants and a six-step
+implementation sequence are in `docs/ai/ACCOUNTING_MODEL.md`.**
+
+The inventory made the choice one-sided rather than balanced: `app_private.call_executions`
+has **no fee column of any kind** and stores `amount_sol` as floating point, so World B
+cannot carry the spec's invariants without being rebuilt into World A. And the problem is
+wider than positions — `trade_intents`, `trade_executions`, `positions`, `position_lots`,
+`cash_movements` and `performance_snapshots` **all** have zero writers, which means the
+entire 200 bps fee apparatus is correct code hung on a table nothing writes.
+
+The single most urgent consequence, not previously recorded: `app_user_withdrawable_state`
+derives locked capital from `trade_intents`, so `lockedLamports` is **structurally always
+zero** — a user can withdraw SOL the worker has already committed to a buy. Step 2 of the
+sequence closes it.
+
+The original framing is kept below for history.
+
+---
 
 `app_private.positions` and `app_private.position_lots` are the product ledger. The
 Portfolio positions tab, the position PnL card, the admin open-position count and the bot
