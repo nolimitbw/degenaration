@@ -1,6 +1,6 @@
 # Open blockers
 
-Updated: 2026-08-02
+Updated: 2026-08-04
 
 External requirements are E-*. I-* are internal decisions that belong to the owner because
 they change which record is authoritative for money — implementable, but not silently.
@@ -34,10 +34,39 @@ model and with it durable average entry and exit prices).
 Claude did not choose. Unifying them changes which record is authoritative for user money,
 and no reversible half-measure exists.
 
+**New evidence from the 2026-08-04 live audit, which narrows this decision considerably.**
+
+Every financial table in production is empty — `trade_intents`, `trade_executions`, both
+`positions` tables, `position_lots`, `cash_movements`, `commission_ledger_entries`,
+`payout_requests` and `public.trades` all have 0 rows. **There is therefore no data to
+migrate and no user record to invalidate**, which removes the usual reason this decision is
+irreversible. Whichever ledger is chosen, nothing has to be rewritten.
+
+A second finding constrains it further: `app_private.trading_wallets` is empty and
+`app_user_upsert_wallet` — although allowlisted and deployed — has **no call site anywhere
+in the application**. The server consequently cannot name any user's wallet address; wallet
+identity exists only inside the per-request Privy identity token. So today *no* server-side
+balance reconciliation is possible for any user, under either ledger. Persisting the wallet
+on sign-in is a prerequisite for the authoritative model, not a detail of it.
+
+### I-2 — A credential digest is committed to the repository
+
+`supabase/admin-dashboard-secret-rpcs.sql:14` embeds a SHA-256 digest of `ADMIN_KEY`, and
+`app_private.bot_secret_ok` does the same for the bot secret in production. A digest of a
+shared secret in a repository is an offline brute-force target; the secret's strength is the
+only thing standing between the file and full service-role RPC access.
+
+Not changed here, because rotating `ADMIN_KEY` invalidates every deployed caller
+simultaneously (web app, worker, both edge functions) and must be sequenced by the owner.
+`bot_secret_ok` was deliberately **not** reproduced when its sibling function was captured
+into `supabase/degenaration-legacy-discord-call-ingestion.sql`, so this weakness was not
+extended.
+
 ## External requirements
 
 | ID | Gate | Exact external requirement | State |
 | --- | --- | --- | --- |
+| E-0 | **Edge-function redeploy — the funds incident** | The deployed `app-bridge` (v9, 2026-07-28) is missing four operations the app calls, including `app_user_withdrawable_state`. Until it is redeployed, **no user can withdraw and no bot can be saved.** Nothing in the repository can fix this; the correction is one deploy of `supabase/functions/app-bridge/index.ts` to project `uqccguunmjabjheeivhx` with **`verify_jwt: false`** (the deploy default is `true`, and flipping it would 401 every bridge call — a worse outage than today). Full evidence, mechanism and rollback: `docs/ai/DEPLOYMENT_DRIFT_REPORT.md`. Reproduce any time with `npm run verify:bridge-live`. | **BLOCKED — awaiting deployment approval** |
 | E-1 | Migration deployment proof | Confirm a safe staging target, or explicitly authorize the locally verified migrations for the intended project. Covers the marketplace parity, subscriber-config versioning, bot-lifecycle safety and bot-activity migrations. All are rerun-safe and preserve every fixture row. Production is unchanged. **Deploy order: the subscriber-config migration must be applied before the current worker build runs**, because `server/engine/store.js` selects `kill_switch`, `subscriber_config_version_id` and `subscriber_config_snapshot`, and PostgREST answers an unknown column with 400. | BLOCKED |
 | E-2 | Live Discord command and ingestion proof | Supply the configured Discord application credentials to the worker/test environment and a dedicated guild/channel where controlled fixtures may be posted. | BLOCKED |
 | E-3 | Production worker | Provide a worker host, RPC/indexer configuration, Privy delegated-signing credentials, health alert destination, and deployment authorization. | BLOCKED |
