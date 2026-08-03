@@ -31,6 +31,11 @@ const operations: Record<string, string[]> = {
   app_user_delete_copy_subscription: ["p_secret", "p_privy_user_id", "p_leader_wallet"],
   app_user_get_profile: ["p_secret", "p_privy_user_id"],
   app_user_upsert_profile: ["p_secret", "p_privy_user_id", "p_payload"],
+  // Onboarding step 0 is gated on this (app/onboarding/page.tsx:30 -> app/api/user/profile
+  // /route.ts:64). It was never allowlisted in any commit, so the call has always returned
+  // "unknown operation" and no user has ever cleared step 0 -- public.privy_profiles has
+  // zero rows in production, which corroborates it. See docs/ai/DEPLOYMENT_DRIFT_REPORT.md A-2.
+  app_user_set_risk_acceptance: ["p_secret", "p_privy_user_id", "p_accepted"],
   app_sync_verified_identity: [
     "p_secret", "p_privy_user_id", "p_provider", "p_provider_subject",
     "p_email", "p_email_verified"
@@ -40,6 +45,11 @@ const operations: Record<string, string[]> = {
     "p_secret", "p_privy_user_id", "p_wallet_address", "p_privy_wallet_id", "p_label"
   ],
   app_user_save_bot: ["p_secret", "p_privy_user_id", "p_payload"],
+  // The other half of app/api/product/bots/route.ts:50-52. An ACTIVE bot goes to
+  // app_user_save_bot; anything else goes here. Without this entry the draft branch answers
+  // "unknown operation", and since the active branch is separately refused by
+  // AUTOMATED_MAINNET_RELEASE, NO bot could be saved at all. Defect A-1.
+  app_user_save_mainnet_bot_draft: ["p_secret", "p_privy_user_id", "p_payload"],
   app_user_list_bots: ["p_secret", "p_privy_user_id", "p_kind"],
   app_user_get_bot: ["p_secret", "p_privy_user_id", "p_bot_id"],
   app_user_get_bot_activity: ["p_secret", "p_privy_user_id", "p_bot_id", "p_limit"],
