@@ -45,6 +45,11 @@ const rpc = withdrawalSql.slice(
 
 const FIXTURE_TABLES = ["app_private.app_users", "app_private.trade_intents"];
 
+// The RPC reads reserved_lamports, which degenaration-trade-intent-fanout.sql adds along with
+// the release trigger. Applying it here keeps this verifier honest about what the deployed
+// function will actually see, rather than testing against a shape production will not have.
+const fanoutSql = await readFile(`${repo}/supabase/degenaration-trade-intent-fanout.sql`, "utf8");
+
 await db.exec(`
   create role anon nologin;
   create role authenticated nologin;
@@ -76,6 +81,9 @@ await db.exec(`
     on conflict (privy_user_id) do nothing;
   end $$;
 `);
+// Only the intent table's own columns and trigger are needed here; the queue-binding triggers
+// belong to verify-trade-intent-fanout.mjs, which owns that surface.
+await db.exec(fanoutSql.slice(0, fanoutSql.indexOf("-- 4. Link the queue row to the intent")));
 await db.exec(rpc);
 await db.exec(`
   revoke execute on function public.app_user_withdrawable_state(text, text)
@@ -97,16 +105,23 @@ const state = async (user, secret = SECRET) => {
 };
 
 let intentSeq = 0;
+/** Goes through the real creator, so reservation is applied by the same code the worker uses. */
 async function seedIntent(owner, lamports, opts = {}) {
   intentSeq += 1;
+  const key = `intent-${intentSeq}`;
   await db.query(
-    `insert into app_private.trade_intents (
-       owner_privy_user_id, intent_kind, side, mint,
-       requested_input_base_units, execution_mode, state, idempotency_key
-     ) values ($1::text, 'entry', $2::text, 'So11111111111111111111111111111111111111112',
-               $3::numeric, 'solana-mainnet', $4::text, $5::text)`,
-    [owner, opts.side || "buy", lamports.toString(), opts.state || "submitted", `intent-${intentSeq}`]
+    `select app_private.open_trade_intent(
+       $1::text, $2::text, 'So11111111111111111111111111111111111111112', $3::text,
+       'entry', 'solana-mainnet', $4::bigint, null, null, null, null, '{}'::jsonb)`,
+    [owner, key, opts.side || "buy", lamports.toString()]
   );
+  if (opts.state) {
+    await db.query(
+      "update app_private.trade_intents set state = $2::text where idempotency_key = $1::text",
+      [key, opts.state]
+    );
+  }
+  return key;
 }
 
 const results = {};
@@ -133,22 +148,25 @@ results.availablePrincipal = "PASS";
 // 2. A user with a pending trade — the ONLY thing this RPC treats as locked
 // ---------------------------------------------------------------------------------------
 
-// One intent per state the RPC counts. Each is a buy whose lamports have been committed but
-// have not yet left the wallet, so they must not also be withdrawable.
-for (const s of ["created", "validating", "ready", "claimed", "submitting", "submitted"]) {
+// Every non-terminal state a buy can occupy. Each is capital committed but not yet gone from
+// the wallet, so it must not also be withdrawable.
+for (const s of ["created", "validated", "capital_reserved", "quoted", "simulated",
+                 "validating", "ready", "claimed", "submitting", "submitted"]) {
   await seedIntent(ALICE, SOL / 10n, { state: s });
 }
 alice = await state(ALICE);
-assert.equal(alice.lockedLamports, (6n * (SOL / 10n)).toString(), "every in-flight buy state locks");
-assert.equal(alice.inFlightIntents, 6);
+assert.equal(alice.lockedLamports, (10n * (SOL / 10n)).toString(), "every in-flight buy state locks");
+assert.equal(alice.inFlightIntents, 10);
 results.pendingTradeLocks = "PASS";
 
-// Terminal and post-submission states must NOT lock: the lamports have either left the
-// wallet already (confirmed/reconciled — the on-chain balance reflects it) or were never
-// spent (failed/expired/cancelled). Counting them would double-deduct and wrongly refuse a
-// legitimate withdrawal.
+// Terminal and settled states must NOT lock: the lamports have either left the wallet already
+// (confirmed/reconciled — the on-chain balance reflects it) or were never spent
+// (failed/expired/cancelled/rejected/reversed). Counting them would double-deduct and wrongly
+// refuse a legitimate withdrawal. The release is performed by the trigger, not by this list,
+// so a state added later without being listed here stays LOCKED rather than silently freed.
 const before = BigInt(alice.lockedLamports);
-for (const s of ["confirmed", "reconciled", "failed", "expired", "cancelled", "quarantined"]) {
+for (const s of ["confirmed", "reconciled", "failed", "expired", "cancelled",
+                 "quarantined", "rejected", "reversed"]) {
   await seedIntent(ALICE, 5n * SOL, { state: s });
 }
 alice = await state(ALICE);
@@ -346,8 +364,8 @@ console.log(JSON.stringify({
   ...results,
   formulasAsImplemented: {
     total_balance: "on-chain getBalance(wallet) — app/api/portfolio/route.ts, no ledger",
-    locked_balance: "sum(trade_intents.requested_input_base_units) where side='buy' and " +
-      "state in (created,validating,ready,claimed,submitting,submitted)",
+    locked_balance: "sum(trade_intents.reserved_lamports) where side='buy' and reserved_lamports > 0; " +
+      "release is an explicit trigger write, never an inferred state list",
     pending_trade: "same figure as locked_balance — they are one and the same query",
     pending_withdrawal: "0, always — not tracked",
     available_balance: "max(0, balance - max(0,locked) - max(0,pending) - 15890880)",

@@ -29,22 +29,35 @@ begin
   end if;
   perform app_private.ensure_app_user(p_privy_user_id);
 
+  -- Reads reserved_lamports, NOT a list of in-flight states.
+  --
+  -- The state-list version is fragile in the one direction that loses money: add a state to
+  -- the enum later, forget to add it here, and capital that is still committed silently
+  -- becomes withdrawable. reserved_lamports is set to 0 by an explicit trigger the moment an
+  -- intent reaches a state where the lamports are either spent or provably not spent
+  -- (degenaration-trade-intent-fanout.sql), so an unrecognised state stays locked.
+  -- Over-locking is recoverable; under-locking is not.
+  --
+  -- The side filter is retained as defence in depth. open_trade_intent already reserves 0 for
+  -- a sell -- a sell commits the token, not SOL -- but if that ever regressed, a sell must
+  -- still never freeze the user's SOL.
   select
-    coalesce(sum(requested_input_base_units), 0),
+    coalesce(sum(reserved_lamports), 0),
     count(*)
   into v_locked, v_intents
   from app_private.trade_intents
   where owner_privy_user_id = p_privy_user_id
     and side = 'buy'
-    and state in (
-      'created', 'validating', 'ready', 'claimed', 'submitting', 'submitted'
-    );
+    and reserved_lamports > 0;
 
   -- Lamports are returned as text so a large value cannot lose precision when it is
   -- parsed as a JavaScript number.
   return jsonb_build_object(
     'lockedLamports', v_locked::bigint::text,
-    'inFlightIntents', v_intents
+    'inFlightIntents', v_intents,
+    -- Not tracked yet: there is no withdrawal-intent table, so this is always 0 and the
+    -- caller must not read it as "verified none pending". Step 4 makes it real.
+    'pendingWithdrawalLamports', '0'
   );
 end;
 $$;
