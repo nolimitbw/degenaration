@@ -223,3 +223,53 @@ product completeness.
 - Do not write `retained_fee_lamports`. It is `GENERATED ALWAYS ... STORED`.
 - Do not backfill World A from World B. World B never recorded fees, so any backfilled fee
   would be fabricated.
+
+---
+
+## 8. Implementation progress — 2026-08-04
+
+Steps 1, 2, 3 and 4 are **built and verified locally**. None is deployed.
+
+| Step | State | Evidence |
+|---|---|---|
+| 1 — persist verified wallet identity | BUILT, verified | `2ef4d03`; `npm run verify:wallet-registration`, 12 properties, 3 control runs |
+| 2 — trade intent before capital is committed | BUILT, verified | `fcebe9c`; `npm run verify:trade-intent-fanout`, 12 properties, 3 control runs |
+| 3 — withdrawable/tradable derive from one model | BUILT, verified | `fcebe9c`; locked now reads `reserved_lamports`, not a state list |
+| 4 — server-side withdrawal idempotency | BUILT, verified | `057e0bd`; `npm run verify:withdrawal-idempotency`, 16 properties, 3 control runs |
+| 5 — temporary user protection | assessed, see below | this section |
+| 6 — safe verification | DONE | `npm run check` exit 0, 174 tests, 16 verifier suites |
+
+### Step 5 — what protection is warranted, and what would be theatre
+
+| Requested control | Actual state |
+|---|---|
+| Prevent new live bot activation | **Already prevented**, independently: `lib/trading-release.ts` sets `AUTOMATED_MAINNET_RELEASE.enabled = false`, so `app/api/product/bots/route.ts:40` refuses every active bot with 503. |
+| Prevent new automated entries | **Already prevented** by the same gate, and by the worker not being deployed (`worker_leases` = 0, `durable_jobs` = 0, no `pg_cron`). |
+| Preserve exits for open positions | **Nothing to preserve.** Both position ledgers hold 0 rows. No exit path was touched. |
+| Prevent new deposits while withdrawal is unverified | **Not applicable, and blocking it would be misleading.** There is no deposit mechanism: a "deposit" is the user sending SOL to *their own* Privy wallet, which they can always move again through Privy directly. Blocking a screen that only displays the user's own address would imply custody that does not exist. |
+| Concise truthful maintenance message | **Not added, deliberately.** Production runs a build from before any of this work (130 unpushed commits), so no user is currently exposed to a half-applied change. A banner describing a condition that does not exist in the deployed product would be false. |
+| Do not manually modify balances | **None were.** Every production query in this work was read-only apart from the two approved deploy steps. |
+
+The one real protection needed is a **deploy-order guarantee**, recorded in §9.
+
+### 9. Deploy order is load-bearing — read before shipping
+
+`app/api/product/portfolio/withdraw/route.ts` now calls
+`app_user_open_withdrawal_intent`. That operation exists in the repository and **not** in the
+deployed edge function. If the Next.js app is deployed before the migrations and the bridge,
+**every withdrawal returns 503 "Withdrawal is temporarily unavailable"** — the same class of
+failure as the original incident.
+
+Required order, no exceptions:
+
+1. Apply `degenaration-wallet-registration.sql`, `degenaration-trade-intent-fanout.sql`,
+   `degenaration-withdrawal-intents.sql`, and the updated
+   `degenaration-user-withdrawals.sql`.
+2. Deploy `app-bridge` (now 61 operations) with `verify_jwt: false`.
+3. Confirm with `npm run verify:bridge-live` — it must report `deploymentDrift: NONE`.
+4. Only then deploy the application.
+
+The failure mode if this is violated is **fail-closed**, not silent: the route returns a
+retryable 503 rather than building an unprotected transaction. That is the correct trade —
+a brief blocked withdrawal beats an unprotected duplicate one — but it is still an outage,
+so the order matters.
