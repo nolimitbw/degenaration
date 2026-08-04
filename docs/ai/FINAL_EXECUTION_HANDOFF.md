@@ -106,3 +106,13 @@ a host, or a signed-in session:
 
 The correct next action is the owner's: approve the deployment package, or supply one of the
 four blockers above.
+
+**Deployment is reachable from this environment**, through the Supabase MCP connection —
+there is no CLI and no credential in the shell, but the MCP tools can apply a migration and
+deploy an edge function. So the gate is not capability; it is the owner's standing
+instruction not to make an irreversible production change without explicit approval. Saying
+"it cannot be done from here" would be false.
+
+Step 12 is written and ready: `docs/ai/POST_DEPLOY_VERIFICATION.md`, with the production
+baseline read before deployment so the after-comparison is against a record rather than a
+memory.
