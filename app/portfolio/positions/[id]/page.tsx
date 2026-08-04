@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import { ArrowLeft, ExternalLink, Loader2, RefreshCw, Share2, WalletCards } from "lucide-react";
+import { ArrowLeft, ExternalLink, History, Loader2, RefreshCw, Share2, WalletCards } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { EmptyState, PageHeader, StatusPill } from "@/components/product/Primitives";
 import type { PortfolioSummary } from "@/components/product/PortfolioDashboard";
@@ -102,7 +102,20 @@ export default function PositionDetailsPage() {
                 <p className="field-label">Token mint</p>
                 <p className="mt-2 break-all font-mono text-xs text-ink">{position.mint}</p>
               </div>
-              <StatusPill status={position.status} />
+              <div className="flex items-center gap-2">
+                <StatusPill status={position.status} />
+                {/* Spec section J: a share card must be reachable from every position, not only
+                    from the Portfolio table. The renderer picks winner or loser from realized
+                    PnL, so this one control covers both card variants. */}
+                <a
+                  href={`/api/product/pnl-card?type=position&id=${encodeURIComponent(position.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+                >
+                  <Share2 size={13} /> Share card
+                </a>
+              </div>
             </div>
             <dl className="grid gap-px bg-edge sm:grid-cols-2 xl:grid-cols-4">
               <Detail label="Bot" value={position.botName || "Unassigned"} />
@@ -119,7 +132,7 @@ export default function PositionDetailsPage() {
           <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
               <div><h2 className="text-sm font-semibold text-ink">Matching executions</h2><p className="mt-1 text-[11px] text-dim">Bot, mint, and position lifetime are used to match execution records.</p></div>
-              {position.botId && <Link href={`/portfolio?bot=${encodeURIComponent(position.botId)}&view=trades`} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><Share2 size={13} /> Bot history</Link>}
+              {position.botId && <Link href={`/portfolio?bot=${encodeURIComponent(position.botId)}&view=trades`} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><History size={13} /> Bot history</Link>}
             </header>
             {executions.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No matching executions are available.</p> : (
               <div className="overflow-x-auto">
