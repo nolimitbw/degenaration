@@ -14,7 +14,7 @@ The one file to read before touching anything. Written 2026-08-04.
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
 | Deployed edge functions | `app-bridge` **v11**, `bot-bridge` |
-| Migrations unapplied | nine — `docs/ai/PENDING_DEPLOYMENT.md` |
+| Migrations unapplied | ten — `docs/ai/PENDING_DEPLOYMENT.md` |
 | Deployed application | `claude/degenaration-launch-remediation` @ `29291c9` — **not** `master` |
 | Release awaiting promotion | `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` |
 
@@ -52,7 +52,7 @@ The one file to read before touching anything. Written 2026-08-04.
 | Server-side admin only, three-deep | PASS | `requireAdmin` → legacy refusal → `require_app_admin` |
 | Client table: balances, volume, positions, fees, bots | PASS | `370e07d` mounted it — it existed and was imported by nothing |
 | Performance refresh | PASS | `admin_refresh_performance`, Clients tab |
-| Client **detail** view | **PARTIAL** | The per-client drill-down of §8 is not built; the table is |
+| Client **detail** view | PASS | `admin_client_detail` + `ClientDetail.tsx`, opened from the table. Balances, wallet history, positions with lots and exits, executions, withdrawals, movements, commissions, referrals, bots, failures, audit events. `verify:admin-client-ledger`, 7 detail properties |
 | Audited actions, audit log | PASS | Existing console sections |
 | No balance editor, no secrets | PASS | Deliberate; recorded on screen |
 
@@ -88,8 +88,15 @@ a dash or a zero here, check the writer before checking the reader.
 
 ## Exact next dependency
 
-The client **detail** view of §8 — the only §17 acceptance item that is neither PASS nor
-waiting on an external blocker. Everything it needs already exists in the ledger: intents,
-executions, positions, lots, exits, withdrawal intents, commissions, referrals, audit events.
+**None that is internally solvable.** Every remaining §17 acceptance item needs a credential,
+a host, or a signed-in session:
 
-After that, every remaining item needs a key, a host, or a signed-in session.
+- auto-trading staging/devnet proof → E-3
+- fee collection → E-4
+- Discord ingestion and command state → E-2
+- every remaining parity row and browser evidence item → E-6
+- `cash_movements` → the withdrawal path running against a real wallet, E-6/E-3
+- the ten unapplied migrations and app-bridge v12 → owner approval, `PENDING_DEPLOYMENT.md`
+
+The correct next action is the owner's: approve the deployment package, or supply one of the
+four blockers above.

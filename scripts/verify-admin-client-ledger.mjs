@@ -16,6 +16,7 @@ import { renderTables, assertSchemaParity } from "./lib/production-schema.mjs";
 const repo = process.cwd();
 const db = new PGlite();
 const adminSql = await readFile(`${repo}/supabase/degenaration-admin-client-ledger.sql`, "utf8");
+const detailSql = await readFile(`${repo}/supabase/degenaration-admin-client-detail.sql`, "utf8");
 
 const FIXTURE_TABLES = [
   "app_private.bot_config_versions", "app_private.app_users", "app_private.trade_intents",
@@ -41,7 +42,9 @@ await assertSchemaParity(db, FIXTURE_TABLES, assert);
 // Columns added by migrations already applied in production; the captured schema predates them.
 await db.exec(`
   alter table app_private.trading_wallets add column if not exists is_primary boolean not null default false;
-  alter table app_private.trade_intents add column if not exists reserved_lamports bigint not null default 0;
+  alter table app_private.trade_intents
+    add column if not exists reserved_lamports bigint not null default 0,
+    add column if not exists correlation_id uuid not null default gen_random_uuid();
 `);
 await db.exec(`
   create table app_private.positions (
@@ -57,9 +60,48 @@ await db.exec(`
     amount_lamports bigint not null, state text not null default 'created');
   create table app_private.bot_profiles (
     id uuid primary key default gen_random_uuid(), owner_privy_user_id text not null,
-    kind text not null, name text, status text not null default 'active');
+    kind text not null, name text, status text not null default 'active',
+    visibility text not null default 'private',
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    last_activity_at timestamptz);
+  create table app_private.position_lots (
+    id uuid primary key default gen_random_uuid(),
+    position_id uuid not null references app_private.positions(id),
+    entry_execution_id uuid not null,
+    quantity_base_units numeric not null, remaining_base_units numeric not null,
+    cost_lamports bigint not null, created_at timestamptz not null default now());
+  create table app_private.position_exits (
+    id uuid primary key default gen_random_uuid(),
+    position_id uuid not null references app_private.positions(id),
+    exit_execution_id uuid not null,
+    quantity_base_units numeric not null, cost_basis_lamports bigint not null,
+    proceeds_lamports bigint, realized_pnl_lamports bigint,
+    basis_incomplete boolean not null default false,
+    created_at timestamptz not null default now());
+  create table app_private.cash_movements (
+    id uuid primary key default gen_random_uuid(), owner_privy_user_id text not null,
+    movement_type text not null, status text not null, amount_lamports bigint not null,
+    tx_signature text, observed_at timestamptz not null default now());
+  create table app_private.referral_attributions (
+    id uuid primary key default gen_random_uuid(),
+    referrer_privy_user_id text not null, referred_privy_user_id text not null unique,
+    status text not null default 'verified');
+  create table app_private.wallet_audit_log (
+    id uuid primary key default gen_random_uuid(), privy_user_id text not null,
+    action text not null, address text, previous_address text, detail text,
+    created_at timestamptz not null default now());
+`);
+await db.exec(`
+  alter table app_private.withdrawal_intents
+    add column if not exists destination_address text,
+    add column if not exists tx_signature text,
+    add column if not exists error text,
+    add column if not exists created_at timestamptz not null default now(),
+    add column if not exists updated_at timestamptz not null default now();
 `);
 await db.exec(adminSql);
+await db.exec(detailSql);
 
 const S = "admin-test-secret";
 const A = "did:privy:alice", B = "did:privy:bob";
@@ -144,6 +186,89 @@ for (const role of ["anon", "authenticated"]) {
   await db.exec("reset role");
 }
 results.authorizationHoldsOnBothAxes = "PASS";
+
+// ---- section 8: the per-client drill-down -------------------------------------------------
+await db.query(`insert into app_private.wallet_audit_log (privy_user_id, action, address)
+  values ($1::text,'registered','5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1')`, [A]);
+await db.query(`insert into app_private.cash_movements (owner_privy_user_id, movement_type,
+  status, amount_lamports, tx_signature) values ($1::text,'deposit','confirmed',3000000000,'d1')`, [A]);
+await db.query(`insert into app_private.referral_attributions
+  (referrer_privy_user_id, referred_privy_user_id) values ($1::text,$2::text)`, [A, B]);
+const posRow = (await db.query("select id from app_private.positions limit 1")).rows[0];
+const execRow = (await db.query("select id from app_private.trade_executions limit 1")).rows[0];
+await db.query(`insert into app_private.position_lots (position_id, entry_execution_id,
+  quantity_base_units, remaining_base_units, cost_lamports)
+  values ($1::uuid,$2::uuid,1000000,400000,1000000000)`, [posRow.id, execRow.id]);
+await db.query(`insert into app_private.position_exits (position_id, exit_execution_id,
+  quantity_base_units, cost_basis_lamports, proceeds_lamports, realized_pnl_lamports)
+  values ($1::uuid,$2::uuid,600000,600000000,900000000,300000000)`, [posRow.id, execRow.id]);
+// A failed execution, so the failure list has something to find.
+await db.query(`insert into app_private.trade_executions (intent_id, owner_privy_user_id,
+  execution_mode, status, attempt, gross_notional_lamports, error_message)
+  values ($1::uuid,$2::text,'solana-mainnet','failed',2,500000000,'simulation reverted')`, [intent.id, A]);
+
+const detail = (await db.query(
+  "select public.admin_client_detail($1::text,$2::text,$3::text) as r", [S, "admin-a", A])).rows[0].r;
+
+assert.equal(detail.ok, true);
+assert.equal(detail.client.privyUserId, A);
+assert.equal(detail.wallets.length, 1);
+assert.equal(detail.walletHistory.length, 1, "wallet changes are an audit trail, not just a list");
+assert.equal(detail.cashMovements.length, 1);
+assert.equal(detail.referral.referredCount, 1);
+assert.equal(detail.bots.length, 2);
+results.clientDetailAssembles = "PASS";
+
+// One predicate, four windows. The failed execution above carries a 0.5 SOL notional
+// precisely so that counting it would change every figure below.
+assert.equal(detail.volume.lifetimeLamports, "1000000000");
+assert.equal(detail.volume.todayLamports, "1000000000");
+assert.equal(detail.volume.sevenDayLamports, "1000000000");
+assert.equal(detail.volume.thirtyDayLamports, "1000000000");
+assert.match(detail.volume.definition, /confirmed executed notional/);
+results.volumeDefinitionIsSingular = "PASS";
+
+const position = detail.positions[0];
+assert.equal(position.lotCount, 1);
+assert.equal(position.remainingBaseUnits, "400000", "a partially closed position reads as partial");
+assert.equal(position.exitCount, 1);
+assert.equal(position.unpricedExits, 0);
+assert.equal(position.exitProceedsLamports, "900000000");
+results.positionsCarryLotsAndExits = "PASS";
+
+const failure = detail.failures.find((f) => f.kind === "execution");
+assert.ok(failure, "a failed execution is surfaced where an operator will look for it");
+assert.equal(failure.state, "failed");
+assert.equal(failure.detail, "simulation reverted");
+results.failuresAreCollected = "PASS";
+
+assert.equal(detail.custodyModel, "non-custodial");
+assert.ok(!("balanceLamports" in detail.balances),
+  "still no custodial balance — the database cannot verify one");
+assert.equal(detail.balances.pendingWithdrawalLamports, "250000000");
+results.detailReportsNoFabricatedBalance = "PASS";
+
+const missing = (await db.query(
+  "select public.admin_client_detail($1::text,$2::text,'did:privy:nobody') as r",
+  [S, "admin-a"])).rows[0].r;
+assert.equal(missing.ok, false);
+assert.equal(missing.reason, "not-found");
+results.detailHandlesUnknownClient = "PASS";
+
+await assert.rejects(() => db.query(
+  "select public.admin_client_detail($1::text,$2::text,$3::text)", ["wrong", "admin-a", A]),
+  /unauthorized/i);
+await assert.rejects(() => db.query(
+  "select public.admin_client_detail($1::text,$2::text,$3::text)", [S, B, A]), /forbidden/i,
+  "an ordinary client cannot open another client's record");
+for (const role of ["anon", "authenticated"]) {
+  await db.exec(`set role ${role}`);
+  await assert.rejects(() => db.query(
+    "select public.admin_client_detail($1::text,$2::text,$3::text)", [S, "admin-a", A]),
+    /permission denied/i, `${role} must not reach the client detail at all`);
+  await db.exec("reset role");
+}
+results.detailAuthorizationHolds = "PASS";
 
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",

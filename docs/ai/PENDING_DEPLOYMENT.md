@@ -27,13 +27,14 @@ the deployment.
 | 7 | `degenaration-performance-snapshots.sql` | the writer for `performance_snapshots`, the equity series the Portfolio chart reads, and the operator refresh | `verify:performance-snapshots` |
 | 8 | `degenaration-admin-client-ledger.sql` | `admin_client_ledger`, `admin_business_summary` — §8 | `verify:admin-client-ledger` |
 | 9 | `degenaration-position-exit-detail.sql` | `app_user_position_exits` — what closed a position and at what price, for the §18 card | `verify:exit-settlement` |
+| 10 | `degenaration-admin-client-detail.sql` | `admin_client_detail` — the §8 per-client drill-down | `verify:admin-client-ledger` |
 
 Files 1, 4, 5 and 6 each replace the settlement function. 1 → 4 → 5 → 6 is mandatory.
 
 ## Edge function
 
 `supabase/functions/app-bridge/index.ts` — the deployed copy is **v11**. The repository adds
-`admin_refresh_performance` and `app_user_position_exits`, which makes it **v12**. Without the redeploy the new Clients-tab
+`admin_refresh_performance`, `app_user_position_exits` and `admin_client_detail`, which makes it **v12**. Without the redeploy the new Clients-tab
 refresh returns `400 unknown operation`, exactly the failure mode the funds incident was.
 
 Deploy with `verify_jwt: false`. The default is `true`, and flipping it 401s every call.
@@ -46,7 +47,7 @@ decision; unchanged since it was prepared.
 
 ## What each migration is safe about
 
-All eight are forward-safe by construction: additive nullable columns, widened rather than
+All ten are forward-safe by construction: additive nullable columns, widened rather than
 narrowed CHECKs, new tables, and functions replaced with supersets. No file rewrites an
 existing row, drops a column carrying data, or narrows an existing constraint.
 

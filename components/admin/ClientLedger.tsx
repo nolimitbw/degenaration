@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Gauge, RefreshCw } from "lucide-react";
+import ClientDetail from "@/components/admin/ClientDetail";
 import { EmptyState, LoadingRows, Metric, StatusPill } from "@/components/product/Primitives";
 
 /**
@@ -87,6 +88,7 @@ export default function ClientLedger({
   const [error, setError] = useState<string | null>(null);
   const [recomputing, setRecomputing] = useState(false);
   const [recomputed, setRecomputed] = useState<string | null>(null);
+  const [opened, setOpened] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,6 +123,12 @@ export default function ClientLedger({
       setRecomputing(false);
     }
   }, [load, refreshPerformance]);
+
+  // The drill-down replaces the table rather than nesting inside it: section 8's client
+  // record is a page's worth of lists, and an expanding row would push the table off screen.
+  if (opened) {
+    return <ClientDetail privyUserId={opened} fetchJson={fetchJson} onBack={() => setOpened(null)} />;
+  }
 
   if (loading && !data) return <LoadingRows count={6} />;
 
@@ -215,6 +223,7 @@ export default function ClientLedger({
                 <th className="px-4 py-3 text-right font-medium">Withdrawn</th>
                 <th className="px-4 py-3 text-center font-medium">Bots</th>
                 <th className="px-4 py-3 font-medium">Last trade</th>
+                <th className="px-4 py-3 font-medium"><span className="sr-only">Open client</span></th>
               </tr>
             </thead>
             <tbody>
@@ -253,6 +262,15 @@ export default function ClientLedger({
                   </td>
                   <td className="px-4 py-3 text-[11px] text-dim">
                     {c.lastTradeAt ? new Date(c.lastTradeAt).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setOpened(c.privyUserId)}
+                      className="inline-flex min-h-11 sm:min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+                    >
+                      Open
+                    </button>
                   </td>
                 </tr>
               ))}

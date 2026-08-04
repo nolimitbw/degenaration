@@ -135,7 +135,10 @@ const operations: Record<string, string[]> = {
   // What closed a position and at what price. The PnL card needs it: a closed trade's
   // average exit is proceeds/quantity from app_private.position_exits, and before that table
   // existed no ledger linked a position to the executions that closed it.
-  app_user_position_exits: ["p_secret", "p_privy_user_id", "p_position_id"]
+  app_user_position_exits: ["p_secret", "p_privy_user_id", "p_position_id"],
+  // Section 8's client detail: one client's balances, wallets, positions, executions,
+  // withdrawals, commissions, referrals, bots, failures and audit events.
+  admin_client_detail: ["p_secret", "p_actor_privy_user_id", "p_privy_user_id"]
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
