@@ -2190,6 +2190,92 @@ console.log("price selection");
   });
 }
 
+// Automated call ingestion: the real production model.
+//
+// A Discord "call" is normally an EMBED posted by another bot or a webhook, not a human
+// typing a mint. message.content is frequently empty, the symbol is what a human sees, and
+// the mint often appears only inside a button URL or an embed field.
+{
+  const { parseMessage } = require("../bot/parser");
+  const MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
+  console.log("automated call ingestion");
+
+  test("an embed-only call is parsed when message.content is empty", () => {
+    const r = parseMessage({
+      content: "",
+      embeds: [{
+        title: "BONK / SOL",
+        description: "New call from Alpha Scanner",
+        fields: [
+          { name: "Market Cap", value: "$1.2M" },
+          { name: "CA", value: MINT },
+          { name: "Liquidity", value: "$340K" }
+        ]
+      }]
+    });
+    assert.ok(r, "an embed-only message must not be dropped for having no content");
+    assert.strictEqual(r.mint, MINT);
+  });
+
+  test("the mint is found under any common label, not one hard-coded field name", () => {
+    for (const label of ["CA", "Contract", "Contract Address", "Mint", "Token", "Address", "PAIR"]) {
+      const r = parseMessage({ content: "", embeds: [{ fields: [{ name: label, value: MINT }] }] });
+      assert.ok(r && r.mint === MINT, `label "${label}" must resolve`);
+    }
+  });
+
+  test("a mint present only in a button URL is found", () => {
+    // The visible embed shows a symbol; the address exists solely in the action row.
+    const r = parseMessage({
+      content: "",
+      embeds: [{ title: "BONK", description: "Volume spiking" }],
+      components: [{ components: [
+        { label: "Chart", url: `https://dexscreener.com/solana/${MINT}` },
+        { label: "Buy", url: "https://jup.ag/swap/SOL-BONK" }
+      ] }]
+    });
+    assert.ok(r, "a call whose only address is in a button must still be ingested");
+    assert.strictEqual(r.mint, MINT);
+  });
+
+  test("embed image and thumbnail URLs are scanned", () => {
+    const r = parseMessage({ content: "", embeds: [{ thumbnail: { url: `https://img.example/${MINT}.png` } }] });
+    assert.ok(r && r.mint === MINT);
+  });
+
+  test("attachment names are scanned", () => {
+    const r = parseMessage({ content: "", embeds: [], attachments: [{ name: `${MINT}-chart.png` }] });
+    assert.ok(r && r.mint === MINT);
+  });
+
+  test("a discord.js Collection of attachments is handled, not just an array", () => {
+    // message.attachments is a Collection at runtime; treating it as an array silently
+    // scans nothing and the failure looks identical to "no mint present".
+    const collection = new Map([["1", { name: `${MINT}.png` }]]);
+    const r = parseMessage({ content: "", embeds: [], attachments: collection });
+    assert.ok(r && r.mint === MINT);
+  });
+
+  test("two distinct addresses with no link still refuse rather than guess", () => {
+    const other = "So11111111111111111111111111111111111111112";
+    const r = parseMessage({
+      content: "",
+      embeds: [{ fields: [{ name: "CA", value: MINT }, { name: "Deployer", value: other }] }]
+    });
+    assert.ok(!r || !r.mint, "a wallet beside a mint must never be bought");
+  });
+
+  test("a link disambiguates a message that also shows a bare address", () => {
+    const other = "So11111111111111111111111111111111111111112";
+    const r = parseMessage({
+      content: "",
+      embeds: [{ fields: [{ name: "Deployer", value: other }] }],
+      components: [{ components: [{ url: `https://dexscreener.com/solana/${MINT}` }] }]
+    });
+    assert.ok(r && r.mint === MINT, "the link names the token; the bare address does not");
+  });
+}
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

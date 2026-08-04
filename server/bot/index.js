@@ -11,7 +11,7 @@
  * The bot reads messages ONLY in APPROVED channels (loaded from the DB, refreshed live).
  */
 require("dotenv").config();
-const { Client, GatewayIntentBits, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
 const { parseCall, parseMessage } = require("./parser");
 const { loadApprovedChannels, registerChannel, getGuildStatus } = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
@@ -26,7 +26,17 @@ const SITE_URL = (process.env.SITE_URL || "https://degenaration.vercel.app").rep
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  // Without partials, discord.js drops MESSAGE_UPDATE and MESSAGE_DELETE for any message it
+  // does not already hold in cache — which is every message posted before this process
+  // started, and every message evicted since. Automated call bots edit their embed seconds
+  // after posting (price, market cap and liquidity settle, or a "migrated" badge appears),
+  // so the edit that completes a call is exactly the event most likely to arrive uncached.
+  //
+  // Partials.Message is what lets that event through at all; Channel and Reaction are
+  // included because discord.js requires the owning structures to be partial-capable for the
+  // message partial to resolve.
+  partials: [Partials.Message, Partials.Channel]
 });
 
 const deadLetters = new DeadLetterQueue();

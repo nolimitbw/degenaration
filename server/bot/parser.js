@@ -85,7 +85,38 @@ function regionsOf(message) {
       push("embed", field?.value);
     }
     push("embed", embed?.footer?.text);
+    // Some call bots put the mint only in the embed's image/thumbnail URL (a chart or a
+    // token icon served by mint), and provider/link fields carry it too.
+    push("embed", embed?.image?.url);
+    push("embed", embed?.thumbnail?.url);
+    push("embed", embed?.provider?.url);
   }
+
+  // Action rows. A production call embed's mint is very often ONLY in a button URL —
+  // "Buy on Jupiter", "Chart", "Dexscreener" — because the visible text shows a symbol
+  // rather than an address. Those are links, so they resolve at link confidence and, being
+  // links, also disambiguate a message that shows several bare addresses.
+  for (const row of Array.isArray(message?.components) ? message.components.slice(0, 10) : []) {
+    for (const component of Array.isArray(row?.components) ? row.components.slice(0, 25) : []) {
+      push("component", component?.url);
+      push("component", component?.label);
+    }
+  }
+
+  // Attachment filenames and descriptions. Lowest value of the three, but a chart image
+  // named after the mint is a real pattern and costs nothing to read.
+  const attachments = message?.attachments;
+  const attachmentList = Array.isArray(attachments)
+    ? attachments
+    : attachments && typeof attachments.values === "function"
+      ? [...attachments.values()]
+      : [];
+  for (const attachment of attachmentList.slice(0, 10)) {
+    push("attachment", attachment?.name);
+    push("attachment", attachment?.description);
+    push("attachment", attachment?.url);
+  }
+
   return regions;
 }
 
