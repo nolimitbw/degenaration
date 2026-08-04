@@ -39,8 +39,8 @@ export default function CursorGlow() {
       <div ref={ring} className="cursor-ring pointer-events-none fixed left-0 top-0 z-[100] -ml-4 -mt-4 h-8 w-8 rounded-full border border-gold-400/70" />
       <style jsx global>{`
         @media (pointer: fine) { * { cursor: none !important; } }
-        .cursor-ring { transition: width .2s, height .2s, margin .2s, background .2s, border-color .2s; box-shadow: 0 0 18px rgb(var(--toxic-rgb) / .5); }
-        .cursor-ring--hover { width: 3rem; height: 3rem; margin-left: -1.5rem; margin-top: -1.5rem; background: rgb(var(--toxic-rgb) / .15); border-color: rgba(255,119,153,.85); }
+        .cursor-ring { transition: width .2s, height .2s, margin .2s, background .2s, border-color .2s; box-shadow: 0 0 18px rgb(var(--gold-rgb) / .5); }
+        .cursor-ring--hover { width: 3rem; height: 3rem; margin-left: -1.5rem; margin-top: -1.5rem; background: rgb(var(--gold-rgb) / .15); border-color: rgba(255,119,153,.85); }
       `}</style>
     </>
   );

@@ -86,8 +86,8 @@ export default function Candles({ data, className = "h-72 rounded-md border bord
             </g>
           );
         })}
-        <line x1={LEFT} x2={W - RIGHT} y1={lastY} y2={lastY} stroke="rgb(var(--toxic-rgb))" strokeOpacity="0.85" strokeDasharray="4 4" strokeWidth="1" />
-        <rect x={W - RIGHT + 3} y={lastY - 8} width={RIGHT - 6} height="16" fill="rgb(var(--toxic-rgb))" />
+        <line x1={LEFT} x2={W - RIGHT} y1={lastY} y2={lastY} stroke="rgb(var(--gold-rgb))" strokeOpacity="0.85" strokeDasharray="4 4" strokeWidth="1" />
+        <rect x={W - RIGHT + 3} y={lastY - 8} width={RIGHT - 6} height="16" fill="rgb(var(--gold-rgb))" />
         <text x={W - RIGHT + 8} y={lastY + 3} fill="#17110c" fontSize="9" fontWeight="700" fontFamily="monospace">{priceLabel(last)}</text>
         {hovered != null && (
           <>

@@ -298,7 +298,7 @@ function PortfolioPerformanceChart({ performance }: { performance: PortfolioSumm
     <div className="relative h-72 p-5">
       <svg viewBox="0 0 560 190" className="h-full w-full" role="img" aria-label={rows.length ? `Portfolio equity chart with ${rows.length} observations` : "Portfolio equity history unavailable"}>
         {[30, 70, 110, 150].map((y) => <line key={y} x1="20" y1={y} x2="540" y2={y} stroke="rgb(var(--edge-rgb))" />)}
-        {rows.length > 1 && <><polygon points={`24,160 ${points} 536,160`} fill="rgb(var(--toxic-rgb) / .08)" /><polyline points={points} fill="none" stroke="rgb(var(--toxic-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></>}
+        {rows.length > 1 && <><polygon points={`24,160 ${points} 536,160`} fill="rgb(var(--gold-rgb) / .08)" /><polyline points={points} fill="none" stroke="rgb(var(--gold-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></>}
       </svg>
       {rows.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><BarChart3 className="mx-auto text-gold-400" size={22} /><p className="mt-3 text-sm font-semibold text-ink">No reconciled equity series yet</p><p className="mt-1 max-w-sm text-[11px] leading-5 text-dim">The chart appears after performance snapshots are computed from confirmed trades and wallet movements. No synthetic curve is shown.</p></div></div>}
     </div>

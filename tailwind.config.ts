@@ -19,7 +19,7 @@ const config: Config = {
         ink: "rgb(var(--ink-rgb) / <alpha-value>)",
         night: "#080808",
         night2: "#0d0d0d",
-        grape: "rgb(var(--toxic-rgb) / <alpha-value>)",
+        grape: "rgb(var(--gold-rgb) / <alpha-value>)",
         magenta: "#ff5577",
         azure: "rgb(var(--cyber-rgb) / <alpha-value>)",
         ember: "rgb(var(--ember-rgb) / <alpha-value>)",
@@ -59,7 +59,7 @@ const config: Config = {
         mono: ["var(--font-mono)", "monospace"]
       },
       boxShadow: {
-        gold: "var(--shadow-toxic)",
+        gold: "var(--shadow-gold)",
         danger: "var(--shadow-pink)",
         card: "0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06)"
       }

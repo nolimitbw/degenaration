@@ -588,10 +588,10 @@ function AffiliateChart({ rows, period }: { rows: AffiliateSummary["chart"]; per
     <div className="relative h-64 p-5">
       <svg viewBox="0 0 560 180" className="h-full w-full" role="img" aria-label={data.length ? `Affiliate earnings chart with ${data.length} ledger days` : "No affiliate earnings in this period"}>
         {[28, 68, 108, 148].map((y) => <line key={y} x1="20" y1={y} x2="540" y2={y} stroke="rgb(var(--edge-rgb))" strokeWidth="1" />)}
-        {data.length > 1 && <polyline points={points} fill="none" stroke="rgb(var(--toxic-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
+        {data.length > 1 && <polyline points={points} fill="none" stroke="rgb(var(--gold-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
         {data.map((row, index) => {
           const [x, y] = points.split(" ")[index].split(",");
-          return <circle key={row.day} cx={x} cy={y} r="3.5" fill="rgb(var(--void-rgb))" stroke="rgb(var(--toxic-rgb))" strokeWidth="2" />;
+          return <circle key={row.day} cx={x} cy={y} r="3.5" fill="rgb(var(--void-rgb))" stroke="rgb(var(--gold-rgb))" strokeWidth="2" />;
         })}
       </svg>
       {data.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><p className="text-sm font-semibold text-ink">No earnings in this period</p><p className="mt-1 text-[11px] text-dim">Confirmed creator commission entries will appear here.</p></div></div>}
