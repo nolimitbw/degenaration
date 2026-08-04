@@ -1,6 +1,6 @@
 # Mizar parity matrix
 
-Updated: 2026-08-01
+Updated: 2026-08-04
 
 Status rules: `PASS` requires working UI, validation, persistence, authorization,
 observable failure behavior, correct calculations, and browser evidence. `PARTIAL` names
@@ -32,7 +32,7 @@ requirement. Source inspection alone is never PASS.
 | V5 00:07-00:11 | Portfolio actions | Deposit; withdraw; bridge/account action | Self-service withdrawal; amount/reserve validation; failed tx observable | `/portfolio`; withdrawal modal | Privy signer, withdrawal prepare/confirm | PARTIAL: local-validator transaction passes; signed-in UI evidence pending |
 | V5 00:12-00:15 | Portfolio tabs | Switch Overview/Positions/Trades/Cash movements | Table/skeleton/empty/detail states remain distinct | `/portfolio` | portfolio endpoints | PARTIAL: implemented; browser proof pending |
 | I1 | Winning PnL card | Open position/trade; share; render signed positive result and QR | Server derives values by record ID; client cannot submit percentage | `/api/product/pnl-card` | authoritative ledger, QR canonical/referral URL | PARTIAL: 1600x900 renderer now uses the real DegenAration SVG mark and keeps visible/copy fallback link equal to the QR target; authenticated render evidence pending |
-| I2 | Losing PnL card | Open completed losing trade; share; render negative result and QR | Loss state uses sign/label, not color alone; same authorization | same | same | BLOCKED: open losing positions render from live authoritative value, but completed-trade entry/exit pricing lacks a durable position-to-exit execution relationship; no value is inferred |
+| I2 | Losing PnL card | Open completed losing trade; share; render negative result and QR | Loss state uses sign/label, not color alone; same authorization | same | same | PARTIAL: the durable position-to-exit relationship now exists (`app_private.position_exits`, `a428857`), so a completed trade renders average entry as basis/quantity and average exit as proceeds/quantity — division of recorded integers, no price feed, nothing inferred. `verify:exit-settlement` covers the aggregate and the ownership refusal. An exit whose proceeds the worker never reported is still refused rather than guessed. Authenticated render evidence pending (E-6) |
 | I3 | Portfolio PnL card | Select portfolio performance period; share result | Server derives period values; no arbitrary client metrics | same | reconciled equity/ledger | PARTIAL: real logo and QR/referral link parity fixed; authenticated deterministic render/browser evidence pending |
 
 ## Cross-cutting reference behavior
