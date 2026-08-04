@@ -139,3 +139,41 @@ Concretely: on `call_executions.status -> 'succeeded'`, write a `trade_execution
 None of these is reachable from inside the repository. Everything else in the spec — §5.4,
 §8 admin console, §11–13 Mizar UI, PnL cards — is internally solvable and should be executed
 in that order.
+
+---
+
+## Session close — 2026-08-04
+
+13 commits, every one passing `npm run check` (174 tests, 18 verifier suites, lint,
+visible-copy, production build).
+
+| Spec | State |
+|---|---|
+| §5.1–5.3, §5.5 | DONE, **deployed to production** |
+| §5.4 settlement writer | DONE (`d554243`) — the keystone §5.6, §8, §13 and PnL cards waited on |
+| §5.6 platform fee | Unblocked, collects 0 bps until **E-4** |
+| §8 admin console | DONE — SQL (`a72b345`), bridge (`227e902`), API (`9d6bc38`), UI (`889ca56`) |
+| §9 onboarding | DONE (`34677d9`) — 5 steps → 3 |
+| §J PnL cards | Built in `be55ced`; share coverage completed (`ea9014c`) |
+| §13 setup-order parity | Verified against source (`0ac17ec`), incl. one documented divergence |
+| §7 Discord/KOL | UI built (`67798ef`); **no data** — `raw_signals` = 0 until **E-2** |
+| §6 auto-trading | Cannot be verified without **E-3** |
+| §11–12 design system | Built across earlier commits — semantic tokens (66 files), `DegenBackdrop`, icon set, responsive audit at 4 widths |
+
+Production this session: 4 migrations applied and verified, `app-bridge` v9 → v11,
+release branch `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` pushed and **unpromoted**.
+
+### Why the remaining rows are not code problems
+
+`MIZAR_PARITY_MATRIX.md` has ~15 rows reading "implemented; authenticated save remains".
+That phrase is the whole story: the UI exists and the evidence does not. Converting those to
+verified needs **E-6** — a test Privy identity with a delegated devnet wallet. No further
+code closes them, and marking them verified without a session would be a false claim.
+
+### Order of value for the owner
+
+1. Promote `78a4af0` — closes the withdrawal incident.
+2. **E-6** test Privy identity + devnet wallet — converts ~15 parity rows to verified.
+3. **E-3** worker host + signing credentials — §6.
+4. **E-2** Discord bot deploy — §7 data.
+5. **E-4** Jupiter fee account — §5.6 revenue.
