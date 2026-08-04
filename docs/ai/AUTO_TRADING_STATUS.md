@@ -85,6 +85,23 @@ transaction signature.
 
 Writing more code changes none of these. Each is a dependency the repository cannot satisfy.
 
+## The one internally-solvable gap that remains
+
+`public.bot_ingest_discord_signal_v2` is the entry point the Discord bot calls, and **no
+verifier covers it.** Every stage downstream of it is tested — parse, fan-out, intent,
+reservation, settlement, ledger, and the end-to-end composition in
+`verify:pipeline-e2e` — but that chain starts at `parsed_signals`, one step *after* ingestion.
+
+This matters because it is the boundary where untrusted input enters the system. What is
+untested: content-hash deduplication against a replayed delivery, rejection of an unapproved
+channel, edited-message handling, parser-version recording, and the mint validation that
+decides whether a call is actionable at all.
+
+Closing it needs a fixture spanning `raw_signals`, `parsed_signals`, `call_channels`,
+`approved_groups` and the ingestion function itself. It is real work and it is not blocked on
+anything external — it is the correct next task for a fresh session, ahead of any further UI
+work.
+
 ## The honest summary
 
 The **accounting and safety layer is complete and tested**: capital is reserved before it is
