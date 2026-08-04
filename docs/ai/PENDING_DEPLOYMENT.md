@@ -102,12 +102,75 @@ A may go alone. B may go alone. C must not precede B.
 
 ## What each migration is safe about
 
-All ten are forward-safe by construction: additive nullable columns, widened rather than
+All seven are forward-safe by construction: additive nullable columns, widened rather than
 narrowed CHECKs, new tables, and functions replaced with supersets. No file rewrites an
 existing row, drops a column carrying data, or narrows an existing constraint.
 
-Rollback for every one is recorded in the file header. Rows already written by a rolled-back
-migration stay valid.
+Rows already written by a rolled-back migration stay valid.
+
+## Rollback — executable, and tested
+
+Written 2026-08-05. Until then every rollback in this package was **prose in a file header
+that had never been run**. Running them for the first time found two defects, both of the
+class this project keeps hitting: two individually correct halves never checked against
+each other.
+
+**Finding 1 — the documented rollback for #5 breaks the worker.**
+`degenaration-exit-plan-state.sql` widens `worker_open_position` from 15 to 16 arguments and
+`worker_settle_position_exit` from 8 to 9. Its header said *"Rollback: reapply those two
+files"* — but `create or replace function` at a **different arity creates an overload, not a
+replacement**. Reapplying the predecessors leaves both arities installed, after which the
+worker's own call fails with `function public.worker_open_position(...) is not unique`.
+
+That is the identical defect the forward migration was already corrected for, reintroduced
+in the direction you only ever run during an incident. Backing the change out would have
+left the worker unable to open **or** settle any position, with no further rollback to
+recover with. Reproduced by the control run in `verify:migration-rollback`.
+
+**Finding 2 — #5 would have silently killed the copy-trade path.** Its
+`worker_load_submitted_executions` was written from `degenaration-buy-settlement.sql`
+(`c6ca8d6`) without noticing that `degenaration-copy-execution-integrity.sql` (`b15e66b`,
+same day, later) had already superseded it with a `union all` over
+`app_private.copy_executions`. Applying it as drafted would have dropped that branch in
+production. `server/engine/store.js:173` dispatches on `execution.source` and settles a copy
+leg with `execution.dedupe_key`, so **every submitted copy execution would have stopped
+being returned, never settled, and held its reserved capital indefinitely — with nothing
+raising anywhere.** Fixed in the migration; the union is now a superset carrying
+`subscriber_config_snapshot` on both branches.
+
+Rollback is now executable, one script per migration:
+
+| # | Rollback script | Then reapply, in order |
+|---|---|---|
+| 1 | `supabase/rollback/01-subscriber-config-versioning.sql` | — (everything it adds is new) |
+| 2 | `supabase/rollback/02-bot-lifecycle-safety.sql` | — |
+| 3 | `supabase/rollback/03-discord-marketplace-parity.sql` | `degenaration-discord-public-profiles.sql` |
+| 4 | `supabase/rollback/04-discord-call-performance.sql` | `degenaration-discord-marketplace-parity.sql` |
+| 5 | `supabase/rollback/05-exit-plan-state.sql` | `degenaration-position-exit-state.sql`, `degenaration-buy-settlement.sql`, `degenaration-copy-execution-integrity.sql`, `degenaration-position-bot-attribution.sql` |
+| 6 | `supabase/rollback/06-admin-client-volume-periods.sql` | `degenaration-admin-client-ledger.sql` |
+| 7 | `supabase/rollback/07-withdrawal-settlement.sql` | `degenaration-withdrawal-intents.sql` |
+
+**Roll back in reverse order, 7 → 1.** `supabase/rollback/plan.mjs` is the single source of
+truth for both directions; this table is a rendering of it.
+
+Two rollbacks **refuse rather than destroy**, and say why:
+
+- #1 stops if any `subscriber_config_versions` row exists — dropping the table takes the
+  configuration snapshot an open position was opened under with it.
+- #5 stops if a position is parked above TP2 (the restored CHECK cannot express it) or
+  carries a non-empty `entry_config` (the exit plan cannot be reconstructed from the bot,
+  which may have been edited since).
+
+Both check **before** dropping anything, so a refusal leaves the schema untouched rather
+than half-reverted. Override deliberately with
+`set local degenaration.force_rollback = 'on';`.
+
+`npm run verify:migration-rollback` proves nine properties against real PostgreSQL: the
+package applies in order, is rerun-safe, rolls back to a byte-identical baseline catalog
+(functions **and** bodies, columns, indexes, triggers, constraints), re-applies cleanly
+afterwards, leaves no duplicate arity, keeps the copy branch, **executes**
+`worker_load_submitted_executions` rather than only parsing it, and — as a control — that
+the previously documented prose rollback is broken.
 
 ## What deploying them does NOT do
 

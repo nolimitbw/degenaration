@@ -2,9 +2,22 @@
 --
 -- Apply after degenaration-position-bot-attribution.sql (which this supersedes for
 -- worker_open_position) and degenaration-position-exit-state.sql.
--- Rollback: reapply those two files. The three columns added here are additive and
--- nullable/defaulted, so a rolled-back function simply stops writing them and every
--- existing row stays valid.
+-- Rollback: run supabase/rollback/05-exit-plan-state.sql, THEN reapply, in order,
+-- degenaration-position-exit-state.sql, degenaration-buy-settlement.sql,
+-- degenaration-copy-execution-integrity.sql, degenaration-position-bot-attribution.sql.
+--
+-- This header previously read "reapply those two files", and that was wrong in a way that
+-- would have broken the worker during an incident. This migration widens
+-- worker_open_position 15 -> 16 arguments and worker_settle_position_exit 8 -> 9, and
+-- `create or replace function` at a different arity creates an OVERLOAD rather than
+-- replacing. Reapplying the predecessors alone therefore leaves both arities installed and
+-- every worker call then fails with "function ... is not unique". The rollback script drops
+-- the widened signatures first, which is what makes the reapply single-valued.
+--
+-- The three columns added here are additive and nullable/defaulted, so a rolled-back
+-- function simply stops writing them and every existing row stays valid. Proven end to end
+-- by npm run verify:migration-rollback, including a control run that reproduces the broken
+-- rollback this note replaces.
 --
 -- WHAT WAS MISSING
 --
@@ -335,8 +348,20 @@ declare
 begin
   select coalesce(jsonb_agg(row_to_json(t)), '[]'::jsonb) into v_rows
   from (
-    select e.call_id, e.subscription_id, e.claim_token, e.tx_signature, e.submitted_at,
-           e.amount_sol,
+    -- BOTH branches, and the discriminator, are load-bearing. An earlier draft of this
+    -- migration carried only the call branch, because it was written from the definition in
+    -- degenaration-buy-settlement.sql (c6ca8d6) without noticing that
+    -- degenaration-copy-execution-integrity.sql (b15e66b, same day, later) had already
+    -- superseded it with this union.
+    --
+    -- Applying that draft would have dropped the copy branch in production, and the failure
+    -- would have been silent: server/engine/store.js:173 dispatches on `execution.source`
+    -- and settles a copy leg with `execution.dedupe_key`, so every submitted copy execution
+    -- would simply never be returned, never settle, and hold its reserved capital forever
+    -- with no error anywhere. Nothing would have raised.
+    select 'call'::text as source,
+           e.call_id, e.subscription_id, null::text as dedupe_key,
+           e.claim_token, e.tx_signature, e.submitted_at, e.amount_sol,
            c.mint, c.group_id,
            s.privy_user_id, s.user_pubkey, s.wallet_id, s.user_id,
            s.tp1, s.tp1_sell, s.tp2, s.tp2_sell, s.stop_loss, s.slippage_bps,
@@ -345,7 +370,21 @@ begin
     join public.calls c on c.id = e.call_id
     join public.subscriptions s on s.id = e.subscription_id
     where e.status = 'submitted'
-    order by e.submitted_at asc
+
+    union all
+
+    select 'copy'::text as source,
+           null::uuid as call_id, e.subscription_id, e.dedupe_key,
+           e.claim_token, e.tx_signature, e.submitted_at, e.amount_sol,
+           e.mint, null::uuid as group_id,
+           s.privy_user_id, s.user_pubkey, s.wallet_id, s.user_id,
+           s.tp1, s.tp1_sell, s.tp2, s.tp2_sell, s.stop_loss, s.slippage_bps,
+           e.subscriber_config_snapshot
+    from app_private.copy_executions e
+    join public.copy_subscriptions s on s.id = e.subscription_id
+    where e.status = 'submitted'
+
+    order by submitted_at asc
     limit greatest(1, least(coalesce(p_limit, 100), 500))
   ) t;
 
