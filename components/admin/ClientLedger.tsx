@@ -68,7 +68,7 @@ function RetryButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+      className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
     >
       <RefreshCw size={13} /> Try again
     </button>
@@ -125,7 +125,7 @@ export default function ClientLedger({
         <button
           type="button"
           onClick={() => void load()}
-          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+          className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
         >
           <RefreshCw size={13} className={loading ? "animate-spin" : undefined} /> Refresh
         </button>
