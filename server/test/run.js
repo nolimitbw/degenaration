@@ -1520,6 +1520,51 @@ console.log("buy settlement");
   });
 }
 
+// ---- price selection: the decision behind every baseline, PnL and TP/SL trigger ----
+//
+// getPrice is async and this runner refuses async tests, which is why this had no coverage at
+// all. The selection is now extracted so it can be checked synchronously.
+console.log("price selection");
+{
+  const { selectPrice } = require("../engine/prices");
+
+  test("picks the deepest-liquidity pair, not the first", () => {
+    assert.strictEqual(selectPrice([
+      { priceUsd: "1.00", liquidity: { usd: 500 } },
+      { priceUsd: "2.00", liquidity: { usd: 90000 } },
+      { priceUsd: "3.00", liquidity: { usd: 12 } }
+    ]), 2);
+  });
+  test("no pairs yields null, never a number", () => {
+    assert.strictEqual(selectPrice([]), null);
+    assert.strictEqual(selectPrice(undefined), null);
+    assert.strictEqual(selectPrice(null), null);
+  });
+  test("a zero or negative price is refused", () => {
+    assert.strictEqual(selectPrice([{ priceUsd: "0", liquidity: { usd: 1e6 } }]), null);
+    assert.strictEqual(selectPrice([{ priceUsd: "-5", liquidity: { usd: 1e6 } }]), null);
+  });
+  test("a non-numeric price is refused rather than coerced", () => {
+    assert.strictEqual(selectPrice([{ priceUsd: "not-a-price", liquidity: { usd: 1e6 } }]), null);
+    assert.strictEqual(selectPrice([{ liquidity: { usd: 1e6 } }]), null);
+  });
+  test("missing liquidity sorts last but is still usable when it is all there is", () => {
+    assert.strictEqual(selectPrice([{ priceUsd: "7.5" }]), 7.5);
+    assert.strictEqual(selectPrice([
+      { priceUsd: "7.5" },
+      { priceUsd: "9.0", liquidity: { usd: 1000 } }
+    ]), 9);
+  });
+  test("the caller's array is not mutated by sorting", () => {
+    const pairs = [
+      { priceUsd: "1.0", liquidity: { usd: 10 } },
+      { priceUsd: "2.0", liquidity: { usd: 20 } }
+    ];
+    selectPrice(pairs);
+    assert.strictEqual(pairs[0].priceUsd, "1.0", "sort must not reorder the input in place");
+  });
+}
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
