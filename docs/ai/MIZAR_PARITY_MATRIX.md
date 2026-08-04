@@ -107,3 +107,33 @@ Each item checked in code rather than asserted from memory.
 **Conclusion.** §11 is implemented. What is missing across this file is not interface code —
 it is browser evidence from a signed-in session (**E-6**). Writing more UI does not change a
 single row here; obtaining a test identity changes about fifteen.
+
+## Correction: "authenticated save remains" understates what is verified
+
+Fifteen rows above end with some form of *"authenticated save remains"* or *"browser proof
+pending"*, which reads as though the save path is unverified. It is not. `npm run
+verify:bot-lifecycle` runs against real PostgreSQL and already passes:
+
+| Property | What it proves |
+|---|---|
+| `createHydrateEdit` | a bot saves, reloads with its values, and edits persist |
+| `configurationVersions` (6) | each edit creates an immutable version rather than mutating |
+| `ownerIsolation` | another user cannot read or modify the bot |
+| `pauseResumeArchive` | the full lifecycle transitions |
+| `archivedTerminal` | an archived bot cannot be restored |
+| `entrySnapshotRetention` | an open position keeps the config it was opened under |
+| `discordSourceUniqueness` | one live Discord bot per source per owner |
+| `kolDuplicate` | duplication respects the publication limit |
+| `rpcAuthorization` | anon and authenticated are denied; service_role is not |
+| `ownerActivityJournal` | the owner-only journal returns their bot and no one else's |
+
+So the accurate split is:
+
+- **Server-side save: VERIFIED.** The RPC, versioning, authorization and persistence are
+  covered and green.
+- **Browser interaction: UNVERIFIED.** Whether the form posts what the user typed, and whether
+  the confirmation dialog gates it, needs a signed-in session (**E-6**).
+
+Those rows should be read as "the click is unproven", not "the save is unproven". The
+distinction matters: a reader deciding whether to launch needs to know the persistence layer
+is tested, and that what remains is interaction evidence rather than correctness evidence.
