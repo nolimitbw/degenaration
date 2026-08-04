@@ -141,3 +141,37 @@ deployment is a defect to investigate, not progress.**
 | A financial table gained a row | Stop. Do not continue the walk. Capture the row and its `created_at` before anything else |
 | `/api/build` reports `29291c9` | The release did not take; redeploy Part A |
 | Wallet address does not match Privy's | Release-blocking. Roll back Part A to `29291c9` |
+
+---
+
+# Execution record — 2026-08-04, all three parts deployed
+
+| Part | Action | Result |
+|---|---|---|
+| A | `78a4af0` pushed to `claude/degenaration-launch-remediation`, then deployed from a clean worktree of that exact commit | `degenaration-b775mrq85`, READY, serving the canonical domain |
+| B | Ten migrations applied in the documented order | 9/9 expected functions present; settlement carries all three markers of the final version |
+| C | `app-bridge` v11 → v12, `verify_jwt: false` | ACTIVE; three new operations answer 401, an unknown operation answers 400 |
+
+**A's Git integration finding.** The push created no deployment — Vercel's newest build was
+four days old. Production is promoted manually rather than tracked from this branch, so a push
+alone changes nothing. The deployment was created from a detached worktree at `78a4af0` so the
+build contains that commit and nothing after it. Evidence it is exactly that tree:
+`/api/build` and `/api/product/wallet/register` began answering where they had 404'd, while
+`/api/admin/clients` still 404s — that route exists only in later, unapproved commits.
+
+`/api/build` reports `commit: null` because a CLI deployment carries no Git metadata. The SHA
+is established by construction instead: the worktree was checked out at `78a4af0`.
+
+**Row changes across all three parts:** `trading_wallets` 0 → 1. A real user signed in two
+minutes after A went live and their wallet persisted — the defect A exists to fix, working.
+Every other table unchanged: executions, positions, exits, commissions, snapshots,
+withdrawals and cash movements all still 0, as they must be until E-3 and E-2.
+
+**No transaction was signed or broadcast. No user balance was touched.**
+
+## Known gap after this deployment
+
+The deployed application is `78a4af0`, which does **not** contain the admin Clients tab, the
+client detail view, the performance refresh button, or the retired-route redirects. Those live
+in later commits that were not part of this approval. B and C make their data and bridge
+layers ready; shipping the UI needs a further application release.
