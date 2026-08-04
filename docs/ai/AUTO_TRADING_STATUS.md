@@ -30,9 +30,14 @@ trade_intents
 call_executions            (queue: claim → submit → settle)
   →  settlement writes the ledger                          [d554243]
 trade_executions → positions → position_lots
-  →  fee accrual triggers fire on insert
+  →  a sell consumes lots FIFO and realizes PnL            [a428857]
+position_exits → positions closed, realized_pnl_lamports
+  →  creator and referrer resolved and snapshotted         [7480b4c]
 commission_ledger_entries
   ⊘  0 bps collected — PLATFORM_FEE_ACCOUNT unset (E-4)
+performance_snapshots
+  →  recomputed from the ledger, on demand                 [cbeabe5]
+Portfolio · My Bots · KOL cards · Discord 1D/7D/30D
 ```
 
 Every arrow is code that exists and is covered by a verifier. Every `⊘` is infrastructure.
@@ -50,6 +55,9 @@ Every arrow is code that exists and is covered by a verifier. Every `⊘` is inf
 | Quote / simulate / submit | code exists, **never executed** | needs E-3 |
 | Confirmation handling | code exists, **never executed** | needs E-3 |
 | Settlement → positions/lots | **built this session** | `verify:settlement-writer`, 8 properties |
+| Exit → lot consumption, realized PnL | **built this session** — a sell never closed anything | `verify:exit-settlement`, 10 properties |
+| Creator / referral resolution | **built this session** — the snapshots were hardcoded 0 | `verify:creator-referral`, 11 properties |
+| Performance snapshots | **built this session** — four surfaces read a table with no writer | `verify:performance-snapshots`, 9 properties |
 | Fee accrual | triggers correct, **collect 0 bps** | E-4 |
 | Exit handling | code exists, **never executed** | needs E-3 |
 | Duplicate-trade prevention | works | unique `entry_sig`; `worker_open_position` idempotent |
@@ -60,6 +68,9 @@ Every arrow is code that exists and is covered by a verifier. Every `⊘` is inf
 Three were missing writers — code that read a table nothing ever wrote. Each would have
 failed silently in production rather than erroring.
 
+0. **`app_private.performance_snapshots` had no writer.** Portfolio performance, the My Bots
+   performance column, the KOL cards and the Discord marketplace 1D/7D/30D figures all
+   left-join it, so a missing row rendered as a dash rather than an error. Fixed `cbeabe5`.
 1. **`trade_executions`, `positions`, `position_lots` had no writer.** The 200 bps fee, creator
    share and referral apparatus is correct and was attached to a table that never received a
    row, so no fee could ever accrue and Portfolio was structurally empty. Fixed `d554243`.
@@ -85,28 +96,25 @@ transaction signature.
 
 Writing more code changes none of these. Each is a dependency the repository cannot satisfy.
 
-## The one internally-solvable gap that remains
+## Internally-solvable gaps: what has been closed
 
-`public.bot_ingest_discord_signal_v2` is the entry point the Discord bot calls, and **no
-verifier covers it.** Every stage downstream of it is tested — parse, fan-out, intent,
-reservation, settlement, ledger, and the end-to-end composition in
-`verify:pipeline-e2e` — but that chain starts at `parsed_signals`, one step *after* ingestion.
+Each of these was named here as remaining work and has since been done, in order:
 
-This matters because it is the boundary where untrusted input enters the system. What is
-untested: content-hash deduplication against a replayed delivery, rejection of an unapproved
-channel, edited-message handling, parser-version recording, and the mint validation that
-decides whether a call is actionable at all.
+| Gap | Closed by |
+|---|---|
+| `bot_ingest_discord_signal_v2` untested at the trust boundary | `verify:discord-ingestion` |
+| The queue had nowhere to report slot, fill, price, slippage, impact | `degenaration-execution-record-fields.sql` |
+| A sell settled but never consumed a lot or realized PnL | `a428857`, `verify:exit-settlement` |
+| Creator and referral snapshots were hardcoded 0 | `7480b4c`, `verify:creator-referral` |
+| `performance_snapshots` had no writer | `cbeabe5`, `verify:performance-snapshots` |
 
-Closing it needs a fixture spanning `raw_signals`, `parsed_signals`, `call_channels`,
-`approved_groups` and the ingestion function itself. It is real work and it is not blocked on
-anything external — it is the correct next task for a fresh session, ahead of any further UI
-work.
+What is left needs a key, a host, or a signed-in session — see the table above.
 
 ## Why §5.4's execution record is partly empty — demonstrated, not asserted
 
 §5.4 requires an execution to record slot, executed quantity, average price, slippage and
-price impact. The settlement writer populates none of them, and the reason is that the queue
-row it settles from does not contain them. Read back from production 2026-08-04:
+price impact. The queue row settlement reads did not contain a single one of them. Read back
+from production 2026-08-04:
 
 ```
 app_private.call_executions:
@@ -121,8 +129,12 @@ upstream produces one.
 
 Every one of those five figures is known only to the code that submits the swap and reads the
 confirmed transaction back — the worker. So they cannot be backfilled by a database trigger
-from a queue row that never carried them. Populating them means the worker reporting them at
-settle time, which requires the worker to exist (**E-3**).
+from a queue row that never carried them. `degenaration-execution-record-fields.sql` adds the
+columns and settlement carries them through, and
+`degenaration-exit-settlement.sql` adds `proceeds_lamports` for the same reason on the sell
+side. **Nothing writes any of them yet**, because writing them means the worker reporting at
+settle time, which requires the worker to exist (**E-3**). The columns exist so that when it
+does, it has somewhere to put what it measured.
 
 The settlement writer therefore records what it can prove and leaves the rest null, rather
 than writing a plausible-looking zero. A `slippage: 0` that nobody measured is worse than an
