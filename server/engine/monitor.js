@@ -66,6 +66,19 @@ function normalizePosition(row) {
     // whole, and it is correct for any position that has not yet taken profit.
     originalAmountRaw: BigInt(row.original_amount_raw ?? row.amount_raw ?? 0),
     settings: {
+      // UNITS. These two columns do not use the same one, and conflating them fires every
+      // take-profit on the first tick.
+      //
+      //   tp1 / tp2   a MULTIPLE of entry. app/api/user/subscriptions/route.ts validates
+      //               1.01–1000 and rejects tp2 < tp1; the SQL default is 2, meaning 2x.
+      //   stop_loss   a PERCENTAGE drop from entry. Validated 1–100; default 40 = -40%.
+      //
+      // This code previously read `mult >= tp1 / 100`, which is right for a percentage and
+      // wrong by a factor of 100 for a multiple. With the default tp1 = 2 it triggered at
+      // 2% of entry price — so TP1 and TP2 both fired on the first tick and 75% of every
+      // position was sold immediately at whatever the market was. The unit tests did not
+      // catch it because their fixture used 200 and 500, the percentage convention, which
+      // no write path in the product produces.
       tp1: row.tp1 == null ? null : Number(row.tp1),
       tp1sell: Number(row.tp1_sell ?? 0),
       tp2: row.tp2 == null ? null : Number(row.tp2),
@@ -112,13 +125,23 @@ function decideExit({ position, price }) {
     return { kind: "SL", amountRaw: position.amountRaw, mult };
   }
   const share = (percent) => takeProfitShare(position.originalAmountRaw, position.amountRaw, percent);
-  if (!filled.tp1 && settings.tp1 != null && mult >= settings.tp1 / 100) {
+  if (!filled.tp1 && isProfitTarget(settings.tp1) && mult >= settings.tp1) {
     return { kind: "TP1", amountRaw: share(settings.tp1sell), mult };
   }
-  if (!filled.tp2 && settings.tp2 != null && mult >= settings.tp2 / 100) {
+  if (!filled.tp2 && isProfitTarget(settings.tp2) && mult >= settings.tp2) {
     return { kind: "TP2", amountRaw: share(settings.tp2sell), mult };
   }
   return null;
+}
+
+/**
+ * A take-profit target must be above entry. This is the fail-safe, not a formality: any
+ * target at or below 1x fires the instant the position opens, which is never what a
+ * take-profit means. A unit error, a zero default or a bad write all land here, and the
+ * position is left alone instead of being sold at entry.
+ */
+function isProfitTarget(target) {
+  return Number.isFinite(target) && target > 1;
 }
 
 /**
@@ -319,4 +342,4 @@ function startMonitor(deps, pollMs = POLL_MS) {
   tick();
 }
 
-module.exports = { startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition, MAX_EXIT_ATTEMPTS };
+module.exports = { startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition, isProfitTarget, MAX_EXIT_ATTEMPTS };

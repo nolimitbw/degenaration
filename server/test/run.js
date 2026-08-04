@@ -1480,10 +1480,15 @@ console.log("position exit state machine");
 {
   const { decideExit, resolveExit, takeProfitShare, normalizePosition, MAX_EXIT_ATTEMPTS } = require("../engine/monitor");
 
+  // Units match what the write path actually persists, not what the previous fixture
+  // assumed. app/api/user/subscriptions/route.ts validates tp1/tp2 in 1.01–1000 (a
+  // MULTIPLE of entry) and stop_loss in 1–100 (a PERCENTAGE drop). The old fixture used
+  // tp1: 200 / tp2: 500, the percentage convention, which nothing in the product writes —
+  // so the suite was green while the engine sold 75% of every position on its first tick.
   const position = (over = {}) => normalizePosition({
     id: "p1", user_pubkey: "USER", wallet_id: "W", mint: "MINT",
     entry_price_usd: 1, amount_raw: 1000, original_amount_raw: 1000,
-    tp1: 200, tp1_sell: 50, tp2: 500, tp2_sell: 50, stop_loss: 20,
+    tp1: 2, tp1_sell: 50, tp2: 5, tp2_sell: 50, stop_loss: 20,
     slippage_bps: 300, filled_tp1: false, filled_tp2: false, status: "open",
     exit_attempts: 0, ...over
   });
@@ -1515,6 +1520,27 @@ console.log("position exit state machine");
     const d = decideExit({ position: afterTp1, price: 5 });
     assert.strictEqual(d.kind, "TP2");
     assert.strictEqual(d.amountRaw, BigInt(500));
+  });
+
+  test("a take-profit does NOT fire at entry price", () => {
+    // The regression that mattered: with tp1 = 2 read as a percentage, `mult >= 0.02` was
+    // true at every price above 2% of entry, so the position opened and was immediately
+    // 75% liquidated. Nothing may fire while the price sits at entry.
+    assert.strictEqual(decideExit({ position: position(), price: 1 }), null);
+    assert.strictEqual(decideExit({ position: position(), price: 1.99 }), null);
+  });
+
+  test("take-profit targets are multiples of entry", () => {
+    const atTwoX = decideExit({ position: position(), price: 2 });
+    assert.strictEqual(atTwoX.kind, "TP1");
+    const atFiveX = decideExit({ position: position({ filled_tp1: true, amount_raw: 500 }), price: 5 });
+    assert.strictEqual(atFiveX.kind, "TP2");
+  });
+
+  test("a target at or below entry is refused rather than fired", () => {
+    // Fail-safe for a unit error, a zero default, or a bad write.
+    assert.strictEqual(decideExit({ position: position({ tp1: 1, tp2: 1 }), price: 100 }), null);
+    assert.strictEqual(decideExit({ position: position({ tp1: 0, tp2: 0 }), price: 100 }), null);
   });
 
   test("a take-profit share can never exceed what is left", () => {
