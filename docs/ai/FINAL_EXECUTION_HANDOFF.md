@@ -9,8 +9,8 @@ The one file to read before touching anything. Written 2026-08-04.
 |---|---|
 | Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `1381464` |
-| Suite | `npm run check` exit 0 — 180 tests, 24 verifier suites |
+| Commit | `7c4397a` |
+| Suite | `npm run check` exit 0 — 180 tests, 24 verifier suites, 72 bridge operations |
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
 | Deployed edge functions | `app-bridge` **v11**, `bot-bridge` |
