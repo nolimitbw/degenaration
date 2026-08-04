@@ -1617,6 +1617,108 @@ console.log("position exit state machine");
     assert.match(s.error, /needs attention/);
   });
 
+  // --- the configured exit plan: multi-level, trailing TP, trailing stop ---
+  //
+  // BotBuilder collects a LIST of take-profit levels each with its own trailing
+  // retracement, plus a trailing stop. public.positions carried five scalars and the
+  // monitor read only those, so none of it did anything: the controls persisted, reloaded,
+  // and changed no behaviour.
+  const planned = (config, over = {}) => normalizePosition({
+    id: "p2", user_pubkey: "USER", wallet_id: "W", mint: "MINT",
+    entry_price_usd: 1, amount_raw: 1000, original_amount_raw: 1000,
+    slippage_bps: 300, status: "open", exit_attempts: 0,
+    entry_config: config, filled_levels: [], ...over
+  });
+  // targetBps is basis points of GAIN: 10000 = +100% = 2x, matching legacy tp1 = 2.
+  const threeLevels = {
+    takeProfit: { levels: [
+      { targetBps: 10000, sellBps: 3000, trailingBps: 0 },
+      { targetBps: 40000, sellBps: 3000, trailingBps: 0 },
+      { targetBps: 90000, sellBps: 4000, trailingBps: 0 }
+    ] },
+    stopLoss: { stopBps: 4000, trailing: false }
+  };
+
+  test("a third take-profit level is honoured", () => {
+    const afterTwo = planned(threeLevels, { amount_raw: 400, filled_levels: [0, 1] });
+    const d = decideExit({ position: afterTwo, price: 10 });
+    assert.strictEqual(d.kind, "TP3");
+    assert.strictEqual(d.amountRaw, BigInt(400));
+  });
+
+  test("levels fire lowest-target first, one per tick", () => {
+    // Price is past all three at once. Selling them together would oversell against one
+    // balance, which is the invariant the module exists to hold.
+    const d = decideExit({ position: planned(threeLevels), price: 10 });
+    assert.strictEqual(d.kind, "TP1");
+    assert.strictEqual(d.amountRaw, BigInt(300));
+  });
+
+  test("basis-point targets match the legacy multiples they replace", () => {
+    assert.strictEqual(decideExit({ position: planned(threeLevels), price: 1.99 }), null);
+    assert.strictEqual(decideExit({ position: planned(threeLevels), price: 2 }).kind, "TP1");
+  });
+
+  test("a trailing take-profit arms at the target and sells on the retracement", () => {
+    const trailing = {
+      takeProfit: { levels: [{ targetBps: 10000, sellBps: 5000, trailingBps: 1000 }] },
+      stopLoss: { stopBps: 9000, trailing: false }
+    };
+    // Target reached, still climbing: hold. This is the whole point of trailing, and the
+    // previous engine sold here.
+    assert.strictEqual(decideExit({ position: planned(trailing, { peak_price_usd: 3 }), price: 3 }), null);
+    // Given back 10% from a 3x peak: sell.
+    const d = decideExit({ position: planned(trailing, { peak_price_usd: 3 }), price: 2.7 });
+    assert.strictEqual(d.kind, "TP1");
+    // Never reached the target at all: nothing arms, so nothing sells.
+    assert.strictEqual(decideExit({ position: planned(trailing, { peak_price_usd: 1.5 }), price: 1.35 }), null);
+  });
+
+  test("a trailing stop rides the peak and can only tighten", () => {
+    const trailingStop = {
+      takeProfit: { levels: [{ targetBps: 900000, sellBps: 10000, trailingBps: 0 }] },
+      stopLoss: { stopBps: 2000, trailing: true }
+    };
+    // Peak 4x, 20% trailing stop -> exits at 3.2x, far above entry.
+    assert.strictEqual(decideExit({ position: planned(trailingStop, { peak_price_usd: 4 }), price: 3.3 }), null);
+    assert.strictEqual(decideExit({ position: planned(trailingStop, { peak_price_usd: 4 }), price: 3.2 }).kind, "SL");
+    // With no gain the peak floors at entry, so a trailing stop is exactly a fixed one and
+    // never looser — the property that makes enabling it safe.
+    assert.strictEqual(decideExit({ position: planned(trailingStop, { peak_price_usd: 1 }), price: 0.81 }), null);
+    assert.strictEqual(decideExit({ position: planned(trailingStop, { peak_price_usd: 1 }), price: 0.8 }).kind, "SL");
+  });
+
+  test("the persisted peak is what lets a retracement sell after a restart", () => {
+    const trailing = {
+      takeProfit: { levels: [{ targetBps: 10000, sellBps: 5000, trailingBps: 500 }] },
+      stopLoss: { stopBps: 9000, trailing: false }
+    };
+    // At a new high nothing sells — that is trailing working, not trailing failing.
+    assert.strictEqual(decideExit({ position: planned(trailing, { peak_price_usd: 1 }), price: 2 }), null);
+    // With the 2x high persisted, a 5% giveback sells.
+    assert.strictEqual(decideExit({ position: planned(trailing, { peak_price_usd: 2 }), price: 1.9 }).kind, "TP1");
+    // Without it — the peak lost to a restart — the same price looks like it never reached
+    // the target, and the exit the user configured silently never fires. This is why the
+    // high-water mark is written to the row rather than held in worker memory.
+    assert.strictEqual(decideExit({ position: planned(trailing, { peak_price_usd: 1 }), price: 1.9 }), null);
+  });
+
+  test("the configured plan wins over the legacy columns", () => {
+    const both = planned(threeLevels, { tp1: 1.1, tp1_sell: 100, stop_loss: 5 });
+    const d = decideExit({ position: both, price: 2 });
+    assert.strictEqual(d.kind, "TP1");
+    assert.strictEqual(d.amountRaw, BigInt(300), "30% from the plan, not 100% from the legacy column");
+  });
+
+  test("fill state keeps the legacy booleans consistent with the level list", () => {
+    const { fillState } = require("../engine/monitor");
+    const p = planned(threeLevels, { filled_levels: [0] });
+    const after = fillState(p, "TP3");
+    assert.deepStrictEqual(after.filledLevels, [0, 2]);
+    assert.strictEqual(after.filledTp1, true);
+    assert.strictEqual(after.filledTp2, false, "a third level must not silently mark the second");
+  });
+
   test("a closed position fires nothing", () => {
     assert.strictEqual(decideExit({ position: position({ status: "closed" }), price: 0.01 }), null);
   });

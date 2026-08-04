@@ -50,10 +50,81 @@ function takeProfitShare(original, remaining, percent) {
   return wanted < rem ? wanted : rem;
 }
 
+/**
+ * The exit plan a position was opened under, in one unambiguous shape.
+ *
+ * Two sources, in priority order:
+ *
+ *   entry_config   what BotBuilder collected — a LIST of take-profit levels each with its
+ *                  own trailing retracement, and a stop that may itself trail. Units are
+ *                  basis points of GAIN for a target (10000 = +100% = 2x) and basis points
+ *                  of the original position for a sell (5000 = 50%), which is what the
+ *                  builder's own defaults mean: targetBps 10000 / 40000 correspond exactly
+ *                  to the legacy tp1 = 2 and tp2 = 5.
+ *   the flat tp1/tp2/stop_loss columns, for a position opened before entry_config existed.
+ *
+ * Everything downstream reads `plan` and never the raw columns, so there is one place
+ * where a unit is interpreted.
+ *
+ * UNITS OF THE LEGACY COLUMNS. They do not share one, and conflating them fired every
+ * take-profit on the first tick:
+ *
+ *   tp1 / tp2   a MULTIPLE of entry. app/api/user/subscriptions/route.ts validates
+ *               1.01–1000 and rejects tp2 < tp1; the SQL default is 2, meaning 2x.
+ *   stop_loss   a PERCENTAGE drop from entry. Validated 1–100; default 40 = -40%.
+ */
+function exitPlan(row) {
+  const config = row.entry_config && typeof row.entry_config === "object" ? row.entry_config : {};
+  const configured = Array.isArray(config.takeProfit?.levels) ? config.takeProfit.levels : null;
+
+  if (configured && configured.length) {
+    return {
+      levels: configured
+        .map((level, index) => ({
+          index,
+          target: 1 + Number(level?.targetBps ?? 0) / 10000,
+          sellPercent: Number(level?.sellBps ?? 0) / 100,
+          trailingBps: Number(level?.trailingBps ?? 0)
+        }))
+        .filter((level) => isProfitTarget(level.target))
+        .sort((a, b) => a.target - b.target),
+      stop: {
+        dropFraction: Number(config.stopLoss?.stopBps ?? 0) / 10000,
+        trailing: Boolean(config.stopLoss?.trailing)
+      }
+    };
+  }
+
+  const legacy = [
+    { index: 0, target: row.tp1 == null ? null : Number(row.tp1), sellPercent: Number(row.tp1_sell ?? 0), trailingBps: 0 },
+    { index: 1, target: row.tp2 == null ? null : Number(row.tp2), sellPercent: Number(row.tp2_sell ?? 0), trailingBps: 0 }
+  ].filter((level) => isProfitTarget(level.target));
+  return {
+    levels: legacy.sort((a, b) => a.target - b.target),
+    stop: {
+      dropFraction: row.stop_loss == null ? 0 : Number(row.stop_loss) / 100,
+      trailing: false
+    }
+  };
+}
+
 /** Normalise a persisted row into the shape the decision logic reads. */
 function normalizePosition(row) {
   const amount = BigInt(row.amount_raw ?? 0);
+  const entry = Number(row.entry_price_usd);
+  const peakPrice = Number(row.peak_price_usd ?? row.entry_price_usd);
+  const legacyFilled = new Set();
+  if (row.filled_tp1) legacyFilled.add(0);
+  if (row.filled_tp2) legacyFilled.add(1);
+  const recorded = Array.isArray(row.filled_levels) ? row.filled_levels.map(Number) : [];
   return {
+    plan: exitPlan(row),
+    // Floor at 1: a position's peak is at worst its own entry, so a trailing stop starts
+    // exactly where a fixed stop would and only ever tightens.
+    peakMultiple: Number.isFinite(peakPrice) && Number.isFinite(entry) && entry > 0
+      ? Math.max(1, peakPrice / entry)
+      : 1,
+    filledLevels: new Set([...legacyFilled, ...recorded.filter(Number.isFinite)]),
     id: row.id,
     userPubkey: row.user_pubkey,
     walletId: row.wallet_id,
@@ -65,28 +136,10 @@ function normalizePosition(row) {
     // Pre-existing rows may predate the column; the current amount is the best available
     // whole, and it is correct for any position that has not yet taken profit.
     originalAmountRaw: BigInt(row.original_amount_raw ?? row.amount_raw ?? 0),
-    settings: {
-      // UNITS. These two columns do not use the same one, and conflating them fires every
-      // take-profit on the first tick.
-      //
-      //   tp1 / tp2   a MULTIPLE of entry. app/api/user/subscriptions/route.ts validates
-      //               1.01–1000 and rejects tp2 < tp1; the SQL default is 2, meaning 2x.
-      //   stop_loss   a PERCENTAGE drop from entry. Validated 1–100; default 40 = -40%.
-      //
-      // This code previously read `mult >= tp1 / 100`, which is right for a percentage and
-      // wrong by a factor of 100 for a multiple. With the default tp1 = 2 it triggered at
-      // 2% of entry price — so TP1 and TP2 both fired on the first tick and 75% of every
-      // position was sold immediately at whatever the market was. The unit tests did not
-      // catch it because their fixture used 200 and 500, the percentage convention, which
-      // no write path in the product produces.
-      tp1: row.tp1 == null ? null : Number(row.tp1),
-      tp1sell: Number(row.tp1_sell ?? 0),
-      tp2: row.tp2 == null ? null : Number(row.tp2),
-      tp2sell: Number(row.tp2_sell ?? 0),
-      sl: row.stop_loss == null ? null : Number(row.stop_loss),
-      slippageBps: Number(row.slippage_bps ?? 300)
-    },
-    filled: { tp1: Boolean(row.filled_tp1), tp2: Boolean(row.filled_tp2) },
+    // Targets and stops live in `plan`, which is the single place a unit is interpreted.
+    // The raw columns are deliberately not carried through: they are ambiguous on their
+    // own, and reading one directly is how the 100x take-profit error happened.
+    settings: { slippageBps: Number(row.slippage_bps ?? 300) },
     status: row.status || "open",
     pending: row.pending_exit_sig
       ? {
@@ -118,20 +171,70 @@ function decideExit({ position, price }) {
   if (position.amountRaw <= BigInt(0)) return null;
 
   const mult = price / position.entryPriceUsd;
-  const { settings, filled } = position;
+  const { plan } = position;
+  // The peak includes this tick: a price that has just made a new high must be usable for
+  // trailing immediately, not only after the write that persists it lands.
+  const peak = Math.max(position.peakMultiple, mult);
 
   // Stop-loss first: it is the risk control, and it exits the whole remaining position.
-  if (settings.sl != null && mult <= 1 - settings.sl / 100) {
-    return { kind: "SL", amountRaw: position.amountRaw, mult };
+  //
+  // A trailing stop rides the high-water mark; a fixed one is measured from entry. Because
+  // the peak is floored at 1, a trailing stop can only ever be tighter than the fixed one
+  // it replaces, never looser.
+  if (plan.stop.dropFraction > 0) {
+    const reference = plan.stop.trailing ? peak : 1;
+    if (mult <= reference * (1 - plan.stop.dropFraction)) {
+      return { kind: "SL", amountRaw: position.amountRaw, mult };
+    }
   }
+
   const share = (percent) => takeProfitShare(position.originalAmountRaw, position.amountRaw, percent);
-  if (!filled.tp1 && isProfitTarget(settings.tp1) && mult >= settings.tp1) {
-    return { kind: "TP1", amountRaw: share(settings.tp1sell), mult };
-  }
-  if (!filled.tp2 && isProfitTarget(settings.tp2) && mult >= settings.tp2) {
-    return { kind: "TP2", amountRaw: share(settings.tp2sell), mult };
+  for (const level of plan.levels) {
+    if (position.filledLevels.has(level.index)) continue;
+    if (peak < level.target) continue;
+
+    // A trailing level does not sell when the target is reached — it arms there and sells
+    // once the price gives back `trailingBps` from the high. Arming needs no stored flag:
+    // the persisted peak already records that the target was met, so an armed level stays
+    // armed across a worker restart.
+    if (level.trailingBps > 0 && mult > peak * (1 - level.trailingBps / 10000)) continue;
+
+    const amountRaw = share(level.sellPercent);
+    if (amountRaw <= BigInt(0)) continue;
+    return { kind: levelKind(level.index), amountRaw, mult, levelIndex: level.index };
   }
   return null;
+}
+
+/**
+ * TP1 and TP2 are persisted as-is because filled_tp1 / filled_tp2 are real columns and
+ * settlement still writes them. Beyond the second level the kind is positional.
+ */
+function levelKind(index) {
+  return index === 0 ? "TP1" : index === 1 ? "TP2" : `TP${index + 1}`;
+}
+
+function levelIndexOf(kind) {
+  const match = /^TP(\d+)$/.exec(String(kind || ""));
+  return match ? Number(match[1]) - 1 : null;
+}
+
+/**
+ * The fill state to persist, optionally after taking `kind`.
+ *
+ * Returns the generalised list AND the two legacy booleans, because filled_tp1 and
+ * filled_tp2 are real columns that settlement still writes. Deriving both from one set
+ * keeps a third level from silently un-marking the first two.
+ */
+function fillState(position, kind) {
+  const filled = new Set(position.filledLevels);
+  const index = levelIndexOf(kind);
+  if (index !== null) filled.add(index);
+  return {
+    filledLevels: [...filled].sort((a, b) => a - b),
+    filledTp1: filled.has(0),
+    filledTp2: filled.has(1)
+  };
 }
 
 /**
@@ -165,8 +268,7 @@ function resolveExit({ position, verdict }) {
       // A stop-loss exits the whole position; a take-profit closes it only if it happened
       // to take the last token.
       status: pending.kind === "SL" || left === BigInt(0) ? "closed" : "open",
-      filledTp1: position.filled.tp1 || pending.kind === "TP1",
-      filledTp2: position.filled.tp2 || pending.kind === "TP2",
+      ...fillState(position, pending.kind),
       attempts: 0,
       error: null
     };
@@ -181,8 +283,7 @@ function resolveExit({ position, verdict }) {
     kind: pending.kind,
     amountRaw: position.amountRaw.toString(),
     status: exhausted ? "error" : "open",
-    filledTp1: position.filled.tp1,
-    filledTp2: position.filled.tp2,
+    ...fillState(position, null),
     attempts,
     error: `${pending.kind} exit ${verdict}${exhausted ? " — attempts exhausted, needs attention" : ""}`
   };
@@ -195,6 +296,7 @@ function resolveExit({ position, verdict }) {
  *   claimExit(id, kind, amountRaw)               -> { ok, claim_token } atomic, one winner
  *   settleExit(id, claimToken, settlement)       -> persist a terminal transition
  *   recordPendingExit(id, claimToken, sig)       -> store the signature before confirming
+ *   recordPeak(id, priceUsd)                     -> raise the high-water mark (monotonic)
  *   signAndSend(tx, walletId)                    -> submits, returns a signature
  *   confirmSignature(sig, { submittedAtMs })     -> { verdict }
  *   recordTrade(evt)                             -> ledger row for the realised sell
@@ -202,7 +304,10 @@ function resolveExit({ position, verdict }) {
 function startMonitor(deps, pollMs = POLL_MS) {
   const {
     loadOpenPositions, getPrice, claimExit, settleExit, recordPendingExit,
-    signAndSend, confirmSignature, recordTrade = async () => {}, onEvent = () => {}
+    signAndSend, confirmSignature, recordTrade = async () => {},
+    // Optional so an older caller keeps working: without it the peak simply is not
+    // persisted, and trailing degrades to measuring from this process's own high.
+    recordPeak = async () => {}, onEvent = () => {}
   } = deps;
 
   /** Resolve an already-submitted exit. Never fires a transaction. */
@@ -251,6 +356,22 @@ function startMonitor(deps, pollMs = POLL_MS) {
   const evaluate = async (position) => {
     const price = await getPrice(position.mint);
     if (!price) return;
+
+    // Persist a new high BEFORE deciding. Trailing measures from this mark, and holding it
+    // only in process memory would re-arm from a lower peak after any restart — selling
+    // later than the user asked, which is the direction that costs them. The write is
+    // monotonic in SQL and only happens on an actual new high, so a flat or falling market
+    // costs nothing.
+    if (price > position.peakMultiple * position.entryPriceUsd) {
+      try {
+        await recordPeak(position.id, price);
+      } catch (e) {
+        // A failed write is not a reason to skip the tick: `decideExit` floors the peak at
+        // the current price anyway, so trailing still behaves correctly for this decision.
+        onEvent({ type: "PEAK_ERROR", position: position.id, error: e.message });
+      }
+    }
+
     const decision = decideExit({ position, price });
     if (!decision) return;
 
@@ -261,8 +382,7 @@ function startMonitor(deps, pollMs = POLL_MS) {
       if (!claim?.ok) return;
       await settleExit(position.id, claim.claim_token, {
         outcome: "confirmed", kind: decision.kind, amountRaw: position.amountRaw.toString(),
-        status: "open", filledTp1: position.filled.tp1 || decision.kind === "TP1",
-        filledTp2: position.filled.tp2 || decision.kind === "TP2", attempts: 0, error: null
+        status: "open", ...fillState(position, decision.kind), attempts: 0, error: null
       });
       onEvent({ type: "EXIT_EMPTY", position: position.id, kind: decision.kind });
       return;
@@ -304,7 +424,7 @@ function startMonitor(deps, pollMs = POLL_MS) {
         await settleExit(position.id, claim.claim_token, {
           outcome: "failed", kind: decision.kind, amountRaw: position.amountRaw.toString(),
           status: position.attempts + 1 >= MAX_EXIT_ATTEMPTS ? "error" : "open",
-          filledTp1: position.filled.tp1, filledTp2: position.filled.tp2,
+          ...fillState(position, null),
           attempts: position.attempts + 1, error: e.message
         });
       } catch (releaseError) {
@@ -342,4 +462,7 @@ function startMonitor(deps, pollMs = POLL_MS) {
   tick();
 }
 
-module.exports = { startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition, isProfitTarget, MAX_EXIT_ATTEMPTS };
+module.exports = {
+  startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition,
+  isProfitTarget, exitPlan, fillState, MAX_EXIT_ATTEMPTS
+};

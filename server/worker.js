@@ -158,7 +158,7 @@ if (SIGNING_READY) {
   startMonitor({
     loadOpenPositions: store.loadOpenPositions, getPrice,
     claimExit: store.claimPositionExit, settleExit: store.settlePositionExit,
-    recordPendingExit: store.recordPositionExitSig,
+    recordPendingExit: store.recordPositionExitSig, recordPeak: store.recordPositionPeak,
     signAndSend, confirmSignature, recordTrade: store.recordTrade, onEvent: log("monitor")
   });
 }

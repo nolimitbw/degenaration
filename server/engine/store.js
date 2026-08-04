@@ -187,7 +187,7 @@ const updateCallPerformance = (id, update) => sbPatch(`calls?id=eq.${id}`, updat
 // worker.js will not boot with signing enabled while the worker has no way to exit a
 // position. Do not rename it without reading that guard.
 const loadOpenPositions = () => sbGet(
-  "positions?status=in.(open,exiting)&select=id,user_pubkey,wallet_id,privy_user_id,group_id,mint,entry_price_usd,amount_raw,original_amount_raw,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,filled_tp1,filled_tp2,status,pending_exit_kind,pending_exit_sig,pending_exit_amount_raw,pending_exit_claim_token,pending_exit_at,exit_attempts&order=created_at.asc&limit=500",
+  "positions?status=in.(open,exiting)&select=id,user_pubkey,wallet_id,privy_user_id,group_id,mint,entry_price_usd,amount_raw,original_amount_raw,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,filled_tp1,filled_tp2,entry_config,peak_price_usd,filled_levels,status,pending_exit_kind,pending_exit_sig,pending_exit_amount_raw,pending_exit_claim_token,pending_exit_at,exit_attempts&order=created_at.asc&limit=500",
   true
 );
 
@@ -207,7 +207,11 @@ const openPosition = (position) => sbRpc("worker_open_position", {
   p_stop_loss: position.stopLoss ?? null,
   p_privy_user_id: position.privyUserId || null,
   p_group_id: position.groupId || null,
-  p_user_id: position.userId || null
+  p_user_id: position.userId || null,
+  // The exit plan this position is bound to for its whole life. Controller section 3
+  // requires the trade to store the configuration snapshot it was opened under, and the
+  // worker's own ledger had nowhere to keep it.
+  p_entry_config: position.entryConfig || {}
 });
 
 const claimPositionExit = (id, kind, amountRaw) => sbRpc("worker_claim_position_exit", {
@@ -224,7 +228,13 @@ const settlePositionExit = (id, claimToken, settlement) => sbRpc("worker_settle_
   p_filled_tp1: settlement.filledTp1,
   p_filled_tp2: settlement.filledTp2,
   p_attempts: settlement.attempts,
-  p_error: settlement.error || null
+  p_error: settlement.error || null,
+  p_filled_levels: settlement.filledLevels ?? null
+});
+
+/** Raise the high-water mark. Monotonic in SQL, so an out-of-order tick cannot lower it. */
+const recordPositionPeak = (id, price) => sbRpc("worker_record_position_peak", {
+  p_id: id, p_price: price
 });
 
 // ---- on-chain holdings (for copy detection) ----
@@ -243,4 +253,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };
+module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };

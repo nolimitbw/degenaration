@@ -33,6 +33,7 @@ dependency of the worker, which is the reason this section exists at all.
 | 2 | `degenaration-bot-lifecycle-safety.sql` | `enforce_bot_lifecycle`, `protect_position_entry_config` — archive guard and entry-snapshot immutability | `verify:bot-lifecycle` |
 | 3 | `degenaration-discord-marketplace-parity.sql` | accepted/rejected/executed counts, freshness, period snapshots | `verify:marketplace-migration` |
 | 4 | `degenaration-discord-call-performance.sql` | the `-50%` bucket, win rate separated from 2x rate, best/worst call, confirmed copied volume | `verify:marketplace-migration` |
+| 5 | `degenaration-exit-plan-state.sql` | `entry_config`, `peak_price_usd`, `filled_levels`; a claimable third take-profit level; the execution's config snapshot reaching the position | `verify:exit-plan-state` |
 
 **1 is required before the worker is ever started.** `server/engine/store.js` selects
 `kill_switch`, `subscriber_config_version_id` and `subscriber_config_snapshot` from both
@@ -47,6 +48,14 @@ column that neither production nor this package provides.
 **4 must follow 3.** Both replace `app_public_list_discord_marketplace` in full; 4 is a
 superset, so an application build that predates it keeps working and simply does not read
 the new fields.
+
+**5 must follow 1**, because it selects `call_executions.subscriber_config_snapshot`, which
+1 adds. It also **drops two superseded function signatures before recreating them**: both
+`worker_open_position` and `worker_settle_position_exit` gain a trailing argument, and
+`create or replace` would leave the old arity in place as an overload rather than replacing
+it — after which a call omitting the new argument fails with *"function ... is not unique"*.
+That is a worse failure than the one being fixed, because it breaks a worker that was
+working. `verify:exit-plan-state` caught it on its first run and now covers it.
 
 ## Why the order matters
 

@@ -56,7 +56,13 @@ function buildPosition({ execution, receivedRaw, entryPriceUsd }) {
     tp1Sell: execution.tp1_sell ?? 0,
     tp2: execution.tp2 ?? null,
     tp2Sell: execution.tp2_sell ?? 0,
-    stopLoss: execution.stop_loss ?? null
+    stopLoss: execution.stop_loss ?? null,
+    // The configuration snapshot stamped on THIS execution, not the subscription's current
+    // one. It is what binds the position's take-profit levels, trailing and stop for its
+    // whole life, so editing the bot afterwards cannot change how an open position exits.
+    // The flat columns above stay as the fallback for an execution stamped before the
+    // versioning migration.
+    entryConfig: execution.subscriber_config_snapshot || {}
   };
 }
 
