@@ -64,6 +64,9 @@ await db.exec(`
 `);
 await db.exec(fanoutSql);
 await db.exec(settleSql);
+// Spec 5.4 measurement fields: the worker reports them through the queue and settlement
+// carries them into the ledger.
+await db.exec(await readFile(`${repo}/supabase/degenaration-execution-record-fields.sql`, "utf8"));
 
 const results = {};
 const OWNER = "did:privy:alice";
@@ -155,6 +158,44 @@ assert.equal((await db.query("select count(*)::integer n from app_private.trade_
   "a failed execution settles nothing into the ledger");
 results.failedSettlesNothing = "PASS";
 
+// ---- spec 5.4 measurements travel from the worker into the ledger -----------------------
+const CALL3 = "cccccccc-0000-0000-0000-000000000003";
+await db.query("insert into public.calls (id, group_id, mint) values ($1::uuid,$2::uuid,$3::text)",
+  [CALL3, GROUP, MINT]);
+const exec3 = await db.query(
+  `insert into app_private.call_executions (call_id, subscription_id, claim_token, status, amount_sol)
+   values ($1::uuid,$2::uuid,gen_random_uuid(),'claimed',0.75::double precision)
+   returning id, intent_id`, [CALL3, SUB]).then(r => r.rows[0]);
+await db.query(
+  `update app_private.call_executions set status='succeeded', tx_signature='sig-3',
+     slot=280000000, executed_base_units=1234567, average_price_usd=0.00042,
+     slippage_bps=125, price_impact_bps=-88
+   where id=$1::uuid`, [exec3.id]);
+
+const measured = (await db.query(
+  "select * from app_private.trade_executions where intent_id=$1::uuid", [exec3.intent_id])).rows[0];
+assert.equal(String(measured.slot), "280000000", "the confirmed slot reaches the ledger");
+assert.equal(String(measured.executed_base_units), "1234567", "what actually filled, not what was requested");
+assert.equal(Number(measured.average_price_usd), 0.00042);
+assert.equal(measured.slippage_bps, 125);
+assert.equal(measured.price_impact_bps, -88, "impact may be negative — it is a signed measurement");
+
+const measuredLot = (await db.query(
+  `select l.* from app_private.position_lots l
+     join app_private.positions p on p.id = l.position_id
+    where p.mint = $1::text order by l.created_at desc limit 1`, [MINT])).rows[0];
+assert.equal(String(measuredLot.quantity_base_units), "1234567",
+  "the lot records the filled quantity, so average entry is real rather than notional");
+results.measurementsReachTheLedger = "PASS";
+
+// A reporting bug must fail loudly rather than land in the ledger.
+await assert.rejects(
+  () => db.query(`update app_private.trade_executions set slippage_bps = 10001 where id=$1::uuid`,
+    [measured.id]),
+  /measurement_bounds|violates check/i,
+  "an out-of-range slippage is a reporting bug, not a market condition");
+results.measurementBoundsEnforced = "PASS";
+
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",
   fixture: `generated from production shapes (${FIXTURE_TABLES.length} tables)`,
@@ -162,8 +203,9 @@ console.log(JSON.stringify({
   ...results,
   unblocks: "5.6 fee accrual (triggers already exist), section 8 admin volume, " +
             "section 13 Portfolio history, PnL cards (position_lots now populated)",
-  stillMissing: "filled quantity is not reported by the queue, so lot quantity is the " +
-                "notional placeholder and average entry is cost-based until the worker reports it"
+  stillMissing: "nothing WRITES the measurement fields yet -- the columns and the carry-through " +
+                "exist, and populating them needs the worker (E-3). Until then they are null, " +
+                "which reads as not-captured rather than measured-as-zero"
 }, null, 2));
 
 await db.close();
