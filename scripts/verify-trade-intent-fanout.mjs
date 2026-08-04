@@ -227,7 +227,25 @@ assert.equal(
   "a submitted-but-unconfirmed buy keeps its capital locked — the transaction may still land"
 );
 assert.ok(submitted.claimed_at, "the submission is timestamped");
+assert.equal(submitted.tx_signature, "sig-1",
+  "spec 5.3: the intent records the transaction that fulfilled it, so it can name what spent " +
+  "the capital it reserved without joining back through the queue");
 results.pendingStaysReserved = "PASS";
+
+// The first signature wins. A later one would mean two broadcasts for one reservation.
+//
+// The status must actually CHANGE for this to test anything: sync_execution_intent_state fires
+// only on `new.status is distinct from old.status`, so re-setting 'submitted' leaves the
+// trigger dormant and the assertion passes without exercising the path. A control run caught
+// exactly that.
+await db.query(
+  "update app_private.call_executions set tx_signature = 'sig-2' where id = $1::uuid", [exec1.id]);
+await db.query(
+  "update app_private.call_executions set status = 'failed' where id = $1::uuid", [exec1.id]);
+assert.equal((await intentOf(exec1.intent_id)).tx_signature, "sig-1",
+  "the recorded signature is never overwritten -- it is the only link between reserved " +
+  "capital and the transaction that consumed it");
+results.signatureImmutableOnIntent = "PASS";
 
 // ---- confirmation releases, because the lamports have left the wallet -------------------
 

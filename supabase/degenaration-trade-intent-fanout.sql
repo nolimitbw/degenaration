@@ -339,3 +339,65 @@ for each row execute function app_private.sync_execution_intent_state();
 
 revoke execute on function app_private.attach_call_execution_intent() from public, anon, authenticated;
 revoke execute on function app_private.sync_execution_intent_state() from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------------------
+-- 7. The intent records the transaction that fulfilled it
+-- ---------------------------------------------------------------------------------------
+--
+-- Spec 5.3 lists a signature among the fields a durable intent must carry, and it was the one
+-- missing. Without it the intent can only reach its transaction by joining back through the
+-- queue row -- so a queue row that is archived, or a copy execution that carries the signature
+-- on a different table, leaves the intent unable to name what spent the capital it reserved.
+--
+-- Written by the same trigger that advances state, so it arrives at the moment of submission
+-- and cannot drift from it. Immutable once set: a signature is evidence that lamports moved,
+-- and overwriting it would destroy the only link between reserved capital and the transaction
+-- that consumed it.
+
+alter table app_private.trade_intents
+  add column if not exists tx_signature text;
+
+create unique index if not exists trade_intents_signature_unique
+  on app_private.trade_intents (tx_signature) where tx_signature is not null;
+
+create or replace function app_private.advance_intent_for_execution(
+  p_intent_id uuid,
+  p_queue_status text,
+  p_tx_signature text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_state text;
+begin
+  if p_intent_id is null then
+    return;
+  end if;
+
+  v_state := case p_queue_status
+    when 'submitted' then 'submitted'
+    when 'succeeded' then 'confirmed'
+    when 'failed'    then 'failed'
+    when 'skipped'   then 'rejected'
+    else null
+  end;
+
+  if v_state is null then
+    return;
+  end if;
+
+  update app_private.trade_intents
+  set state = v_state,
+      -- coalesce, never overwrite: the first signature recorded is the one that moved lamports.
+      tx_signature = coalesce(tx_signature, nullif(trim(coalesce(p_tx_signature, '')), '')),
+      claimed_at = coalesce(claimed_at, case when v_state = 'submitted' then now() end)
+  where id = p_intent_id
+    and state not in ('confirmed', 'reconciled', 'reversed');
+end;
+$$;
+
+revoke execute on function app_private.advance_intent_for_execution(uuid, text, text)
+  from public, anon, authenticated;
