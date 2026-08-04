@@ -3,6 +3,7 @@ export type AdminTab =
   | "discord"
   | "kol"
   | "referrals"
+  | "clients"
   | "payouts"
   | "operations"
   | "users"

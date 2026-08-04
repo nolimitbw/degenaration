@@ -18,6 +18,7 @@ import {
 import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 import { LoadingRows, PageHeader } from "@/components/product/Primitives";
 import OwnerSections from "@/components/admin/OwnerSections";
+import ClientLedger from "@/components/admin/ClientLedger";
 import type { AdminAction, AdminData, AdminTab } from "@/components/admin/types";
 
 const EMPTY_DATA: AdminData = {
@@ -41,6 +42,7 @@ const TABS = [
   { id: "discord", label: "Discord", icon: ServerCog },
   { id: "kol", label: "KOL", icon: Bot },
   { id: "referrals", label: "Referrals", icon: Link2 },
+  { id: "clients", label: "Clients", icon: Users },
   { id: "payouts", label: "Payouts", icon: WalletCards },
   { id: "operations", label: "Operations", icon: ClipboardList },
   { id: "users", label: "Users", icon: Users },
@@ -193,6 +195,27 @@ export default function OwnerConsole() {
     if (admin && identityToken) load();
   }, [admin, identityToken, load]);
 
+  // The client ledger and the performance refresh both go through the same signed owner
+  // identity as every other admin call; they differ only in throwing rather than returning a
+  // result envelope, because the ledger renders its own error and retry states.
+  const fetchJson = useCallback(async <T,>(path: string): Promise<T> => {
+    const result = await adminFetchJson<T>(path, getAccessToken, identityToken, email);
+    if (!result.ok) throw new Error(result.error);
+    return result.data as T;
+  }, [email, getAccessToken, identityToken]);
+
+  const refreshPerformance = useCallback(async (): Promise<number> => {
+    const result = await adminFetchJson<{ snapshotsRefreshed?: number }>(
+      "/api/admin/performance",
+      getAccessToken,
+      identityToken,
+      email,
+      { method: "POST", body: "{}" }
+    );
+    if (!result.ok) throw new Error(result.error);
+    return result.data?.snapshotsRefreshed ?? 0;
+  }, [email, getAccessToken, identityToken]);
+
   async function confirmAction(reason: string) {
     if (!pendingAction) return;
     setActing(true);
@@ -274,7 +297,16 @@ export default function OwnerConsole() {
       </nav>
 
       <div className="mt-6">
-        {loaded ? <OwnerSections active={active} data={data} act={setPendingAction} /> : <LoadingRows count={4} />}
+        {active === "clients" ? (
+          // The client ledger loads its own data: it is the only section backed by a
+          // different pair of RPCs, and folding it into the twelve-request bulk load would
+          // make every other tab wait for it.
+          <ClientLedger fetchJson={fetchJson} refreshPerformance={refreshPerformance} />
+        ) : loaded ? (
+          <OwnerSections active={active} data={data} act={setPendingAction} />
+        ) : (
+          <LoadingRows count={4} />
+        )}
       </div>
 
       {pendingAction && (

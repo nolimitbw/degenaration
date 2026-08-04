@@ -41,6 +41,10 @@ await db.exec(`
         on conflict (privy_user_id) do nothing; end $x$;
   create function app_private.admin_secret_ok(p text) returns boolean
   language sql immutable set search_path = '' as $x$ select p = 'test-secret' $x$;
+  create function app_private.require_app_admin(p text) returns void
+  language plpgsql set search_path = '' as $x$
+  begin if p is distinct from 'did:privy:admin' then
+    raise exception 'forbidden' using errcode = '42501'; end if; end $x$;
 `);
 await db.exec(renderTables(FIXTURE_TABLES));
 await assertSchemaParity(db, FIXTURE_TABLES, assert);
@@ -252,9 +256,14 @@ results.windowsAreReal = "PASS";
 
 // ---- the operator entry point is gated ------------------------------------------------------
 await assert.rejects(
-  () => db.query("select public.app_admin_refresh_performance('wrong')"),
+  () => db.query("select public.admin_refresh_performance('wrong', 'did:privy:admin')"),
   /unauthorized/i);
-const run = (await db.query("select public.app_admin_refresh_performance('test-secret') r")).rows[0].r;
+await assert.rejects(
+  () => db.query("select public.admin_refresh_performance('test-secret', $1::text)", [TRADER]),
+  /forbidden/i,
+  "the secret alone is not enough — the actor must be an admin");
+const run = (await db.query(
+  "select public.admin_refresh_performance('test-secret', 'did:privy:admin') r")).rows[0].r;
 assert.equal(run.ok, true);
 assert.ok(run.snapshotsRefreshed > 0);
 results.operatorEntryPointGated = "PASS";

@@ -127,7 +127,11 @@ const operations: Record<string, string[]> = {
   ],
   admin_list_referrals_v2: [
     "p_secret", "p_actor_privy_user_id", "p_query", "p_limit"
-  ]
+  ],
+  // Recomputes app_private.performance_snapshots from the ledger. Portfolio, My Bots, the
+  // KOL cards and the Discord 1D/7D/30D figures all read that table and it had no writer at
+  // all until cbeabe5, so every one of them showed a dash.
+  admin_refresh_performance: ["p_secret", "p_actor_privy_user_id"]
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {

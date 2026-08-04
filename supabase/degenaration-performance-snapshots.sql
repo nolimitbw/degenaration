@@ -258,9 +258,12 @@ $$;
 revoke execute on function app_private.refresh_all_performance_snapshots()
   from public, anon, authenticated;
 
--- The operator entry point. Same secret gate as every other privileged RPC, so the worker or
--- a scheduled job can refresh without a database role of its own.
-create or replace function public.app_admin_refresh_performance(p_secret text)
+-- The operator entry point, in the same shape as its admin siblings: secret gate plus a
+-- named actor, so a refresh is attributable.
+create or replace function public.admin_refresh_performance(
+  p_secret text,
+  p_actor_privy_user_id text
+)
 returns jsonb
 language plpgsql
 security definer
@@ -272,10 +275,11 @@ begin
   if not app_private.admin_secret_ok(p_secret) then
     raise exception 'unauthorized' using errcode = '42501';
   end if;
+  perform app_private.require_app_admin(p_actor_privy_user_id);
   v_count := app_private.refresh_all_performance_snapshots();
   return jsonb_build_object('ok', true, 'snapshotsRefreshed', v_count, 'asOf', now());
 end;
 $$;
 
-revoke execute on function public.app_admin_refresh_performance(text) from public, anon, authenticated;
-grant execute on function public.app_admin_refresh_performance(text) to service_role;
+revoke execute on function public.admin_refresh_performance(text, text) from public, anon, authenticated;
+grant execute on function public.admin_refresh_performance(text, text) to service_role;

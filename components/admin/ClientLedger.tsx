@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, Gauge, RefreshCw } from "lucide-react";
 import { EmptyState, LoadingRows, Metric, StatusPill } from "@/components/product/Primitives";
 
 /**
@@ -76,13 +76,17 @@ function RetryButton({ onClick }: { onClick: () => void }) {
 }
 
 export default function ClientLedger({
-  fetchJson
+  fetchJson,
+  refreshPerformance
 }: {
   fetchJson: <T>(path: string) => Promise<T>;
+  refreshPerformance?: () => Promise<number>;
 }) {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recomputing, setRecomputing] = useState(false);
+  const [recomputed, setRecomputed] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,6 +101,26 @@ export default function ClientLedger({
   }, [fetchJson]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const recompute = useCallback(async () => {
+    if (!refreshPerformance) return;
+    setRecomputing(true);
+    setRecomputed(null);
+    setError(null);
+    try {
+      const count = await refreshPerformance();
+      setRecomputed(
+        count === 0
+          ? "No reconciled trades yet, so there is nothing to measure."
+          : `${count} snapshot${count === 1 ? "" : "s"} recomputed.`
+      );
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not recompute performance.");
+    } finally {
+      setRecomputing(false);
+    }
+  }, [load, refreshPerformance]);
 
   if (loading && !data) return <LoadingRows count={6} />;
 
@@ -122,14 +146,37 @@ export default function ClientLedger({
             Ledger-derived. Balances live on chain, not in the database.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
-        >
-          <RefreshCw size={13} className={loading ? "animate-spin" : undefined} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {refreshPerformance && (
+            <button
+              type="button"
+              onClick={() => void recompute()}
+              disabled={recomputing}
+              title="Recompute portfolio, bot, KOL and Discord performance from the ledger"
+              className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
+            >
+              <Gauge size={13} className={recomputing ? "animate-pulse" : undefined} />
+              {recomputing ? "Recomputing…" : "Recompute performance"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin" : undefined} /> Refresh
+          </button>
+        </div>
       </div>
+
+      {recomputed && (
+        <p className="rounded-md border border-up/35 bg-up/5 px-3 py-2 text-[11px] text-up">{recomputed}</p>
+      )}
+      {error && data && (
+        <p className="flex items-center gap-2 rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">
+          <AlertCircle size={13} /> {error}
+        </p>
+      )}
 
       {data?.summaryError && (
         <p className="flex items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 text-[11px] text-dim">
