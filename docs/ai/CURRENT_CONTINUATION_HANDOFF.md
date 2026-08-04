@@ -91,3 +91,51 @@ Nothing else in this incident is reachable from inside the repository.
 - Do not add a "withdrawals unavailable" banner. The funds *are* withdrawable via Privy, and
   `FINAL_LAUNCH_SPEC.md` §12.4 and §23 forbid presenting withdrawal as feature-disabled.
 - Do not treat this as a loss-of-funds incident in any user-facing copy.
+
+---
+
+## Execution state against the final spec — 2026-08-04
+
+Authoritative instruction is now
+`docs/ai/DEGENARATION_FINAL_FULLSCAN_FINANCE_ADMIN_MIZAR_UI_CLAUDE_PROMPT.md` (in repo).
+
+### §5 financial gate — status per sub-section
+
+| Spec | State | Evidence |
+|---|---|---|
+| 5.1 one authoritative balance model | **DONE** | `c18f4a8`, `docs/ai/ACCOUNTING_MODEL.md`. `app_private` is authoritative; decision made from a full writer/reader inventory |
+| 5.2 wallet identity | **DONE, deployed** | `2ef4d03`; migration live; address taken only from the verified Privy token |
+| 5.3 durable trade intents | **DONE, deployed** | `fcebe9c`; reservation/release proved on live production in a rolled-back probe |
+| 5.4 execution and settlement | **NOT BUILT — the keystone** | `trade_executions`, `positions`, `position_lots` still have **no writer** |
+| 5.5 principal withdrawal | **DONE, awaiting app promotion** | `057e0bd`; DB+bridge live; app build `78a4af0` pushed, unpromoted |
+| 5.6 platform fee | **NOT BUILT** | accrual triggers hang on `trade_executions`, which nothing writes → **0 bps collected** |
+| 5.7 financial proof | **PARTIAL** | 16 verifier suites green; no end-to-end proof possible until 5.4 exists |
+
+### The single next unit of work
+
+**Build the §5.4 writer.** It is the keystone for four separate spec sections:
+
+- §5.6 platform fee — the accrual triggers already exist and are tested; they fire the moment
+  a `trade_executions` row is written. No new fee logic is needed.
+- §8 admin console client volume — has nothing to sum until executions exist.
+- §13 Portfolio positions/history — reads `app_private.positions`, which has no writer.
+- PnL cards — need `position_lots` for average entry/exit; the table is entirely dead.
+
+Concretely: on `call_executions.status -> 'succeeded'`, write a `trade_executions` row carrying
+`gross_notional_lamports` and the bps snapshot, then open `app_private.positions` +
+`position_lots`. Follow the trigger pattern already proven in
+`degenaration-trade-intent-fanout.sql` — bind to the queue row rather than editing
+`worker_settle_call_execution`, for the same reason recorded there.
+
+### Blocked on the owner, not on code
+
+| Item | Needs |
+|---|---|
+| Withdrawal incident closure | promote `78a4af0` (branch `release/funds-runtime-hotfix-2026-08-04`) |
+| Auto-trading (§6) | worker host + Privy delegated-signing credentials (E-3) |
+| Fee collection (§5.6) | a valid Jupiter output-mint fee account (E-4); `PLATFORM_FEE_ACCOUNT` is unset |
+| Discord ingestion (§7) | bot deployed with credentials (E-2); `raw_signals` = 0 |
+
+None of these is reachable from inside the repository. Everything else in the spec — §5.4,
+§8 admin console, §11–13 Mizar UI, PnL cards — is internally solvable and should be executed
+in that order.
