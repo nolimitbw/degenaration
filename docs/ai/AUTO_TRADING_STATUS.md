@@ -102,6 +102,33 @@ Closing it needs a fixture spanning `raw_signals`, `parsed_signals`, `call_chann
 anything external — it is the correct next task for a fresh session, ahead of any further UI
 work.
 
+## Why §5.4's execution record is partly empty — demonstrated, not asserted
+
+§5.4 requires an execution to record slot, executed quantity, average price, slippage and
+price impact. The settlement writer populates none of them, and the reason is that the queue
+row it settles from does not contain them. Read back from production 2026-08-04:
+
+```
+app_private.call_executions:
+  id, call_id, subscription_id, claim_token, status, amount_sol,
+  tx_signature, error, created_at, updated_at, finished_at, submitted_at, intent_id
+```
+
+That is the complete column list. There is no slot, no filled quantity, no execution price,
+no slippage and no price impact — only `amount_sol`, the amount the worker intended to spend.
+`app_private.trade_executions` *does* have a `slot` column waiting for a value; nothing
+upstream produces one.
+
+Every one of those five figures is known only to the code that submits the swap and reads the
+confirmed transaction back — the worker. So they cannot be backfilled by a database trigger
+from a queue row that never carried them. Populating them means the worker reporting them at
+settle time, which requires the worker to exist (**E-3**).
+
+The settlement writer therefore records what it can prove and leaves the rest null, rather
+than writing a plausible-looking zero. A `slippage: 0` that nobody measured is worse than an
+empty column, because a null reads as "not captured" and a zero reads as "measured, and it
+was zero".
+
 ## The honest summary
 
 The **accounting and safety layer is complete and tested**: capital is reserved before it is
