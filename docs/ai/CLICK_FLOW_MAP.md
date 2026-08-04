@@ -31,9 +31,9 @@ path. Routes are DegenAration routes; no Mizar naming or assets carry over.
 | 22 | Positions -> row -> inspect entry/current/PnL/source/config snapshot | `/portfolio` | positions endpoint | Pending |
 | 23 | Trades -> row -> inspect exit/fees/net/status | `/portfolio` | trades/ledger | Pending |
 | 24 | Withdraw -> amount/Max -> review reserve/fee -> wallet sign -> confirmation | `/portfolio` dialog | withdrawal prepare/confirm + Privy | Local validator passes; UI pending |
-| 25 | Winning open/closed record -> Share -> render/download card | PnL card action/API | authoritative record lookup | PARTIAL: authoritative open-position render and matching QR/copy link implemented; authenticated evidence pending |
-| 26 | Losing completed trade -> Share -> render/download card | PnL card action/API | authoritative record lookup | BLOCKED: durable exit execution/price linkage is absent from the current position ledger |
-| 27 | Portfolio -> Share performance -> period -> render/download card | PnL card action/API | reconciled period ledger | PARTIAL: server-authoritative export and exact QR/share fallback implemented; authenticated evidence pending |
+| 25 | Winning open/closed record -> Share -> render/download card | PnL card action/API | authoritative record lookup | PARTIAL: authoritative render and matching QR/copy link implemented, and the card's arithmetic is now a tested module (`lib/pnl-card.js`, 26 tests) rather than untestable logic inside an async route; authenticated evidence pending (E-6) |
+| 26 | Losing completed trade -> Share -> render/download card | PnL card action/API | authoritative record lookup | PARTIAL (was BLOCKED): `app_private.position_exits` supplies the durable exit linkage, so average entry and exit are divisions of recorded integers. A unit defect was found and fixed on 2026-08-05 -- the closed branch omitted 10^decimals, printing a price a billionth of the open card's for the same trade. Both branches now share one formula, asserted equal at 0/6/9 decimals; authenticated evidence pending (E-6) |
+| 27 | Portfolio -> Share performance -> period -> render/download card | PnL card action/API | reconciled period ledger | PARTIAL: server-authoritative export; QR target and printed link are derived from one value and asserted identical; a period with no reconciled snapshot is refused with 409 rather than rendered as 0.00%; authenticated evidence pending (E-6) |
 
 ## Setup disclosure sequence
 

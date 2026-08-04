@@ -5,6 +5,11 @@ import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import { callPrivyRpc, requirePrivyUser } from "@/lib/server/privy";
 import { UUID_RE } from "@/lib/server/product";
 import { fetchWithTimeout, isMint } from "@/lib/server/guard";
+// The card's financial decisions live in one tested module rather than inline in this
+// handler. server/test/run.js is synchronous by design, so logic buried in an async route
+// that needs a session, two RPCs and a price provider could never be asserted — which is
+// how a closed trade came to print its average entry in a different unit from an open one.
+import { closedTradeCard, openPositionCard, perUnitSol, shareTarget } from "@/lib/pnl-card";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -140,8 +145,9 @@ export async function GET(req: NextRequest) {
     p_scope: "all"
   });
   const referralCode = affiliateResult.ok ? affiliateResult.data?.referralCode : null;
-  const shareUrl = referralCode ? `https://degenaration.vercel.app/r/${referralCode}` : "https://degenaration.vercel.app";
-  const shareLabel = shareUrl.replace(/^https:\/\//, "");
+  // Derived together from one value: a QR resolving anywhere other than the visible link is
+  // indistinguishable from a phishing card once the image leaves the product.
+  const { url: shareUrl, label: shareLabel } = shareTarget(referralCode, process.env.SITE_URL);
   const qr = await QRCode.toDataURL(shareUrl, { margin: 0, width: 220, color: { dark: "#17191b", light: "#f3f0eb" } });
 
   let card: {
@@ -200,42 +206,52 @@ export async function GET(req: NextRequest) {
       if (!exitResult.ok) {
         return NextResponse.json({ error: exitResult.error }, { status: exitResult.status });
       }
-      const aggregate = exitResult.data?.aggregate;
-      // Still refuse rather than guess when the worker never reported what a sale realized.
-      // The reason is now accurate: it is a gap in this position's record, not a provider
-      // fault and not a missing product capability.
-      if (!exitResult.data?.ok || !aggregate?.fullyMeasured) {
-        return NextResponse.json(
-          {
-            error: aggregate?.unpricedExits
-              ? "This position closed with an exit whose proceeds were not recorded, so its exit price cannot be stated."
-              : "This position has no recorded exit, so a closed-trade card cannot be generated."
-          },
-          { status: 409 }
-        );
+      // Refuse rather than guess when the worker never reported what a sale realized. The
+      // two reasons are distinguished inside closedTradeCard: an exit whose proceeds were
+      // never recorded is something to wait for, a position with no exit at all is not.
+      const aggregate = exitResult.data?.ok ? exitResult.data?.aggregate : null;
+
+      // Token decimals, so the price is per WHOLE TOKEN and matches what the open-position
+      // card prints for the same trade. Quantities are stored in base units; without
+      // 10^decimals the same "AVERAGE ENTRY" label read 2.0000 SOL while the position was
+      // open and 2.0000e-9 SOL once it closed.
+      //
+      // getTokenSupply is mint metadata, not market data: it states how many decimals the
+      // mint declares. No price is consulted and nothing is inferred, so this keeps the
+      // property that a closed trade is priced entirely from recorded integers. If it is
+      // unavailable the price fields are omitted rather than printed at the wrong scale —
+      // the PnL figures are unit-independent and still correct.
+      let tokenScale: bigint | null = null;
+      try {
+        const supply = await rpc("getTokenSupply", [position.mint]);
+        const decimals = Number(supply?.value?.decimals);
+        if (Number.isInteger(decimals) && decimals >= 0 && decimals <= 18) {
+          tokenScale = BigInt(10) ** BigInt(decimals);
+        }
+      } catch {
+        tokenScale = null;
       }
 
-      const exitedQuantity = BigInt(aggregate.exitedQuantityBaseUnits || "0");
-      const proceeds = BigInt(aggregate.proceedsLamports || "0");
-      const basis = BigInt(aggregate.releasedBasisLamports || "0");
-      const realizedLamports = BigInt(aggregate.realizedPnlLamports || "0");
-      const pnlPercent = basis > BigInt(0)
-        ? Number(realizedLamports * BigInt(10000) / basis) / 100
-        : 0;
-      const perUnit = (lamports: bigint) =>
-        exitedQuantity > BigInt(0) ? Number(lamports) / Number(exitedQuantity) / 1e9 : 0;
+      const decided = closedTradeCard(aggregate, tokenScale);
+      if (!decided.ok) {
+        return NextResponse.json({ error: decided.error }, { status: decided.status });
+      }
 
       card = {
-        variant: realizedLamports >= BigInt(0) ? "winner" : "loser",
-        title: realizedLamports >= BigInt(0) ? "Trade closed in profit" : "Trade closed at a loss",
+        variant: decided.variant,
+        title: decided.title,
         pair: `${position.mint.slice(0, 6)} / SOL`,
-        pnlPercent,
-        pnlLamports: realizedLamports,
-        entryPrice: `${perUnit(basis).toPrecision(5)} SOL`,
-        currentPrice: `${perUnit(proceeds).toPrecision(5)} SOL`,
+        pnlPercent: decided.pnlPercent,
+        pnlLamports: decided.pnlLamports,
+        entryPrice: decided.averageEntrySol === null
+          ? undefined
+          : `${decided.averageEntrySol.toPrecision(5)} SOL`,
+        currentPrice: decided.averageExitSol === null
+          ? undefined
+          : `${decided.averageExitSol.toPrecision(5)} SOL`,
         duration: durationLabel(position.opened_at, position.closed_at),
         source: position.botName || "DegenAration bot",
-        context: `closed in ${aggregate.measuredExits} exit${aggregate.measuredExits === 1 ? "" : "s"} · realized, net of recorded fees`
+        context: decided.context
       };
     } else {
       let live;
@@ -244,19 +260,21 @@ export async function GET(req: NextRequest) {
       } catch {
         return NextResponse.json({ error: "Fresh token and SOL market evidence is unavailable, so an open-position PnL card was not generated." }, { status: 503 });
       }
-      const cost = BigInt(position.costLamports || 0);
-      const realized = BigInt(position.realizedPnlLamports || 0);
-      const fees = BigInt(position.feesLamports || 0);
-      const pnlLamports = live.currentValueLamports + realized - cost - fees;
-      const pnlPercent = cost > BigInt(0) ? Number(pnlLamports * BigInt(10000) / cost) / 100 : 0;
-      const averageEntry = Number(cost * live.tokenScale) / Number(live.quantityBaseUnits * BigInt(1_000_000_000));
+      const decided = openPositionCard({
+        currentValueLamports: live.currentValueLamports,
+        realizedPnlLamports: position.realizedPnlLamports,
+        costLamports: position.costLamports,
+        feesLamports: position.feesLamports
+      });
+      // Same helper the closed branch uses, so the two cannot disagree about the unit again.
+      const averageEntry = perUnitSol(position.costLamports, live.quantityBaseUnits, live.tokenScale);
       card = {
-        variant: pnlLamports >= BigInt(0) ? "winner" : "loser",
-        title: pnlLamports >= BigInt(0) ? "Position in profit" : "Position drawdown",
+        variant: decided.variant,
+        title: decided.title,
         pair: `${live.symbol} / SOL`,
-        pnlPercent,
-        pnlLamports,
-        entryPrice: `${averageEntry.toPrecision(5)} SOL`,
+        pnlPercent: decided.pnlPercent,
+        pnlLamports: decided.pnlLamports,
+        entryPrice: averageEntry === null ? undefined : `${averageEntry.toPrecision(5)} SOL`,
         currentPrice: `${live.currentPriceSol.toPrecision(5)} SOL`,
         duration: durationLabel(position.opened_at, position.closed_at),
         source: position.botName || "DegenAration bot",

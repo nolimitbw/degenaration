@@ -1817,6 +1817,278 @@ console.log("price selection");
   });
 }
 
+// PnL share cards.
+//
+// A share card is a financial claim the user publishes under their own name, so it has to be
+// derived from the ledger and it has to be arithmetically right. All of this logic used to
+// live inside an async route handler that needs a Privy session, two RPCs, a price provider
+// and a JSX renderer before one assertion could run — which is why none of it was tested.
+{
+  const card = require("../../lib/pnl-card");
+  console.log("pnl cards");
+
+  test("percentage is computed in integer basis points, never float division", () => {
+    // 0.5 SOL profit on 2 SOL basis is exactly 25%.
+    assert.strictEqual(card.percentFromLamports(500000000n, 2000000000n), 25);
+    // A loss keeps its sign.
+    assert.strictEqual(card.percentFromLamports(-500000000n, 2000000000n), -25);
+    // A value that float division would round badly still lands on the bps grid.
+    assert.strictEqual(card.percentFromLamports(1n, 3n), 33.33);
+  });
+
+  test("a zero cost basis yields 0%, not Infinity or NaN", () => {
+    assert.strictEqual(card.percentFromLamports(500000000n, 0n), 0);
+    assert.strictEqual(card.percentFromLamports(500000000n, null), 0);
+    assert.ok(Number.isFinite(card.percentFromLamports(1n, -5n)));
+  });
+
+  test("a malformed lamport value reads as zero rather than throwing", () => {
+    assert.strictEqual(card.toLamports("not-a-number"), 0n);
+    assert.strictEqual(card.toLamports(null), 0n);
+    assert.strictEqual(card.toLamports(""), 0n);
+    assert.strictEqual(card.formatSol("garbage"), "0.000 SOL");
+    assert.strictEqual(card.formatSol(1500000000n), "1.500 SOL");
+  });
+
+  // A 9-decimal token: 1000000000 base units is exactly one whole token.
+  const SCALE_9 = 1000000000n;
+
+  test("a closed trade in profit is a winner, priced from recorded integers", () => {
+    const r = card.closedTradeCard({
+      fullyMeasured: true, measuredExits: 2,
+      exitedQuantityBaseUnits: "1000000000",
+      releasedBasisLamports: "2000000000",
+      proceedsLamports: "3000000000",
+      realizedPnlLamports: "1000000000"
+    }, SCALE_9);
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.variant, "winner");
+    assert.strictEqual(r.pnlPercent, 50);
+    // entry = basis/qty, exit = proceeds/qty, both scaled to whole tokens. Division of
+    // recorded integers; no price feed is consulted and nothing is inferred.
+    assert.strictEqual(r.averageEntrySol, 2);
+    assert.strictEqual(r.averageExitSol, 3);
+    assert.ok(r.context.includes("2 exits"));
+  });
+
+  test("a closed trade prices per WHOLE TOKEN, matching what an open card shows", () => {
+    // The regression this guards: perUnitSol omitted 10^decimals on the closed branch only,
+    // so the same "AVERAGE ENTRY" label read 2.0000 SOL while a position was open and
+    // 2.0000e-9 SOL once it closed. Same trade, same label, published publicly.
+    for (const decimals of [0, 6, 9]) {
+      const scale = 10n ** BigInt(decimals);
+      const wholeTokens = 3n;
+      const qty = wholeTokens * scale;
+      const basis = 6000000000n; // 6 SOL for 3 whole tokens => 2 SOL each, at any decimals
+      const closed = card.closedTradeCard({
+        fullyMeasured: true, measuredExits: 1,
+        exitedQuantityBaseUnits: qty.toString(),
+        releasedBasisLamports: basis.toString(),
+        proceedsLamports: basis.toString(),
+        realizedPnlLamports: "0"
+      }, scale);
+      assert.strictEqual(closed.averageEntrySol, 2, `decimals=${decimals}`);
+      // The open branch computes its average entry through the same helper, from the same
+      // inputs, and must land on the same number.
+      assert.strictEqual(card.perUnitSol(basis, qty, scale), closed.averageEntrySol,
+        `open and closed branches disagree on unit at decimals=${decimals}`);
+    }
+  });
+
+  test("an unknown token scale omits the price rather than printing a mis-scaled one", () => {
+    const aggregate = {
+      fullyMeasured: true, measuredExits: 1,
+      exitedQuantityBaseUnits: "1000000000",
+      releasedBasisLamports: "2000000000",
+      proceedsLamports: "3000000000",
+      realizedPnlLamports: "1000000000"
+    };
+    for (const missing of [null, undefined, 0n, "0"]) {
+      const r = card.closedTradeCard(aggregate, missing);
+      assert.strictEqual(r.ok, true, "the PnL figures are unit-independent and still stand");
+      assert.strictEqual(r.averageEntrySol, null);
+      assert.strictEqual(r.averageExitSol, null);
+      assert.strictEqual(r.pnlPercent, 50, "percentage must not depend on the token scale");
+    }
+  });
+
+  test("a closed trade at a loss is a loser and keeps its sign", () => {
+    const r = card.closedTradeCard({
+      fullyMeasured: true, measuredExits: 1,
+      exitedQuantityBaseUnits: "1000000000",
+      releasedBasisLamports: "2000000000",
+      proceedsLamports: "1400000000",
+      realizedPnlLamports: "-600000000"
+    }, SCALE_9);
+    assert.strictEqual(r.variant, "loser");
+    assert.strictEqual(r.pnlPercent, -30);
+    assert.ok(r.context.includes("1 exit ·"), "singular exit must not read '1 exits'");
+  });
+
+  test("break-even is a winner, not a loser — the boundary is >= 0", () => {
+    const r = card.closedTradeCard({
+      fullyMeasured: true, measuredExits: 1, exitedQuantityBaseUnits: "1",
+      releasedBasisLamports: "2000000000", proceedsLamports: "2000000000",
+      realizedPnlLamports: "0"
+    }, SCALE_9);
+    assert.strictEqual(r.variant, "winner");
+    assert.strictEqual(r.pnlPercent, 0);
+  });
+
+  test("an exit whose proceeds were never recorded is refused, and says so specifically", () => {
+    const r = card.closedTradeCard({ fullyMeasured: false, unpricedExits: 1 });
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.status, 409);
+    assert.ok(/proceeds were not recorded/.test(r.error));
+  });
+
+  test("a position with no exit at all is refused with a different reason", () => {
+    const r = card.closedTradeCard({ fullyMeasured: false, unpricedExits: 0 });
+    assert.strictEqual(r.ok, false);
+    assert.ok(/no recorded exit/.test(r.error));
+    // The two refusals must not be interchangeable: one says wait, the other says never.
+    assert.notStrictEqual(r.error, card.closedTradeCard({ fullyMeasured: false, unpricedExits: 2 }).error);
+  });
+
+  test("a missing aggregate is refused rather than treated as zero", () => {
+    assert.strictEqual(card.closedTradeCard(null).ok, false);
+    assert.strictEqual(card.closedTradeCard(undefined).ok, false);
+    // fullyMeasured must be exactly true — a truthy string must not pass a financial gate.
+    assert.strictEqual(card.closedTradeCard({ fullyMeasured: "yes" }).ok, false);
+  });
+
+  test("an unknown exit quantity yields a null price, never 0.00000 SOL", () => {
+    const r = card.closedTradeCard({
+      fullyMeasured: true, measuredExits: 1, exitedQuantityBaseUnits: "0",
+      releasedBasisLamports: "2000000000", proceedsLamports: "3000000000",
+      realizedPnlLamports: "1000000000"
+    }, SCALE_9);
+    assert.strictEqual(r.averageEntrySol, null);
+    assert.strictEqual(r.averageExitSol, null);
+  });
+
+  test("an open position's PnL is net of fees, not gross", () => {
+    // 3 SOL value on 2 SOL cost is +1 SOL gross, but 0.04 SOL of fees were recorded.
+    const r = card.openPositionCard({
+      currentValueLamports: 3000000000n, realizedPnlLamports: 0n,
+      costLamports: 2000000000n, feesLamports: 40000000n
+    });
+    assert.strictEqual(r.pnlLamports, 960000000n);
+    assert.strictEqual(r.pnlPercent, 48);
+    assert.strictEqual(r.variant, "winner");
+  });
+
+  test("fees can turn a nominally flat position into a loss, and the card must say so", () => {
+    const r = card.openPositionCard({
+      currentValueLamports: 2000000000n, realizedPnlLamports: 0n,
+      costLamports: 2000000000n, feesLamports: 40000000n
+    });
+    assert.strictEqual(r.variant, "loser");
+    assert.ok(r.pnlLamports < 0n);
+  });
+
+  test("realized proceeds from a partial exit count toward an open position's PnL", () => {
+    const r = card.openPositionCard({
+      currentValueLamports: 1000000000n, realizedPnlLamports: 500000000n,
+      costLamports: 1000000000n, feesLamports: 0n
+    });
+    assert.strictEqual(r.pnlLamports, 500000000n);
+  });
+
+  test("a portfolio card without a reconciled snapshot is refused, not shown as 0%", () => {
+    const r = card.portfolioCard(null, "30d");
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.status, 409);
+    assert.ok(/reconciled portfolio snapshot/.test(r.error));
+  });
+
+  test("a portfolio card reports the period and sample size it was measured over", () => {
+    const r = card.portfolioCard(
+      { netPnlLamports: "250000000", volumeLamports: "1000000000", sampleSize: 7 },
+      "7d"
+    );
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.variant, "portfolio");
+    assert.strictEqual(r.pair, "7D");
+    assert.strictEqual(r.pnlPercent, 25);
+    assert.ok(r.context.includes("7 completed executions"));
+  });
+
+  test("average capital is preferred over volume as the portfolio denominator", () => {
+    const r = card.portfolioCard({
+      netPnlLamports: "100000000",
+      metrics: { averageCapitalLamports: "1000000000" },
+      volumeLamports: "5000000000",
+      sampleSize: 3
+    }, "30d");
+    assert.strictEqual(r.pnlPercent, 10, "must divide by capital, not by traded volume");
+  });
+
+  test("the QR target and the printed link are the same string", () => {
+    const affiliate = card.shareTarget("degenaration");
+    assert.strictEqual(affiliate.url, "https://degenaration.vercel.app/r/degenaration");
+    assert.strictEqual(affiliate.label, "degenaration.vercel.app/r/degenaration");
+    assert.strictEqual(`https://${affiliate.label}`, affiliate.url,
+      "a QR resolving anywhere other than the visible link is indistinguishable from phishing");
+  });
+
+  test("a user with no referral code gets the canonical URL, not a broken /r/ link", () => {
+    for (const empty of [null, undefined, "", "   "]) {
+      const t = card.shareTarget(empty);
+      assert.strictEqual(t.url, card.CANONICAL_SITE_URL);
+      assert.ok(!t.url.includes("/r/"));
+    }
+  });
+
+  test("a trailing slash on the site URL does not produce a double slash", () => {
+    assert.strictEqual(card.shareTarget("abc", "https://example.com/").url, "https://example.com/r/abc");
+  });
+
+  test("accent colour is signed for trades and always gold for portfolio", () => {
+    assert.strictEqual(card.accentFor("winner", 1n), "#55b987");
+    assert.strictEqual(card.accentFor("loser", -1n), "#d56f6f");
+    assert.strictEqual(card.accentFor("winner", 0n), "#55b987");
+    assert.strictEqual(card.accentFor("portfolio", -999n), "#c29463");
+  });
+
+  test("duration is deterministic and formats across its boundaries", () => {
+    const base = new Date("2026-08-05T00:00:00Z").getTime();
+    const at = (ms) => new Date(base + ms).toISOString();
+    assert.strictEqual(card.durationLabel(at(0), at(59 * 60000)), "59m");
+    assert.strictEqual(card.durationLabel(at(0), at(60 * 60000)), "1h 0m");
+    assert.strictEqual(card.durationLabel(at(0), at(47 * 3600000 + 30 * 60000)), "47h 30m");
+    assert.strictEqual(card.durationLabel(at(0), at(48 * 3600000)), "2d 0h");
+    // An open position has no end; the clock is injected so this is not time-dependent.
+    assert.strictEqual(card.durationLabel(at(0), null, base + 90 * 60000), "1h 30m");
+  });
+
+  test("an unparseable timestamp does not render NaN onto a published card", () => {
+    assert.strictEqual(card.durationLabel("not-a-date", null, Date.now()), "—");
+  });
+
+  test("no financial quantity is accepted from the client", () => {
+    // The route reads exactly these query parameters. A client that could pass its own
+    // percentage or PnL could publish any claim it liked under DegenAration branding.
+    assert.deepStrictEqual(card.CLIENT_SUPPLIED_PARAMS, ["type", "period", "id"]);
+    const forbidden = /pnl|percent|amount|lamport|price|profit|loss|value|fee/i;
+    for (const param of card.CLIENT_SUPPLIED_PARAMS) {
+      assert.ok(!forbidden.test(param), `client must not supply "${param}"`);
+    }
+  });
+
+  test("the route reads no query parameter beyond the declared three", () => {
+    const source = require("fs").readFileSync(
+      require("path").join(__dirname, "../../app/api/product/pnl-card/route.tsx"), "utf8");
+    const read = [...source.matchAll(/searchParams\.get\(\s*"([^"]+)"\s*\)/g)].map((m) => m[1]);
+    for (const name of read) {
+      assert.ok(card.CLIENT_SUPPLIED_PARAMS.includes(name),
+        `route reads an undeclared query parameter "${name}" — if it carries a financial ` +
+        `value the client can forge the card`);
+    }
+    assert.ok(read.length > 0, "the scan found nothing, so it would pass even if broken");
+  });
+}
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
