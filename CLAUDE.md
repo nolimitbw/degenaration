@@ -2,10 +2,23 @@
 
 Read these files before modifying product behavior:
 
+- @docs/ai/FINAL_EXECUTION_HANDOFF.md — start here: state, status, exact next dependency
+- @docs/ai/DEGENARATION_FINAL_FULLSCAN_FINANCE_ADMIN_MIZAR_UI_CLAUDE_PROMPT.md — the
+  authoritative final execution instruction
+- @docs/DEGENARATION_MASTER_SPEC.md
 - @docs/launch/FINAL_LAUNCH_SPEC.md
+- @docs/ai/IMPLEMENTATION_STATUS.md
+- @docs/ai/ACCOUNTING_MODEL.md — one authoritative balance model
+- @docs/ai/MIZAR_PARITY_MATRIX.md — row-level UI parity status
+- @docs/ai/OPEN_BLOCKERS.md — what needs a credential, a host, or a decision
+- @docs/ai/PENDING_DEPLOYMENT.md — unapplied migrations, in mandatory apply order
 - @docs/coordination/IMPLEMENTATION_STATUS.md
 - @docs/coordination/AI_HANDOFF.md
 - @docs/coordination/CODEX_PLANS.md
+
+Project commands live in `.claude/commands/`: `/degenaration-goal` continues from the first
+failing dependency, `/fullscan`, `/finance-gate`, `/mizar-ui`, `/admin-console`,
+`/release-audit`. Focused rules live in `.claude/skills/`.
 
 **See what Codex planned before planning anything yourself:** `npm run codex:plans` reads
 Codex's own `update_plan` calls out of its session logs. The `codex-plans` skill explains
