@@ -9,12 +9,12 @@ The one file to read before touching anything. Written 2026-08-04.
 |---|---|
 | Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `ca4eb43` |
-| Suite | `npm run check` exit 0 — **213 tests**, 27 verifier suites, 2 contract gates |
+| Commit | `71afaaa` |
+| Suite | `npm run check` exit 0 — **239 tests**, 28 verifier suites, 2 contract gates |
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
-| Deployed edge functions | `app-bridge` **v11**, `bot-bridge` |
-| Migrations unapplied | **seven** — `docs/ai/PENDING_DEPLOYMENT.md`, status re-read from production 2026-08-04. Eleven previously listed as pending are in fact applied; three that were never listed were not, and three more were written in this session. |
+| Deployed edge functions | `app-bridge` **v13** (deployed 2026-08-05), `bot-bridge` v3 |
+| Migrations unapplied | **none.** All seven applied to production 2026-08-05 with owner approval, one at a time, each verified by md5(prosrc) against this repository before the next was started. `docs/ai/PENDING_DEPLOYMENT.md` records the per-migration result. |
 | Deployed application | `claude/degenaration-launch-remediation` @ `29291c9` — **not** `master` |
 | Release awaiting promotion | `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` |
 
@@ -92,6 +92,39 @@ a dash or a zero here, check the writer before checking the reader.
 | E-6 | No signed-in Privy session | Walk `docs/ai/BROWSER_VERIFICATION_RUNBOOK.md` |
 | — | `78a4af0` promotion | Explicit approval; irreversible |
 
+## Session 2026-08-05 — deployment, rollback, and the PnL unit defect
+
+Four commits, `c70b6f3`..`71afaaa`. The database half of this project is now deployed.
+
+**Parts B and C shipped.** The owner approved the package; all seven migrations were applied
+one at a time, each verified before the next was started, and `app-bridge` went to **v13**.
+Verification was stronger than "the object exists": `scripts/deploy-checksums.mjs` applies
+the package to PGlite from the files on disk and emits a query asking production for
+`md5(prosrc)` of every function it defines. All seven returned empty — 22 function bodies
+byte-identical to this repository. `worker_load_submitted_executions(5)` was **executed**
+against production, not merely parsed. Full per-migration record in `PENDING_DEPLOYMENT.md`.
+
+**Three defects were found and fixed before they shipped**, all of the same shape this
+project keeps hitting — two individually correct halves never checked against each other:
+
+| # | Defect | How it would have surfaced |
+|---|---|---|
+| 1 | The documented rollback for `exit-plan-state` leaves BOTH function arities installed, because `create or replace` at a different arity creates an overload. Every worker call would then fail *"function is not unique"* | only during an incident, when rolling back — leaving the worker unable to open **or** settle any position, with no further rollback to recover with |
+| 2 | The same migration's `worker_load_submitted_executions` was written from `buy-settlement` without noticing `copy-execution-integrity` had superseded it hours later with a union over `copy_executions` | silently: `store.js:173` dispatches on `execution.source`, so every submitted **copy** execution would stop being returned, never settle, and hold its reserved capital forever with nothing raising |
+| 3 | The PnL card computed average entry twice — the open branch applied `10^decimals`, the closed branch did not | the same "AVERAGE ENTRY" label reading `2.0000 SOL` open and `2.0000e-9 SOL` closed, on an image the user publishes under their own name |
+
+### New gates
+
+- `verify:migration-rollback` — applies the package, rolls it back through executable
+  scripts in `supabase/rollback/`, asserts a byte-identical baseline catalog including
+  function bodies, re-applies, and proves via control run that the previously documented
+  prose rollback was broken. Nine properties.
+- `scripts/deploy-checksums.mjs` — production must match the repository, function body by
+  function body. Existence is not the same as correctness.
+- `lib/pnl-card.js` + 26 tests — the card's arithmetic was untestable because it lived in an
+  async route and `server/test/run.js` is synchronous by design. It says so, and says what
+  to do instead: extract the pure logic.
+
 ## Exact next dependency
 
 **None that is internally solvable.** Every remaining §17 acceptance item needs a credential,
@@ -102,7 +135,8 @@ a host, or a signed-in session:
 - Discord ingestion and command state → E-2
 - every remaining parity row and browser evidence item → E-6
 - `cash_movements` → the withdrawal path running against a real wallet, E-6/E-3
-- the ten unapplied migrations and app-bridge v12 → owner approval, `PENDING_DEPLOYMENT.md`
+- ~~the unapplied migrations and app-bridge~~ → **DONE 2026-08-05.** All seven applied and
+  app-bridge is v13; see `PENDING_DEPLOYMENT.md`
 
 The correct next action is the owner's: approve the deployment package, or supply one of the
 four blockers above.
