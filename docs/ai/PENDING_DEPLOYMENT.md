@@ -69,9 +69,21 @@ its job. The verifiers apply them in that order, so a run of `npm run check` is 
 
 ## Edge function
 
-`supabase/functions/app-bridge/index.ts` — the deployed copy is **v11**. The repository adds
-`admin_refresh_performance`, `app_user_position_exits` and `admin_client_detail`, which makes it **v12**. Without the redeploy the new Clients-tab
-refresh returns `400 unknown operation`, exactly the failure mode the funds incident was.
+**Re-read from production 2026-08-05, and this section was stale.** The deployed
+`app-bridge` is **v12**, not v11: `admin_refresh_performance`, `app_user_position_exits`
+and `admin_client_detail` are already live. `npm run verify:bridge-live` reports exactly
+**one** remaining drift:
+
+```
+  - app_user_pending_withdrawals
+```
+
+That operation is created by migration **#7**, `degenaration-withdrawal-settlement.sql`.
+So the redeploy is **v13**, and it **must follow migration 7** — deployed before it, the
+operation reaches a function that does not exist yet. The controls in the same probe
+(`app_user_portfolio_summary`, `app_user_affiliate_summary`, `app_user_list_bots`) answered
+401 rather than 400, which is what makes the drift finding sound rather than a transport
+error.
 
 Deploy with `verify_jwt: false`. The default is `true`, and flipping it 401s every call.
 
@@ -95,8 +107,8 @@ git diff --stat 29291c9..78a4af0     # the real scope of the release
 | Part | Depends on |
 |---|---|
 | A — application release `78a4af0` | nothing |
-| B — the ten migrations | nothing |
-| C — app-bridge v12 | **B**. Deployed first, its three new operations reach functions that do not exist yet |
+| B — the seven migrations | nothing |
+| C — app-bridge **v13** | **migration 7 specifically**. Deployed first, `app_user_pending_withdrawals` reaches a function that does not exist yet |
 
 A may go alone. B may go alone. C must not precede B.
 
