@@ -1,6 +1,9 @@
 # Implementation status
 
-Updated: 2026-08-04 (second pass: exits, allocation, snapshots)
+Updated: 2026-08-04 (second pass: exits, allocation, snapshots, admin detail, §9 routes)
+
+The §4 full scan is recorded in `docs/ai/FULL_SCAN_2026-08-04.md` — writer coverage per
+table, then each area with how it was observed. Re-scan an area only when its code changes.
 
 `PASS` requires reproducible evidence. Deployment-dependent behavior remains `PARTIAL` or
 `BLOCKED` even when its local implementation passes.

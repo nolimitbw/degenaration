@@ -9,7 +9,7 @@ The one file to read before touching anything. Written 2026-08-04.
 |---|---|
 | Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `7c4397a` |
+| Commit | `b7ff573` |
 | Suite | `npm run check` exit 0 — 180 tests, 24 verifier suites, 72 bridge operations |
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
@@ -68,6 +68,12 @@ position-to-exit relationship it was missing.
 PASS. `.claude/commands/` holds `degenaration-goal`, `fullscan`, `finance-gate`, `mizar-ui`,
 `admin-console`, `release-audit`. `.claude/skills/` holds the five named skills. `/goal` is
 reserved by the harness, so `/degenaration-goal` is used as §14 permits.
+
+## The §4 scan
+
+`docs/ai/FULL_SCAN_2026-08-04.md`. One product defect was found and fixed in the same pass:
+thirteen retired trading surfaces that navigation and robots.txt had stopped advertising but
+that still served working pages (`b7ff573`). Everything else was already passing or blocked.
 
 ## The defect class that produced most of this work
 
