@@ -14,7 +14,7 @@ The one file to read before touching anything. Written 2026-08-04.
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
 | Deployed edge functions | `app-bridge` **v11**, `bot-bridge` |
-| Migrations unapplied | ten — `docs/ai/PENDING_DEPLOYMENT.md` |
+| Migrations unapplied | **four** — `docs/ai/PENDING_DEPLOYMENT.md`, status re-read from production 2026-08-04. Eleven previously listed as pending are in fact applied; three that were never listed are not. |
 | Deployed application | `claude/degenaration-launch-remediation` @ `29291c9` — **not** `master` |
 | Release awaiting promotion | `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` |
 

@@ -1,41 +1,60 @@
 # Pending deployment package
 
-Everything verified in the repository and **not yet applied to production**, in the order it
-must be applied. Written 2026-08-04.
+Written 2026-08-04. **Migration status re-read directly from production 2026-08-04**, not
+carried forward from the previous revision of this file, which said "nothing here has been
+deployed" after ten of these had in fact been applied.
 
-Nothing here has been deployed. Each item is presented so the owner can approve the set, or
-any prefix of it, as one decision.
+## Already applied — verified in production
 
-## Why the order matters
+Each confirmed by querying `pg_proc` / `information_schema` for the object the file creates.
 
-Four of these files replace `app_private.settle_execution_into_ledger()` in sequence, each
-with a superset of the last. Applying them out of order leaves an earlier, less complete
-version installed — no error, just a settlement that silently stops doing part of its job.
-The verifiers apply them in exactly this order, so a run of `npm run check` is a rehearsal of
-the deployment.
+| File | Object confirmed present |
+|---|---|
+| `degenaration-settlement-writer.sql` | `settle_execution_into_ledger` |
+| `degenaration-signal-fanout.sql` | `app_private.fan_out_parsed_signal` |
+| `degenaration-intent-reconciliation.sql` | `worker_reconcile_stale_intents`, `admin_stuck_intents` |
+| `degenaration-execution-record-fields.sql` | settlement body carries the measurement fields |
+| `degenaration-exit-settlement.sql` | `apply_exit_to_position` |
+| `degenaration-creator-referral-allocation.sql` | `current_referral_share_bps` |
+| `degenaration-performance-snapshots.sql` | `refresh_performance_snapshot` |
+| `degenaration-admin-client-ledger.sql` | `admin_client_ledger`, `admin_business_summary` |
+| `degenaration-position-exit-detail.sql` | `app_user_position_exits` |
+| `degenaration-admin-client-detail.sql` | `admin_client_detail` |
+| `degenaration-position-bot-attribution.sql` | `positions.bot_id` |
 
-## Migrations, in apply order
+## Still to apply, in order
+
+Three of these were verified long ago and were never in this package. One of them is a hard
+dependency of the worker, which is the reason this section exists at all.
 
 | # | File | What it adds | Verifier |
 |---|---|---|---|
-| 1 | `degenaration-settlement-writer.sql` | the writer for `trade_executions`, `positions`, `position_lots` | `verify:settlement-writer` |
-| 2 | `degenaration-signal-fanout.sql` | a delivery row per (signal, bot) — `signal_deliveries` had no writer | `verify:signal-fanout` |
-| 3 | `degenaration-intent-reconciliation.sql` | expires abandoned intents; never one carrying a signature | `verify:intent-reconciliation` |
-| 4 | `degenaration-execution-record-fields.sql` | slot, filled quantity, price, slippage, impact — §5.4 | `verify:settlement-writer` |
-| 5 | `degenaration-exit-settlement.sql` | FIFO lot consumption, realized PnL, position closure, `proceeds_lamports` | `verify:exit-settlement` |
-| 6 | `degenaration-creator-referral-allocation.sql` | resolves the creator and referrer at settlement — §13.2/13.3 | `verify:creator-referral` |
-| 7 | `degenaration-performance-snapshots.sql` | the writer for `performance_snapshots`, the equity series the Portfolio chart reads, and the operator refresh | `verify:performance-snapshots` |
-| 8 | `degenaration-admin-client-ledger.sql` | `admin_client_ledger`, `admin_business_summary` — §8 | `verify:admin-client-ledger` |
-| 9 | `degenaration-position-exit-detail.sql` | `app_user_position_exits` — what closed a position and at what price, for the §18 card | `verify:exit-settlement` |
-| 10 | `degenaration-admin-client-detail.sql` | `admin_client_detail` — the §8 per-client drill-down | `verify:admin-client-ledger` |
-| 11 | `degenaration-discord-call-performance.sql` | the `-50%` bucket, win rate separated from 2x rate, best/worst call, confirmed copied volume | `verify:marketplace-migration` |
+| 1 | `degenaration-subscriber-config-versioning.sql` | `kill_switch`, `subscriber_config_version_id`, `subscriber_config_snapshot`, the version table and the stamping triggers | `verify:subscriber-config` |
+| 2 | `degenaration-bot-lifecycle-safety.sql` | `enforce_bot_lifecycle`, `protect_position_entry_config` — archive guard and entry-snapshot immutability | `verify:bot-lifecycle` |
+| 3 | `degenaration-discord-marketplace-parity.sql` | accepted/rejected/executed counts, freshness, period snapshots | `verify:marketplace-migration` |
+| 4 | `degenaration-discord-call-performance.sql` | the `-50%` bucket, win rate separated from 2x rate, best/worst call, confirmed copied volume | `verify:marketplace-migration` |
 
-Files 1, 4, 5 and 6 each replace the settlement function. 1 → 4 → 5 → 6 is mandatory.
+**1 is required before the worker is ever started.** `server/engine/store.js` selects
+`kill_switch`, `subscriber_config_version_id` and `subscriber_config_snapshot` from both
+`copy_subscriptions` and `subscriptions`. None of those columns exists in production today.
+PostgREST answers an unknown column with **400**, so the worker fails on its first subscriber
+load, on every tick — the same shape as the funds incident, and for the same reason: two
+individually correct halves that were never checked against each other.
 
-File 11 replaces `app_public_list_discord_marketplace` in full and must come after
-`degenaration-discord-marketplace-parity.sql`. Its response is a superset of the previous
-one, so a deployed app that predates it keeps working and simply does not read the new
-fields.
+`npm run check:worker-schema-contract` is now that check. It fails if the worker reads a
+column that neither production nor this package provides.
+
+**4 must follow 3.** Both replace `app_public_list_discord_marketplace` in full; 4 is a
+superset, so an application build that predates it keeps working and simply does not read
+the new fields.
+
+## Why the order matters
+
+Four of the already-applied files replace `app_private.settle_execution_into_ledger()` in
+sequence, each with a superset of the last. That ordering is recorded here because a
+rollback-and-reapply must repeat it: applying them out of order leaves an earlier, less
+complete version installed — no error, just a settlement that silently stops doing part of
+its job. The verifiers apply them in that order, so a run of `npm run check` is a rehearsal.
 
 ## Edge function
 
