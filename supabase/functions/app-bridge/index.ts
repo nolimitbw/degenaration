@@ -86,6 +86,7 @@ const operations: Record<string, string[]> = {
   app_user_settle_withdrawal: [
     "p_secret", "p_privy_user_id", "p_intent_id", "p_outcome", "p_error"
   ],
+  app_user_pending_withdrawals: ["p_secret", "p_privy_user_id", "p_older_than_seconds"],
   app_user_list_withdrawals: ["p_secret", "p_privy_user_id", "p_limit"],
   app_user_record_pnl_card: [
     "p_secret", "p_privy_user_id", "p_card_type", "p_subject_type",
