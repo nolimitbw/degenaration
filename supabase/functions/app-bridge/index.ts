@@ -108,6 +108,11 @@ const operations: Record<string, string[]> = {
     "p_reason", "p_tx_signature"
   ],
   admin_list_app_users: ["p_secret", "p_actor_privy_user_id", "p_limit"],
+  // Spec section 8. Every figure these return aggregates trade_executions, positions and
+  // withdrawal_intents, which only gained a writer in d554243 -- before that they would have
+  // reported zero for every client.
+  admin_client_ledger: ["p_secret", "p_actor_privy_user_id", "p_limit"],
+  admin_business_summary: ["p_secret", "p_actor_privy_user_id"],
   admin_list_trade_executions: [
     "p_secret", "p_actor_privy_user_id", "p_status", "p_limit"
   ],
