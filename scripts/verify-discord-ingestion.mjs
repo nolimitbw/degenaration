@@ -130,6 +130,49 @@ for (const [opts, pattern, why] of bad) {
 assert.equal((await counts()).raw, 1, "no malformed event created a journal row");
 results.malformedInputRefused = "PASS";
 
+// ---- edit and delete: the branches that had no caller ----
+//
+// The function has implemented edit and delete since it was written, the API route has
+// accepted them, and the bot never once sent either: it had no messageUpdate or
+// messageDelete listener and hardcoded no event type. So this whole half of the ingestion
+// contract was dead code in production. These assertions are what the bot now drives.
+const MINT2 = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+const callRow = async (where, params) => (await db.query(
+  `select mint, parse_status, rejection_reason, deleted_at, message_id from public.calls where ${where}`, params)).rows;
+
+// An edit that changes the mint supersedes the original rather than editing it in place.
+// The original call is what a subscriber may already hold, so it must survive as a
+// retracted record, not be rewritten to a token nobody bought.
+const edited = await ingest({ eventType: "edit", eventVersion: "e1", mint: MINT2, hash: "e".repeat(64) });
+assert.equal(edited.accepted, true, "an edit that names a new token is a new call");
+assert.equal((await counts()).raw, 2, "the edit is a SEPARATE raw event — this is what event_version buys");
+const original = await callRow("message_id = $1", [MSG]);
+assert.equal(original.length, 1);
+assert.equal(original[0].parse_status, "rejected", "the superseded call is retracted");
+assert.equal(original[0].rejection_reason, "superseded by message edit");
+assert.ok(original[0].deleted_at, "and carries the time it stopped being current");
+const replacement = await callRow("message_id like $1", [`${MSG}:e:%`]);
+assert.equal(replacement.length, 1, "the edit opened its own call row");
+assert.equal(replacement[0].mint, MINT2);
+
+// An edit that leaves the mint alone must not re-open the same call.
+const noChange = await ingest({ eventType: "edit", eventVersion: "e2", mint: MINT2, hash: "f".repeat(64) });
+assert.equal(noChange.accepted, false, "an edit that changes nothing is not a second call");
+assert.equal(noChange.reason, "message edit did not change the mint",
+  "and it is refused by the edit branch, not incidentally by the cooldown");
+results.editSupersedesCall = "PASS";
+
+// A deleted source message retracts every live call it produced.
+const removed = await ingest({ eventType: "delete", eventVersion: "deleted", mint: null, hash: "0".repeat(64) });
+assert.equal(removed.ok, true, "a delete is accepted without a mint");
+const afterDelete = await callRow("message_id like $1", [`${MSG}%`]);
+assert.equal(afterDelete.length, 2, "no call row was destroyed");
+for (const row of afterDelete) {
+  assert.equal(row.parse_status, "rejected", "every call from the deleted message is retracted");
+  assert.ok(row.deleted_at, "with the retraction time recorded");
+}
+results.deleteRetractsCall = "PASS";
+
 // ---- authorization ----
 await assert.rejects(() => ingest({ secret: "wrong" }), /unauthorized/i);
 await assert.rejects(() => ingest({ secret: null }), /unauthorized/i,

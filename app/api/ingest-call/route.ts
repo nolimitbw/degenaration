@@ -46,11 +46,36 @@ async function verifySolanaMint(mint: string) {
   }
 }
 
+/**
+ * Parser evidence, as basis points, keyed by WHERE the mint was found.
+ *
+ * This map previously recognised only "slash-command", "message-edit" and "message" — none
+ * of which the bot has ever sent. It sends the evidence label from the parser, so every
+ * ingested call fell through to the 7500 default and `parsed_signals.confidence_bps` was a
+ * constant. The labels below are the ones the parser actually produces, ordered by how
+ * directly the source named the token: an explicit command outranks a link, a link outranks
+ * a bare address, and anything inherited from a replied-to message ranks below the same
+ * evidence found in the message itself.
+ */
+const CONFIDENCE_BPS: Record<string, number> = {
+  "slash-command": 10_000,
+  explicit: 10_000,
+  link: 9_500,
+  high: 9_500,
+  message: 9_000,
+  "embed-link": 9_000,
+  address: 8_500,
+  medium: 8_500,
+  "message-edit": 8_000,
+  "embed-address": 8_000,
+  "reply-link": 7_500,
+  "reply-embed-link": 7_250,
+  "reply-address": 7_000,
+  "reply-embed-address": 6_750
+};
+
 function confidenceBps(value: unknown) {
-  if (value === "slash-command") return 10_000;
-  if (value === "message-edit") return 8_000;
-  if (value === "message") return 9_000;
-  return 7_500;
+  return (typeof value === "string" && CONFIDENCE_BPS[value]) || 7_500;
 }
 
 /**

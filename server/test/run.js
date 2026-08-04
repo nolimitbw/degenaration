@@ -51,6 +51,109 @@ test("does not misfire on two addresses (ambiguous)", () => {
   assert.strictEqual(parseCall(two), null);
 });
 
+console.log("discord message parsing — embeds, replies, ambiguity (controller §1)");
+const { parseMessage } = require("../bot/parser");
+const MINT_A = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+const MINT_B = "6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP";
+
+test("reads a mint from an embed description", () => {
+  const r = parseMessage({ content: "", embeds: [{ description: `CA: ${MINT_A}` }] });
+  assert.strictEqual(r.mint, MINT_A);
+  assert.strictEqual(r.confidence, "embed-address");
+});
+test("reads a mint from an embed field value", () => {
+  const r = parseMessage({ content: "NEW CALL", embeds: [{ fields: [{ name: "Contract", value: MINT_A }] }] });
+  assert.strictEqual(r.mint, MINT_A);
+});
+test("reads a mint from an embed url and marks it a link", () => {
+  const r = parseMessage({ content: "", embeds: [{ url: `https://pump.fun/coin/${MINT_A}` }] });
+  assert.strictEqual(r.mint, MINT_A);
+  assert.strictEqual(r.confidence, "embed-link");
+});
+test("content link outranks an embed address", () => {
+  const r = parseMessage({ content: `https://pump.fun/coin/${MINT_A}`, embeds: [{ description: MINT_B }] });
+  assert.strictEqual(r.mint, MINT_A);
+  assert.strictEqual(r.confidence, "link");
+});
+test("refuses two distinct addresses across regions rather than guessing", () => {
+  const r = parseMessage({ content: MINT_A, embeds: [{ description: MINT_B }] });
+  assert.strictEqual(r.mint, undefined);
+  assert.strictEqual(r.rejected, "ambiguous-addresses");
+  assert.strictEqual(r.candidates, 2);
+});
+test("the same address repeated in several regions is one candidate", () => {
+  const r = parseMessage({ content: MINT_A, embeds: [{ description: MINT_A, footer: { text: MINT_A } }] });
+  assert.strictEqual(r.mint, MINT_A);
+});
+test("refuses two links pointing at different mints", () => {
+  const r = parseMessage({ content: `https://pump.fun/coin/${MINT_A} and https://birdeye.so/token/${MINT_B}` });
+  assert.strictEqual(r.rejected, "ambiguous-links");
+});
+test("falls back to the replied-to message when the reply itself carries nothing", () => {
+  const r = parseMessage({ content: "aped", referencedMessage: { content: MINT_A } });
+  assert.strictEqual(r.mint, MINT_A);
+  assert.strictEqual(r.confidence, "reply-address");
+});
+test("an ambiguous parent never makes the reply a call", () => {
+  const r = parseMessage({ content: "aped", referencedMessage: { content: `${MINT_A} ${MINT_B}` } });
+  assert.strictEqual(r, null);
+});
+test("the reply's own mint wins over the parent's", () => {
+  const r = parseMessage({ content: MINT_A, referencedMessage: { content: MINT_B } });
+  assert.strictEqual(r.mint, MINT_A);
+  assert.strictEqual(r.confidence, "address");
+});
+test("ordinary chatter stays null, not a rejection", () => {
+  assert.strictEqual(parseMessage({ content: "gm frens", embeds: [] }), null);
+});
+test("survives a malformed embed payload", () => {
+  assert.strictEqual(parseMessage({ content: "", embeds: [null, { fields: null }] }), null);
+  assert.strictEqual(parseMessage({}), null);
+});
+
+console.log("ingest delivery policy — retry, reject, dead letter (controller §1)");
+const ingest = require("../bot/ingest");
+
+test("a transient 503 is retried, not dropped", () => {
+  // The route returns 503 when Solana mint validation is unavailable. Treating that as
+  // permanent silently loses real calls on the most ordinary failure the path has.
+  assert.strictEqual(ingest.classifyDeliveryFailure({ status: 503 }), "retry");
+  assert.strictEqual(ingest.classifyDeliveryFailure({ status: 429 }), "retry");
+  assert.strictEqual(ingest.classifyDeliveryFailure({ networkError: "ECONNRESET" }), "retry");
+});
+test("a permanent 4xx is rejected rather than retried forever", () => {
+  assert.strictEqual(ingest.classifyDeliveryFailure({ status: 400 }), "reject");
+  assert.strictEqual(ingest.classifyDeliveryFailure({ status: 422 }), "reject");
+});
+test("bad credentials are fatal, not counted as a retry", () => {
+  assert.strictEqual(ingest.classifyDeliveryFailure({ status: 401 }), "fatal");
+  assert.strictEqual(ingest.classifyDeliveryFailure({ status: 403 }), "fatal");
+});
+test("backoff grows and is capped", () => {
+  assert.strictEqual(ingest.nextBackoffMs(0), 500);
+  assert.strictEqual(ingest.nextBackoffMs(3), 4000);
+  assert.strictEqual(ingest.nextBackoffMs(99), ingest.MAX_DELAY_MS);
+  assert.strictEqual(ingest.nextBackoffMs(-1), 500);
+});
+test("payload carries the event version that keeps an edit from overwriting the create", () => {
+  const create = ingest.buildIngestPayload({ channelId: "1", messageId: "2", call: { mint: MINT_A, confidence: "link" } });
+  assert.strictEqual(create.eventType, "create");
+  assert.strictEqual(create.eventVersion, "original");
+  const edit = ingest.buildIngestPayload({ channelId: "1", messageId: "2", call: { mint: MINT_B }, eventType: "edit", eventVersion: "1754000000000" });
+  assert.strictEqual(edit.eventVersion, "1754000000000");
+  assert.notStrictEqual(create.eventVersion, edit.eventVersion);
+});
+test("an edit or delete without an event version is refused at the boundary", () => {
+  assert.throws(() => ingest.buildIngestPayload({ channelId: "1", messageId: "2", eventType: "delete" }), /event version required/);
+});
+test("dead letters are bounded and report what they retired", () => {
+  const q = new ingest.DeadLetterQueue(2);
+  q.add({ n: 1 }).add({ n: 2 }).add({ n: 3 });
+  assert.strictEqual(q.size, 2);
+  assert.deepStrictEqual(q.summary(), { held: 2, retired: 1, total: 3 });
+  assert.strictEqual(q.entries[0].n, 2);
+});
+
 console.log("fee model (integer lamport arithmetic, spec 13 / 22.1)");
 const feeModel = require("../../lib/fee-model");
 const SOL = BigInt(1000000000);
