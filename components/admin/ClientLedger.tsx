@@ -18,6 +18,22 @@ import { EmptyState, LoadingRows, Metric, StatusPill } from "@/components/produc
  * and Portfolio dashboards use. A stale figure with a visible notice beats a blank page.
  */
 
+/**
+ * A windowed volume the deployed RPC may not return yet.
+ *
+ * An absent field is NOT zero. Rendering "0.00" for a column the server never sent would
+ * report a client as inactive on no evidence, which is the failure mode this product has
+ * had to correct repeatedly.
+ */
+function period(value?: string) {
+  return value == null ? "—" : sol(value);
+}
+
+/** Operations on this client that need a human: failed legs, failed payouts, unreconciled. */
+function attention(client: Client) {
+  return (client.failedExecutions || 0) + (client.failedWithdrawals || 0) + (client.reconciliationWarnings || 0);
+}
+
 type Client = {
   privyUserId: string;
   status: string;
@@ -25,6 +41,14 @@ type Client = {
   walletAddress: string | null;
   executedVolumeLamports: string;
   executionCount: number;
+  // Optional: an older deployed RPC does not return these, and the column then reads "—"
+  // rather than a fabricated zero.
+  volumeTodayLamports?: string;
+  volume7dLamports?: string;
+  volume30dLamports?: string;
+  failedExecutions?: number;
+  failedWithdrawals?: number;
+  reconciliationWarnings?: number;
   platformFeeLamports: string;
   creatorFeeLamports: string;
   committedLamports: string;
@@ -211,12 +235,15 @@ export default function ClientLedger({
         <EmptyState title="No clients yet" description="Clients appear here after their first sign-in." />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-edge bg-panel">
-          <table className="w-full min-w-[900px] text-left text-xs">
+          <table className="w-full min-w-[1100px] text-left text-xs">
             <thead className="sticky top-0 bg-panel">
               <tr className="border-b border-edge text-[10px] uppercase tracking-wide text-dim">
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Wallet</th>
-                <th className="px-4 py-3 text-right font-medium">Volume</th>
+                <th className="px-4 py-3 text-right font-medium" title="UTC day">Volume today</th>
+                <th className="px-4 py-3 text-right font-medium">7D</th>
+                <th className="px-4 py-3 text-right font-medium">30D</th>
+                <th className="px-4 py-3 text-right font-medium">Lifetime</th>
                 <th className="px-4 py-3 text-right font-medium">Fees</th>
                 <th className="px-4 py-3 text-right font-medium">Committed</th>
                 <th className="px-4 py-3 text-right font-medium">Open</th>
@@ -242,9 +269,20 @@ export default function ClientLedger({
                       <span className="text-[11px] text-dim">Not registered</span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{period(c.volumeTodayLamports)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{period(c.volume7dLamports)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{period(c.volume30dLamports)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-ink">
                     {sol(c.executedVolumeLamports)}
                     <span className="ml-1 text-[10px] text-dim">({c.executionCount})</span>
+                    {attention(c) > 0 && (
+                      <span
+                        className="ml-2 rounded bg-down/15 px-1.5 py-0.5 text-[9px] font-semibold text-down"
+                        title={`${c.failedExecutions || 0} failed execution(s), ${c.failedWithdrawals || 0} failed withdrawal(s), ${c.reconciliationWarnings || 0} unreconciled`}
+                      >
+                        {attention(c)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{sol(c.platformFeeLamports, 4)}</td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{sol(c.committedLamports)}</td>

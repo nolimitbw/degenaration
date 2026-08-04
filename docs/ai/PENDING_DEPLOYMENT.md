@@ -34,6 +34,7 @@ dependency of the worker, which is the reason this section exists at all.
 | 3 | `degenaration-discord-marketplace-parity.sql` | accepted/rejected/executed counts, freshness, period snapshots | `verify:marketplace-migration` |
 | 4 | `degenaration-discord-call-performance.sql` | the `-50%` bucket, win rate separated from 2x rate, best/worst call, confirmed copied volume | `verify:marketplace-migration` |
 | 5 | `degenaration-exit-plan-state.sql` | `entry_config`, `peak_price_usd`, `filled_levels`; a claimable third take-profit level; the execution's config snapshot reaching the position | `verify:exit-plan-state` |
+| 6 | `degenaration-admin-client-volume-periods.sql` | client-table volume today/7D/30D, failed executions and withdrawals, reconciliation warnings — spec §8 | `verify:admin-client-ledger` |
 
 **1 is required before the worker is ever started.** `server/engine/store.js` selects
 `kill_switch`, `subscriber_config_version_id` and `subscriber_config_snapshot` from both

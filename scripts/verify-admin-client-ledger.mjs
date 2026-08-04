@@ -270,6 +270,54 @@ for (const role of ["anon", "authenticated"]) {
 }
 results.detailAuthorizationHolds = "PASS";
 
+// ---- volume by period, and operational health (controller 5 / spec section 8) ----
+//
+// The ledger returned one lifetime figure, so an operator could see that a client had
+// traded 40 SOL and not whether that was this morning or three weeks ago.
+await db.exec(await readFile(`${repo}/supabase/degenaration-admin-client-volume-periods.sql`, "utf8"));
+await db.exec(await readFile(`${repo}/supabase/degenaration-admin-client-volume-periods.sql`, "utf8"));
+
+// Three more executions for Alice, placed either side of each window boundary.
+const olderIntent = (await db.query(`insert into app_private.trade_intents
+  (owner_privy_user_id, intent_kind, side, mint, requested_input_base_units,
+   reserved_lamports, execution_mode, state, idempotency_key)
+  values ($1::text,'entry','buy','M',1,0,'solana-mainnet','submitted','k-old')
+  returning id`, [A])).rows[0];
+// Distinct attempts: (intent_id, attempt) is unique, which is the constraint that stops one
+// intent being settled twice.
+await db.query(`insert into app_private.trade_executions
+  (intent_id, owner_privy_user_id, execution_mode, status, attempt, gross_notional_lamports, confirmed_at)
+  values
+    ($1::uuid,$2::text,'solana-mainnet','confirmed', 1,  400000000, now() - interval '3 days'),
+    ($1::uuid,$2::text,'solana-mainnet','reconciled',2,  700000000, now() - interval '20 days'),
+    ($1::uuid,$2::text,'solana-mainnet','failed',    3, 9000000000, now() - interval '1 hour')`,
+  [olderIntent.id, A]);
+
+const windowed = (await db.query(
+  "select public.admin_client_ledger($1::text,$2::text,100::integer) as r", [S, "admin-a"]
+)).rows[0].r.clients.find((c) => c.privyUserId === A);
+
+assert.equal(windowed.volumeTodayLamports, "1000000000", "only the execution confirmed today");
+assert.equal(windowed.volume7dLamports, "1400000000", "today plus the 3-day-old leg");
+assert.equal(windowed.volume30dLamports, "2100000000", "and the 20-day-old leg");
+assert.equal(windowed.executedVolumeLamports, "2100000000", "lifetime is unchanged in meaning");
+// The ordering is a property of the definition, not of this fixture.
+const asNumbers = [windowed.volumeTodayLamports, windowed.volume7dLamports,
+  windowed.volume30dLamports, windowed.executedVolumeLamports].map(BigInt);
+for (let i = 1; i < asNumbers.length; i += 1) {
+  assert.ok(asNumbers[i] >= asNumbers[i - 1], "each wider window must contain the narrower one");
+}
+assert.ok(!asNumbers.some((v) => v > BigInt("2100000000")),
+  "the failed 9 SOL leg is excluded from every window, not just the lifetime total");
+results.volumeByPeriod = "PASS";
+
+// Two: the 0.5 SOL leg the detail-view assertions rely on, and the 9 SOL one added here.
+assert.equal(windowed.failedExecutions, 2, "every failed leg is counted as an operational fact");
+assert.equal(windowed.failedWithdrawals, 0);
+assert.equal(windowed.reconciliationWarnings, 1,
+  "an execution confirmed on chain and never reconciled is surfaced, not left silent");
+results.operationalHealth = "PASS";
+
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",
   fixture: `generated from production shapes (${FIXTURE_TABLES.length} tables)`,
