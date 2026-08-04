@@ -46,3 +46,40 @@ requirement. Source inspection alone is never PASS.
 | Tooltips instead of explanation walls | PARTIAL | Summary/affiliate affordances exist; complete keyboard/browser audit pending |
 | Desktop/tablet/mobile evidence | PARTIAL | Six builder/dialog/filter images under `docs/ai/evidence/`; all three widths have `scrollWidth === clientWidth`. Other primary surfaces still need current evidence |
 | Mainnet automated activation | BLOCKED | Worker deployment, valid platform fee account, B-6 config handoff, and explicit authorization |
+
+---
+
+## Setup-order parity, verified 2026-08-04
+
+`BotBuilder.tsx` section order, read from the source:
+
+1. Bot identity · 2. Execution wallet · 3. Discord source · 4. Funding and exposure ·
+5. Entry trigger · 6. Dollar-cost averaging · 7. Take profit · 8. Stop loss ·
+9. Security filters · 10. Execution and retries
+
+Capital/exposure summary, the platform fee line, the acknowledgement gate and
+cooldown/duplicate controls are all present in the same component.
+
+### One deliberate divergence, and why it stays
+
+The final execution prompt's §13 lists slippage, priority fee and retry at positions 9–11,
+i.e. **before** take-profit. The builder places them last, inside a collapsed "Execution and
+retries" section.
+
+That is not drift. `FINAL_LAUNCH_SPEC.md` §11.1 mandates the opposite order explicitly —
+`Source → Budget → Entry → Take Profit → Stop Loss → Safety → Advanced Execution → Review`
+— with Advanced Execution "collapsed by default", because putting priority-fee and retry
+tuning ahead of take-profit is exactly the beginner-hostile density both documents forbid.
+The builder follows the progressive-disclosure rule the two specs agree on rather than the
+field enumeration one of them lists.
+
+Read as an enumeration of *required fields* rather than a mandated visual order, §13 is
+satisfied in full: every one of its 23 items exists. Reordering to match it literally would
+break §11.1 and the Mizar-familiarity goal at the same time.
+
+### What actually blocks the remaining PARTIAL rows
+
+Nearly every row above ends "authenticated save remains" or "browser proof pending". Those
+are one blocker, not many: **E-6**, a signed-in Privy session with a delegated dev wallet.
+The implementation is present in each case; what is missing is evidence that requires a real
+session. No amount of further code closes them.
