@@ -1,0 +1,222 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { EmptyState, LoadingRows, Metric, StatusPill } from "@/components/product/Primitives";
+
+/**
+ * Spec section 8: the operator's view of every client and the business totals.
+ *
+ * Deliberately has no "balance" column. DegenAration is non-custodial — a client's SOL sits
+ * in a wallet they control and the server cannot read a chain balance from SQL. The wallet
+ * address is shown instead so the operator can look it up, and the footer says so. A column
+ * of numbers the database cannot verify would be worse than none.
+ *
+ * The table and the header totals load from one request but render independently: if one
+ * side is unavailable the other still shows, matching the allSettled behaviour the Affiliate
+ * and Portfolio dashboards use. A stale figure with a visible notice beats a blank page.
+ */
+
+type Client = {
+  privyUserId: string;
+  status: string;
+  createdAt: string;
+  walletAddress: string | null;
+  executedVolumeLamports: string;
+  executionCount: number;
+  platformFeeLamports: string;
+  creatorFeeLamports: string;
+  committedLamports: string;
+  openPositions: number;
+  openCostLamports: string;
+  realizedPnlLamports: string;
+  withdrawnLamports: string;
+  pendingWithdrawalLamports: string;
+  discordBots: number;
+  kolBots: number;
+  commissionBalanceLamports: string;
+  lastTradeAt: string | null;
+};
+
+type Payload = {
+  clients: { clients: Client[]; custodyModel: string; balanceNote: string } | null;
+  clientsError: string | null;
+  summary: Record<string, string | number> | null;
+  summaryError: string | null;
+};
+
+/** Lamports arrive as text so a large value cannot lose precision. Format, never re-math. */
+function sol(lamports: string | number | null | undefined, decimals = 3): string {
+  if (lamports == null) return "—";
+  try {
+    const value = BigInt(String(lamports));
+    const negative = value < BigInt(0);
+    const abs = negative ? -value : value;
+    const whole = abs / BigInt(1_000_000_000);
+    const frac = (abs % BigInt(1_000_000_000)).toString().padStart(9, "0").slice(0, decimals);
+    return `${negative ? "-" : ""}${whole.toLocaleString()}.${frac}`;
+  } catch {
+    return "—";
+  }
+}
+
+const shortId = (id: string) => (id.length > 22 ? `${id.slice(0, 18)}…` : id);
+const shortAddr = (a: string | null) => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : null);
+
+function RetryButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+    >
+      <RefreshCw size={13} /> Try again
+    </button>
+  );
+}
+
+export default function ClientLedger({
+  fetchJson
+}: {
+  fetchJson: <T>(path: string) => Promise<T>;
+}) {
+  const [data, setData] = useState<Payload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await fetchJson<Payload>("/api/admin/clients?limit=200"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not load clients.");
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchJson]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading && !data) return <LoadingRows count={6} />;
+
+  if (error && !data) {
+    return (
+      <EmptyState
+        title="Client ledger unavailable"
+        description={error}
+        action={<RetryButton onClick={() => void load()} />}
+      />
+    );
+  }
+
+  const summary = data?.summary;
+  const clients = data?.clients?.clients ?? [];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Clients</h2>
+          <p className="mt-1 text-[11px] text-dim">
+            Ledger-derived. Balances live on chain, not in the database.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+        >
+          <RefreshCw size={13} className={loading ? "animate-spin" : undefined} /> Refresh
+        </button>
+      </div>
+
+      {data?.summaryError && (
+        <p className="flex items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 text-[11px] text-dim">
+          <AlertCircle size={13} className="text-warn" /> Totals unavailable — the client table below is still current.
+        </p>
+      )}
+
+      {summary && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Metric label="Clients" value={String(summary.clients ?? 0)} detail={`${summary.clientsWithWallet ?? 0} with a registered wallet`} />
+          <Metric label="Executed volume" value={`${sol(summary.executedVolumeLamports)} SOL`} detail="Confirmed and reconciled" />
+          <Metric label="Platform fees" value={`${sol(summary.platformFeeLamports, 4)} SOL`} detail={`${sol(summary.retainedFeeLamports, 4)} SOL retained`} />
+          <Metric label="Pending withdrawals" value={`${sol(summary.pendingWithdrawalLamports)} SOL`} detail={`${sol(summary.withdrawnLamports)} SOL settled`} />
+        </div>
+      )}
+
+      {data?.clientsError ? (
+        <EmptyState
+          title="Client table unavailable"
+          description={data.clientsError}
+          action={<RetryButton onClick={() => void load()} />}
+        />
+      ) : clients.length === 0 ? (
+        <EmptyState title="No clients yet" description="Clients appear here after their first sign-in." />
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-edge bg-panel">
+          <table className="w-full min-w-[900px] text-left text-xs">
+            <thead className="sticky top-0 bg-panel">
+              <tr className="border-b border-edge text-[10px] uppercase tracking-wide text-dim">
+                <th className="px-4 py-3 font-medium">Client</th>
+                <th className="px-4 py-3 font-medium">Wallet</th>
+                <th className="px-4 py-3 text-right font-medium">Volume</th>
+                <th className="px-4 py-3 text-right font-medium">Fees</th>
+                <th className="px-4 py-3 text-right font-medium">Committed</th>
+                <th className="px-4 py-3 text-right font-medium">Open</th>
+                <th className="px-4 py-3 text-right font-medium">Withdrawn</th>
+                <th className="px-4 py-3 text-center font-medium">Bots</th>
+                <th className="px-4 py-3 font-medium">Last trade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map((c) => (
+                <tr key={c.privyUserId} className="border-b border-edge/60 last:border-0">
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-[11px] text-ink">{shortId(c.privyUserId)}</span>
+                    {c.status !== "active" && <StatusPill status={c.status} />}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.walletAddress ? (
+                      <span className="font-mono text-[11px] text-dim" title={c.walletAddress}>
+                        {shortAddr(c.walletAddress)}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-dim">Not registered</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-ink">
+                    {sol(c.executedVolumeLamports)}
+                    <span className="ml-1 text-[10px] text-dim">({c.executionCount})</span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{sol(c.platformFeeLamports, 4)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{sol(c.committedLamports)}</td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">
+                    {c.openPositions > 0 ? `${c.openPositions} · ${sol(c.openCostLamports)}` : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">
+                    {sol(c.withdrawnLamports)}
+                    {c.pendingWithdrawalLamports !== "0" && (
+                      <span className="ml-1 text-[10px] text-warn">+{sol(c.pendingWithdrawalLamports)}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center text-[11px] text-dim">
+                    {c.discordBots + c.kolBots === 0 ? "—" : `${c.discordBots}D · ${c.kolBots}K`}
+                  </td>
+                  <td className="px-4 py-3 text-[11px] text-dim">
+                    {c.lastTradeAt ? new Date(c.lastTradeAt).toLocaleDateString() : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {data?.clients?.balanceNote && (
+        <p className="text-[10px] leading-4 text-dim">{data.clients.balanceNote}</p>
+      )}
+    </div>
+  );
+}
