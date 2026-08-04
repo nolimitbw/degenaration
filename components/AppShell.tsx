@@ -112,13 +112,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim lg:hidden"
+            className="grid h-11 w-11 shrink-0 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim lg:hidden"
             aria-label="Open navigation"
           >
             <Menu aria-hidden="true" size={19} />
           </button>
+          {/*
+            Measured at 390px on the deployed build: the row needed 462px of content in a
+            390px viewport, so it scrolled horizontally by 56px on EVERY signed-in route —
+            and because the logo lockup is shrink-0 at 154px and the account controls are
+            231px, the only flexible child left was the navigation button, which collapsed to
+            21px. That is under half the 44px minimum tap target, on the control that opens
+            navigation on mobile.
+
+            The wordmark is dropped below sm, not the mark. Logo's compact variant renders the
+            same 32px glyph unchanged — the logo is never scaled, redrawn or replaced — and
+            recovers 122px, which restores the button to 44px with room to spare.
+          */}
           <Link href="/bots" className="flex min-h-11 shrink-0 items-center sm:min-h-0" aria-label="DegenAration bots">
-            <Logo />
+            <Logo compact className="sm:hidden" />
+            <Logo className="hidden sm:inline-flex" />
           </Link>
 
           <nav className="ml-8 hidden h-full items-center gap-1 lg:flex" aria-label="Primary navigation">
@@ -146,7 +159,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex min-w-0 items-center gap-2">
             <div className="hidden items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[10px] uppercase text-dim sm:flex">
               <span className="h-1.5 w-1.5 rounded-full bg-gold-400" />
               Solana

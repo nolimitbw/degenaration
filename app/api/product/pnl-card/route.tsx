@@ -9,7 +9,10 @@ import { fetchWithTimeout, isMint } from "@/lib/server/guard";
 // handler. server/test/run.js is synchronous by design, so logic buried in an async route
 // that needs a session, two RPCs and a price provider could never be asserted — which is
 // how a closed trade came to print its average entry in a different unit from an open one.
-import { closedTradeCard, openPositionCard, perUnitSol, shareTarget } from "@/lib/pnl-card";
+import {
+  closedTradeCard, openPositionCard, portfolioCard, perUnitSol, shareTarget,
+  decimalToScaled, durationLabel, formatSol
+} from "@/lib/pnl-card";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,18 +48,6 @@ async function rpc(method: string, params: unknown[]) {
   const data = await response.json();
   if (data.error) throw new Error("Solana RPC rejected mint");
   return data.result;
-}
-
-function decimalToScaled(value: unknown, scale = 18) {
-  const raw = String(value ?? "").trim();
-  if (!/^\d+(?:\.\d+)?$/.test(raw)) return null;
-  const [whole, fraction = ""] = raw.split(".");
-  const scaled = `${whole}${fraction.padEnd(scale, "0").slice(0, scale)}`.replace(/^0+(?=\d)/, "");
-  try {
-    return BigInt(scaled || "0");
-  } catch {
-    return null;
-  }
 }
 
 async function marketValue(position: Position) {
@@ -107,23 +98,6 @@ async function marketValue(position: Position) {
   };
 }
 
-function durationLabel(start: string, end?: string | null) {
-  const elapsed = Math.max(0, new Date(end || Date.now()).getTime() - new Date(start).getTime());
-  const minutes = Math.floor(elapsed / 60000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours}h ${minutes % 60}m`;
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
-
-function sol(lamports: bigint | number | string | null | undefined, digits = 3) {
-  try {
-    return `${(Number(BigInt(lamports ?? "0")) / 1e9).toFixed(digits)} SOL`;
-  } catch {
-    return "0.000 SOL";
-  }
-}
-
 export async function GET(req: NextRequest) {
   const limited = await distributedRateLimit(req, { limit: 20, windowSeconds: 60 });
   if (limited) return limited;
@@ -166,20 +140,19 @@ export async function GET(req: NextRequest) {
   let recordSubjectId: string;
 
   if (type === "portfolio") {
-    const performance = portfolioResult.data?.performance;
-    if (!performance) return NextResponse.json({ error: "A reconciled portfolio snapshot is required before a share card can be generated." }, { status: 409 });
-    const pnlLamports = BigInt(performance.netPnlLamports || 0);
-    const capitalLamports = BigInt(performance.metrics?.averageCapitalLamports || performance.volumeLamports || 0);
-    const pnlPercent = capitalLamports > BigInt(0) ? Number(pnlLamports * BigInt(10000) / capitalLamports) / 100 : 0;
+    const decided = portfolioCard(portfolioResult.data?.performance, period);
+    if (!decided.ok) {
+      return NextResponse.json({ error: decided.error }, { status: decided.status });
+    }
     card = {
-      variant: "portfolio",
-      title: "Portfolio performance",
-      pair: period.toUpperCase(),
-      pnlPercent,
-      pnlLamports,
+      variant: decided.variant,
+      title: decided.title,
+      pair: decided.pair,
+      pnlPercent: decided.pnlPercent,
+      pnlLamports: decided.pnlLamports,
       duration: period.toUpperCase(),
       source: "Reconciled bot portfolio",
-      context: `${performance.sampleSize || 0} completed executions · net of recorded fees`
+      context: decided.context
     };
     recordSubjectType = "portfolio-snapshot";
     recordSubjectId = user.privyUserId;
@@ -339,7 +312,7 @@ export async function GET(req: NextRequest) {
             <div style={{ display: "flex", color: accent, fontSize: 17, textTransform: "uppercase", letterSpacing: 3 }}>{card.title}</div>
             <div style={{ display: "flex", marginTop: 14, fontSize: 42, fontWeight: 720 }}>{card.pair}</div>
             <div style={{ display: "flex", marginTop: 38, color: accent, fontSize: 106, lineHeight: 1, fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{card.pnlPercent >= 0 ? "+" : ""}{card.pnlPercent.toFixed(2)}%</div>
-            <div style={{ display: "flex", marginTop: 18, fontSize: 28, color: "#cbc6bd" }}>{card.pnlLamports >= BigInt(0) ? "+" : ""}{sol(card.pnlLamports)}</div>
+            <div style={{ display: "flex", marginTop: 18, fontSize: 28, color: "#cbc6bd" }}>{card.pnlLamports >= BigInt(0) ? "+" : ""}{formatSol(card.pnlLamports)}</div>
 
             <div style={{ display: "flex", gap: 14, marginTop: 50 }}>
               {card.entryPrice && <CardDatum label="AVERAGE ENTRY" value={card.entryPrice} />}

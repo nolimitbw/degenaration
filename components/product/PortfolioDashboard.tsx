@@ -27,7 +27,7 @@ import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import { fetchPortfolio, fmtUsd, type Portfolio } from "@/lib/queries";
 import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch } from "@/lib/product-api";
 import { getNet } from "@/lib/net";
-import { portfolioStatistics } from "@/lib/portfolio-stats";
+import { portfolioStatistics, unrealizedPnl } from "@/lib/portfolio-stats";
 
 type Period = "7d" | "30d" | "3m";
 type View = "overview" | "positions" | "trades" | "movements";
@@ -130,6 +130,16 @@ export default function PortfolioDashboard() {
   const stats = portfolioStatistics(summary);
   const lastExecution = summary?.executions[0]?.created_at || summary?.legacyTrades[0]?.created_at;
   const uniqueTokens = new Set([...(summary?.executions || []).map((execution) => execution.mint), ...(summary?.legacyTrades || []).map((trade) => trade.mint)]).size;
+  // The ledger deliberately does not compute unrealized PnL — it needs a live price for a
+  // held token, which is market data rather than a ledger fact. It publishes the held cost
+  // basis instead, explicitly "for the surface to pair with a live quote"
+  // (degenaration-performance-snapshots.sql). This is that pairing. Fail-closed: if any open
+  // position lacks a quote the figure is withheld rather than partially summed.
+  const unrealized = unrealizedPnl({
+    openPositions,
+    walletPositions: walletPortfolio?.positions,
+    solPriceUsd: walletPortfolio?.solPrice
+  });
   const availableSol = walletPortfolio?.sol ?? 0;
   const totalUsd = walletPortfolio?.totalUsd ?? 0;
   const totalSolEquivalent = walletPortfolio?.solPrice ? totalUsd / walletPortfolio.solPrice : availableSol;
@@ -185,6 +195,18 @@ export default function PortfolioDashboard() {
           <BalanceMetric label="Available" value={`${availableSol.toFixed(3)} SOL`} detail="Wallet balance" />
           <BalanceMetric label="Allocated" value={`${allocated.toFixed(3)} SOL`} detail={`${openPositions.length} open positions`} />
           <BalanceMetric label="Realized PnL" value={`${realized >= 0 ? "+" : ""}${realized.toFixed(3)} SOL`} detail={period.toUpperCase()} tone={realized >= 0 ? "positive" : "negative"} />
+          <BalanceMetric
+            label="Unrealized PnL"
+            value={unrealized.ok ? `${unrealized.lamports >= BigInt(0) ? "+" : ""}${lamportsToSol(unrealized.lamports.toString()).toFixed(3)} SOL` : "--"}
+            detail={
+              unrealized.ok
+                ? (openPositions.length === 0 ? "No open positions" : "Open positions at live quotes")
+                : unrealized.reason === "no-sol-quote"
+                  ? "Awaiting a SOL quote"
+                  : `Awaiting a quote for ${unrealized.unpriced} position${unrealized.unpriced === 1 ? "" : "s"}`
+            }
+            tone={unrealized.ok && openPositions.length > 0 ? (unrealized.lamports >= BigInt(0) ? "positive" : "negative") : undefined}
+          />
           <BalanceMetric label="Net PnL" value={`${netPnl >= 0 ? "+" : ""}${netPnl.toFixed(3)} SOL`} detail="After recorded fees" tone={netPnl >= 0 ? "positive" : "negative"} />
         </div>
       </section>

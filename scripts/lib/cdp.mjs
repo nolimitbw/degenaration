@@ -185,13 +185,23 @@ export class Session {
       /* not fatal for evidence capture */
     }
     if (!verify) return;
-    // Verify against documentElement.clientWidth, NOT window.innerWidth. Under mobile
-    // emulation innerWidth expands to the visual viewport when content overflows
-    // (measured: a 3000px child turns innerWidth into 1560 at a 390px override), so
-    // checking it would false-fail on exactly the pages an overflow audit cares about.
-    // clientWidth stays pinned to the layout viewport in both cases.
+    // Which measurement is trustworthy depends on the emulation mode, and neither works for
+    // both:
+    //
+    //   mobile:  innerWidth expands to the VISUAL viewport when content overflows (measured:
+    //            a 3000px child turns innerWidth into 1560 at a 390px override), so it would
+    //            false-fail on exactly the pages an overflow audit targets. clientWidth stays
+    //            pinned to the layout viewport, and overlay scrollbars reserve no space.
+    //   desktop: a classic scrollbar IS reserved, so clientWidth is legitimately narrower
+    //            than the override — measured 9px short at 768, 1024 and 1440 alike. Treating
+    //            that as a failure would reject every scrolling desktop page.
+    //
+    // So: clientWidth under mobile emulation, innerWidth otherwise.
+    const measured = await this.evaluate(
+      mobile ? "document.documentElement.clientWidth" : "window.innerWidth",
+    );
+    if (measured === width) return;
     const layoutWidth = await this.evaluate("document.documentElement.clientWidth");
-    if (layoutWidth === width) return;
     // A page with no <meta name="viewport"> silently gets Chrome's 980px fallback
     // layout viewport, which would make every mobile assertion meaningless. Name the
     // real cause instead of capturing wrong evidence quietly.
@@ -199,7 +209,8 @@ export class Session {
       "Boolean(document.querySelector('meta[name=\"viewport\"]'))",
     );
     throw new Error(
-      `viewport override did not apply: asked ${width}px, layout viewport is ${layoutWidth}px` +
+      `viewport override did not apply: asked ${width}px, measured ${measured}px ` +
+        `(layout viewport ${layoutWidth}px)` +
         (hasMeta
           ? ""
           : ' — the page has no <meta name="viewport">, so Chrome fell back to its 980px' +

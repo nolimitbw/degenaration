@@ -2066,6 +2066,107 @@ console.log("price selection");
     assert.strictEqual(card.durationLabel("not-a-date", null, Date.now()), "—");
   });
 
+  test("unrealized PnL pairs held basis with a live quote", () => {
+    const { unrealizedPnl } = require("../../lib/portfolio-stats");
+    // 1 SOL of basis, now worth 400 USD at 200 USD/SOL => 2 SOL => +1 SOL unrealized.
+    const r = unrealizedPnl({
+      openPositions: [{ mint: "M1", costLamports: "1000000000" }],
+      walletPositions: [{ mint: "M1", valueUsd: 400 }],
+      solPriceUsd: 200
+    });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.lamports, 1000000000n);
+    assert.strictEqual(r.priced, 1);
+  });
+
+  test("unrealized PnL is negative when a position is under water", () => {
+    const { unrealizedPnl } = require("../../lib/portfolio-stats");
+    const r = unrealizedPnl({
+      openPositions: [{ mint: "M1", costLamports: "2000000000" }],
+      walletPositions: [{ mint: "M1", valueUsd: 100 }],
+      solPriceUsd: 200
+    });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.lamports, -1500000000n);
+  });
+
+  test("no open positions is a real zero, not an unknown", () => {
+    const { unrealizedPnl } = require("../../lib/portfolio-stats");
+    const r = unrealizedPnl({ openPositions: [], walletPositions: [], solPriceUsd: 200 });
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.lamports, 0n);
+  });
+
+  test("one unpriced position withholds the whole total rather than understating it", () => {
+    const { unrealizedPnl } = require("../../lib/portfolio-stats");
+    const r = unrealizedPnl({
+      openPositions: [
+        { mint: "M1", costLamports: "1000000000" },
+        { mint: "M2", costLamports: "1000000000" }
+      ],
+      walletPositions: [{ mint: "M1", valueUsd: 400 }],
+      solPriceUsd: 200
+    });
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.reason, "awaiting-quote");
+    assert.strictEqual(r.unpriced, 1);
+    assert.strictEqual(r.priced, 1);
+  });
+
+  test("two positions on one mint are ambiguous and are not guessed at", () => {
+    const { unrealizedPnl } = require("../../lib/portfolio-stats");
+    // The wallet holding cannot be split between them without token decimals the client
+    // does not have, so attributing all of it to either one would overstate that position.
+    const r = unrealizedPnl({
+      openPositions: [
+        { mint: "M1", costLamports: "1000000000" },
+        { mint: "M1", costLamports: "1000000000" }
+      ],
+      walletPositions: [{ mint: "M1", valueUsd: 400 }],
+      solPriceUsd: 200
+    });
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.unpriced, 2);
+  });
+
+  test("a missing SOL quote withholds the figure instead of dividing by zero", () => {
+    const { unrealizedPnl } = require("../../lib/portfolio-stats");
+    for (const bad of [0, null, undefined, NaN, -5]) {
+      const r = unrealizedPnl({
+        openPositions: [{ mint: "M1", costLamports: "1000000000" }],
+        walletPositions: [{ mint: "M1", valueUsd: 400 }],
+        solPriceUsd: bad
+      });
+      assert.strictEqual(r.ok, false);
+      assert.strictEqual(r.reason, "no-sol-quote");
+    }
+  });
+
+  test("a decimal price parses to a scaled integer without floating point", () => {
+    assert.strictEqual(card.decimalToScaled("1.5"), 1500000000000000000n);
+    assert.strictEqual(card.decimalToScaled("0.000001"), 1000000000000n);
+    assert.strictEqual(card.decimalToScaled("123"), 123000000000000000000n);
+    assert.strictEqual(card.decimalToScaled("0"), 0n);
+    // A ratio of two scaled prices is the ratio of the prices: the scale cancels.
+    const token = card.decimalToScaled("0.0004");
+    const solUsd = card.decimalToScaled("200");
+    assert.strictEqual(Number(token) / Number(solUsd), 0.000002);
+  });
+
+  test("an unparseable price is refused, never coerced to a number", () => {
+    // Each of these would become a wrong valuation on a published card if coerced.
+    for (const bad of ["1.2e-9", "-1.5", "", "  ", "abc", "1.2.3", "1,5", null, undefined, NaN, {}]) {
+      assert.strictEqual(card.decimalToScaled(bad), null, `must refuse ${String(bad)}`);
+    }
+  });
+
+  test("excess fractional digits are truncated, never rounded up", () => {
+    // Rounding up here would inflate a price, and therefore a published PnL.
+    assert.strictEqual(card.decimalToScaled("0.9", 1), 9n);
+    assert.strictEqual(card.decimalToScaled("0.99", 1), 9n);
+    assert.strictEqual(card.decimalToScaled("0.19", 1), 1n);
+  });
+
   test("no financial quantity is accepted from the client", () => {
     // The route reads exactly these query parameters. A client that could pass its own
     // percentage or PnL could publish any claim it liked under DegenAration branding.
