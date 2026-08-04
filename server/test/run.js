@@ -421,8 +421,29 @@ test("drawdown is null when unmeasured, not zero", () => {
   assert.strictEqual(outcomes.maxDrawdownBps({ called_price_usd: 1 }), null);
 });
 test("distribution counts each measured call exactly once", () => {
-  const dist = outcomes.outcomeDistribution([call(1.1, 1.1), call(1.6, 1.6), call(3, 3), call(6, 6), {}]);
-  assert.deepStrictEqual(dist, { under50: 1, plus50: 1, twoX: 1, fiveX: 1 });
+  const dist = outcomes.outcomeDistribution([call(0.4, 0.2), call(1.1, 1.1), call(1.6, 1.6), call(3, 3), call(6, 6), {}]);
+  assert.deepStrictEqual(dist, { down50: 1, under50: 1, plus50: 1, twoX: 1, fiveX: 1 });
+});
+test("a rug and a call that went nowhere are separate buckets", () => {
+  // The old ladder started at "<50%", so peak 0.4x and peak 1.4x shared a cell — the two
+  // outcomes a follower most needs told apart.
+  assert.strictEqual(outcomes.outcomeBucket(call(0.4, 0.1)), "down50");
+  assert.strictEqual(outcomes.outcomeBucket(call(1.4, 1.4)), "under50");
+  assert.strictEqual(outcomes.outcomeBucket(call(0.5, 0.5)), "under50", "0.5x is the boundary and is not a rug");
+});
+test("win rate and 2x rate are different numbers", () => {
+  // Same conflation the marketplace SQL had: one figure computed as the 2x share and
+  // rendered under the label "Win rate".
+  const agg = outcomes.sourceAggregate([call(1.2, 1.2), call(2, 2), call(0.4, 0.4)]);
+  assert.strictEqual(Math.round(agg.winRate), 67);
+  assert.strictEqual(Math.round(agg.twoXRate), 33);
+});
+test("best and worst call come from measured rows only", () => {
+  const agg = outcomes.sourceAggregate([call(0.4, 0.4), call(5, 5), {}, call(1.2, 1.2)]);
+  assert.strictEqual(agg.bestCall.peakX, 5);
+  assert.strictEqual(agg.worstCall.peakX, 0.4);
+  assert.strictEqual(outcomes.sourceAggregate([{}, {}]).bestCall, null,
+    "an unmeasured source has no best call rather than a fabricated one");
 });
 test("aggregates win rate, median, average and drawdown over a period", () => {
   const agg = outcomes.sourceAggregate([call(2, 1), call(3, 3), call(0.5, 0.5), call(4, 2), call(1.5, 1.5)]);

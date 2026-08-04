@@ -28,8 +28,14 @@ the deployment.
 | 8 | `degenaration-admin-client-ledger.sql` | `admin_client_ledger`, `admin_business_summary` — §8 | `verify:admin-client-ledger` |
 | 9 | `degenaration-position-exit-detail.sql` | `app_user_position_exits` — what closed a position and at what price, for the §18 card | `verify:exit-settlement` |
 | 10 | `degenaration-admin-client-detail.sql` | `admin_client_detail` — the §8 per-client drill-down | `verify:admin-client-ledger` |
+| 11 | `degenaration-discord-call-performance.sql` | the `-50%` bucket, win rate separated from 2x rate, best/worst call, confirmed copied volume | `verify:marketplace-migration` |
 
 Files 1, 4, 5 and 6 each replace the settlement function. 1 → 4 → 5 → 6 is mandatory.
+
+File 11 replaces `app_public_list_discord_marketplace` in full and must come after
+`degenaration-discord-marketplace-parity.sql`. Its response is a superset of the previous
+one, so a deployed app that predates it keeps working and simply does not read the new
+fields.
 
 ## Edge function
 

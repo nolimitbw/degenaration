@@ -215,6 +215,88 @@ assert.equal(collecting.dataFreshnessAt, null);
 assert.equal(collecting.lastProcessedCallAt, null);
 assert.equal(collecting.lastSuccessfulExecutionAt, null);
 
+// ---------------------------------------------------------------------------
+// Controller section 2: the -50% bucket, win rate vs 2x rate, best/worst call,
+// and confirmed copied volume.
+//
+// New fixture rows are added HERE, after the parity assertions above, so those keep
+// asserting exactly what they asserted before and the new behaviour is isolated.
+// ---------------------------------------------------------------------------
+const callPerformance = await readFile(`${repo}/supabase/degenaration-discord-call-performance.sql`, "utf8");
+const MEASURED = "10000000-0000-0000-0000-000000000001";
+
+await db.exec(`
+  insert into public.calls (
+    id, group_id, mint, symbol, called_at, parse_status, called_price_usd, peak_price_usd,
+    latest_price_usd, last_scanned_at
+  ) values
+    -- Peak 0.4x: never recovered half of entry at any point. This is the case the old
+    -- ladder could not express, because it shared a cell with the +40% call below.
+    ('40000000-0000-0000-0000-000000000010', '${MEASURED}', 'mintRug', 'RUG', now() - interval '3 hours', 'accepted', 100, 40, 20, now() - interval '1 hour'),
+    -- Peak 1.2x: went up, never reached +50%.
+    ('40000000-0000-0000-0000-000000000011', '${MEASURED}', 'mintFlat', 'FLAT', now() - interval '2 hours', 'accepted', 100, 120, 110, now() - interval '1 hour');
+
+  insert into app_private.trade_executions (
+    id, intent_id, owner_privy_user_id, execution_mode, status,
+    gross_notional_lamports, source_group_id_snapshot, confirmed_at
+  ) values
+    ('70000000-0000-0000-0000-000000000002', '70000000-0000-0000-0000-0000000000f2',
+      'fixture-user-one', 'solana-mainnet', 'confirmed', 2500000000, '${MEASURED}', now() - interval '2 hours'),
+    ('70000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-0000000000f3',
+      'fixture-user-two', 'solana-mainnet', 'reconciled', 1500000000, '${MEASURED}', now() - interval '1 hour'),
+    -- Never confirmed. Volume must exclude it: spec section 8 defines volume as confirmed
+    -- executed notional, and counting a failed leg would overstate every source.
+    ('70000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-0000000000f4',
+      'fixture-user-two', 'solana-mainnet', 'failed', 9000000000, '${MEASURED}', null),
+    -- Outside the period. Excluded from a 7d figure, included in 30d.
+    ('70000000-0000-0000-0000-000000000005', '70000000-0000-0000-0000-0000000000f5',
+      'fixture-user-two', 'solana-mainnet', 'confirmed', 7000000000, '${MEASURED}', now() - interval '20 days');
+`);
+
+const countsBeforeCallPerf = await counts();
+await db.exec(callPerformance);
+await db.exec(callPerformance);
+assert.deepEqual(await counts(), countsBeforeCallPerf, "call-performance migration and rerun write no row");
+
+const perf = (await marketplace()).sources.find((source) => source.id === MEASURED);
+
+// The ladder is exclusive and now separates a rug from a call that went nowhere.
+assert.equal(perf.measuredCalls, 3, "three measured calls: peaks 2.0, 0.4, 1.2");
+assert.equal(perf.down50, 1, "the 0.4x call is reported as down 50%+");
+assert.equal(perf.under50, 1, "the 1.2x call is not a rug and not a +50%");
+assert.equal(perf.plus50, 0);
+assert.equal(perf.twoX, 1);
+assert.equal(perf.fiveX, 0);
+assert.equal(perf.down50 + perf.under50 + perf.plus50 + perf.twoX + perf.fiveX, perf.measuredCalls,
+  "every measured call lands in exactly one bucket");
+
+// The two figures that shared one name. If these were ever equal the test would not
+// distinguish the fix from the defect, so the fixture is chosen to make them differ.
+assert.equal(Number(perf.winRate), 66.67, "two of three calls traded above entry");
+assert.equal(Number(perf.twoXRate), 33.33, "one of three doubled");
+assert.notEqual(Number(perf.winRate), Number(perf.twoXRate),
+  "win rate and 2x rate must be separately computed, not one number under two labels");
+
+assert.equal(perf.bestCall.mint, "mintOne");
+assert.equal(Number(perf.bestCall.peakX), 2);
+assert.equal(perf.worstCall.mint, "mintRug");
+assert.equal(Number(perf.worstCall.peakX), 0.4);
+
+// Confirmed copied volume, in integer lamports, from the authoritative ledger only.
+assert.equal(perf.copiedExecutions, 2, "the failed leg and the out-of-period leg are excluded");
+assert.equal(perf.copiedVolumeLamports, "4000000000", "2.5 SOL + 1.5 SOL, as integer lamports");
+const perf30 = (await marketplace("30d")).sources.find((source) => source.id === MEASURED);
+assert.equal(perf30.copiedVolumeLamports, "11000000000", "the 20-day-old leg is inside a 30d window");
+
+// A source with no confirmed execution reports zero volume, which is a fact, while its
+// unmeasured return statistics stay null, which is an absence. These must not render alike.
+const stillCollecting = (await marketplace()).sources.find((source) => source.id === "10000000-0000-0000-0000-000000000002");
+assert.equal(stillCollecting.copiedVolumeLamports, "0");
+assert.equal(stillCollecting.winRate, null);
+assert.equal(stillCollecting.twoXRate, null);
+assert.equal(stillCollecting.bestCall, null);
+assert.equal(stillCollecting.down50, 0);
+
 await db.exec("set role anon");
 await assert.rejects(() => marketplace(), /permission denied/i);
 await db.exec("reset role");
@@ -250,6 +332,19 @@ console.log(JSON.stringify({
   integrationGraceWindow: "PASS",
   expiredGraceDelisted: "PASS",
   orphanedCallDoesNotInflateMetrics: "PASS",
+  down50BucketSeparatesRugFromFlat: "PASS",
+  winRateDistinctFromTwoXRate: "PASS",
+  bestAndWorstCall: "PASS",
+  copiedVolumeExcludesUnconfirmed: "PASS",
+  zeroVolumeIsNotNullMetrics: "PASS",
+  callPerformance: {
+    down50: perf.down50,
+    under50: perf.under50,
+    twoX: perf.twoX,
+    winRate: perf.winRate,
+    twoXRate: perf.twoXRate,
+    copiedVolumeLamports: perf.copiedVolumeLamports
+  },
   measuredMetrics: {
     acceptedCalls: measured.acceptedCalls,
     rejectedCalls: measured.rejectedCalls,

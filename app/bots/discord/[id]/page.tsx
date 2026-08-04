@@ -66,10 +66,11 @@ export default function DiscordSourceDetailsPage() {
                 {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Source performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]} /></div>
-              <div className="grid grid-cols-2 divide-x divide-y divide-edge py-4 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
+              <div className="grid grid-cols-2 divide-x divide-y divide-edge py-4 sm:grid-cols-3 lg:grid-cols-7 lg:divide-y-0">
                 <Metric label="Eligible calls" value={source.eligibleCalls} />
                 <Metric label="Measured" value={source.measuredCalls} />
-                <Metric label="2x rate" value={source.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} />
+                <Metric label="Win rate" value={source.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} />
+                <Metric label="2x rate" value={source.twoXRate == null ? "--" : `${source.twoXRate.toFixed(1)}%`} tone={source.twoXRate == null ? "default" : "positive"} />
                 <Metric label="Median peak" value={source.medianReturnX == null ? "--" : `${source.medianReturnX.toFixed(2)}x`} />
                 <Metric label="Average peak" value={source.averageReturnX == null ? "--" : `${source.averageReturnX.toFixed(2)}x`} />
                 <Metric label="Max drawdown" value={formatPercentBps(source.maxDrawdownBps)} tone={source.maxDrawdownBps == null ? "default" : "negative"} />
@@ -89,14 +90,32 @@ export default function DiscordSourceDetailsPage() {
 
             <section className="rounded-md border border-edge bg-panel">
               <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Result distribution</h2><p className="mt-1 text-[11px] text-dim">All eligible calls in the selected period, including losing and unmeasured outcomes.</p></header>
-              <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-5">
                 {[
-                  ["Below +50%", source.under50, "text-down"],
+                  ["Down 50%+", source.down50 ?? 0, "text-down"],
+                  ["Below +50%", source.under50, "text-dim"],
                   ["Reached +50%", source.plus50, "text-gold-400"],
                   ["Reached 2x", source.twoX, "text-up"],
                   ["Reached 5x+", source.fiveX, "text-up"]
                 ].map(([label, value, tone]) => <div key={label as string} className="bg-void p-5"><p className={`font-mono text-2xl font-semibold ${tone}`}>{value}</p><p className="mt-2 text-xs text-dim">{label}</p></div>)}
               </div>
+              {(source.bestCall || source.worstCall) && (
+                <div className="grid grid-cols-1 gap-px border-t border-edge bg-edge sm:grid-cols-2">
+                  {([["Best call", source.bestCall, "text-up"], ["Worst call", source.worstCall, "text-down"]] as const).map(([label, entry, tone]) => (
+                    <div key={label} className="bg-void px-5 py-4">
+                      <p className="text-xs text-dim">{label}</p>
+                      {entry ? (
+                        <>
+                          <p className={`mt-1 font-mono text-lg font-semibold ${tone}`}>{Number(entry.peakX).toFixed(2)}x</p>
+                          <p className="mt-1 truncate font-mono text-[10px] text-dim">{entry.symbol || entry.mint || "Unnamed token"}</p>
+                        </>
+                      ) : (
+                        <p className="mt-1 text-xs text-dim">No measured call yet</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="rounded-md border border-edge bg-panel">

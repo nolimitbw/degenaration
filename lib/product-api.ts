@@ -92,13 +92,25 @@ export type DiscordSource = {
   rejectedCalls?: number;
   executedCalls?: number;
   measuredCalls: number;
+  // Peak-multiple ladder, lowest first. Exclusive: a measured call is in exactly one.
+  // `down50` — peak never reached 0.5x, so entry was never half recovered.
+  down50?: number;
   under50: number;
   plus50: number;
   twoX: number;
   fiveX: number;
   averageReturnX: number | null;
   medianReturnX: number | null;
+  // Two distinct figures. `winRate` is the share that traded above entry at any point;
+  // `twoXRate` is the share that doubled. They were one field named after the first and
+  // computed as the second, so the marketplace list understated every source.
   winRate: number | null;
+  twoXRate?: number | null;
+  bestCall?: DiscordSourceCall | null;
+  worstCall?: DiscordSourceCall | null;
+  copiedExecutions?: number;
+  /** Integer lamports as a string; confirmed executed notional attributed to this source. */
+  copiedVolumeLamports?: string | null;
   maxDrawdownBps: number | null;
   performance1d?: DiscordSourcePerformance | null;
   performance7d?: DiscordSourcePerformance | null;
@@ -118,6 +130,13 @@ export type DiscordSourcePerformance = {
   sampleSize: number;
   netPnlLamports: number | string | null;
   asOf: string;
+};
+
+export type DiscordSourceCall = {
+  mint: string | null;
+  symbol: string | null;
+  peakX: number | string | null;
+  calledAt: string | null;
 };
 
 export type KolStrategy = {

@@ -29,10 +29,14 @@ export function DiscordPerformanceGrid({ source }: { source: DiscordSource }) {
 
 export function DiscordCallCounts({ source }: { source: DiscordSource }) {
   return (
-    <div className="grid grid-cols-3 gap-px bg-edge">
+    <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-4">
       <CountState label="Accepted" value={source.acceptedCalls ?? source.eligibleCalls} />
       <CountState label="Rejected" value={source.rejectedCalls} />
       <CountState label="Executed" value={source.executedCalls} />
+      {/* Call performance and copied-trade performance are deliberately reported apart.
+          This is the second: what subscribers actually confirmed on chain through this
+          source, in integer lamports from the ledger. Zero here is a fact, not a gap. */}
+      <CountState label="Copied volume" value={source.copiedVolumeLamports == null ? undefined : formatSol(source.copiedVolumeLamports)} />
     </div>
   );
 }
@@ -63,7 +67,7 @@ function PerformanceState({ label, performance }: { label: string; performance?:
   );
 }
 
-function CountState({ label, value }: { label: string; value?: number }) {
+function CountState({ label, value }: { label: string; value?: number | string }) {
   return (
     <div className="bg-void px-3 py-2.5 text-center">
       <p className="font-mono text-sm font-semibold tabular-nums text-ink">{value == null ? "Collecting" : value}</p>
