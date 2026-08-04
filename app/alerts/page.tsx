@@ -1,83 +1,8 @@
-"use client";
-import AppShell from "@/components/AppShell";
-import { useEffect, useRef, useState } from "react";
-import { NumericTextInput } from "@/components/product/NumericField";
+import { redirect } from "next/navigation";
 
-type Alert = { id: string; mint: string; label: string; kind: "above" | "below"; target: number; fired?: boolean };
-
-export default function Alerts() {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [mint, setMint] = useState("");
-  const [label, setLabel] = useState("");
-  const [kind, setKind] = useState<"above" | "below">("above");
-  const [target, setTarget] = useState(0);
-  const alertsRef = useRef(alerts);
-  alertsRef.current = alerts;
-
-  useEffect(() => {
-    const s = typeof window !== "undefined" ? localStorage.getItem("degen_alerts") : null;
-    setAlerts(s ? JSON.parse(s) : []);
-  }, []);
-  useEffect(() => {
-    if (typeof window !== "undefined") localStorage.setItem("degen_alerts", JSON.stringify(alerts));
-  }, [alerts]);
-
-  useEffect(() => {
-    const check = async () => {
-      const current = alertsRef.current;
-      if (!current.length) return;
-      const res = await fetch("/api/checkalerts", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alerts: current }) }).then(r => r.json()).catch(() => null);
-      if (res?.triggered?.length) {
-        setAlerts(a => a.map(x => res.triggered.includes(x.id) ? { ...x, fired: true } : x));
-        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-          res.triggered.forEach((id: string) => {
-            const al = current.find(x => x.id === id);
-            if (al) new Notification("Degenaration alert", { body: `${al.label} is ${al.kind} $${al.target}` });
-          });
-        }
-      }
-    };
-    const iv = setInterval(check, 20000); check();
-    return () => clearInterval(iv);
-  }, []);
-
-  const add = () => {
-    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) || target <= 0) return;
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") Notification.requestPermission();
-    setAlerts(a => [...a, { id: crypto.randomUUID(), mint, label: label || mint.slice(0, 6), kind, target }]);
-    setMint(""); setLabel(""); setTarget(0);
-  };
-
-  return (
-    <AppShell>
-      <h1 className="text-2xl font-bold">Price alerts <span className="font-mono text-xs text-gold-400">tab active</span></h1>
-      <p className="mt-1 text-sm text-dim">Get a browser notification when a token crosses your target. Checked every 20s while this page is open.</p>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <input value={mint} onChange={e => setMint(e.target.value)} placeholder="Token mint" className="flex-1 min-w-[200px] rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Label" className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <select value={kind} onChange={e => setKind(e.target.value as any)} className="h-11 sm:h-auto rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">
-          <option value="above">above</option><option value="below">below</option>
-        </select>
-        <NumericTextInput value={target || 0} onChange={setTarget} decimals={4} className="w-28 rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs outline-none focus:border-gold-400" />
-        <button onClick={add} className="rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-white shadow-gold">+ Alert</button>
-      </div>
-
-      <div className="mt-6 space-y-2">
-        {!alerts.length && <p className="text-sm text-dim">No alerts yet.</p>}
-        {alerts.map(a => (
-          <div key={a.id} className={`flex items-center justify-between rounded-lg border p-4 ${a.fired ? "border-gold-400/60 bg-gold-400/5" : "border-edge bg-panel"}`}>
-            <div>
-              <p className="font-bold">{a.label} <span className="font-mono text-xs text-dim">{a.kind} ${a.target}</span></p>
-              <p className="font-mono text-[11px] text-dim">{a.mint.slice(0, 12)}…</p>
-            </div>
-            <div className="flex items-center gap-3">
-              {a.fired && <span className="rounded border border-gold-400/50 px-2 py-0.5 font-mono text-[11px] text-gold-400">TRIGGERED</span>}
-              <button onClick={() => setAlerts(x => x.filter(y => y.id !== a.id))} className="font-mono text-[11px] text-danger hover:underline">remove</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </AppShell>
-  );
+// Spec section 9: normal users see Bots, Affiliate and Portfolio. This legacy surface
+// is no longer part of the product. The route is kept as a redirect rather than deleted so
+// an existing bookmark or an old link lands somewhere real instead of on a 404.
+export default function AlertsRedirect() {
+  redirect("/bots");
 }

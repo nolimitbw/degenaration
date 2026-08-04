@@ -97,6 +97,28 @@ for (const file of files) {
   }
 }
 
+// 8. Spec §9: a normal user's product is Bots, Affiliate and Portfolio. These legacy trading
+//    surfaces were removed from the product but their routes still resolved, so anyone with a
+//    bookmark kept a Terminal. They are now redirects, and a redirect is the only thing that
+//    may live at these paths — reintroducing a page body here puts the surface back.
+const RETIRED_ROUTES = [
+  "terminal", "trenches", "explorer", "search", "watchlist", "tracker",
+  "alerts", "dashboard", "alpha", "demo", "holdings", "orders", "trades"
+];
+for (const route of RETIRED_ROUTES) {
+  const page = join(root, "app", route, "page.tsx");
+  let source;
+  try {
+    source = readFileSync(page, "utf8");
+  } catch {
+    continue; // deleting the route outright is also a valid removal
+  }
+  if (!/redirect\s*\(/.test(source) || /AppShell|dynamic\s*\(/.test(source)) {
+    fail(`app/${route}/page.tsx`, 1,
+      "retired route must contain only a redirect (§9: Bots, Affiliate, Portfolio)");
+  }
+}
+
 if (failures > 0) {
   console.error(`\ncheck-code-quality: ${failures} problem(s)`);
   process.exit(1);

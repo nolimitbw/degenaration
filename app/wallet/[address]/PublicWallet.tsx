@@ -87,7 +87,7 @@ export default function PublicWallet({ address }: { address: string }) {
                   <td className="px-4 py-3 font-mono text-xs">{position.priceUsd == null ? "-" : usd(position.priceUsd)}</td>
                   <td className="px-4 py-3 font-mono text-xs font-bold">{usd(position.valueUsd || 0)}</td>
                   <td className={`px-4 py-3 font-mono text-xs font-bold ${(position.change24h || 0) >= 0 ? "text-up" : "text-danger"}`}>{position.change24h == null ? "-" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(1)}%`}</td>
-                  <td className="px-4 py-3"><div className="flex gap-3 font-mono text-[11px]"><Link href={`/terminal?mint=${position.mint}`} className="text-gold-400 hover:underline">Trade</Link><Link href={`/risk/${position.mint}`} className="text-dim hover:text-ink">Risk</Link></div></td>
+                  <td className="px-4 py-3"><div className="flex gap-3 font-mono text-[11px]"><Link href={`/risk/${position.mint}`} className="text-gold-400 hover:underline">Risk report</Link></div></td>
                 </tr>
               ))}
             </tbody>

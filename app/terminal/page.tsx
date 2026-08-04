@@ -1,20 +1,8 @@
-"use client";
-import { Suspense } from "react";
-import AppShell from "@/components/AppShell";
-import dynamic from "next/dynamic";
+import { redirect } from "next/navigation";
 
-// Shell paints instantly; the Privy + trade-execution body loads as a separate chunk.
-const TerminalBody = dynamic(() => import("./TerminalBody"), {
-  ssr: false,
-  loading: () => <p className="text-sm text-dim">Loading terminal…</p>
-});
-
-export default function Terminal() {
-  return (
-    <AppShell>
-      <Suspense fallback={<p className="text-sm text-dim">Loading terminal…</p>}>
-        <TerminalBody />
-      </Suspense>
-    </AppShell>
-  );
+// Spec section 9: normal users see Bots, Affiliate and Portfolio. This legacy surface
+// is no longer part of the product. The route is kept as a redirect rather than deleted so
+// an existing bookmark or an old link lands somewhere real instead of on a 404.
+export default function TerminalRedirect() {
+  redirect("/bots");
 }
