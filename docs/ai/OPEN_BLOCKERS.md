@@ -100,3 +100,88 @@ extended.
 | E-4 | Mainnet fee collection | Create/configure the correct Jupiter output-mint fee account or referral account; a wallet address alone is not a valid per-mint fee account. | BLOCKED |
 | E-5 | Mainnet activation | Explicit controlled-mainnet authorization after staging, signer, reconciliation, provider, fee, withdrawal, alerting, and emergency-control gates pass. | BLOCKED |
 | E-6 | Authenticated browser evidence | Provide a non-production Privy test identity with a delegated dev/staging wallet, or an existing authenticated test browser session. No production funds are required. | BLOCKED |
+
+---
+
+## Recovery audit, 2026-08-05 — what already exists
+
+Performed as deployment operator. No secret value was printed, and nothing was signed,
+broadcast or transferred. Findings supersede the E-2/E-3/E-4 wording above.
+
+### E-2 — the Discord bot is ALREADY DEPLOYED and healthy
+
+`https://degencalls.onrender.com/health?format=json`, uptime 7.4 days:
+
+| | |
+|---|---|
+| `discord.ready` | **true** |
+| `discord.guilds` | **2** — both approved guilds visible |
+| commands | 2 attempts, **2 succeeded, 0 failed**, registered in 2 guilds |
+| `source_bridge.configured` | **true**, `approvedChannels: 2` |
+| `approvedRefresh` | 21,337 / 21,341 succeeded |
+| `profileSync` | 53 / 61 succeeded |
+
+Application id `1525315046303858748` (public). Commands published: `/register` (exactly one),
+`/alpha`, `/degen status|profile|referral|callers|channel-add`, `/onboard`, `/help`.
+
+**So E-2 is not "deploy a bot". The bot runs, sees both guilds and both approved channels,
+and its command set is correct.** The failure is isolated to one stage:
+
+```
+"ingestion": { "attempts": 0, "accepted": 0, "failed": 0,
+               "quarantined": 50, "lastAttemptAt": null }
+```
+
+**50 candidate events were quarantined and the bridge has never once attempted to forward
+one.** That is the entire reason `raw_signals` is 0, and why both approved sources show no
+measured performance. The other two bridge directions work, so this is not connectivity.
+
+The quarantine decision lives inside the `degencalls` program, which is not in this
+repository and is not visible under the `nolimitbw` GitHub account, so its rule cannot be
+read from here. One test message in an approved channel distinguishes the two possibilities:
+`quarantined` increments and `attempts` stays 0 → the bridge rejects even well-formed calls;
+`attempts` becomes 1 → the chain proceeds and the journal fills.
+
+The receiving side is deployed and correct: `POST /api/ingest-call` answers **401** without
+`x-bot-secret` and **405** to GET, leaks nothing, and validates the mint on chain
+(`parsed.type === "mint"`) before journaling.
+
+### E-3 — worker host exists but is not running
+
+`automation: {configured: false, live: false, mode: "not-configured", network: null}` from
+production `/api/platform/config`. Railway project `degenaration-worker` exists; Railway
+`degenaration-bot` exists with `INGEST_URL` and `SUPABASE_URL` set but **no
+`DISCORD_BOT_TOKEN`**, and both its deployments are `REMOVED` since 2026-07-08. `render.yaml`
+declares both services. So the hosts are provisioned; the worker has never been started with
+a signer.
+
+### E-4 — the fee account is set, and collects nothing. PROVEN ON MAINNET.
+
+`PLATFORM_FEE_ACCOUNT` **is** set — `/api/platform/config` reports `feeWalletConfigured:
+true`, `platformFeeBps: 200`. But three unsigned mainnet swap builds against production
+(SOL→USDC, SOL→BONK, USDC→SOL) every one returned:
+
+```
+platformFeeBps: 0    feeAccountSet: false
+```
+
+including the sell-side, whose output is wSOL. Transactions built (752 / 916 / 1016 base64
+chars) and were never signed or sent.
+
+Tracing `lib/server/fee-account.ts`, the branch being hit is the last one: the configured
+value is a **wallet**, so the resolver derives its Associated Token Account for each fee
+mint and finds **the ATA is not initialised**. It then skips the fee, because charging into
+an uninitialised ATA makes the swap fail on chain. That guard is correct and is why trading
+still works — but the consequence is that **0 bps is collected on every trade in both
+directions**.
+
+**A second defect follows from it.** `/api/quote` reports `platformFeeBps: 200,
+feeAccountSet: true`, because it uses `configuredPlatformFeeBps()` — which only tests that
+the env var is non-empty. `/api/swap`, which builds what actually executes, uses
+`resolveFeeAccount()` and applies **0**. So the fee shown in the preview is not the fee
+charged. Users are quoted more than they pay, which is the safe direction, but the two halves
+disagree — the same defect class as the rest of this project.
+
+**The fix is one wallet action:** initialise the Associated Token Account for the fee wallet
+on the fee mints — wSOL first, which covers every sell, then USDC. Rent is roughly 0.00204
+SOL per account. No transfer and no swap is involved.
