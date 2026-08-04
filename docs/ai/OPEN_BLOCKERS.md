@@ -25,6 +25,13 @@ derives locked capital from `trade_intents`, so `lockedLamports` is **structural
 zero** — a user can withdraw SOL the worker has already committed to a buy. Step 2 of the
 sequence closes it.
 
+**All six writers now exist.** `trade_intents` (`fcebe9c`), `trade_executions` /
+`positions` / `position_lots` (`d554243`), `position_exits` (`a428857`),
+`performance_snapshots` (`cbeabe5`). `cash_movements` remains unwritten and is the one item
+of this blocker still open — it needs the withdrawal path to run against a real wallet
+(E-6/E-3), not a decision. Every other consequence recorded here is closed and covered by a
+verifier; none of the migrations is applied to production yet — `PENDING_DEPLOYMENT.md`.
+
 The original framing is kept below for history.
 
 ---

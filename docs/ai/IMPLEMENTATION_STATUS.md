@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-08-04
+Updated: 2026-08-04 (second pass: exits, allocation, snapshots)
 
 `PASS` requires reproducible evidence. Deployment-dependent behavior remains `PARTIAL` or
 `BLOCKED` even when its local implementation passes.
