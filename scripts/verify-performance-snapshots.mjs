@@ -179,7 +179,10 @@ assert.equal(portfolio.realized_pnl_lamports, null,
   "nothing has closed — zero would read as broke even");
 assert.equal(portfolio.win_rate_bps, null,
   "and a zero win rate would read as every trade lost");
-assert.equal(portfolio.max_drawdown_bps, null, "no equity series exists, so none is claimed");
+assert.equal(portfolio.max_drawdown_bps, null,
+  "nothing has closed, so the realized curve has no peak to fall from");
+assert.deepEqual(portfolio.metrics.equitySeries, [],
+  "and no series — the chart shows its empty state rather than a flat invented line");
 assert.equal(portfolio.metrics.openPositions, 1);
 assert.equal(portfolio.metrics.unrealizedBasisLamports, "1000000000",
   "the cost basis still held — the ledger's half of unrealized PnL");
@@ -199,6 +202,15 @@ assert.equal(portfolio.metrics.openPositions, 0);
 assert.equal(portfolio.metrics.unrealizedBasisLamports, "0");
 results.realizedFromMeasuredExit = "PASS";
 
+// ---- the chart finally has a series to draw --------------------------------------------
+let series = portfolio.metrics.equitySeries;
+assert.equal(series.length, 2, "one closed day, plus the zero origin the day before");
+assert.equal(series[0].equityLamports, "0", "nothing had been realized before the first exit");
+assert.equal(series[1].equityLamports, "500000000");
+assert.ok(new Date(series[0].t) < new Date(series[1].t), "the series is ordered in time");
+assert.equal(portfolio.max_drawdown_bps, 0, "a curve that only rose never drew down");
+results.equitySeriesDrawn = "PASS";
+
 // ---- a loss halves the win rate ------------------------------------------------------------
 await buy(1, 1000000);
 await sell(1000000, 400000000);
@@ -210,6 +222,23 @@ assert.equal(String(portfolio.realized_pnl_lamports), "-100000000",
   "+0.5 SOL then -0.6 SOL — a durable losing trade, which is what was previously impossible");
 assert.equal(portfolio.win_rate_bps, 5000);
 results.lossesAreDurable = "PASS";
+
+// Both exits land on the same day here, so the curve is one net point rather than two — a
+// real drawdown needs a peak on an earlier day, which the backdated case below produces.
+series = portfolio.metrics.equitySeries;
+assert.equal(series[series.length - 1].equityLamports, "-100000000",
+  "the curve ends where realized PnL ends");
+
+// ---- a fall from an earlier peak is a real drawdown ------------------------------------
+await db.query(
+  `update app_private.position_exits set created_at = created_at - interval '2 days'
+    where realized_pnl_lamports > 0`);
+await refresh();
+portfolio = await snapshot("portfolio", TRADER, "30d");
+assert.equal(portfolio.metrics.equitySeries.length, 3, "origin, the winning day, the losing day");
+assert.equal(portfolio.max_drawdown_bps, 12000,
+  "peak 0.5 SOL, trough -0.1 SOL: a 0.6 SOL fall is 120% of the peak");
+results.drawdownFromRealizedCurve = "PASS";
 
 // ---- an unpriced exit is counted apart, never as a loss -------------------------------------
 await buy(1, 1000000);
@@ -275,9 +304,10 @@ console.log(JSON.stringify({
   ...results,
   unblocks: "Portfolio performance and chart, My Bots performance column, KOL cards, " +
             "Discord marketplace 1D/7D/30D — all four read this table and none had a writer",
-  stillMissing: "max_drawdown_bps stays null because no equity time series exists, and " +
-                "unrealized PnL needs a live quote the ledger cannot supply — what it can " +
-                "state, the cost basis still held, is published instead"
+  stillMissing: "unrealized PnL needs a live quote the ledger cannot supply. What it can " +
+                "state — the cost basis still held — is published as unrealizedBasisLamports " +
+                "for the surface to pair with a price. The equity curve is realized PnL by " +
+                "day, so drawdown is a realized drawdown, never marked to market"
 }, null, 2));
 
 await db.close();

@@ -22,10 +22,12 @@
 --
 -- WHAT IT DELIBERATELY LEAVES NULL
 --
---   max_drawdown_bps  needs an equity time series. There is no such series -- the ledger
---                     records discrete executions, not marked-to-market equity over time.
---                     Deriving a drawdown from trade order alone would be a plausible number
---                     with no basis, so it stays null until an equity series exists.
+--   max_drawdown_bps  measured against the REALIZED equity curve -- cumulative realized PnL
+--                     by day -- and null until that curve has been above zero, because a fall
+--                     from a peak that never existed is not a measurement. It is deliberately
+--                     not a marked-to-market drawdown: the ledger does not know what an open
+--                     position is worth right now, and inventing that number is the one thing
+--                     a performance figure must never do.
 --   win_rate_bps      null when no exit has been measured. Zero would read as "every trade
 --                     lost", which is a very different claim from "nothing has closed yet".
 --
@@ -94,6 +96,9 @@ declare
   v_realized bigint := 0;
   v_open_basis bigint := 0;
   v_open_positions integer := 0;
+  v_series jsonb := '[]'::jsonb;
+  v_first timestamptz;
+  v_drawdown integer;
 begin
   if v_period not in ('1d', '7d', '30d', '3m', 'all') then
     raise exception 'unsupported period %', p_period using errcode = '22023';
@@ -162,6 +167,60 @@ begin
            )
          end;
 
+  -- The equity series the Portfolio chart reads. It is CUMULATIVE REALIZED PnL by day, not
+  -- a marked-to-market curve: the ledger knows what closed trades returned and does not know
+  -- what an open position is worth right now. That is also exactly what the chart's own
+  -- header claims -- trading return with deposits and withdrawals excluded -- so plotting
+  -- realized PnL is the honest reading of it rather than a narrower one.
+  select coalesce(jsonb_agg(jsonb_build_object(
+           't', d.day,
+           'equityLamports', d.cumulative::text,
+           'exits', d.exits
+         ) order by d.day), '[]'::jsonb),
+         min(d.day),
+         -- Drawdown of that realized curve: the deepest fall from a running peak, in bps of
+         -- the peak. Null while the curve has never been above zero, because a drawdown from
+         -- a peak that does not exist is not a measurement.
+         max(case when d.peak > 0
+                  then floor((d.peak - d.cumulative)::numeric * 10000 / d.peak)::integer
+             end)
+    into v_series, v_first, v_drawdown
+  from (
+    select c.day, c.exits, c.cumulative,
+           max(c.cumulative) over (order by c.day
+             rows between unbounded preceding and current row) as peak
+    from (
+    select g.day, g.exits,
+           sum(g.realized) over (order by g.day
+             rows between unbounded preceding and current row) as cumulative
+    from (
+      select date_trunc('day', x.created_at) as day,
+             count(*) as exits,
+             sum(x.realized_pnl_lamports) as realized
+        from app_private.position_exits x
+        join app_private.trade_executions e on e.id = x.exit_execution_id
+        join app_private.trade_intents i on i.id = e.intent_id
+       where x.realized_pnl_lamports is not null
+         and (v_from is null or x.created_at >= v_from)
+         and case p_subject_type
+               when 'portfolio' then e.owner_privy_user_id = p_subject_id
+               when 'bot' then i.bot_id::text = p_subject_id
+               when 'kol-strategy' then e.strategy_id_snapshot::text = p_subject_id
+               when 'discord-source' then e.source_group_id_snapshot::text = p_subject_id
+             end
+       group by 1
+    ) g
+    ) c
+  ) d;
+
+  -- A single closed trade is one observation, and one point draws no line. The origin is the
+  -- day before it at zero -- true by definition, since nothing had been realized yet.
+  if jsonb_array_length(v_series) > 0 then
+    v_series := jsonb_build_array(jsonb_build_object(
+      't', v_first - interval '1 day', 'equityLamports', '0', 'exits', 0
+    )) || v_series;
+  end if;
+
   insert into app_private.performance_snapshots (
     subject_type, subject_id, period, as_of, sample_size,
     net_pnl_lamports, realized_pnl_lamports, volume_lamports,
@@ -176,8 +235,7 @@ begin
     case when v_measured = 0 then null else v_realized end,
     v_volume,
     v_network, v_platform, v_creator,
-    -- No equity series exists, so no drawdown can be stated.
-    null,
+    v_drawdown,
     case when v_measured = 0 then null
          else floor(v_wins::numeric * 10000 / v_measured)::integer end,
     jsonb_build_object(
@@ -189,6 +247,7 @@ begin
       'winningExits', v_wins,
       'openPositions', v_open_positions,
       'unrealizedBasisLamports', v_open_basis::text,
+      'equitySeries', v_series,
       'computedAt', now()
     )
   )
@@ -200,6 +259,10 @@ begin
         network_fees_lamports = excluded.network_fees_lamports,
         platform_fees_lamports = excluded.platform_fees_lamports,
         creator_fees_lamports = excluded.creator_fees_lamports,
+        -- Every computed column must appear here. Omitting one means a second refresh in the
+        -- same hour bucket silently keeps the first run's value, which is how max_drawdown_bps
+        -- stayed null through an entire verifier run that otherwise passed.
+        max_drawdown_bps = excluded.max_drawdown_bps,
         win_rate_bps = excluded.win_rate_bps,
         metrics = excluded.metrics
   returning id into v_id;

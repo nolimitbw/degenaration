@@ -24,7 +24,7 @@ the deployment.
 | 4 | `degenaration-execution-record-fields.sql` | slot, filled quantity, price, slippage, impact — §5.4 | `verify:settlement-writer` |
 | 5 | `degenaration-exit-settlement.sql` | FIFO lot consumption, realized PnL, position closure, `proceeds_lamports` | `verify:exit-settlement` |
 | 6 | `degenaration-creator-referral-allocation.sql` | resolves the creator and referrer at settlement — §13.2/13.3 | `verify:creator-referral` |
-| 7 | `degenaration-performance-snapshots.sql` | the writer for `performance_snapshots` and the operator refresh | `verify:performance-snapshots` |
+| 7 | `degenaration-performance-snapshots.sql` | the writer for `performance_snapshots`, the equity series the Portfolio chart reads, and the operator refresh | `verify:performance-snapshots` |
 | 8 | `degenaration-admin-client-ledger.sql` | `admin_client_ledger`, `admin_business_summary` — §8 | `verify:admin-client-ledger` |
 
 Files 1, 4, 5 and 6 each replace the settlement function. 1 → 4 → 5 → 6 is mandatory.
