@@ -131,7 +131,11 @@ const operations: Record<string, string[]> = {
   // Recomputes app_private.performance_snapshots from the ledger. Portfolio, My Bots, the
   // KOL cards and the Discord 1D/7D/30D figures all read that table and it had no writer at
   // all until cbeabe5, so every one of them showed a dash.
-  admin_refresh_performance: ["p_secret", "p_actor_privy_user_id"]
+  admin_refresh_performance: ["p_secret", "p_actor_privy_user_id"],
+  // What closed a position and at what price. The PnL card needs it: a closed trade's
+  // average exit is proceeds/quantity from app_private.position_exits, and before that table
+  // existed no ledger linked a position to the executions that closed it.
+  app_user_position_exits: ["p_secret", "p_privy_user_id", "p_position_id"]
 };
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {

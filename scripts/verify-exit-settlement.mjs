@@ -34,6 +34,8 @@ const FIXTURE_TABLES = [
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin;
   create schema app_private;
+  create function app_private.admin_secret_ok(p text) returns boolean
+  language sql immutable set search_path = '' as $s$ select p = 'test-secret' $s$;
   create function app_private.ensure_app_user(p text) returns void
   language plpgsql security definer set search_path = '' as $x$
   begin insert into app_private.app_users (privy_user_id) values (trim(p))
@@ -71,7 +73,8 @@ for (const file of [
   "degenaration-trade-intent-fanout.sql",
   "degenaration-settlement-writer.sql",
   "degenaration-execution-record-fields.sql",
-  "degenaration-exit-settlement.sql"
+  "degenaration-exit-settlement.sql",
+  "degenaration-position-exit-detail.sql"
 ]) {
   await db.exec(await readFile(`${repo}/supabase/${file}`, "utf8"));
 }
@@ -270,6 +273,44 @@ await buy(MINT_C, 0.3, 500000);
 assert.equal((await db.query("select count(*)::integer n from app_private.positions")).rows[0].n,
   beforeBuy + 1, "the buy path is unchanged by the exit work");
 results.buyPathUnchanged = "PASS";
+
+// ---- the closed position can now be priced, which is what the PnL card was missing ------
+const detail = (await db.query(
+  "select public.app_user_position_exits('test-secret', $1::text, $2::uuid) d",
+  [OWNER, posC.id])).rows[0].d;
+assert.equal(detail.ok, true);
+assert.equal(detail.aggregate.unpricedExits, 1);
+assert.equal(detail.aggregate.fullyMeasured, false,
+  "an exit nobody priced means no honest average exit price for this position");
+results.exitDetailReportsUnpriced = "PASS";
+
+const measuredDetail = (await db.query(
+  "select public.app_user_position_exits('test-secret', $1::text, $2::uuid) d",
+  [OWNER, posB.id])).rows[0].d;
+assert.equal(measuredDetail.aggregate.fullyMeasured, true);
+assert.equal(measuredDetail.aggregate.proceedsLamports, "625000000");
+assert.equal(measuredDetail.aggregate.releasedBasisLamports, "250000000");
+assert.equal(measuredDetail.aggregate.realizedPnlLamports, "375000000");
+assert.equal(measuredDetail.exits.length, 1);
+assert.ok(measuredDetail.exits[0].txSignature, "each exit names the transaction that made it");
+// Average exit = proceeds / quantity, average entry = cost / quantity. Both are division of
+// recorded integers -- no price feed, nothing inferred.
+assert.equal(measuredDetail.aggregate.exitedQuantityBaseUnits, "1000000");
+results.exitDetailPricesAClosedTrade = "PASS";
+
+// ---- another user's position is not confirmed to exist ---------------------------------
+await db.query("insert into app_private.app_users (privy_user_id) values ('did:privy:mallory')");
+const denied = (await db.query(
+  "select public.app_user_position_exits('test-secret', 'did:privy:mallory', $1::uuid) d",
+  [posB.id])).rows[0].d;
+assert.equal(denied.ok, false);
+assert.equal(denied.reason, "not-found",
+  "same answer as a missing position — a share endpoint must not confirm someone else's");
+await assert.rejects(
+  () => db.query("select public.app_user_position_exits('wrong', $1::text, $2::uuid)",
+    [OWNER, posB.id]),
+  /unauthorized/i);
+results.exitDetailOwnershipEnforced = "PASS";
 
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",

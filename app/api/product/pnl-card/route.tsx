@@ -182,44 +182,87 @@ export async function GET(req: NextRequest) {
     if (!UUID_RE.test(id)) return NextResponse.json({ error: "invalid position id" }, { status: 400 });
     const position = (portfolioResult.data?.positions || []).find((item: Position) => item.id === id) as Position | undefined;
     if (!position) return NextResponse.json({ error: "position not found" }, { status: 404 });
-    // A closed position holds no tokens, so marketValue() rejects it and the caller was
-    // told fresh market evidence was unavailable. That blamed the price providers for a
-    // product limit: a closed trade's average exit price cannot be derived, because no
-    // ledger links a position to the executions that closed it. Say so plainly instead
-    // of reporting a provider fault, and never infer an exit price. See OPEN_BLOCKERS I-1.
     const heldBaseUnits = /^\d+$/.test(position.quantityBaseUnits || "")
       ? BigInt(position.quantityBaseUnits)
       : BigInt(0);
-    if (position.status === "closed" || position.closed_at || heldBaseUnits === BigInt(0)) {
-      return NextResponse.json(
-        { error: "Share cards are available for open positions. This position is closed." },
-        { status: 409 }
-      );
+    const closed = position.status === "closed" || Boolean(position.closed_at) || heldBaseUnits === BigInt(0);
+
+    // A closed position holds no tokens, so marketValue() cannot price it — and until
+    // app_private.position_exits existed, nothing linked a position to the executions that
+    // closed it, so a closed trade could not produce a card at all. It can now: average entry
+    // is cost/quantity and average exit is proceeds/quantity, both division of recorded
+    // integers. No price feed is consulted and nothing is inferred.
+    if (closed) {
+      const exitResult = await callPrivyRpc<any>("app_user_position_exits", {
+        p_privy_user_id: user.privyUserId,
+        p_position_id: position.id
+      });
+      if (!exitResult.ok) {
+        return NextResponse.json({ error: exitResult.error }, { status: exitResult.status });
+      }
+      const aggregate = exitResult.data?.aggregate;
+      // Still refuse rather than guess when the worker never reported what a sale realized.
+      // The reason is now accurate: it is a gap in this position's record, not a provider
+      // fault and not a missing product capability.
+      if (!exitResult.data?.ok || !aggregate?.fullyMeasured) {
+        return NextResponse.json(
+          {
+            error: aggregate?.unpricedExits
+              ? "This position closed with an exit whose proceeds were not recorded, so its exit price cannot be stated."
+              : "This position has no recorded exit, so a closed-trade card cannot be generated."
+          },
+          { status: 409 }
+        );
+      }
+
+      const exitedQuantity = BigInt(aggregate.exitedQuantityBaseUnits || "0");
+      const proceeds = BigInt(aggregate.proceedsLamports || "0");
+      const basis = BigInt(aggregate.releasedBasisLamports || "0");
+      const realizedLamports = BigInt(aggregate.realizedPnlLamports || "0");
+      const pnlPercent = basis > BigInt(0)
+        ? Number(realizedLamports * BigInt(10000) / basis) / 100
+        : 0;
+      const perUnit = (lamports: bigint) =>
+        exitedQuantity > BigInt(0) ? Number(lamports) / Number(exitedQuantity) / 1e9 : 0;
+
+      card = {
+        variant: realizedLamports >= BigInt(0) ? "winner" : "loser",
+        title: realizedLamports >= BigInt(0) ? "Trade closed in profit" : "Trade closed at a loss",
+        pair: `${position.mint.slice(0, 6)} / SOL`,
+        pnlPercent,
+        pnlLamports: realizedLamports,
+        entryPrice: `${perUnit(basis).toPrecision(5)} SOL`,
+        currentPrice: `${perUnit(proceeds).toPrecision(5)} SOL`,
+        duration: durationLabel(position.opened_at, position.closed_at),
+        source: position.botName || "DegenAration bot",
+        context: `closed in ${aggregate.measuredExits} exit${aggregate.measuredExits === 1 ? "" : "s"} · realized, net of recorded fees`
+      };
+    } else {
+      let live;
+      try {
+        live = await marketValue(position);
+      } catch {
+        return NextResponse.json({ error: "Fresh token and SOL market evidence is unavailable, so an open-position PnL card was not generated." }, { status: 503 });
+      }
+      const cost = BigInt(position.costLamports || 0);
+      const realized = BigInt(position.realizedPnlLamports || 0);
+      const fees = BigInt(position.feesLamports || 0);
+      const pnlLamports = live.currentValueLamports + realized - cost - fees;
+      const pnlPercent = cost > BigInt(0) ? Number(pnlLamports * BigInt(10000) / cost) / 100 : 0;
+      const averageEntry = Number(cost * live.tokenScale) / Number(live.quantityBaseUnits * BigInt(1_000_000_000));
+      card = {
+        variant: pnlLamports >= BigInt(0) ? "winner" : "loser",
+        title: pnlLamports >= BigInt(0) ? "Position in profit" : "Position drawdown",
+        pair: `${live.symbol} / SOL`,
+        pnlPercent,
+        pnlLamports,
+        entryPrice: `${averageEntry.toPrecision(5)} SOL`,
+        currentPrice: `${live.currentPriceSol.toPrecision(5)} SOL`,
+        duration: durationLabel(position.opened_at, position.closed_at),
+        source: position.botName || "DegenAration bot",
+        context: `${position.status} position · net of recorded fees`
+      };
     }
-    let live;
-    try {
-      live = await marketValue(position);
-    } catch {
-      return NextResponse.json({ error: "Fresh token and SOL market evidence is unavailable, so an open-position PnL card was not generated." }, { status: 503 });
-    }
-    const cost = BigInt(position.costLamports || 0);
-    const realized = BigInt(position.realizedPnlLamports || 0);
-    const fees = BigInt(position.feesLamports || 0);
-    const pnlLamports = live.currentValueLamports + realized - cost - fees;
-    const pnlPercent = cost > BigInt(0) ? Number(pnlLamports * BigInt(10000) / cost) / 100 : 0;
-    const averageEntry = Number(cost * live.tokenScale) / Number(live.quantityBaseUnits * BigInt(1_000_000_000));
-    card = {
-      variant: pnlLamports >= BigInt(0) ? "winner" : "loser",
-      title: pnlLamports >= BigInt(0) ? "Position in profit" : "Position drawdown",
-      pair: `${live.symbol} / SOL`,
-      pnlPercent,
-      pnlLamports,
-      entryPrice: `${averageEntry.toPrecision(5)} SOL`,
-      currentPrice: `${live.currentPriceSol.toPrecision(5)} SOL`,
-      duration: durationLabel(position.opened_at, position.closed_at),
-      source: position.botName || "DegenAration bot",
-      context: `${position.status} position · net of recorded fees`
-    };
     recordSubjectType = "position";
     recordSubjectId = position.id;
   }

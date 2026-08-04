@@ -26,13 +26,14 @@ the deployment.
 | 6 | `degenaration-creator-referral-allocation.sql` | resolves the creator and referrer at settlement — §13.2/13.3 | `verify:creator-referral` |
 | 7 | `degenaration-performance-snapshots.sql` | the writer for `performance_snapshots`, the equity series the Portfolio chart reads, and the operator refresh | `verify:performance-snapshots` |
 | 8 | `degenaration-admin-client-ledger.sql` | `admin_client_ledger`, `admin_business_summary` — §8 | `verify:admin-client-ledger` |
+| 9 | `degenaration-position-exit-detail.sql` | `app_user_position_exits` — what closed a position and at what price, for the §18 card | `verify:exit-settlement` |
 
 Files 1, 4, 5 and 6 each replace the settlement function. 1 → 4 → 5 → 6 is mandatory.
 
 ## Edge function
 
 `supabase/functions/app-bridge/index.ts` — the deployed copy is **v11**. The repository adds
-`admin_refresh_performance`, which makes it **v12**. Without the redeploy the new Clients-tab
+`admin_refresh_performance` and `app_user_position_exits`, which makes it **v12**. Without the redeploy the new Clients-tab
 refresh returns `400 unknown operation`, exactly the failure mode the funds incident was.
 
 Deploy with `verify_jwt: false`. The default is `true`, and flipping it 401s every call.
