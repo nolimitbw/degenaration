@@ -83,3 +83,27 @@ Nearly every row above ends "authenticated save remains" or "browser proof pendi
 are one blocker, not many: **E-6**, a signed-in Privy session with a delegated dev wallet.
 The implementation is present in each case; what is missing is evidence that requires a real
 session. No amount of further code closes them.
+
+## §11 checklist, verified against source 2026-08-04
+
+Each item checked in code rather than asserted from memory.
+
+| §11 item | State | Where |
+|---|---|---|
+| navigation | **Bots · Affiliate · Portfolio**, exactly three | `AppShell.tsx:34-36` |
+| setup order | verified, one documented divergence | this file, previous section |
+| grouping / progressive disclosure | 10 collapsible sections, Advanced last | `BotBuilder.tsx` |
+| forms / dialogs / tabs / tables | shared primitives, one implementation each | `product/Primitives.tsx` |
+| marketplace | real server PFP, no cover art | `67798ef` |
+| Bot Manager | Discord/KOL tabs, fee visibility | `7c83d48` |
+| performance presentation | truthful unmeasured state, no fabricated figures | `MIZAR_PARITY_MATRIX` V2 rows |
+| confirmations | grouped review + acknowledgement gate | `BotBuilder.tsx` |
+| Portfolio | metric strip, 7D/30D/3M, four tabs | `PortfolioDashboard.tsx` |
+| Affiliate | independent panels, stale-tolerant | `cb4abb3` |
+| tooltips / help | info controls, no wall-of-text | `check-visible-copy` enforces |
+| mobile behavior | 390/768/1024/1440, 0 overflow, 44px targets | `38d8284`, `710dcfb` |
+| branding preserved | DegenAration name, logo, black/gold/white, original glyphs | `3a08002`, `f2823fb`, `0fba6d7` |
+
+**Conclusion.** §11 is implemented. What is missing across this file is not interface code —
+it is browser evidence from a signed-in session (**E-6**). Writing more UI does not change a
+single row here; obtaining a test identity changes about fifteen.
