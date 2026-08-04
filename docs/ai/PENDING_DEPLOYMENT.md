@@ -45,6 +45,25 @@ Deploy with `verify_jwt: false`. The default is `true`, and flipping it 401s eve
 idempotency, extracted as runtime-only application behavior. Still awaiting the promotion
 decision; unchanged since it was prepared.
 
+**Measure it against what production runs, not against `master`.** Production is
+`29291c9`; the branch is that commit plus exactly one, touching 9 files and 443 insertions.
+Diffed against `master` it looks like 159 files, because `master` is 79 commits behind
+production — that number describes how stale `master` is, not how large this release is.
+
+```
+git diff --stat 29291c9..78a4af0     # the real scope of the release
+```
+
+## The three parts are independently approvable
+
+| Part | Depends on |
+|---|---|
+| A — application release `78a4af0` | nothing |
+| B — the ten migrations | nothing |
+| C — app-bridge v12 | **B**. Deployed first, its three new operations reach functions that do not exist yet |
+
+A may go alone. B may go alone. C must not precede B.
+
 ## What each migration is safe about
 
 All ten are forward-safe by construction: additive nullable columns, widened rather than
