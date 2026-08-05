@@ -66,6 +66,21 @@ await db.exec(`
   -- bot_ingest_discord_signal_v2 infers its ON CONFLICT against this one.
   create unique index if not exists calls_message_id_unique
     on public.calls (message_id) where message_id is not null;
+  -- Two queues no migration creates. automation-execution-integrity.sql and
+  -- public-source-profiles.sql are both in the baseline now (migrations 11 and 12 replace
+  -- function bodies they define), and each resolves its own table at apply time.
+  create table if not exists public.limit_orders (
+    id uuid primary key default gen_random_uuid(),
+    privy_user_id text, user_pubkey text, mint text, symbol text, trigger text,
+    target_usd numeric, amount_sol numeric, slippage_bps integer,
+    status text not null default 'open', sig text, filled_at timestamptz,
+    created_at timestamptz not null default now());
+  create table if not exists public.server_applications (
+    id uuid primary key default gen_random_uuid(),
+    guild_id text, guild_name text, guild_member_count integer, channel_id text,
+    channel_name text, status text default 'pending', owner_privy_user_id text,
+    decided_at timestamptz, decision_reason text,
+    created_at timestamptz not null default now());
 `);
 for (const f of BASELINE) await db.exec(await read(`supabase/${f}`));
 
