@@ -224,7 +224,9 @@ const MEASURE = `(() => {
     scrollWidth: doc.scrollWidth,
     clientWidth: doc.clientWidth,
     overflowing,
-    small: targets.filter((t) => t.h < 44).slice(0, 8),
+    // Both dimensions: the header nav button was 21px WIDE at 44px tall, and a
+    // height-only filter passed it.
+    small: targets.filter((t) => Math.min(t.w, t.h) < 44).slice(0, 8),
     text: document.body.innerText.slice(0, 40000)
   };
 })()`;

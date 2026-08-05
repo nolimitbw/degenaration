@@ -64,7 +64,7 @@ export default function Onboarding() {
             <div className="mt-4 space-y-4 text-sm text-dim">
               <div className="flex items-start gap-3 rounded-md border border-danger/40 bg-danger/5 p-4 leading-relaxed text-ink/90"><ShieldAlert size={18} className="mt-0.5 shrink-0 text-danger" /><p>Memecoin prices can collapse in seconds. Manual swaps use real Solana mainnet funds and are irreversible. Degenaration is self-directed software, not financial advice.</p></div>
               {!authenticated && <button onClick={login} disabled={!ready} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-bold transition hover:border-gold-400 disabled:opacity-50"><LogIn size={15} /> Sign in to continue</button>}
-              <label className="flex items-start gap-2"><input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} className="mt-0.5 accent-gold-400" /><span>I understand that I can lose my entire trading balance.</span></label>
+              <label className="flex min-h-11 items-start gap-2 sm:min-h-0"><input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} className="mt-0.5 accent-gold-400" /><span>I understand that I can lose my entire trading balance.</span></label>
             </div>
           )}
 

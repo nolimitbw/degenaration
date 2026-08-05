@@ -37,6 +37,21 @@ const VIEWPORTS = [
 
 const ready = "document.querySelector('main, [role=main], header') !== null";
 
+/**
+ * The session is restored by the Privy SDK on the client, AFTER first paint.
+ *
+ * The first authenticated run of this script measured `signedIn: false` on all eight private
+ * routes of a browser that WAS signed in: it waited 1200ms, which is enough for the shell and
+ * not for the session, so every frame recorded the connect prompt while the header was already
+ * rendering the wallet chip. Signed-out screenshots filed as authenticated evidence are worse
+ * than no evidence, because the parity rows they close are the ones that need a session.
+ *
+ * The wallet chip is the signal: the header renders a truncated address only once Privy has a
+ * user. Waiting for it is what makes a private capture private.
+ */
+const SESSION_READY =
+  "/\\w{4}\\u2026\\w{4}|\\w{4}\\.\\.\\.\\w{4}/.test(document.querySelector('header')?.innerText || '')";
+
 /** Surfaces reachable without a session. */
 const PUBLIC_PLAN = [
   { id: "bots", path: "/bots", note: "Bots landing: Discord and KOL products" },
@@ -74,10 +89,19 @@ const PAGE_ASSERTIONS = `(() => {
   ];
   // Emoji used as an interface icon. Excludes ordinary punctuation and the em dash.
   const EMOJI = /[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}\\u{FE0F}]/u;
-  const tooSmall = [...document.querySelectorAll('button, a[href], [role=button], input, select')]
+  // BOTH dimensions. Filtering on height alone passed the header's navigation button, which
+  // was squeezed to 21px WIDE while keeping its 44px height — the exact control this audit
+  // exists to catch. A label wrapping a small input counts as the target, because the label
+  // is what the finger hits.
+  const tooSmall = [...document.querySelectorAll('button, a[href], [role=button], input:not([type=hidden]), select')]
     .filter((el) => {
       const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && r.height < 44;
+      if (r.width === 0 || r.height === 0) return false;
+      const label = el.closest('label');
+      const lr = label ? label.getBoundingClientRect() : null;
+      const h = Math.max(r.height, lr ? lr.height : 0);
+      const w = Math.max(r.width, lr ? lr.width : 0);
+      return Math.min(w, h) < 44;
     }).length;
   return {
     title: document.title,
@@ -89,6 +113,7 @@ const PAGE_ASSERTIONS = `(() => {
     emojiInUi: EMOJI.test(text),
     smallTapTargets: tooSmall,
     signedIn: !/\\bSign in\\b|\\bConnect\\b/i.test(text.slice(0, 400)),
+    spinners: document.querySelectorAll('.animate-spin, [aria-busy="true"], [role=progressbar]').length,
     headings: [...document.querySelectorAll('h1')].map((h) => h.textContent.trim()).slice(0, 3),
     visibleText: text.slice(0, 900)
   };
@@ -113,8 +138,15 @@ async function main() {
       try {
         await page.goto(`${BASE}${route.path}`, { readyExpression: ready, timeoutMs: 45000 });
         await page.setViewport(vp.width, vp.height, { mobile: vp.mobile });
-        // Let the client-rendered surface settle after the resize before measuring.
-        await new Promise((r) => setTimeout(r, 1200));
+        if (PLAN === "private") {
+          // Fail loudly rather than quietly capturing the signed-out state.
+          try { await page.waitFor(SESSION_READY, { timeoutMs: 30000 }); }
+          catch { throw new Error("no Privy session restored in 30s — this would have captured " +
+            "the signed-out view and filed it as authenticated evidence"); }
+        }
+        // Let the client-rendered surface settle after the resize before measuring. Data-backed
+        // panels fetch after the session resolves, so this runs AFTER the wait above.
+        await new Promise((r) => setTimeout(r, 3500));
         const observed = redact(await page.evaluate(PAGE_ASSERTIONS));
         const shot = await page.screenshot({ fullPage: true });
         await writeFile(`${OUT}/${label}.jpg`, shot);
@@ -125,9 +157,14 @@ async function main() {
           failedRequests: probe.failedRequests.slice(0, 5),
           screenshot: `${label}.jpg`
         });
+        if (PLAN === "private" && observed.signedIn === false) {
+          results[results.length - 1].warning = "measured while signed out";
+        }
         const flag = observed.horizontalOverflow ? " OVERFLOW" : "";
         const copy = observed.forbiddenCopy.length ? ` FORBIDDEN-COPY:${observed.forbiddenCopy.join("|")}` : "";
-        console.log(`  ok  ${label}  ${observed.clientWidth}px${flag}${copy}`);
+        const spinner = observed.spinners ? ` SPINNING:${observed.spinners}` : "";
+        const auth = PLAN === "private" && observed.signedIn === false ? " SIGNED-OUT" : "";
+        console.log(`  ok  ${label}  ${observed.clientWidth}px${flag}${copy}${spinner}${auth}`);
       } catch (err) {
         results.push({ route: route.path, id: route.id, viewport: vp.name, error: redact(err.message) });
         console.log(`  FAIL ${label} — ${redact(err.message)}`);

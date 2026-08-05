@@ -238,7 +238,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
                 <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
                   <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
                   <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
-                  <button type="button" onClick={copyReferral} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link"><Copy size={14} /></button>
+                  <button type="button" onClick={copyReferral} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link"><Copy size={14} /></button>
                 </div>
                 <p className="mt-3 text-[11px] leading-5 text-dim">Attribution is stored server-side. This code does not contain your user ID, wallet, or email.</p>
                 <div className="mt-4 rounded-md border border-edge bg-void p-3">
@@ -491,7 +491,7 @@ function ReferralDashboard({
             <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
               <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
               <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">/r/{summary.referralCode}</span>
-              <button type="button" onClick={copyLink} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link">
+              <button type="button" onClick={copyLink} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link">
                 <Copy size={14} />
               </button>
             </div>
@@ -639,7 +639,14 @@ function CreatorStep({ number, title, detail, done, action }: { number: string; 
       <div className="flex items-center justify-between"><span className="font-mono text-[10px] text-gold-400">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
       <h3 className="mt-5 text-sm font-semibold text-ink">{title}</h3>
       <p className="mt-2 min-h-12 text-[11px] leading-5 text-dim">{detail}</p>
-      <div className="mt-3">{action}</div>
+      {/*
+        Each step's action is a bare text link — "Connect Discord", "Add bot", "Open
+        application". Measured signed in at 390px they were 16px tall, a third of the 44px
+        minimum, on the three controls that start Discord onboarding. The text size and colour
+        are unchanged; only the hit area grows, and it shrinks back at sm where a pointer is
+        the input device.
+      */}
+      <div className="mt-3 [&>*]:inline-flex [&>*]:min-h-11 [&>*]:items-center [&>*]:gap-1 sm:[&>*]:min-h-0">{action}</div>
     </div>
   );
 }

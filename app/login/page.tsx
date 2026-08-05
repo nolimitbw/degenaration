@@ -40,7 +40,7 @@ export default function Login() {
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-danger" />
             <p className="text-xs leading-5 text-dim">Memecoin trading can result in rapid, total loss. Manual swaps use real mainnet funds and are irreversible.</p>
           </div>
-          <label className="mt-4 flex items-start gap-2 text-xs text-dim">
+          <label className="mt-4 flex min-h-11 items-start gap-2 text-xs text-dim sm:min-h-0">
             <input type="checkbox" checked={agree} onChange={(event) => setAgree(event.target.checked)} className="mt-0.5 accent-gold-400" />
             <span>I understand the risk and want to open the secure sign-in options.</span>
           </label>

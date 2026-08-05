@@ -17,10 +17,11 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nPortfolio performance\n\nEquity time series excludes deposits and withdrawals from trading return.\n\n7D\n30D\n3M\n\nNo reconciled equity series yet\n\nThe chart appears after performance snapshots are computed from confirmed trades and wallet movements. No synthetic curve is shown.\n\nAs of No data yet\n\nShare performance\nStatistics\nTotal swaps\n0\nBuys / sells\n0 / 0\nBuy / sell volume\n0.000 / 0.00",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-mobile-390x844.jpg"
@@ -37,12 +38,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 9,
+      "smallTapTargets": 13,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nPortfolio performance\n\nEquity time series excludes deposits and withdrawals from trading return.\n\n7D\n30D\n3M\n\nNo reconciled equity series yet\n\nThe chart appears after performance snapshots are computed from confirmed trades and wallet movements. No synthetic curve is shown.\n\nAs of No data yet\n\nShare performance\nStatistics\nTotal swaps\n0\nBuys / sells\n0 / 0\nBuy / sell volu",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-tablet-768-768x1024.jpg"
@@ -59,12 +61,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 8,
+      "smallTapTargets": 12,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nPortfolio performance\n\nEquity time series excludes deposits and withdrawals from trading return.\n\n7D\n30D\n3M\n\nNo reconciled equity series yet\n\nThe chart appears after performance snapshots are computed from confirmed trades and wallet movements. No synthetic curve is shown.\n\nAs of No data yet\n\nShare performance\nStatistics\nTotal swaps\n0\nBuys / se",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-tablet-1024x768.jpg"
@@ -81,12 +84,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 8,
+      "smallTapTargets": 12,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nPortfolio performance\n\nEquity time series excludes deposits and withdrawals from trading return.\n\n7D\n30D\n3M\n\nNo reconciled equity series yet\n\nThe chart appears after performance snapshots are computed from confirmed trades and wallet movements. No synthetic curve is shown.\n\nAs of No data yet\n\nShare performance\nStatistics\nTotal swaps\n0\nBuys / se",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-desktop-1440x1000.jpg"
@@ -105,10 +109,11 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nBot positions\n\nConfiguration and source attribution remain attached to the position snapshot.\n\nNo bot positions yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-positions-mobile-390x844.jpg"
@@ -127,10 +132,11 @@
       "emojiInUi": false,
       "smallTapTargets": 9,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nBot positions\n\nConfiguration and source attribution remain attached to the position snapshot.\n\nNo bot positions yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-positions-tablet-768-768x1024.jpg"
@@ -149,10 +155,11 @@
       "emojiInUi": false,
       "smallTapTargets": 8,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nBot positions\n\nConfiguration and source attribution remain attached to the position snapshot.\n\nNo bot positions yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-positions-tablet-1024x768.jpg"
@@ -171,10 +178,11 @@
       "emojiInUi": false,
       "smallTapTargets": 8,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nBot positions\n\nConfiguration and source attribution remain attached to the position snapshot.\n\nNo bot positions yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-positions-desktop-1440x1000.jpg"
@@ -193,10 +201,11 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nTrade history\n\nConfirmed, pending, failed, and legacy execution records remain visible.\n\nNo trade records yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-trades-mobile-390x844.jpg"
@@ -215,10 +224,11 @@
       "emojiInUi": false,
       "smallTapTargets": 9,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nTrade history\n\nConfirmed, pending, failed, and legacy execution records remain visible.\n\nNo trade records yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-trades-tablet-768-768x1024.jpg"
@@ -237,10 +247,11 @@
       "emojiInUi": false,
       "smallTapTargets": 8,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nTrade history\n\nConfirmed, pending, failed, and legacy execution records remain visible.\n\nNo trade records yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-trades-tablet-1024x768.jpg"
@@ -259,10 +270,11 @@
       "emojiInUi": false,
       "smallTapTargets": 8,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nTrade history\n\nConfirmed, pending, failed, and legacy execution records remain visible.\n\nNo trade records yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-trades-desktop-1440x1000.jpg"
@@ -281,10 +293,11 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nDeposit and withdrawal history\n\nDetected wallet movements are reconciled against Solana transaction signatures.\n\nNo reconciled wallet movements yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-movements-mobile-390x844.jpg"
@@ -303,10 +316,11 @@
       "emojiInUi": false,
       "smallTapTargets": 9,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nDeposit and withdrawal history\n\nDetected wallet movements are reconciled against Solana transaction signatures.\n\nNo reconciled wallet movements yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-movements-tablet-768-768x1024.jpg"
@@ -325,10 +339,11 @@
       "emojiInUi": false,
       "smallTapTargets": 8,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nDeposit and withdrawal history\n\nDetected wallet movements are reconciled against Solana transaction signatures.\n\nNo reconciled wallet movements yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-movements-tablet-1024x768.jpg"
@@ -347,10 +362,11 @@
       "emojiInUi": false,
       "smallTapTargets": 8,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Portfolio"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nPortfolio\n\nBalances, positions, performance, and transactions.\n\nDeposit\nWithdraw\nSign out\n\nTOTAL PORTFOLIO VALUE\n\nSOLANA MAINNET\n\n0.000 SOL\n\n$0.0000\n\nAVAILABLE\n\n0.000 SOL\n\nWallet balance\n\nALLOCATED\n\n0.000 SOL\n\n0 open positions\n\nREALIZED PNL\n\n+0.000 SOL\n\n30D\n\nNET PNL\n\n+0.000 SOL\n\nAfter recorded fees\n\nOverview\nPositions 0\nTrades 0\nDeposits & withdrawals\nDeposit and withdrawal history\n\nDetected wallet movements are reconciled against Solana transaction signatures.\n\nNo reconciled wallet movements yet.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "portfolio-movements-desktop-1440x1000.jpg"
@@ -367,12 +383,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 5,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Affiliate"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\n\nREWARDS AVAILABLE\ni\n\n0 SOL\n\nReady for request\n\nPENDING REWARDS\ni\n\n0 SOL\n\nAwaiting availability\n\nLIFETIME EARNINGS\ni\n\n0 SOL\n\nPositive credits\n\n30-DAY EARNINGS\ni\n\n0 SOL\n\n0 attributed followers\n\nEarnings\n\nCreator commission credits from authoritative ledger entries.\n\n24H\n7D\n30D\n3M\n\nNo earnings in this period\n\nConfirmed creator commission entries will appear here.\n\nCOPIED VOLUME\n\n0 SOL\n\nCOMMISSION RATE\n\n0.70%\n\nFOLLOWERS\n\n0\n\nADJUSTMENTS\n\n0\n\nREFERRAL LINK\n\nStable creator URL\nhttps://degenaration.vercel.app/r/0ECFB7ACC06E\n\nAttribution is stored server-side. This code does not contain your user ID, wallet, or email.\n\nSIGNED-IN CREATOR\n\nf",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "affiliate-mobile-390x844.jpg"
@@ -389,12 +406,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 7,
+      "smallTapTargets": 15,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Affiliate"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\n\nREWARDS AVAILABLE\ni\n\n0 SOL\n\nReady for request\n\nPENDING REWARDS\ni\n\n0 SOL\n\nAwaiting availability\n\nLIFETIME EARNINGS\ni\n\n0 SOL\n\nPositive credits\n\n30-DAY EARNINGS\ni\n\n0 SOL\n\n0 attributed followers\n\nEarnings\n\nCreator commission credits from authoritative ledger entries.\n\n24H\n7D\n30D\n3M\n\nNo earnings in this period\n\nConfirmed creator commission entries will appear here.\n\nCOPIED VOLUME\n\n0 SOL\n\nCOMMISSION RATE\n\n0.70%\n\nFOLLOWERS\n\n0\n\nADJUSTMENTS\n\n0\n\nREFERRAL LINK\n\nStable creator URL\nhttps://degenaration.vercel.app/r/0ECFB7ACC06E\n\nAttribution is stored server-side. This code does not contain your user ID, wallet, or email.\n\nSIGNE",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "affiliate-tablet-768-768x1024.jpg"
@@ -411,12 +429,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 6,
+      "smallTapTargets": 14,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Affiliate"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\n\nREWARDS AVAILABLE\ni\n\n0 SOL\n\nReady for request\n\nPENDING REWARDS\ni\n\n0 SOL\n\nAwaiting availability\n\nLIFETIME EARNINGS\ni\n\n0 SOL\n\nPositive credits\n\n30-DAY EARNINGS\ni\n\n0 SOL\n\n0 attributed followers\n\nEarnings\n\nCreator commission credits from authoritative ledger entries.\n\n24H\n7D\n30D\n3M\n\nNo earnings in this period\n\nConfirmed creator commission entries will appear here.\n\nCOPIED VOLUME\n\n0 SOL\n\nCOMMISSION RATE\n\n0.70%\n\nFOLLOWERS\n\n0\n\nADJUSTMENTS\n\n0\n\nREFERRAL LINK\n\nStable creator URL\nhttps://degenaration.vercel.app/r/0ECFB7ACC06E\n\nAttribution is stored server-side. This code does not contain your user ID,",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "affiliate-tablet-1024x768.jpg"
@@ -433,23 +452,15 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 6,
+      "smallTapTargets": 14,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Affiliate"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\nSolana Mainnet workspace",
-      "consoleErrors": 2,
-      "failedRequests": [
-        {
-          "status": 429,
-          "url": "https://degenaration.vercel.app/api/product/referrals/complete"
-        },
-        {
-          "status": 429,
-          "url": "https://degenaration.vercel.app/api/product/wallet/register"
-        }
-      ],
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\nAffiliate\n\nTrack creator and referral earnings.\n\nRequest payout\nDiscord Bot\nKOL Bot\nReferrals\nPayouts\n\nREWARDS AVAILABLE\ni\n\n0 SOL\n\nReady for request\n\nPENDING REWARDS\ni\n\n0 SOL\n\nAwaiting availability\n\nLIFETIME EARNINGS\ni\n\n0 SOL\n\nPositive credits\n\n30-DAY EARNINGS\ni\n\n0 SOL\n\n0 attributed followers\n\nEarnings\n\nCreator commission credits from authoritative ledger entries.\n\n24H\n7D\n30D\n3M\n\nNo earnings in this period\n\nConfirmed creator commission entries will appear here.\n\nCOPIED VOLUME\n\n0 SOL\n\nCOMMISSION RATE\n\n0.70%\n\nFOLLOWERS\n\n0\n\nADJUSTMENTS\n\n0\n\nREFERRAL LINK\n\nStable creator URL\nhttps://degenaration.vercel.app/r/0ECFB7ACC06E\n\nAttribution is stored server-side. This code does not contain your user ID,",
+      "consoleErrors": 0,
+      "failedRequests": [],
       "screenshot": "affiliate-desktop-1440x1000.jpg"
     },
     {
@@ -466,17 +477,13 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "My Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nSolana Mainnet workspace",
-      "consoleErrors": 1,
-      "failedRequests": [
-        {
-          "status": 429,
-          "url": "https://degenaration.vercel.app/api/product/referrals/complete"
-        }
-      ],
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nNo Discord bots yet\n\nChoose an approved Discord source and save your first execution profile.\n\nCreate bot\nSolana Mainnet workspace",
+      "consoleErrors": 0,
+      "failedRequests": [],
       "screenshot": "bot-manager-mobile-390x844.jpg"
     },
     {
@@ -491,12 +498,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 9,
+      "smallTapTargets": 10,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "My Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nNo Discord bots yet\n\nChoose an approved Discord source and save your first execution profile.\n\nCreate bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bot-manager-tablet-768-768x1024.jpg"
@@ -513,12 +521,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 8,
+      "smallTapTargets": 9,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "My Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nNo Discord bots yet\n\nChoose an approved Discord source and save your first execution profile.\n\nCreate bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bot-manager-tablet-1024x768.jpg"
@@ -535,12 +544,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 8,
+      "smallTapTargets": 9,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "My Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / MANAGER\n\nMy Bots\n\nPause entries immediately, create immutable configuration versions, and preserve financial history when archiving.\n\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nDiscord Bots\nKOL Bots\n0 active\n0 paused\n0 drafts\n\nDrafts remain editable on Solana Mainnet. Bots can be built and saved now. Running them automatically is not yet available, so no bot can move funds on its own.\n\nNo Discord bots yet\n\nChoose an approved Discord source and save your first execution profile.\n\nCreate bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bot-manager-desktop-1440x1000.jpg"
@@ -559,6 +569,7 @@
       "emojiInUi": false,
       "smallTapTargets": 2,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Risk disclosure"
       ],
@@ -581,6 +592,7 @@
       "emojiInUi": false,
       "smallTapTargets": 6,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Risk disclosure"
       ],
@@ -603,6 +615,7 @@
       "emojiInUi": false,
       "smallTapTargets": 5,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Risk disclosure"
       ],
@@ -625,6 +638,7 @@
       "emojiInUi": false,
       "smallTapTargets": 5,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Risk disclosure"
       ],
@@ -647,10 +661,11 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nWaiting for owner data\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:06 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed executions (24h)\n\nControlled execution attemp",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-mobile-390x844.jpg"
@@ -669,10 +684,11 @@
       "emojiInUi": false,
       "smallTapTargets": 6,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nWaiting for owner data\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:12 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed executions (24h)\n\nControlled e",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-tablet-768-768x1024.jpg"
@@ -691,10 +707,11 @@
       "emojiInUi": false,
       "smallTapTargets": 5,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nWaiting for owner data\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:16 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed execu",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-tablet-1024x768.jpg"
@@ -713,10 +730,11 @@
       "emojiInUi": false,
       "smallTapTargets": 5,
       "signedIn": true,
+      "spinners": 0,
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nWaiting for owner data\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:21 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed execu",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-desktop-1440x1000.jpg"

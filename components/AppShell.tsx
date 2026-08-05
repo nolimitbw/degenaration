@@ -129,7 +129,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             same 32px glyph unchanged — the logo is never scaled, redrawn or replaced — and
             recovers 122px, which restores the button to 44px with room to spare.
           */}
-          <Link href="/bots" className="flex min-h-11 shrink-0 items-center sm:min-h-0" aria-label="DegenAration bots">
+          {/*
+            min-w-11 as well as min-h-11. The compact mark is 32px wide, so the home link was a
+            32x44 target — tall enough and too narrow, which a height-only measurement passed.
+            Widening the hit area costs 12px in a header row that measured 307px of content in
+            390px, and the mark itself is untouched.
+          */}
+          <Link href="/bots" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center sm:min-h-0 sm:min-w-0 sm:justify-start" aria-label="DegenAration bots">
             <Logo compact className="sm:hidden" />
             <Logo className="hidden sm:inline-flex" />
           </Link>
