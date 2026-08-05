@@ -95,20 +95,35 @@ export function EmptyState({
   icon: Icon = CircleAlert,
   title,
   description,
-  action
+  action,
+  compact = false
 }: {
-  icon?: LucideIcon;
+  /**
+   * A Lucide icon OR one of the original DegenAration glyphs under components/icons.
+   * Those are plain function components rather than forwardRef exotics, so typing this as
+   * LucideIcon alone rejected the product's own iconography in favour of generic symbols —
+   * exactly backwards for a design system whose point is that the glyphs are ours.
+   */
+  icon?: LucideIcon | React.ComponentType<{ size?: number; className?: string; title?: string }>;
   title: string;
   description: string;
   action?: React.ReactNode;
+  /**
+   * Inside a panel rather than filling a page. The 256px default is right when this IS the
+   * screen; two of them side by side in a dashboard is a wall of dead space, which the launch
+   * spec calls out by name.
+   */
+  compact?: boolean;
 }) {
   return (
-    <div className="grid min-h-64 place-items-center border border-dashed border-edge bg-panel/35 p-8 text-center">
+    <div className={`grid place-items-center text-center ${
+      compact ? "min-h-40 p-6" : "min-h-64 border border-dashed border-edge bg-panel/35 p-8"
+    }`}>
       <div className="max-w-md">
-        <Icon aria-hidden="true" size={24} className="mx-auto text-gold-400" />
-        <h2 className="mt-4 text-sm font-semibold text-ink">{title}</h2>
+        <Icon aria-hidden="true" size={compact ? 20 : 24} className="mx-auto text-gold-400" />
+        <h2 className={`text-sm font-semibold text-ink ${compact ? "mt-3" : "mt-4"}`}>{title}</h2>
         <p className="mt-2 text-xs leading-5 text-dim">{description}</p>
-        {action && <div className="mt-5">{action}</div>}
+        {action && <div className={compact ? "mt-4" : "mt-5"}>{action}</div>}
       </div>
     </div>
   );

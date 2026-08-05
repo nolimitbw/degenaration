@@ -77,6 +77,7 @@ const SOURCE_MEASURED = {
   performance30d: null,
   activeFollowers: 42, channels: [{ id: "1521876069693526158", name: "alpha-calls" }],
   dataFreshnessAt: "2026-08-05T00:00:00Z", lastProcessedCallAt: "2026-08-05T00:00:00Z",
+  lastSignalAt: "2026-08-05T00:00:00Z",
   lastSuccessfulExecutionAt: "2026-08-04T00:00:00Z", approvedAt: "2026-07-20T00:00:00Z"
 };
 const SOURCE_COLLECTING = {
@@ -90,7 +91,7 @@ const SOURCE_COLLECTING = {
   winRate: null, twoXRate: null, bestCall: null, worstCall: null,
   copiedExecutions: 0, copiedVolumeLamports: "0", maxDrawdownBps: null,
   performance1d: null, performance7d: null, performance30d: null,
-  activeFollowers: 0, channels: [], dataFreshnessAt: null,
+  activeFollowers: 0, channels: [], dataFreshnessAt: null, lastSignalAt: null,
   lastProcessedCallAt: null, lastSuccessfulExecutionAt: null
 };
 
@@ -255,7 +256,7 @@ const UNAUTHENTICATED = [
 ];
 
 const SURFACES = [
-  { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Discord Bot')" },
+  { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: `/bots/discord/${SOURCE_MEASURED.id}`, name: "discord-source-detail", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: "/bots/kol", name: "kol-marketplace", ready: "document.body.innerText.length > 200" },
@@ -309,6 +310,23 @@ for (const surface of SURFACES) {
 
     // Content assertions, once per surface at desktop width.
     if (viewport.name !== "desktop") continue;
+    if (surface.name === "bots-overview") {
+      // The transformation itself. The old overview was two marketing panels describing the
+      // products; this asserts the screen now SHOWS them — a totals row, the real sources by
+      // name with their measured statistics, and the section headings that replaced the prose.
+      for (const needle of ["Approved sources", "Measured calls 7D", "Copied volume 7D",
+                            "Discord sources", "Your bots", "KOL strategies",
+                            "Hit rate", "Up now", "Median peak", "Median now"]) {
+        if (!shows(needle)) failures.push(`bots overview is missing "${needle}"`);
+      }
+      if (!shows("Alpha Desk") || !shows("New Signals")) {
+        failures.push("bots overview does not list the real sources by name");
+      }
+      // The unmeasured source must not report a hit rate of 0.0%.
+      if (/0\.0%/.test(measured.text) && !shows("--")) {
+        failures.push("an unmeasured source is showing 0.0% instead of a dash");
+      }
+    }
     if (surface.name === "discord-marketplace") {
       for (const needle of ["Hit rate (peak)", "Up now", "Median peak", "Median now"]) {
         if (!shows(needle)) failures.push(`marketplace card is missing the "${needle}" metric`);
@@ -344,6 +362,12 @@ const SPINNERS = "document.querySelectorAll('.animate-spin, [aria-busy=\"true\"]
 {
   await page.goto(`${BASE}/bots`);
   await page.waitFor("document.querySelector('main, header') !== null");
+  // Wait for the page's OWN spinners to settle first. /bots has a refresh control that spins
+  // while its two marketplace requests are in flight, so injecting against a live baseline
+  // measured 1 / 1 / 0 — the real spinner disappeared between the during and after reads and
+  // the control failed on its own race rather than on the detector.
+  try { await page.waitFor(`${SPINNERS} === 0`, { timeoutMs: 20000 }); }
+  catch { /* fall through: a non-zero stable baseline still gives a valid delta */ }
   const before = await page.evaluate(SPINNERS);
   await page.evaluate(
     "(() => { const d = document.createElement('div'); d.id='__spin_probe'; " +
