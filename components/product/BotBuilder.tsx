@@ -31,6 +31,10 @@ import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 import { NumericTextInput } from "@/components/product/NumericField";
 import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 import { pendingNotice } from "@/lib/bot-control-contract";
+// One authoritative, integer-safe capital formula. Previously the builder computed this twice,
+// inline, three hundred lines apart — and the two expressions disagreed, because only one of
+// them counted DCA. See the header of lib/planned-capital.js.
+import { plannedCapital, perTokenExposureError, format as lamportsToSol, explain } from "@/lib/planned-capital";
 
 type TpLevel = { targetBps: number; sellBps: number; trailingBps: number; enabled: boolean };
 type DcaLevel = { dropBps: number; buyAmountSol: number; enabled: boolean };
@@ -370,10 +374,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
   const source = sources.find((item) => item.id === sourceId);
   const tpAllocationBps = tpLevels.reduce((total, level) => total + level.sellBps, 0);
-  const dcaCapital = dcaEnabled
-    ? dcaLevels.filter((level) => level.enabled).reduce((total, level) => total + level.buyAmountSol, 0)
-    : 0;
-  const requiredCapital = (buyAmountSol + dcaCapital) * maxOpenTrades;
+  const capitalPlan = plannedCapital({
+    buyAmountSol,
+    maxOpenTrades,
+    dca: { enabled: dcaEnabled, levels: dcaLevels },
+    perTokenExposureSol: perTokenSol
+  });
+  const dcaCapital = capitalPlan.dcaSol;
+  const requiredCapital = capitalPlan.plannedSol;
+  const exposureError = perTokenExposureError(capitalPlan, { enabled: limits.perTokenExposure });
   const enabledSafetyCount = Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length;
   const totalSafetyCount = FILTERS.length + FLAG_FILTERS.length;
   const creatorFeeBps = kind === "discord" ? source?.creatorFeeBps ?? DISCORD_CREATOR_BPS : KOL_CREATOR_BPS;
@@ -396,9 +405,18 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (kind === "discord" && !sourceId) return "Select an approved Discord source.";
     if (!(buyAmountSol > 0 && buyAmountSol <= 100)) return "Buy amount must be between 0 and 100 SOL.";
     if (maxOpenTrades < 1 || maxOpenTrades > 100) return "Maximum open trades must be 1 to 100.";
-    if (maximumCapitalSol < requiredCapital) return `Maximum capital must cover at least ${requiredCapital.toFixed(3)} SOL.`;
+    if (limits.maximumCapital && maximumCapitalSol < requiredCapital) {
+      return `Maximum capital must cover at least ${lamportsToSol(capitalPlan.plannedLamports)} SOL.`;
+    }
     if (dailyLossSol <= 0 || dailyLossSol > maximumCapitalSol) return "Daily loss limit must be positive and no larger than maximum capital.";
-    if (perTokenSol < buyAmountSol || perTokenSol > maximumCapitalSol) return "Per-token exposure must cover one buy and remain inside maximum capital.";
+    // The per-token limit is measured against what ONE POSITION plans to commit, not against
+    // the bare entry. A limit that covers the entry but not the entry plus its DCA legs leaves
+    // every position half-built: the entry claims, then the first leg that crosses the limit is
+    // refused. The shipped defaults produced exactly that — 0.50 per token, 0.55 per position.
+    if (exposureError) return exposureError;
+    if (limits.perTokenExposure && limits.maximumCapital && perTokenSol > maximumCapitalSol) {
+      return "Per-token exposure must remain inside maximum capital.";
+    }
     if (tpAllocationBps > 10000) return "Take-profit sell allocations cannot exceed 100%.";
     if (tpLevels.some((level) => level.targetBps <= 0 || level.sellBps <= 0)) return "Take-profit targets and allocations must be positive.";
     if (tpLevels.some((level, index) => index > 0 && level.targetBps <= tpLevels[index - 1].targetBps)) return "Take-profit targets must increase from one level to the next.";
@@ -415,7 +433,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (invalidRange) return `${invalidRange.label} minimum cannot exceed its maximum.`;
     if (slippageBps < 1 || slippageBps > 2000) return "Slippage must be between 0.01% and 20%.";
     return null;
-  }, [buyAmountSol, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, filters, kind, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, tpAllocationBps, tpLevels]);
+  }, [buyAmountSol, capitalPlan, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, exposureError, filters, kind, limits, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, tpAllocationBps, tpLevels]);
 
   function updateTp(index: number, patch: Partial<TpLevel>) {
     setTpLevels((current) => current.map((level, levelIndex) => levelIndex === index ? { ...level, ...patch } : level));
@@ -779,10 +797,21 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 </LimitField>
               </div>
             </details>
+            {/* The working, not just the total. A figure with no derivation is unfalsifiable: a
+                user who thought 5.50 was wrong had nothing to check it against, and the
+                "maximum exposure" row beside it said 0.50 for the same configuration. */}
             <div className="rounded-md border border-edge bg-void px-4 py-3">
               <p className="field-label">Minimum planned capital</p>
-              <p className="mt-2 font-mono text-sm text-ink">{requiredCapital.toFixed(3)} SOL</p>
-              <p className="mt-1 text-[11px] text-dim">Entry and configured DCA amounts across the maximum simultaneous trades.</p>
+              <div className="mt-2 space-y-0.5 font-mono text-xs text-dim">
+                {explain(capitalPlan).map((line, index) => (
+                  <p key={index} className={line.startsWith("=") ? "text-ink" : undefined}>{line}</p>
+                ))}
+              </div>
+              <p className="mt-2 border-t border-edge pt-2 text-[11px] text-dim">
+                Take profit and stop loss are not counted — they close a position, they do not fund one.
+                Keep about {lamportsToSol(capitalPlan.reserveLamports)} SOL on top for network fees and rent;
+                that reserve is not trading capital.
+              </p>
             </div>
           </FormSection>
 
@@ -1037,8 +1066,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <SummaryRow label="Slippage" value={`${(slippageBps / 100).toFixed(2)}%`} />
             <SummaryRow
               label="Maximum exposure"
-              value={`${Math.min(maximumCapitalSol, buyAmountSol * maxOpenTrades).toFixed(3)} SOL`}
-              hint="The most this bot can have deployed at once: buy amount times maximum open trades, capped by maximum capital."
+              value={`${lamportsToSol(
+                limits.maximumCapital && capitalPlan.perPositionLamports * BigInt(capitalPlan.positions) > BigInt(Math.round(maximumCapitalSol * 1e9))
+                  ? BigInt(Math.round(maximumCapitalSol * 1e9))
+                  : capitalPlan.plannedLamports
+              )} SOL`}
+              hint="The most this bot can have deployed at once: entry plus enabled DCA, times maximum open trades, capped by maximum capital. This omitted DCA before, so it could read lower than the minimum capital shown above it."
             />
             {/* One user-facing rate. Listing the creator share as a second row read as
                 2.00% + 0.70% additive, which is exactly what spec 13.2 forbids -- the

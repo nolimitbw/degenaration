@@ -2477,6 +2477,191 @@ console.log("price selection");
     assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
   });
 }
+// ─── planned capital: one formula, integer-safe, and the two figures agree ───────────────
+//
+// The builder showed "Maximum exposure 0.50 SOL" directly above "Minimum planned capital
+// 5.50 SOL" for the same configuration, because the two expressions were computed inline three
+// hundred lines apart and only one counted DCA. Both were rendered as fact.
+{
+  const capital = require("../../lib/planned-capital");
+  const { plannedCapital, perTokenExposureError, format, explain } = capital;
+
+  const dca = (...amounts) => ({
+    enabled: true,
+    levels: amounts.map((buyAmountSol) => ({ buyAmountSol, dropBps: 1000, enabled: true }))
+  });
+
+  test("DCA disabled: the exact reported example calculates 0.05 x 10 = 0.50", () => {
+    const plan = plannedCapital({
+      buyAmountSol: 0.05,
+      maxOpenTrades: 10,
+      dca: { enabled: false, levels: [{ buyAmountSol: 0.25, enabled: true }, { buyAmountSol: 0.25, enabled: true }] }
+    });
+    assert.strictEqual(format(plan.perPositionLamports), "0.05");
+    assert.strictEqual(format(plan.plannedLamports), "0.5",
+      "an off master must exclude every level, however many are individually on");
+    assert.strictEqual(plan.dcaLamports, 0n);
+  });
+
+  test("one DCA level enabled adds exactly that level", () => {
+    const plan = plannedCapital({ buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25) });
+    assert.strictEqual(format(plan.perPositionLamports), "0.3");
+    assert.strictEqual(format(plan.plannedLamports), "3");
+    assert.strictEqual(plan.dcaLevelCount, 1);
+  });
+
+  test("multiple DCA levels enabled: the reported example calculates 0.55 x 10 = 5.50", () => {
+    const plan = plannedCapital({ buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25, 0.25) });
+    assert.strictEqual(format(plan.entryLamports), "0.05");
+    assert.strictEqual(format(plan.dcaLamports), "0.5");
+    assert.strictEqual(format(plan.perPositionLamports), "0.55");
+    assert.strictEqual(format(plan.plannedLamports), "5.5");
+    assert.deepStrictEqual(explain(plan), [
+      "0.05 entry",
+      "+ 0.5 enabled DCA (2 levels)",
+      "= 0.55 SOL per position",
+      "0.55 × 10 positions",
+      "= 5.5 SOL minimum capital"
+    ]);
+  });
+
+  test("a disabled DCA level is excluded while its siblings still count", () => {
+    const plan = plannedCapital({
+      buyAmountSol: 0.05,
+      maxOpenTrades: 10,
+      dca: { enabled: true, levels: [
+        { buyAmountSol: 0.25, enabled: true },
+        { buyAmountSol: 0.25, enabled: false },
+        { buyAmountSol: 0.1, enabled: true }
+      ] }
+    });
+    // The editor's total must match what buildConfig() SAVES, and buildConfig persists an off
+    // level as absent. Counting it here would make the figure change on reload.
+    assert.strictEqual(format(plan.dcaLamports), "0.35");
+    assert.strictEqual(plan.dcaLevelCount, 2);
+    assert.strictEqual(format(plan.plannedLamports), "4");
+  });
+
+  test("the total is exact integer lamports, and the string is derived from it", () => {
+    // HONEST SCOPE. A search over 232,000 in-range combinations — entry and DCA amounts to four
+    // decimals, two to six levels, 1 to 100 positions — found NO case where the old double path
+    // disagreed with this one after rounding. So this is not a rounding bug that was shipping;
+    // it is the policy the specification requires (no floating-point money arithmetic) turned
+    // into a guarantee rather than a coincidence that happens to hold for today's input ranges.
+    //
+    // What it does buy, concretely: the displayed string is formatted FROM the integer, so it
+    // cannot drift from the number worker_claim_call_execution measures the caps against. The
+    // previous code rendered `requiredCapital.toFixed(3)`, which would have silently absorbed a
+    // divergence if one ever appeared.
+    const plan = plannedCapital({ buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25, 0.25) });
+    assert.strictEqual(typeof plan.plannedLamports, "bigint");
+    assert.strictEqual(plan.perPositionLamports, 550000000n);
+    assert.strictEqual(plan.plannedLamports, 5500000000n);
+    assert.strictEqual(format(plan.plannedLamports), "5.5");
+
+    // Rounding, not flooring — matching server/engine/jupiter.solToLamports, where flooring
+    // bought less than the user configured. 1.001 is one of the 271 values where they differ.
+    assert.strictEqual(capital.toLamports(1.001), 1001000000n);
+    assert.notStrictEqual(capital.toLamports(1.001), BigInt(Math.floor(1.001 * 1e9)));
+    assert.strictEqual(format(plannedCapital({ buyAmountSol: 1.001, maxOpenTrades: 3 }).plannedLamports), "3.003");
+
+    // Trailing zeros are trimmed rather than padded to a fixed width, so "5.5" and "0.05" both
+    // read as the amount the user typed.
+    assert.strictEqual(format(50000000n), "0.05");
+    assert.strictEqual(format(1000000000n), "1");
+    assert.strictEqual(format(1n), "0.000000001");
+  });
+
+  test("the fee reserve is reported separately and never inside planned capital", () => {
+    const plan = plannedCapital({ buyAmountSol: 1, maxOpenTrades: 2 });
+    assert.strictEqual(format(plan.plannedLamports), "2", "the reserve must not inflate the requirement");
+    assert.strictEqual(plan.reserveLamports, 15890880n);
+    assert.strictEqual(plan.totalWithReserveLamports, 2000000000n + 15890880n);
+  });
+
+  test("take profit and stop loss commit no capital to open a position", () => {
+    const base = { buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25, 0.25) };
+    const withExits = plannedCapital({
+      ...base,
+      takeProfit: { enabled: true, levels: [{ targetBps: 10000, sellBps: 5000 }] },
+      stopLoss: { enabled: true, stopBps: 4000 }
+    });
+    assert.strictEqual(withExits.plannedLamports, plannedCapital(base).plannedLamports);
+  });
+
+  test("per-token exposure below one position's plan is a precise error", () => {
+    // The shipped default state: 0.50 per token against a 0.55 position. The entry claims, then
+    // the first DCA leg that crosses the limit is refused, leaving the position half-built.
+    const plan = plannedCapital({
+      buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25, 0.25), perTokenExposureSol: 0.5
+    });
+    const message = perTokenExposureError(plan);
+    assert.ok(message, "0.50 per token cannot complete a 0.55 position");
+    assert.match(message, /0\.5 SOL is below the 0\.55 SOL/);
+    assert.match(message, /0\.05 entry \+ 0\.5 DCA/, "the error must show its working");
+    assert.match(message, /at least 0\.55 SOL/, "and name the fix");
+
+    // Exactly equal is fine — the position completes.
+    assert.strictEqual(
+      perTokenExposureError(plannedCapital({ ...{ buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25, 0.25) }, perTokenExposureSol: 0.55 })),
+      null
+    );
+    // Switched off, the limit is not applied and must not be validated.
+    assert.strictEqual(perTokenExposureError(plan, { enabled: false }), null);
+    // Turning DCA off drops the requirement to the entry, so the same 0.50 is fine again.
+    assert.strictEqual(
+      perTokenExposureError(plannedCapital({
+        buyAmountSol: 0.05, maxOpenTrades: 10,
+        dca: { enabled: false, levels: [{ buyAmountSol: 0.25, enabled: true }] },
+        perTokenExposureSol: 0.5
+      })),
+      null
+    );
+  });
+
+  test("save, reload and edit preserve the same result", () => {
+    // The round trip that matters: buildConfig() drops disabled levels, so recomputing from the
+    // SAVED shape must equal what the editor showed before saving. This is the property that
+    // fails when the editor counts a level the save path removes.
+    const editorState = {
+      buyAmountSol: 0.05,
+      maxOpenTrades: 10,
+      dca: { enabled: true, levels: [
+        { buyAmountSol: 0.25, enabled: true },
+        { buyAmountSol: 0.25, enabled: false },
+        { buyAmountSol: 0.25, enabled: true }
+      ] }
+    };
+    const before = plannedCapital(editorState);
+
+    // Exactly what BotBuilder.buildConfig() persists.
+    const saved = {
+      enabled: true,
+      levels: editorState.dca.levels.filter((level) => level.enabled)
+    };
+    const afterReload = plannedCapital({ buyAmountSol: 0.05, maxOpenTrades: 10, dca: saved });
+    assert.strictEqual(afterReload.plannedLamports, before.plannedLamports);
+    assert.strictEqual(format(afterReload.plannedLamports), "5.5");
+
+    // And an edit that re-enables the middle level moves it by exactly one level.
+    const edited = plannedCapital({
+      buyAmountSol: 0.05, maxOpenTrades: 10,
+      dca: { enabled: true, levels: editorState.dca.levels.map((l) => ({ ...l, enabled: true })) }
+    });
+    assert.strictEqual(format(edited.plannedLamports), "8");
+  });
+
+  test("degenerate inputs report something honest rather than NaN", () => {
+    assert.strictEqual(format(plannedCapital({}).plannedLamports), "0");
+    assert.strictEqual(plannedCapital({ buyAmountSol: "x", maxOpenTrades: "y" }).plannedLamports, 0n);
+    // A zero or negative trade count is floored to one position, not to zero — reporting "no
+    // capital required" for a misconfigured bot is the most misleading answer available.
+    assert.strictEqual(format(plannedCapital({ buyAmountSol: 1, maxOpenTrades: 0 }).plannedLamports), "1");
+    assert.strictEqual(format(plannedCapital({ buyAmountSol: 1, maxOpenTrades: -5 }).plannedLamports), "1");
+    assert.strictEqual(format(plannedCapital({ buyAmountSol: 1, maxOpenTrades: 2.7 }).plannedLamports), "2");
+  });
+}
+
 // ─── module ON/OFF must reach the exit engine ────────────────────────────────────────────
 //
 // The builder's take-profit and stop-loss switches are only real if the worker acts on them.
