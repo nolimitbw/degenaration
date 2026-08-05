@@ -46,7 +46,17 @@ const FORBIDDEN_PHRASES = [
   "revolutionize your trading",
   "coming soon",
   "todo:",
-  "tbd"
+  "tbd",
+  // Every page carried "Automated trading and payouts are not yet available". The payouts half
+  // was FALSE — withdrawals and affiliate payouts are implemented, deployed and verified — and
+  // telling people they cannot take their money out is the most damaging untrue thing a
+  // trading product can say about itself. Restrictions are stated per capability now, from the
+  // server's own state, so this phrasing must not come back.
+  "payouts are not yet available",
+  "payouts are not available",
+  "withdrawals are not yet available",
+  "automated trading is not yet available",
+  "automated trading not yet available"
 ];
 // `placeholder=` is a legitimate input attribute, so the word itself is not forbidden.
 

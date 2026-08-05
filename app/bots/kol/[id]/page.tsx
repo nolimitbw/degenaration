@@ -231,7 +231,7 @@ export default function KolStrategyDetailsPage() {
                 className="inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-dim opacity-70"
               >
                 <Play size={15} />
-                Automated trading not yet available
+                Activation needs the execution worker
               </button>
               {subscription?.status === "active" && <button type="button" onClick={() => save("paused")} disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><Pause size={15} /> Pause entries</button>}
               {!authenticated && <button type="button" onClick={login} className="min-h-11 w-full rounded-md border border-edge text-sm font-semibold text-ink">Connect account</button>}

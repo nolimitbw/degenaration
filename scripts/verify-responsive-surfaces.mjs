@@ -311,6 +311,11 @@ for (const surface of SURFACES) {
     // Content assertions, once per surface at desktop width.
     if (viewport.name !== "desktop") continue;
     if (surface.name === "bots-overview") {
+      // Milestone 2: the false claim must be gone from every page's chrome, and the banner
+      // must not assert a restriction on a capability that works.
+      for (const gone of ["payouts are not yet available", "Automated trading and payouts"]) {
+        if (shows(gone)) failures.push(`the false availability claim is still on screen: "${gone}"`);
+      }
       // The transformation itself. The old overview was two marketing panels describing the
       // products; this asserts the screen now SHOWS them — a totals row, the real sources by
       // name with their measured statistics, and the section headings that replaced the prose.

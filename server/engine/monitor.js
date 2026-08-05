@@ -77,6 +77,35 @@ function exitPlan(row) {
   const config = row.entry_config && typeof row.entry_config === "object" ? row.entry_config : {};
   const configured = Array.isArray(config.takeProfit?.levels) ? config.takeProfit.levels : null;
 
+  // TAKE PROFIT OFF IS NOT THE SAME AS NO CONFIG.
+  //
+  // This used to branch on `configured.length`, so a bot whose owner switched take profit off
+  // — which persists `levels: []` — fell through to the legacy tp1/tp2 columns below. Those
+  // are populated by app_user_save_bot, which coalesces a missing level to 10000 bps. The
+  // position would then take profit at 2x for a user who had explicitly turned selling off,
+  // and nothing would report it: the toggle saved, reloaded and showed Off the whole time.
+  //
+  // The presence of the takeProfit object is what distinguishes the two. A position opened
+  // from the builder always has one; only a position predating entry_config does not.
+  if (config.takeProfit && typeof config.takeProfit === "object") {
+    const levels = configured || [];
+    return {
+      levels: levels
+        .map((level, index) => ({
+          index,
+          target: 1 + Number(level?.targetBps ?? 0) / 10000,
+          sellPercent: Number(level?.sellBps ?? 0) / 100,
+          trailingBps: Number(level?.trailingBps ?? 0)
+        }))
+        .filter((level) => isProfitTarget(level.target))
+        .sort((a, b) => a.target - b.target),
+      stop: {
+        dropFraction: Number(config.stopLoss?.stopBps ?? 0) / 10000,
+        trailing: Boolean(config.stopLoss?.trailing)
+      }
+    };
+  }
+
   if (configured && configured.length) {
     return {
       levels: configured

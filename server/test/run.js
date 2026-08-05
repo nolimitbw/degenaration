@@ -2477,6 +2477,63 @@ console.log("price selection");
     assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
   });
 }
+// ─── module ON/OFF must reach the exit engine ────────────────────────────────────────────
+//
+// The builder's take-profit and stop-loss switches are only real if the worker acts on them.
+// A toggle that saves, reloads and shows Off while the position still sells is the exact
+// "decorative toggle ignored by the backend" this product forbids.
+{
+  const monitor = require("../engine/monitor");
+  const base = {
+    id: "p1", user_pubkey: "U", wallet_id: "W", mint: "M", status: "open",
+    amount_raw: "1000000", entry_price_usd: 1, peak_price_usd: 1, filled_levels: []
+  };
+  const decide = (row, price) => monitor.decideExit({ position: monitor.normalizePosition(row), price });
+
+  test("take profit OFF does not sell, even at a price that would trigger every level", () => {
+    const off = { ...base, entry_config: { takeProfit: { enabled: false, levels: [] }, stopLoss: { stopBps: 4000 } },
+                  tp1: 2, tp1_sell: 50, tp2: 5, tp2_sell: 25, stop_loss: 40 };
+    // 10x. With take profit on this sells; with it off nothing may.
+    assert.strictEqual(decide(off, 10), null,
+      "an empty configured level list must NOT fall through to the legacy tp1/tp2 columns");
+  });
+
+  test("take profit ON still sells at its configured level", () => {
+    const on = { ...base, entry_config: { takeProfit: { enabled: true, levels: [{ targetBps: 10000, sellBps: 5000, trailingBps: 0 }] }, stopLoss: { stopBps: 4000 } } };
+    const exit = decide(on, 2.5);
+    assert.ok(exit, "a configured level at +100% must fire at 2.5x");
+    assert.strictEqual(exit.kind, "TP1");
+  });
+
+  test("stop loss OFF leaves a losing position open", () => {
+    const off = { ...base, entry_config: { takeProfit: { enabled: true, levels: [] }, stopLoss: { enabled: false, stopBps: 0 } },
+                  stop_loss: 40 };
+    assert.strictEqual(decide(off, 0.05), null, "a 95% drawdown must not exit when the stop is off");
+  });
+
+  test("stop loss ON exits the whole remaining position", () => {
+    const on = { ...base, entry_config: { takeProfit: { enabled: true, levels: [] }, stopLoss: { enabled: true, stopBps: 4000 } } };
+    const exit = decide(on, 0.5);
+    assert.ok(exit && exit.kind === "SL", "-50% must trip a -40% stop");
+    assert.strictEqual(String(exit.amountRaw), "1000000", "a stop exits everything that remains");
+  });
+
+  test("a position with no entry_config still honours the legacy columns", () => {
+    // The fallback must survive: positions opened before entry_config existed have only these.
+    const legacy = { ...base, entry_config: {}, tp1: 2, tp1_sell: 50, tp2: 5, tp2_sell: 25, stop_loss: 40 };
+    const exit = decide(legacy, 2.5);
+    assert.ok(exit && exit.kind === "TP1", "legacy tp1 must still fire");
+    assert.strictEqual(decide({ ...legacy }, 0.5).kind, "SL", "legacy stop must still fire");
+  });
+
+  test("a disabled level is absent from the plan, so the next enabled one is used", () => {
+    // The builder filters disabled levels out before saving, so the engine sees only the
+    // enabled ones. This pins that the surviving level is what fires.
+    const row = { ...base, entry_config: { takeProfit: { enabled: true, levels: [{ targetBps: 40000, sellBps: 2500, trailingBps: 0 }] }, stopLoss: { stopBps: 4000 } } };
+    assert.strictEqual(decide(row, 2.5), null, "the removed +100% level must not fire");
+    assert.ok(decide(row, 5.5), "the surviving +400% level must");
+  });
+}
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

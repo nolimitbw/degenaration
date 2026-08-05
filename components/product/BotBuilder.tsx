@@ -32,7 +32,7 @@ import { NumericTextInput } from "@/components/product/NumericField";
 import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 import { pendingNotice } from "@/lib/bot-control-contract";
 
-type TpLevel = { targetBps: number; sellBps: number; trailingBps: number };
+type TpLevel = { targetBps: number; sellBps: number; trailingBps: number; enabled: boolean };
 type DcaLevel = { dropBps: number; buyAmountSol: number };
 type FilterValue = { enabled: boolean; min: number; max: number };
 
@@ -158,9 +158,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [simulationRequired, setSimulationRequired] = useState(true);
   const [firstCallOnly, setFirstCallOnly] = useState(false);
   const [tpLevels, setTpLevels] = useState<TpLevel[]>([
-    { targetBps: 10000, sellBps: 5000, trailingBps: 0 },
-    { targetBps: 40000, sellBps: 2500, trailingBps: 0 }
+    { targetBps: 10000, sellBps: 5000, trailingBps: 0, enabled: true },
+    { targetBps: 40000, sellBps: 2500, trailingBps: 0, enabled: true }
   ]);
+  // Master switches. These are not decoration: an off take-profit persists zero levels and an
+  // off stop loss persists stopBps 0, and server/engine/monitor.js already treats both as "no
+  // such exit" — it filters levels through isProfitTarget and gates the stop on
+  // `dropFraction > 0`. So the state the user sets is the state the worker enforces.
+  const [takeProfitEnabled, setTakeProfitEnabled] = useState(true);
+  const [stopLossEnabled, setStopLossEnabled] = useState(true);
   const [trailingTakeProfit, setTrailingTakeProfit] = useState(false);
   const [stopBps, setStopBps] = useState(4000);
   const [trailingStop, setTrailingStop] = useState(false);
@@ -276,10 +282,16 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           setTpLevels(config.takeProfit.levels.map((level: Partial<TpLevel>) => ({
             targetBps: numberOr(level.targetBps, 10000),
             sellBps: numberOr(level.sellBps, 1000),
-            trailingBps: numberOr(level.trailingBps, 0)
+            trailingBps: numberOr(level.trailingBps, 0),
+            // A saved level with no explicit flag predates per-level switches and was, by
+            // definition, active — defaulting it to off would silently disable exits on every
+            // existing bot the first time its owner opened the editor.
+            enabled: level.enabled !== false
           })));
         }
         setTrailingTakeProfit(Boolean(config.takeProfit?.trailing));
+        setTakeProfitEnabled(config.takeProfit?.enabled !== false);
+        setStopLossEnabled(config.stopLoss?.enabled !== false);
         setStopBps(numberOr(config.stopLoss?.stopBps, 4000));
         setTrailingStop(Boolean(config.stopLoss?.trailing));
         setDynamicStop(Boolean(config.stopLoss?.dynamic));
@@ -443,9 +455,17 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       cooldownSeconds: Math.round(cooldownSeconds),
       simulationRequired,
       firstCallOnly,
-      takeProfit: { levels: tpLevels, trailing: trailingTakeProfit },
+      // An off module is persisted as ABSENT, not as a flag alongside live values. The worker
+      // reads levels and stopBps; leaving populated levels behind an `enabled: false` it does
+      // not check would keep selling while the user believes take profit is off.
+      takeProfit: {
+        enabled: takeProfitEnabled,
+        trailing: trailingTakeProfit,
+        levels: takeProfitEnabled ? tpLevels.filter((level) => level.enabled) : []
+      },
       stopLoss: {
-        stopBps: Math.round(stopBps),
+        enabled: stopLossEnabled,
+        stopBps: stopLossEnabled ? Math.round(stopBps) : 0,
         trailing: trailingStop,
         dynamic: dynamicStop,
         delaySeconds: Math.round(stopDelaySeconds),
@@ -747,22 +767,44 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             title="Take profit"
             pending={pendingFor("takeProfit")}
             description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}
-            summary={`${tpLevels.length} levels · first at +${(tpLevels[0]?.targetBps / 100 || 0).toFixed(0)}%`}
+            summary={takeProfitEnabled
+              ? `${tpLevels.filter((level) => level.enabled).length} of ${tpLevels.length} levels on`
+              : "Off"}
           >
-            <div className="divide-y divide-edge rounded-md border border-edge">
+            <Toggle
+              label="Take profit"
+              detail="Off saves no levels at all, so nothing sells into strength."
+              checked={takeProfitEnabled}
+              onChange={setTakeProfitEnabled}
+            />
+            <div className={`divide-y divide-edge rounded-md border border-edge ${takeProfitEnabled ? "" : "opacity-45"}`}>
               {tpLevels.map((level, index) => (
-                <div key={index} className="grid gap-3 p-3 sm:grid-cols-[52px_repeat(3,minmax(0,1fr))_36px] sm:items-end">
-                  <p className="font-mono text-xs text-dim sm:self-center">TP {index + 1}</p>
-                  <label><span className="field-label">Target gain</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} target gain`} value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" /></span></label>
-                  <label><span className="field-label">Sell allocation</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} sell allocation`} value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" /></span></label>
-                  <label><span className="field-label">Trailing</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} trailing distance`} value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit} /></span></label>
+                <div key={index} className="grid gap-3 p-3 sm:grid-cols-[92px_repeat(3,minmax(0,1fr))_36px] sm:items-end">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={level.enabled}
+                    aria-label={`Take-profit level ${index + 1}`}
+                    disabled={!takeProfitEnabled}
+                    onClick={() => updateTp(index, { enabled: !level.enabled })}
+                    className="flex min-h-11 items-center gap-2 text-left sm:min-h-0 sm:self-center disabled:opacity-40"
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled && takeProfitEnabled ? "bg-up" : "bg-edge"}`} />
+                    <span className="font-mono text-xs text-dim">TP {index + 1}</span>
+                    <span className={`font-mono text-[9px] uppercase ${level.enabled && takeProfitEnabled ? "text-up" : "text-dim"}`}>
+                      {level.enabled ? "On" : "Off"}
+                    </span>
+                  </button>
+                  <label><span className="field-label">Target gain</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} target gain`} value={level.targetBps / 100} onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100) })} suffix="%" disabled={!takeProfitEnabled || !level.enabled} /></span></label>
+                  <label><span className="field-label">Sell allocation</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} sell allocation`} value={level.sellBps / 100} onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100) })} suffix="%" disabled={!takeProfitEnabled || !level.enabled} /></span></label>
+                  <label><span className="field-label">Trailing</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`TP ${index + 1} trailing distance`} value={level.trailingBps / 100} onChange={(value) => updateTp(index, { trailingBps: Math.round(value * 100) })} suffix="%" disabled={!trailingTakeProfit || !takeProfitEnabled || !level.enabled} /></span></label>
                   <button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button>
                 </div>
               ))}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0 }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
-              <Toggle label="Trailing take profit" detail="Apply the per-level trailing distance after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} compact />
+              <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0, enabled: true }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
+              <Toggle label="Trailing take profit" detail="Apply the per-level trailing distance after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} compact disabled={!takeProfitEnabled} />
             </div>
             {tpAllocationBps > 10000 && <InlineError>Sell allocation exceeds 100%.</InlineError>}
           </FormSection>
@@ -771,16 +813,30 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             title="Stop loss"
             pending={pendingFor("stopLoss")}
             description="Exit management continues when new entries are paused."
-            summary={`-${(stopBps / 100).toFixed(1)}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`}
+            summary={stopLossEnabled
+              ? `-${(stopBps / 100).toFixed(1)}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`
+              : "Off"}
           >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <NumberField label="Stop loss" value={stopBps / 100} onChange={(value) => setStopBps(Math.round(value * 100))} unit="%" step={0.5} min={0.01} max={100} />
-              <NumberField label="Trigger debounce" value={stopDelaySeconds} onChange={(value) => setStopDelaySeconds(Math.round(value))} unit="sec" step={1} min={0} max={300} />
-              <Toggle label="Trailing stop" detail="Move the stop upward with price." checked={trailingStop} onChange={setTrailingStop} />
-              <Toggle label="Dynamic stop" detail="Use supported volatility evidence." checked={dynamicStop} onChange={setDynamicStop} />
+            <Toggle
+              label="Stop loss"
+              detail="Off saves no stop, so a position has no downside exit until you close it."
+              checked={stopLossEnabled}
+              onChange={setStopLossEnabled}
+              danger
+            />
+            {!stopLossEnabled && (
+              <InlineError>
+                With stop loss off nothing closes a losing position automatically. Exits still run for take-profit levels you leave on.
+              </InlineError>
+            )}
+            <div className={`grid gap-4 md:grid-cols-2 xl:grid-cols-4 ${stopLossEnabled ? "" : "opacity-45"}`}>
+              <NumberField label="Stop loss" value={stopBps / 100} onChange={(value) => setStopBps(Math.round(value * 100))} unit="%" step={0.5} min={0.01} max={100} disabled={!stopLossEnabled} />
+              <NumberField label="Trigger debounce" value={stopDelaySeconds} onChange={(value) => setStopDelaySeconds(Math.round(value))} unit="sec" step={1} min={0} max={300} disabled={!stopLossEnabled} />
+              <Toggle label="Trailing stop" detail="Move the stop upward with price." checked={trailingStop} onChange={setTrailingStop} disabled={!stopLossEnabled} />
+              <Toggle label="Dynamic stop" detail="Use supported volatility evidence." checked={dynamicStop} onChange={setDynamicStop} disabled={!stopLossEnabled} />
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <Toggle label="Freeze token after stop" detail="Block re-entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} />
+              <Toggle label="Freeze token after stop" detail="Block re-entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
               <Toggle label="Emergency exit" detail="Use the best bounded route when the normal exit fails." checked={emergencyExit} onChange={setEmergencyExit} />
             </div>
           </FormSection>
@@ -905,7 +961,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 title={AUTOMATED_MAINNET_RELEASE.reason}
               >
                 <ShieldCheck size={15} />
-                Automated trading not yet available
+                Activation needs the execution worker
               </button>
               <button
                 type="button"
@@ -1061,7 +1117,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               ))}
               <div className="mt-4 flex gap-3 rounded-md border border-gold-400/35 bg-gold-400/5 p-3 text-xs leading-5 text-dim">
                 <AlertTriangle className="mt-0.5 shrink-0 text-gold-400" size={16} />
-                <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds, and automated trading is not yet available.</p>
+                <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds, and bots do not place trades on their own until the execution worker is running.</p>
               </div>
               <label className="mt-4 flex items-start gap-3 text-xs text-ink">
                 <input
@@ -1173,7 +1229,8 @@ function NumberField({
   step,
   min,
   max = 1_000_000_000,
-  compact = false
+  compact = false,
+  disabled = false
 }: {
   label: string;
   value: number;
@@ -1183,19 +1240,26 @@ function NumberField({
   min: number;
   max?: number;
   compact?: boolean;
+  /**
+   * Semantically disabled, not just faded. A module switched off must leave its fields
+   * unreachable by keyboard too — a greyed field that still accepts Tab and edits is a
+   * control that looks inert and is not.
+   */
+  disabled?: boolean;
 }) {
   // A whole-number step means a whole-number field, so the decimal point is rejected at
   // keystroke time rather than accepted and then silently truncated.
   const decimals = Number.isInteger(step) ? 0 : 4;
   const update = (next: number) => onChange(Math.min(max, Math.max(min, Number(next.toFixed(6)))));
   return (
-    <label className={compact ? "block min-w-64" : "block"}>
+    <label className={`${compact ? "block min-w-64" : "block"}${disabled ? " opacity-45" : ""}`}>
       <span className="field-label">{label}</span>
       <span className="field-control mt-1.5 flex overflow-hidden">
-        <button type="button" onClick={() => update(value - step)} className="grid h-11 w-10 shrink-0 place-items-center border-r border-edge text-dim hover:text-ink" aria-label={`Decrease ${label}`}><Minus size={13} /></button>
+        <button type="button" disabled={disabled} onClick={() => update(value - step)} className="grid h-11 w-10 shrink-0 place-items-center border-r border-edge text-dim hover:text-ink disabled:pointer-events-none" aria-label={`Decrease ${label}`}><Minus size={13} /></button>
         <NumericTextInput
           value={value}
           onChange={onChange}
+          disabled={disabled}
           min={min}
           max={max}
           decimals={decimals}
@@ -1203,7 +1267,7 @@ function NumberField({
           className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-xs text-ink outline-none"
         />
         <span className="self-center pr-2 font-mono text-[9px] text-dim">{unit}</span>
-        <button type="button" onClick={() => update(value + step)} className="grid h-11 w-10 shrink-0 place-items-center border-l border-edge text-dim hover:text-ink" aria-label={`Increase ${label}`}><Plus size={13} /></button>
+        <button type="button" disabled={disabled} onClick={() => update(value + step)} className="grid h-11 w-10 shrink-0 place-items-center border-l border-edge text-dim hover:text-ink disabled:pointer-events-none" aria-label={`Increase ${label}`}><Plus size={13} /></button>
       </span>
     </label>
   );
@@ -1226,11 +1290,41 @@ function CompactNumber({ ariaLabel, value, onChange, suffix, disabled = false }:
   );
 }
 
-function Toggle({ label, detail, checked, onChange, danger = false, compact = false }: { label: string; detail: string; checked: boolean; onChange: (checked: boolean) => void; danger?: boolean; compact?: boolean }) {
+/**
+ * A switch that SAYS whether it is on.
+ *
+ * This previously conveyed its state through the pill's colour alone — green for on, edge grey
+ * for off. That is unreadable to anyone with a colour vision deficiency, it disappears in a
+ * screenshot printed in greyscale, and on a control that decides whether a stop loss exists it
+ * is the difference between a bounded position and an unbounded one. WCAG 1.4.1 forbids colour
+ * as the only carrier of meaning, and this is the clearest case of it in the product.
+ *
+ * `role="switch"` with `aria-checked` already gave the state to a screen reader and keyboard
+ * activation already worked, because it is a real button. What was missing was the state being
+ * visible to someone looking at it.
+ */
+function Toggle({ label, detail, checked, onChange, danger = false, compact = false, disabled = false }: { label: string; detail: string; checked: boolean; onChange: (checked: boolean) => void; danger?: boolean; compact?: boolean; disabled?: boolean }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={`flex items-center justify-between gap-4 rounded-md border border-edge bg-void px-3 py-2.5 text-left ${compact ? "min-w-72" : "w-full"}`}>
-      <span className="min-w-0"><span className={`block text-xs font-medium ${danger && checked ? "text-gold-400" : "text-ink"}`}>{label}</span><span className="mt-0.5 block text-[10px] leading-4 text-dim">{detail}</span></span>
-      <span className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? danger ? "bg-gold-400" : "bg-up" : "bg-edge"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${checked ? "left-6" : "left-1"}`} /></span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`flex items-center justify-between gap-4 rounded-md border border-edge bg-void px-3 py-2.5 text-left transition focus-visible:border-gold-400 disabled:opacity-40 ${compact ? "min-w-72" : "w-full"}`}
+    >
+      <span className="min-w-0">
+        <span className={`block text-xs font-medium ${danger && checked ? "text-gold-400" : "text-ink"}`}>{label}</span>
+        <span className="mt-0.5 block text-[10px] leading-4 text-dim">{detail}</span>
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        <span className={`font-mono text-[9px] uppercase tracking-[0.08em] ${checked ? danger ? "text-gold-400" : "text-up" : "text-dim"}`}>
+          {checked ? "On" : "Off"}
+        </span>
+        <span className={`relative h-6 w-11 rounded-full transition ${checked ? danger ? "bg-gold-400" : "bg-up" : "bg-edge"}`}>
+          <span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${checked ? "left-6" : "left-1"}`} />
+        </span>
+      </span>
     </button>
   );
 }

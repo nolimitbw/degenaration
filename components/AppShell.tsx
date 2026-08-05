@@ -65,10 +65,15 @@ function Notifications() {
       </button>
       {open && (
         <div className="absolute right-0 top-12 z-50 w-80 rounded-md border border-edge bg-panel p-4 shadow-2xl">
-          <p className="text-sm font-semibold text-ink">Automated trading is not yet available</p>
-          <p className="mt-1 text-xs leading-5 text-dim">
-            {AUTOMATED_MAINNET_RELEASE.reason}
-          </p>
+          {/* Per capability, not one global verdict. Naming a working feature beside a real
+              restriction is what made the old wording harmful. */}
+          <p className="text-sm font-semibold text-ink">What this workspace can do</p>
+          <ul className="mt-2 space-y-1.5 text-xs leading-5 text-dim">
+            <li className="flex gap-2"><span className="text-up">Available</span> Manual swaps you confirm in your own wallet</li>
+            <li className="flex gap-2"><span className="text-up">Available</span> Withdrawals and affiliate payouts</li>
+            <li className="flex gap-2"><span className="text-up">Available</span> Building, editing, pausing and versioning bots</li>
+            <li className="flex gap-2"><span className="text-gold-400">Pending</span> Bots placing trades on their own</li>
+          </ul>
           <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-gold-400 hover:text-info">
             Review bot status
           </Link>
