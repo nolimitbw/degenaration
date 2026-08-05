@@ -9,14 +9,79 @@ The one file to read before touching anything. Written 2026-08-04.
 |---|---|
 | Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `c79ef79` |
-| Suite | `npm run check` exit 0 — **267 tests**, 30 verifier suites, 6 contract gates, 1 browser audit over 8 surfaces |
+| Commit | `a173ed8` — **deployed**, `/api/build` confirms it |
+| Suite | `npm run check` exit 0 — **284 tests**, 34 verifier suites, 6 contract gates, browser audit over 9 surfaces × 4 widths, production build 65 pages |
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
-| Untracked | none |
-| Deployed edge functions | `app-bridge` **v13** (deployed 2026-08-05), `bot-bridge` v3 |
-| Migrations unapplied | **none.** All ten applied to production with owner approval, one at a time, each verified by `md5(prosrc)` against this repository before the next was started. 8, 9 and 10 applied 2026-08-05 second pass; `PENDING_DEPLOYMENT.md` records the per-migration result and the unchanged row counts. |
-| Deployed application | `claude/degenaration-launch-remediation` @ `29291c9` — **not** `master` |
-| Release awaiting promotion | `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` |
+| Deployed edge functions | `app-bridge` **v13**, `bot-bridge` **v4** (2026-08-05, adds `p_guild_id`) |
+| Migrations unapplied | **none.** Twelve applied, each verified by `md5(prosrc)` against this repository before the next was started |
+| Deployed application | `a173ed8` — production is no longer behind the repository |
+| Railway listener | `degenaration-bot` still runs the pre-`a173ed8` build — see "The one step not applied" |
+
+## Session 2026-08-05, fourth pass — the switches became real, and the two gates were reconciled
+
+Four commits, `4c69e4e`..`a173ed8`, all deployed. The bot-control contract went from
+**13 enforced / 33 pending** to **31 / 24**.
+
+### What was wrong
+
+| Where | Defect | How it presented |
+|---|---|---|
+| `worker_claim_call_execution` | Maximum open trades, maximum capital, per-token exposure, the token cooldown and first-call-only were persisted, versioned, reloaded into the editor — and enforced by **nothing**. One limit existed: the daily cap | A bot set to "maximum open trades 3" would open thirty, and the editor showed 3 every time |
+| `bot_ingest_discord_signal_v2` | The journal's gate checked the CHANNEL row and left-joined the source for its name only, while the listener's cached map checked the source's approval state too. **The two gates disagreed** | Removing a source did not stop calls until the cache refreshed — and the gate would have accepted them even then |
+| `admin_decide_call_channel` | Approving a channel on a previously REMOVED source set `active = true` and left `verification_status`, `removed_at`, `suspended_at` untouched | Ingestion resumed from a source removed for cause while every marketplace surface, which reads `verification_status`, kept it hidden |
+| `monitor.js` | `takeProfit.trailing` had no reader. Per-level `trailingBps` applied whether the master was on or off | A user who switched trailing off still had levels that armed at the target and waited for a retracement |
+| `jupiter.js` | `prioritizationFeeLamports` was hard-coded `"auto"`, and the engine applied its own quote window to every bot | The priority-fee strategy, its cap, and the quote expiry could not affect a submission |
+| `attach_call_execution_config` | RAISED on any insert for a subscription with `kill_switch = true` | **The emergency stop could not write the row explaining why it stopped.** `calls.js` caught a generic CLAIM_ERROR and the journal recorded nothing — indistinguishable from a broken worker |
+| `app_user_save_bot` | Writes fourteen columns and not `kill_switch`, while the versioning trigger builds the snapshot's `killSwitch` from that column | The new emergency-stop switch would have been decorative — the same defect, reintroduced by its own fix |
+| `server/bot/store.js` | The approved-channel fallback queried `call_channels?status=eq.approved`: no `removed_at`, no group join | **A bridge outage WIDENED what the listener watched.** Removed; it keeps its last known good map, which can only be narrower |
+
+### Why the enforcement is in SQL
+
+Every entry limit is a question about a SET of executions. A check in the worker before the
+claim is not merely slower, it is wrong: ten calls in one tick each read "0 open trades" and
+each claim. `worker_claim_call_execution` already takes `for update` on the subscription and is
+the instant capital stops being free, so the limit is now atomic against a burst, a retry and a
+second worker instance — and there is exactly one implementation rather than a JS pre-check and
+a SQL backstop that would drift.
+
+`check:bot-control-contract` was extended to accept that one NAMED file as an execution file,
+listed file by file rather than by directory, with the reason recorded in
+`lib/bot-control-contract.js`. Widening it to a `supabase/` glob would restore the mistake it
+exists to catch.
+
+### The limit switches
+
+The specification requires an ON/OFF control per limit. The number cannot simply be cleared —
+`subscriber_config_valid` requires several of them present and numeric — so `config.limits` is
+the flag layer the claim reads before applying each cap. Absent reads as ON. The daily cap keeps
+**accruing** while its switch is off, so turning it back on does not hand the bot a fresh day's
+budget it has already spent.
+
+### New gates
+
+| Gate | Properties | What its control run proves |
+|---|---|---|
+| `verify:bot-entry-limits` | 19 | Reinstalling the shipped claim body lets a third entry through a maximum of two |
+| `verify:registered-channel` | 13 | Reinstalling the previous gate accepts and journals a call from a REMOVED source |
+
+`verify:registered-channel` also found, through its own control run, that reapplying the
+17-argument predecessor without dropping the 18-argument function makes **every** call raise
+"function is not unique". That is now its own property, and the rollback script drops the wide
+signature first in both directions.
+
+### The one step not applied
+
+`degenaration-bot` on Railway builds from GitHub (`server/bot`) and did not pick up the push.
+Forcing it through the Railway MCP tool would upload a tarball and **replace the service's
+GitHub source**, which is a configuration change nobody asked for, so it was not done.
+
+Nothing is half-deployed. The live listener was verified healthy across the migration —
+`watchedChannels: 2`, `deadLetters: 0`, "messages are arriving in watched channels and being
+parsed" — because the rebuilt `bot_approved_call_channels` serves it the correct narrower set,
+and a caller that sends no guild is accepted and recorded as having sent none.
+
+What the listener deploy would add: the guild/channel pair checked at the listener as well as at
+the gate, and the removal of the widening fallback. Both are already enforced server-side.
 
 ## Requirements, against §17 acceptance
 

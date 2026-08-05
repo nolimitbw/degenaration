@@ -360,3 +360,60 @@ npm run check                   # the full suite, including all eight migrations
 Then, in the console's Clients tab, **Recompute performance** must return "No reconciled
 trades yet" — the truthful answer while the ledger is empty. Any other answer means something
 wrote a row that nothing should have written.
+
+## APPLIED 2026-08-05 — migrations 11 and 12, bot-bridge v4, app `a173ed8`
+
+Owner approved the package. Applied in the required order, each verified before the next was
+started. Nothing was skipped and nothing failed, so no rollback ran.
+
+| Step | Target | Result |
+|---|---|---|
+| 1 | migration 11 `degenaration-bot-entry-limits.sql` | 6/6 function bodies `md5(prosrc)` **MATCH** this repository. `amount_lamports` added, index added, 2 triggers created, exactly **1** `worker_claim_call_execution` signature — no overload. anon denied, service_role granted |
+| 2 | migration 12 `degenaration-registered-channel-authorization.sql` | 4/4 bodies **MATCH**. `bot_ingest_discord_signal_v2` arities `[18]` — the 17-arg signature is gone, not overloaded. `discord_ingestion_refusals` created with RLS on. `admin_decide_call_channel` now pins `search_path=""` |
+| 3 | edge function `bot-bridge` v3 → **v4** | `verify_jwt: false` preserved. Probed with a deliberately invalid secret: **401**, not 400 — so the 18-parameter list resolves against the deployed function rather than failing to find it |
+| 4 | Vercel production | `9303fe2` → **`a173ed8`**, confirmed by `/api/build` |
+| 5 | Railway `degenaration-bot` | see below |
+
+### Trigger order, which is load-bearing
+
+`degenaration-bot-entry-limits.sql` relies on PostgreSQL firing same-timing triggers in NAME
+order, so that the emergency stop reaches the column before the snapshot copies it. Verified in
+production rather than assumed:
+
+```
+subscriptions_apply_kill_switch_insert -> subscriptions_apply_kill_switch_update
+  -> subscriptions_config_version_insert -> subscriptions_config_version_update
+```
+
+### Functional proof on the real production rows
+
+`app_private.authorized_call_channel` **executed** against both registered channels, not parsed:
+
+| channel | guild | verdict with its own guild | verdict with a foreign guild |
+|---|---|---|---|
+| `1521876069693526158` | `1520209045544374342` | ACCEPTED — DegenAration | `channel registered to a different guild` |
+| `1495930481018142801` | `1495795490657275914` | ACCEPTED — SLPR DEGEN | `channel registered to a different guild` |
+
+So no live source lost ingestion, and the pair check bites on real data.
+
+### Row counts, baseline → after
+
+Unchanged, every one: `call_executions` 0, `trade_intents` 0, `positions` 0, `subscriptions` 1,
+`calls` 1, `raw_signals` 3, `approved_groups` 2, `call_channels` 2,
+`commission_ledger_entries` 0, `cash_movements` 0, `worker_leases` 0, `durable_jobs` 0,
+`discord_ingestion_refusals` 0. The single subscription is still `paused`, `kill_switch=false`.
+
+**No transaction was signed or broadcast, no worker or signer was started, and no funds moved.**
+
+Supabase security advisors after the change: only the pre-existing INFO `rls_enabled_no_policy`
+on `app_private` tables — the deliberate deny-all posture, which the new
+`discord_ingestion_refusals` correctly joins — and the pre-existing WARN about Supabase Auth
+leaked-password protection, which this product does not use (identity is Privy). **No new
+finding.**
+
+### Rollback
+
+`supabase/rollback/11-bot-entry-limits.sql` and `12-registered-channel-authorization.sql`, run
+in reverse order 12 → 11, each followed by its reapply list in `supabase/rollback/plan.mjs`.
+`npm run verify:migration-rollback` proves all twelve round-trip to a byte-identical baseline.
+Both headers say plainly what rolling back RESTORES, because both restore a silent defect.
