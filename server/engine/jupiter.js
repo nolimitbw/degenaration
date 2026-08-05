@@ -114,7 +114,7 @@ function platformFeeLamports(notionalLamports) {
 function platformFeeSol(solAmount) {
   const amount = Number(solAmount);
   if (!APPLY_FEE || !Number.isFinite(amount) || amount <= 0) return 0;
-  const fee = platformFeeLamports(BigInt(Math.round(amount * LAMPORTS_PER_SOL)));
+  const fee = platformFeeLamports(BigInt(solToLamports(amount)));
   return Number(fee) / LAMPORTS_PER_SOL;
 }
 
@@ -164,8 +164,31 @@ async function buildSwapTx({ quote, userPublicKey }) {
   return body.swapTransaction; // base64 unsigned tx
 }
 
+/**
+ * SOL to lamports, rounded to nearest — not floored.
+ *
+ * `size_sol` is a numeric column that PostgREST hands over as a JSON number, so the exact
+ * decimal is a double before this code ever sees it. `1.001 * 1e9` is 1000999999.9999999, and
+ * flooring that buys 1.000999999 SOL for a user who configured 1.001. Rounding recovers the
+ * value they actually set. Measured, not assumed: across every 0.001 step from 0.001 to 10
+ * SOL the two forms differ on 271 values, and the count is pinned by a test so a change in
+ * double rounding is noticed rather than silently altering how much every bot buys.
+ *
+ * This also existed in two forms: `Math.floor` here and `Math.round` in platformFeeSol, for
+ * the identical conversion. One helper, one rule.
+ *
+ * The residual lamport is unavoidable at this boundary and is not the ledger's problem: every
+ * ledger-facing amount is integer BigInt from platformFeeLamports onward, and the executed
+ * notional comes back from the chain rather than from this multiplication.
+ */
+function solToLamports(solAmount) {
+  const amount = Number(solAmount);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount * LAMPORTS_PER_SOL);
+}
+
 const buyToken = (mint, solAmount, userPublicKey, slippageBps = 300) =>
-  getQuote({ inputMint: SOL_MINT, outputMint: mint, amountLamports: Math.floor(solAmount * 1e9), slippageBps })
+  getQuote({ inputMint: SOL_MINT, outputMint: mint, amountLamports: solToLamports(solAmount), slippageBps })
     .then(quote => buildSwapTx({ quote, userPublicKey }).then(tx => ({ quote, tx })));
 
 const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
@@ -173,7 +196,7 @@ const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
     .then(quote => buildSwapTx({ quote, userPublicKey }).then(tx => ({ quote, tx })));
 
 module.exports = {
-  getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports,
+  getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports, solToLamports,
   ensureFeeAccountChecked, __setFeeAccountUsable, feeAppliesToOutput,
   SOL_MINT, PLATFORM_FEE_BPS,
   // APPLY_FEE is resolved asynchronously by the probe, so it is exposed as a getter

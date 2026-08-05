@@ -2427,6 +2427,56 @@ console.log("price selection");
     assert.equal(set.has("d"), false, "a forwarded delete does not stay remembered");
   });
 }
+// ─── SOL → lamports at the quote boundary ────────────────────────────────────────────────
+//
+// The only floating-point money arithmetic left in the engine, and it existed in two forms:
+// Math.floor in buyToken and Math.round in platformFeeSol, for the identical conversion.
+// Flooring a double that lands a hair low silently buys less than the user configured.
+{
+  const jup = require("../engine/jupiter");
+  test("a configured size converts to the lamports the user actually asked for", () => {
+    // The first value in the builder's range where floor and round disagree. 1.001 * 1e9 is
+    // 1000999999.9999999 in IEEE 754, so flooring buys 1.000999999 SOL for a user who set
+    // 1.001. Checked rather than assumed: across every 0.001 step from 0.001 to 10 SOL the
+    // two forms differ on 271 values, so this is a range the product actually offers, not a
+    // contrived edge.
+    assert.strictEqual(Math.floor(1.001 * 1e9), 1000999999, "the floored form is genuinely wrong here");
+    assert.strictEqual(jup.solToLamports(1.001), 1001000000);
+    for (const [sol, lamports] of [[0.1, 100000000], [0.5, 500000000], [1, 1000000000],
+                                   [2.5, 2500000000], [0.001, 1000000], [0.07, 70000000],
+                                   [1.003, 1003000000], [5.007, 5007000000]]) {
+      assert.strictEqual(jup.solToLamports(sol), lamports, `${sol} SOL`);
+    }
+  });
+
+  test("floor and round disagree often enough in the offered range to matter", () => {
+    let mismatches = 0;
+    for (let step = 1; step <= 10000; step += 1) {
+      const sol = step / 1000;
+      if (Math.floor(sol * 1e9) !== Math.round(sol * 1e9)) mismatches += 1;
+    }
+    // Pinned so a future engine or platform change that alters double rounding is noticed
+    // rather than silently shifting how much every bot buys.
+    assert.strictEqual(mismatches, 271, "0.001..10 SOL: values where flooring loses a lamport");
+  });
+
+  test("a non-positive or unparseable size converts to zero rather than NaN", () => {
+    for (const bad of [0, -1, null, undefined, "", "abc", NaN, Infinity]) {
+      assert.strictEqual(jup.solToLamports(bad), 0, String(bad));
+    }
+  });
+
+  test("the ledger-facing fee stays integer BigInt at every boundary", () => {
+    // platformFeeLamports is what the ledger sees. It must never route through a double.
+    const fee = jup.platformFeeLamports(BigInt("1000000000"));
+    assert.strictEqual(typeof fee, "bigint");
+    // APPLY_FEE is false without a resolved fee account, which is the current production
+    // state (E-4) — so this asserts the type contract, not a rate.
+    assert.ok(fee === BigInt(0) || fee === BigInt(20000000));
+    assert.strictEqual(jup.platformFeeLamports("not a number"), BigInt(0));
+    assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
+  });
+}
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
