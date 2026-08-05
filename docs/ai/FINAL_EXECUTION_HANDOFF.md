@@ -9,12 +9,12 @@ The one file to read before touching anything. Written 2026-08-04.
 |---|---|
 | Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `71afaaa` |
-| Suite | `npm run check` exit 0 — **239 tests**, 28 verifier suites, 2 contract gates |
+| Commit | `e9aa8c3` |
+| Suite | `npm run check` exit 0 — **267 tests**, 30 verifier suites, 6 contract gates, 1 browser audit |
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
 | Deployed edge functions | `app-bridge` **v13** (deployed 2026-08-05), `bot-bridge` v3 |
-| Migrations unapplied | **none.** All seven applied to production 2026-08-05 with owner approval, one at a time, each verified by md5(prosrc) against this repository before the next was started. `docs/ai/PENDING_DEPLOYMENT.md` records the per-migration result. |
+| Migrations unapplied | **three — 8, 9 and 10, added 2026-08-05 second pass.** Each corrects a defect in code that is already live; see `PENDING_DEPLOYMENT.md`. The earlier seven were applied to production 2026-08-05 with owner approval, one at a time, each verified by `md5(prosrc)` against this repository before the next was started. |
 | Deployed application | `claude/degenaration-launch-remediation` @ `29291c9` — **not** `master` |
 | Release awaiting promotion | `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` |
 
@@ -91,6 +91,60 @@ a dash or a zero here, check the writer before checking the reader.
 | E-4 | `PLATFORM_FEE_ACCOUNT` unset | A valid Jupiter output-mint fee **token account**, not a wallet |
 | E-6 | No signed-in Privy session | Walk `docs/ai/BROWSER_VERIFICATION_RUNBOOK.md` |
 | — | `78a4af0` promotion | Explicit approval; irreversible |
+
+## Session 2026-08-05, second pass — composing the stages, and what that found
+
+Five commits, `21361f9`..`e9aa8c3`. Every one of them found a defect in code **already live in
+production**, and every one was found the same way: by making two stages that each had a
+passing verifier run against each other for the first time.
+
+| # | Defect | Where it would have surfaced | Fix |
+|---|---|---|---|
+| 1 | `fan_out_parsed_signal` joined `call_channels.channel_id = raw_signals.source_ref`, and ingestion writes `source_ref` as `discord:<guild>:<channel>`. **The join can never match.** | On the first automated call, silently. The call journals as accepted, the marketplace counts it, and it reaches **zero** subscribers — `fan_out_on_parse` is an AFTER INSERT trigger that discards the return value | migration 8 |
+| 2 | The edit branch superseded the previous call **before** the same-token cooldown could refuse the edit. When it refuses, the previous call is retracted with no successor, and the response says `accepted:false, "duplicate"` | Silently. A measured call disappears from a source's record. Also a lever: call a winner, then within 60s edit an older losing message to name it, and the loss is erased | migration 9 |
+| 3 | Every marketplace return figure was a **peak** multiple, with nothing saying so. `current_x` was computed per call and used only for drawdown | On every card. A source whose ten calls each touched 2x and went to zero reads `Win rate 100% · Average return 2.00x` | migration 10 |
+| 4 | **33 of 44 bot controls save, version, reload — and change nothing.** Per-token exposure, max open trades, max capital, priority-fee cap, retries, quote expiry, cooldown, simulation, dynamic stop, stop delay, freeze-after-stop, emergency exit, trailing TP, the whole KOL trigger, DCA, scanner cadence | Silently, forever. The control persists, so the editor shows the user their own value back | `check:bot-control-contract` + truthful notices |
+| 5 | `admin-dashboard-secret-rpcs.sql` ends with `grant execute ... to anon, authenticated` on all five admin functions, two of which approve or reject a Discord source — three lines below revoking them | **Not in production** (a later migration revoked them). In the file, on any replay: a rebuild, a new environment or a disaster restore re-grants the admin API to anonymous callers | both files corrected |
+
+### Why these were invisible until now
+
+Each stage had a verifier and none of them proved the stages **compose**. `verify:discord-
+ingestion` starts at the RPC, one step after the listener; `verify:signal-fanout` starts at
+`parsed_signals`, one step after that. And the listener's own decision logic was unreachable
+by any test at all, because `index.js` registered its handlers at module scope and called
+`client.login()` on import — so the exact code deployed to Railway was the one stage nothing
+had ever executed outside production.
+
+Defect 1 was green for weeks because `verify:signal-fanout`'s fixture wrote
+`source_ref = 'chan-1'`, a bare channel id ingestion has never once produced. **The fixture
+agreed with the reader instead of with the writer.**
+
+### New gates
+
+| Gate | What it makes impossible |
+|---|---|
+| `verify:discord-replay` | The chain breaking between stages. Drives 10 stored Discord events through the real handlers, payload builder, route transformation and RPC into the journal, the call price, fan-out and the config snapshot. Its control run reproduces defect 1 |
+| `check:bot-control-contract` | A control that persists and changes nothing. Undeclared controls fail; enforced claims must resolve to a real token **and terminate in an execution file**; pending controls must stay unread, so implementing one forces its promotion |
+| `check:admin-authorization` | A balance editor, an unpinned `search_path`, and a grant to `anon` anywhere in a file that defines an admin function. Control run confirms it fires |
+| `verify:responsive` | A UI change shipping unverified. Headless Chrome against a local build with a stubbed API: 4 surfaces × 4 widths, zero overflow, zero sub-44px targets, peak **and** current return both on screen, no console errors, 16 screenshots |
+
+Two extractions made three of those possible: `server/bot/handlers.js` (the listener's
+decisions, previously unimportable) and `lib/discord-ingest.js` (the route's decisions,
+previously inside a `.ts` body the plain-node runner cannot require).
+
+### Corrections to this repository's own record
+
+- `PENDING_DEPLOYMENT.md` claimed every admin RPC pins `search_path` to the empty string,
+  "0 exceptions". **Four pin it to `public, pg_temp`.** `pg_temp` is last, which is the
+  documented mitigation, but it is not what was claimed.
+- `lib/call-outcomes.js` has no production consumer and is now one definition behind the SQL;
+  it says so, so nobody wires it up without closing the gap.
+
+### Migrations added, all awaiting approval
+
+8, 9 and 10. All `create or replace` at unchanged arity, no DDL, no DML, no grant change.
+8 and 9 are independent of everything. **10 supersedes 4 and must follow it.** Executable
+rollbacks for all three; `verify:migration-rollback` now covers ten migrations.
 
 ## Session 2026-08-05 — deployment, rollback, and the PnL unit defect
 
