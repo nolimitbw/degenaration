@@ -199,9 +199,19 @@ export const PACKAGE = [
       "map always had — and refuses to approve a channel on a removed source. Rolling back " +
       "silently restores all three holes; see the script header.",
   },
+  {
+    n: 13,
+    apply: "degenaration-subscription-channel-scope.sql",
+    rollback: "13-subscription-channel-scope.sql",
+    reapply: ["degenaration-bot-entry-limits.sql"],
+    note:
+      "Enforces subscriptions.channel_id, which app_user_save_bot has always written and nothing " +
+      "ever read — a bot restricted to one channel copied every approved channel of its source. " +
+      "MUST FOLLOW #11, whose worker_claim_call_execution body it is a superset of. Same arity " +
+      "(uuid, uuid), no DDL, no DML. Rolling back returns the control to persisted-but-unenforced.",
+  },
 ];
-
-/** The two functions whose arity changes — the reason explicit drops exist at all. */
+/** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
   { fn: "public.worker_open_position", from: 15, to: 16, migration: 5 },
   { fn: "public.worker_settle_position_exit", from: 8, to: 9, migration: 5 },

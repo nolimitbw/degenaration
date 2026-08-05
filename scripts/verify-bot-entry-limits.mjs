@@ -78,12 +78,14 @@ for (const file of [
   "automation-execution-integrity.sql",
   "degenaration-trade-intent-fanout.sql",
   "degenaration-subscriber-config-versioning.sql",
-  "degenaration-bot-entry-limits.sql"
+  "degenaration-bot-entry-limits.sql",
+  "degenaration-subscription-channel-scope.sql"
 ]) {
   await db.exec(await sql(file));
 }
 // Every deployment is a rerun after a rollback, so reapplying must be a no-op.
 await db.exec(await sql("degenaration-bot-entry-limits.sql"));
+await db.exec(await sql("degenaration-subscription-channel-scope.sql"));
 results.rerunSafe = "PASS";
 
 const one = async (text, params = []) => (await db.query(text, params)).rows[0];
@@ -129,7 +131,7 @@ const BASE = {
  * stamps it from the `kill_switch` COLUMN, so the emergency stop stays flippable without
  * cutting a new configuration version.
  */
-async function subscription(overrides, { sizeSol = 1, dailyCapSol = 100, killSwitch = false } = {}) {
+async function subscription(overrides, { sizeSol = 1, dailyCapSol = 100, killSwitch = false, channelId = null } = {}) {
   const config = { ...BASE, ...overrides };
   const profile = await one(
     "insert into app_private.bot_profiles default values returning id"
@@ -137,20 +139,21 @@ async function subscription(overrides, { sizeSol = 1, dailyCapSol = 100, killSwi
   return one(
     `insert into public.subscriptions
        (group_id, privy_user_id, user_pubkey, wallet_id, size_sol, daily_cap_sol,
-        enabled, status, kill_switch, bot_profile_id, extended_config)
+        enabled, status, kill_switch, bot_profile_id, extended_config, channel_id)
      values ($1::uuid, 'did:privy:' || gen_random_uuid()::text, 'PUBKEY', 'WALLET',
-             $2::numeric, $3::numeric, true, 'active', $4::boolean, $5::uuid, $6::jsonb)
+             $2::numeric, $3::numeric, true, 'active', $4::boolean, $5::uuid, $6::jsonb, $7::text)
      returning *`,
-    [GROUP, sizeSol, dailyCapSol, killSwitch, profile.id, JSON.stringify(config)]
+    [GROUP, sizeSol, dailyCapSol, killSwitch, profile.id, JSON.stringify(config), channelId]
   );
 }
 
 let callSeq = 0;
-async function call(mint = "MINT") {
+async function call(mint = "MINT", channelId = null) {
   callSeq += 1;
   return one(
-    `insert into public.calls (group_id, mint, message_id) values ($1::uuid, $2::text, $3::text) returning *`,
-    [GROUP, mint, `msg-${callSeq}`]
+    `insert into public.calls (group_id, mint, message_id, channel_id)
+     values ($1::uuid, $2::text, $3::text, $4::text) returning *`,
+    [GROUP, mint, `msg-${callSeq}`, channelId]
   );
 }
 
@@ -429,6 +432,48 @@ const skipped = (subId) => all(
   results.dailyCapSwitchStillAccrues = "PASS";
 }
 
+// ── 7e. the channel scope: a bot restricted to one channel follows only that one ────────────
+//
+// `app_user_save_bot` has always written subscriptions.channel_id and NOTHING read it — not the
+// worker's subscriber query, which filters on group_id alone, and not the claim. A user who
+// picked one channel out of a source's several got a bot that copied all of them, and the
+// editor showed their choice back on every reload.
+{
+  const A = "1521876069693526158";
+  const B = "1521876069693526159";
+
+  const scoped = await subscription({ buyAmountLamports: SOL, maxOpenTrades: 50 }, { channelId: A });
+  const ownChannel = await call("CHAN-OWN", A);
+  assert.equal((await claim(ownChannel.id, scoped.id)).ok, true, "its own channel must trade");
+
+  const otherChannel = await call("CHAN-OTHER", B);
+  const refused = await claim(otherChannel.id, scoped.id);
+  assert.equal(refused.ok, false, "another channel of the same source must not");
+  assert.equal(refused.error, "call is from a channel this bot does not follow");
+  // Reported as a scope decision, not as a limit: sending the owner to "maximum capital" for a
+  // call that was simply not theirs is worse than not reporting it at all.
+  assert.equal(refused.status, 409);
+  assert.equal((await skipped(scoped.id))[0].error, "call is from a channel this bot does not follow");
+
+  // NULL means every approved channel, which is the default and what every subscription
+  // written before the control existed holds. Reading it as "match nothing" would silently
+  // stop every existing bot.
+  const allChannels = await subscription({ buyAmountLamports: SOL, maxOpenTrades: 50 });
+  assert.equal(allChannels.channel_id, null, "fixture check: the default really is unscoped");
+  for (const channel of [A, B]) {
+    const c = await call(`CHAN-ALL-${channel}`, channel);
+    assert.equal((await claim(c.id, allChannels.id)).ok, true, `an unscoped bot follows ${channel}`);
+  }
+
+  // A call with no recorded channel cannot be attributed, so a scoped bot must not be refused
+  // on the strength of a comparison it cannot make — nor accepted as a match. It falls through
+  // to the ordinary limits, which is the same reading NULL gets on the subscription side.
+  const unattributed = await call("CHAN-NULL", null);
+  assert.equal((await claim(unattributed.id, scoped.id)).ok, true,
+    "an unattributed call is not evidence the bot should be refused");
+  results.channelScope = "PASS";
+}
+
 // ── 8. absent is not zero ───────────────────────────────────────────────────────────────────
 //
 // The failure mode this guards: reading an unset limit as 0 refuses every trade on every bot
@@ -593,7 +638,7 @@ console.log(JSON.stringify({
   ...results,
   enforcedControls: [
     "maxOpenTrades", "maximumCapitalLamports", "perTokenExposureLamports",
-    "cooldownSeconds", "firstCallOnly", "autoEntry", "killSwitch",
+    "cooldownSeconds", "firstCallOnly", "autoEntry", "killSwitch", "channelId",
     "limits.maxOpenTrades", "limits.maximumCapital", "limits.dailyLoss",
     "limits.perTokenExposure", "limits.cooldown"
   ],
