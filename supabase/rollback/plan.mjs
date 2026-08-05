@@ -24,9 +24,9 @@
  * predecessors recreate the narrow ones — followed by the predecessor files to reapply for
  * the function bodies a script cannot restore on its own.
  *
- * `npm run verify:migration-rollback` applies 1..7, rolls back 7..1 through these entries,
- * and asserts the catalog is byte-identical to the pre-package baseline, then re-applies to
- * prove the rollback left the package installable again.
+ * `npm run verify:migration-rollback` applies the package in order, rolls it back in reverse
+ * through these entries, and asserts the catalog is byte-identical to the pre-package
+ * baseline, then re-applies to prove the rollback left the package installable again.
  */
 
 /**
@@ -44,6 +44,11 @@ export const BASELINE = [
   "degenaration-discord-public-profiles.sql",
   "degenaration-admin-client-ledger.sql",
   "degenaration-withdrawal-intents.sql",
+  // Applied in production, and the file that defines the body #8 replaces. It has to be in
+  // the baseline for the rollback of #8 to have anything to restore.
+  "degenaration-signal-fanout.sql",
+  // Applied in production, and the file that defines the body #9 replaces.
+  "degenaration-discord-signal-ingestion.sql",
 ];
 
 /**
@@ -110,6 +115,27 @@ export const PACKAGE = [
     rollback: "07-withdrawal-settlement.sql",
     reapply: ["degenaration-withdrawal-intents.sql"],
     note: "Adds the cash_movements writer, one new function and one unique index. Movements already written survive the rollback and stay correct.",
+  },
+  {
+    n: 8,
+    apply: "degenaration-signal-fanout-source-ref.sql",
+    rollback: "08-signal-fanout-source-ref.sql",
+    reapply: ["degenaration-signal-fanout.sql"],
+    note:
+      "Fixes the join that made fan-out resolve no source for any real ingested call. Same arity (1), " +
+      "no DDL, no DML. Independent of 1-7 — it may be applied alone. Rolling it back restores a silent " +
+      "total failure of subscriber fan-out, so prefer rolling forward; see the script header.",
+  },
+  {
+    n: 9,
+    apply: "degenaration-discord-edit-retraction.sql",
+    rollback: "09-discord-edit-retraction.sql",
+    reapply: ["degenaration-discord-signal-ingestion.sql"],
+    note:
+      "Defers the edit-supersede UPDATE until the parse status is final, so an edit refused by the " +
+      "same-token cooldown no longer retracts the call it was replacing while reporting that nothing " +
+      "happened. Same arity (17), no DDL, no DML. Independent of 1-8. Calls already retracted by the " +
+      "old behaviour cannot be restored by the rollback; production has none.",
   },
 ];
 

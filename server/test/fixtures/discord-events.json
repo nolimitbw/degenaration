@@ -1,0 +1,247 @@
+{
+  "_": "Stored Discord gateway events, in the shape discord.js hands to a listener. These are the production call shapes described in commit 61f9f09: an embed posted by another bot or a webhook, message.content usually empty, the mint often only in a button URL. Replayed by scripts/verify-discord-replay.mjs through the real handlers, the real payload builder, the real route transformation and the real ingest RPC, so the chain is proven without waiting for a live call. No token, secret, user id or wallet appears here.",
+
+  "ids": {
+    "guild": "1520209045544374342",
+    "approvedChannel": "1521876069693526158",
+    "unapprovedChannel": "1521876069693526159",
+    "selfApplication": "1525315046303858748"
+  },
+
+  "mints": {
+    "primary": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    "secondary": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+    "deployerWallet": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1",
+    "_distinct": "The late embed and the accepted edit deliberately name tokens no other event in this fixture calls. Reusing one would be swallowed by the 60-second same-token cooldown, and the stage under test would silently never run.",
+    "lateEmbed": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+    "correctedEdit": "So11111111111111111111111111111111111111112"
+  },
+
+  "events": [
+    {
+      "name": "buttonOnlyEmbed",
+      "why": "The production shape. A companion bot posts an embed whose visible text is a symbol and a market cap; the address exists only in the Chart / Buy button URLs. A parser reading msg.content sees an empty string and the call is never journaled, with nothing anywhere recording that it happened.",
+      "expect": { "ingested": true, "confidence": "link", "eventType": "create" },
+      "message": {
+        "id": "1600000000000000001",
+        "content": "",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1400000000000000009", "bot": true, "username": "CallRelay" },
+        "member": { "displayName": "Call Relay" },
+        "embeds": [
+          {
+            "title": "BONK",
+            "description": "New call from the alpha desk. MC $1.7M · LP $4.2M",
+            "fields": [
+              { "name": "Market cap", "value": "$1,723,000" },
+              { "name": "Liquidity", "value": "$4,210,000" },
+              { "name": "Deployer", "value": "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1" }
+            ],
+            "footer": { "text": "posted by the alpha desk" }
+          }
+        ],
+        "components": [
+          {
+            "components": [
+              { "label": "Chart", "url": "https://dexscreener.com/solana/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
+              { "label": "Buy on Jupiter", "url": "https://jup.ag/swap/SOL-DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "name": "webhookFieldEmbed",
+      "why": "A webhook-authored embed with the mint under a CA field. The blanket author.bot filter that used to exist skipped exactly this, because a call channel is bots.",
+      "expect": { "ingested": true, "confidence": "embed-address", "eventType": "create" },
+      "message": {
+        "id": "1600000000000000002",
+        "content": "",
+        "webhookId": "1470000000000000001",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1470000000000000001", "bot": true, "username": "Alpha Feed" },
+        "embeds": [
+          {
+            "author": { "name": "Alpha Feed" },
+            "title": "WIF",
+            "fields": [
+              { "name": "CA", "value": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm" },
+              { "name": "Chain", "value": "Solana" }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "name": "unapprovedChannel",
+      "why": "The approval gate. A perfectly parseable call in a channel nobody approved must not reach the journal at all — not journaled and rejected, not seen.",
+      "expect": { "ingested": false, "reason": "channel is not approved" },
+      "message": {
+        "id": "1600000000000000003",
+        "content": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526159", "name": "off-topic" },
+        "author": { "id": "1400000000000000010", "bot": false, "username": "member" }
+      }
+    },
+
+    {
+      "name": "ourOwnRelay",
+      "why": "The relay embed this bot posts into its own log channel carries a mint. Skipping only ourselves — rather than every bot — is what keeps that from feeding back in as a call.",
+      "expect": { "ingested": false, "reason": "authored by this bot" },
+      "message": {
+        "id": "1600000000000000004",
+        "content": "",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1525315046303858748", "bot": true, "username": "DegenAration" },
+        "embeds": [{ "title": "New alpha call", "description": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" }]
+      }
+    },
+
+    {
+      "name": "twoBareAddresses",
+      "why": "A wallet flex next to a mint. With no link to say which is the token, refusing is the only safe answer — buying the wrong one of two addresses is unrecoverable.",
+      "expect": { "ingested": false, "rejected": "ambiguous-addresses" },
+      "message": {
+        "id": "1600000000000000005",
+        "content": "dev 5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1 holding EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1400000000000000011", "bot": false, "username": "member" }
+      }
+    },
+
+    {
+      "name": "replyInheritsParent",
+      "why": "\"aped this\" under a posted mint is a call. The parent is a separate tier, so its addresses can never make the reply ambiguous, and the evidence label records that the mint came from the parent rather than the reply.",
+      "expect": { "ingested": true, "confidence": "reply-address", "eventType": "create" },
+      "message": {
+        "id": "1600000000000000006",
+        "content": "aped this",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1400000000000000012", "bot": false, "username": "member" },
+        "reference": { "messageId": "1600000000000000099" },
+        "_referenced": {
+          "id": "1600000000000000099",
+          "content": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+          "channel": { "id": "1521876069693526158", "name": "alpha-calls" }
+        }
+      }
+    }
+  ],
+
+  "updates": [
+    {
+      "name": "lateEmbedOnBareUrl",
+      "why": "Discord attaches an unfurled embed to an unchanged message moments after it is posted; editedTimestamp stays null. A message whose only content is a bare URL has NO mint at create time and DOES have one once the embed lands, so treating this as noise loses the call entirely.",
+      "expect": { "ingested": true, "eventType": "create", "eventVersion": "embed" },
+      "before": {
+        "id": "1600000000000000007",
+        "content": "https://alpha.example/token/preview",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1400000000000000013", "bot": false, "username": "member" },
+        "editedTimestamp": null,
+        "embeds": []
+      },
+      "after": {
+        "id": "1600000000000000007",
+        "content": "https://alpha.example/token/preview",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1400000000000000013", "bot": false, "username": "member" },
+        "editedTimestamp": null,
+        "embeds": [
+          { "title": "JUP", "url": "https://pump.fun/coin/JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN" }
+        ]
+      }
+    },
+
+    {
+      "name": "realEditChangesMint",
+      "why": "A caller corrects the address. The original call is what a subscriber may already hold, so it must survive as a retracted record rather than be rewritten to a token nobody bought.",
+      "expect": { "ingested": true, "eventType": "edit" },
+      "before": {
+        "id": "1600000000000000002",
+        "editedTimestamp": null
+      },
+      "after": {
+        "id": "1600000000000000002",
+        "content": "",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" },
+        "author": { "id": "1470000000000000001", "bot": true, "username": "Alpha Feed" },
+        "editedTimestamp": 1786000000000,
+        "embeds": [
+          {
+            "title": "BONK (corrected)",
+            "fields": [{ "name": "CA", "value": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" }]
+          }
+        ]
+      }
+    }
+  ],
+
+  "deletes": [
+    {
+      "name": "retractIngestedCall",
+      "why": "A deleted call is retracted, not forgotten. Every call the message produced is marked deleted and none is destroyed.",
+      "expect": { "ingested": true },
+      "message": {
+        "id": "1600000000000000001",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" }
+      }
+    },
+    {
+      "name": "ignoreNeverIngested",
+      "why": "A blanket forward would open a raw signal and a rejected parse for every deleted message in the channel, burying the retractions that matter under ordinary moderation.",
+      "expect": { "ingested": false, "reason": "never became a call" },
+      "message": {
+        "id": "1600000000000000404",
+        "guild": { "id": "1520209045544374342" },
+        "channel": { "id": "1521876069693526158", "name": "alpha-calls" }
+      }
+    }
+  ],
+
+  "dexscreener": {
+    "_": "One stored DexScreener token response for the primary mint. Three of its four pairs must be excluded: a non-Solana pair, a thin Solana pair, and a pair where the mint is the QUOTE side — that last one prices the other token, so taking it would record the call at a number nobody could have traded at.",
+    "pairs": [
+      {
+        "chainId": "ethereum",
+        "baseToken": { "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "symbol": "BONK" },
+        "priceUsd": "9.99",
+        "liquidity": { "usd": 99999999 }
+      },
+      {
+        "chainId": "solana",
+        "baseToken": { "address": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", "symbol": "WIF" },
+        "quoteToken": { "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263" },
+        "priceUsd": "123.45",
+        "liquidity": { "usd": 50000000 }
+      },
+      {
+        "chainId": "solana",
+        "baseToken": { "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "symbol": "BONK" },
+        "priceUsd": "0.00002299",
+        "marketCap": 1690000000,
+        "liquidity": { "usd": 88000 }
+      },
+      {
+        "chainId": "solana",
+        "baseToken": { "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "symbol": "BONK" },
+        "priceUsd": "0.00002341",
+        "marketCap": 1723000000,
+        "fdv": 1900000000,
+        "liquidity": { "usd": 4210000 }
+      }
+    ]
+  }
+}

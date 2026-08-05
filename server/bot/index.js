@@ -15,6 +15,7 @@ const { Client, GatewayIntentBits, Partials, PermissionsBitField, SlashCommandBu
 const { parseCall, parseMessage } = require("./parser");
 const { loadApprovedChannels, registerChannel, getGuildStatus } = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
+const { createMessageHandlers, IngestedMessages } = require("./handlers");
 
 const INGEST_URL = process.env.INGEST_URL;              // e.g. https://degenaration.vercel.app/api/ingest-call
 const BOT_SECRET = process.env.BOT_SHARED_SECRET;
@@ -41,24 +42,8 @@ const client = new Client({
 
 const deadLetters = new DeadLetterQueue();
 
-/**
- * Message IDs this process successfully ingested.
- *
- * Used so a delete is only forwarded for a message that actually became a call. Without
- * it, every deleted message in a busy approved channel would open a raw_signals row and a
- * rejected parse, burying the real events. Bounded because a long-running bot in an active
- * server would otherwise grow this without limit; losing the oldest entries only means an
- * old deletion is not journaled, which is the safe direction.
- */
-const ingestedMessages = new Set();
-const INGESTED_LIMIT = 5000;
-function rememberIngested(messageId) {
-  ingestedMessages.add(messageId);
-  if (ingestedMessages.size > INGESTED_LIMIT) {
-    const oldest = ingestedMessages.values().next().value;
-    ingestedMessages.delete(oldest);
-  }
-}
+/** Message IDs this process successfully ingested; see handlers.js. */
+const ingestedMessages = new IngestedMessages();
 
 /** One-line JSON so a log aggregator can filter on `event` without parsing prose. */
 function log(event, fields = {}) {
@@ -131,10 +116,6 @@ async function refresh() {
   catch (e) { console.error("[bot] channel refresh failed:", e.message); }
 }
 
-function callerName(msg) {
-  return String(msg.member?.displayName || msg.author.globalName || msg.author.username || "Discord caller").slice(0, 100);
-}
-
 function canManageGuild(member, permissions) {
   const source = permissions || member?.permissions;
   if (typeof source?.has === "function") return source.has(PermissionsBitField.Flags.ManageGuild);
@@ -205,7 +186,7 @@ async function ingestEvent({ channelId, channelName, messageId, caller, group, c
         reason: result.body?.reason || null, attempt: attempt + 1
       });
       noteFreshness(channelId, accepted ? "lastAccepted" : "lastRejected");
-      if (accepted && eventType !== "delete") rememberIngested(messageId);
+      if (accepted && eventType !== "delete") ingestedMessages.remember(messageId);
       if (accepted && eventType === "create") await relayCall({ caller, channelName, group, call });
       return result.body;
     }
@@ -406,160 +387,31 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 /**
- * Resolve a message into a parse result, including the message it replied to.
+ * Wire the gateway to the decision logic in handlers.js.
  *
- * The parent is only consulted when the reply itself carries nothing, so an ordinary
- * reply to a call does not re-ingest that call. It is read from the channel cache first;
- * a parent that is neither cached nor fetchable simply means the reply is treated on its
- * own content, which is the safe direction.
+ * Everything below the dependency list lives in that file so it can be replayed from a
+ * stored fixture without a Discord connection; see `npm run verify:discord-replay`.
  */
-async function parseWithContext(msg) {
-  const direct = parseMessage(msg);
-  if (direct) return direct;
-  const parentId = msg.reference?.messageId;
-  if (!parentId) return null;
-  let parent = msg.channel?.messages?.cache?.get(parentId) || null;
-  if (!parent) {
-    parent = await msg.fetchReference().catch(() => null);
-  }
-  return parent ? parseMessage({ ...msg, referencedMessage: parent }) : null;
-}
-
-/**
- * Ingest one detected call and report what happened either way.
- *
- * A rejection is logged rather than dropped silently. "We saw two addresses and refused to
- * pick one" is the single most useful thing an owner can be told about a source whose
- * calls are not appearing, and it was previously indistinguishable from no message at all.
- */
-async function handleDetectedCall({ msg, group, parsed, eventType, eventVersion, editedAt }) {
-  if (parsed?.rejected) {
-    log("call.rejected", {
-      channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
-      reason: parsed.rejected, candidates: parsed.candidates, eventType
-    });
-    return;
-  }
-  if (!parsed?.mint) return;
-  noteFreshness(msg.channel.id, "lastDetected");
-  log("call.detected", {
-    channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
-    mint: parsed.mint, confidence: parsed.confidence, eventType
-  });
-  try {
-    await ingestEvent({
-      channelId: msg.channel.id,
-      channelName: msg.channel.name,
-      messageId: msg.id,
-      caller: callerName(msg),
-      group,
-      call: parsed,
-      eventType,
-      eventVersion,
-      editedAt
-    });
-  } catch (e) {
-    console.error("[bot] ingest failed:", e.message);
-  }
-}
-
-client.on("messageCreate", async (msg) => {
-  if (!msg.guild) return;
-  // Our own messages only — NOT all bots. Call channels overwhelmingly relay through a
-  // webhook or a companion bot, so `author.bot` excluded exactly the messages that carry
-  // the calls. Skipping just ourselves keeps the relay embed from feeding back in.
-  if (msg.author?.id === client.user?.id) return;
-
-  // Legacy fallback: `!register` in the channel they want watched.
-  if (!msg.author.bot && msg.content.trim().toLowerCase() === "!register") {
-    await registerCallChannel({
-      guild: msg.guild,
-      channel: msg.channel,
-      member: msg.member,
-      user: msg.author,
-      reply: (content) => msg.reply(content).catch(() => {})
-    });
-    return;
-  }
-
-  // Otherwise: only act in APPROVED call channels.
-  const group = approved[msg.channel.id];
-  if (!group) return;
-
-  const parsed = await parseWithContext(msg);
-  await handleDetectedCall({ msg, group, parsed, eventType: "create", eventVersion: "original" });
+const listener = createMessageHandlers({
+  parseMessage,
+  ingestEvent,
+  approvedChannel: (channelId) => approved[channelId],
+  selfId: () => client.user?.id || null,
+  log,
+  noteFreshness,
+  ingested: ingestedMessages,
+  onLegacyRegister: (msg) => registerCallChannel({
+    guild: msg.guild,
+    channel: msg.channel,
+    member: msg.member,
+    user: msg.author,
+    reply: (content) => msg.reply(content).catch(() => {})
+  })
 });
 
-/**
- * Edits, and the embed that arrives after the message.
- *
- * Two different events reach this handler and they are not the same thing:
- *
- *  1. A real user edit. The mint may have changed, so the journal supersedes the previous
- *     call and records a new one — `bot_ingest_discord_signal_v2` already implements that,
- *     and until now nothing ever called it with `eventType: "edit"`.
- *  2. Discord attaching an unfurled embed to an unchanged message, moments after it was
- *     posted. `editedTimestamp` stays null for this. It matters because a message whose
- *     only content is a bare URL has no mint at create time and DOES have one once the
- *     embed lands — so treating it as noise loses the call entirely.
- */
-client.on("messageUpdate", async (oldMessage, newMessage) => {
-  try {
-    const msg = newMessage?.partial ? await newMessage.fetch().catch(() => null) : newMessage;
-    if (!msg?.guild) return;
-    if (msg.author?.id === client.user?.id) return;
-    const group = approved[msg.channel?.id];
-    if (!group) return;
-
-    const editedAt = msg.editedTimestamp ? new Date(msg.editedTimestamp).toISOString() : null;
-    const wasEdited = Boolean(editedAt) && (oldMessage?.partial || oldMessage?.editedTimestamp !== msg.editedTimestamp);
-
-    if (wasEdited) {
-      const parsed = await parseWithContext(msg);
-      await handleDetectedCall({ msg, group, parsed, eventType: "edit", eventVersion: String(msg.editedTimestamp), editedAt });
-      return;
-    }
-
-    // Case 2. Only worth ingesting when the embed supplied something the original content
-    // did not; otherwise the create already journaled it and this would be pure duplicate.
-    if (parseMessage({ content: msg.content })?.mint) return;
-    const fromEmbed = parseMessage(msg);
-    if (!fromEmbed?.mint) return;
-    await handleDetectedCall({ msg, group, parsed: fromEmbed, eventType: "create", eventVersion: "embed" });
-  } catch (e) {
-    console.error("[bot] message update failed:", e.message);
-  }
-});
-
-/**
- * A deleted call is retracted, not forgotten.
- *
- * Forwarded only for a message this process actually ingested. A blanket forward would
- * open a raw signal and a rejected parse for every deleted message in the channel, which
- * buries the retractions that matter among ordinary moderation.
- */
-client.on("messageDelete", async (message) => {
-  try {
-    if (!ingestedMessages.has(message?.id)) return;
-    const group = approved[message.channel?.id];
-    if (!group) return;
-    ingestedMessages.delete(message.id);
-    log("call.deleted", { channelId: message.channel.id, messageId: message.id, group: group.groupName || group.groupId });
-    await ingestEvent({
-      channelId: message.channel.id,
-      channelName: message.channel?.name,
-      messageId: message.id,
-      caller: null,
-      group,
-      call: null,
-      eventType: "delete",
-      eventVersion: "deleted",
-      editedAt: new Date().toISOString()
-    });
-  } catch (e) {
-    console.error("[bot] message delete failed:", e.message);
-  }
-});
+client.on("messageCreate", listener.onMessageCreate);
+client.on("messageUpdate", listener.onMessageUpdate);
+client.on("messageDelete", listener.onMessageDelete);
 
 // Gateway health. discord.js reconnects on its own, but silently — so an outage looked
 // identical to a quiet channel. These make the gap visible and, on resume, say how many

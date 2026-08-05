@@ -16,6 +16,9 @@ import { renderTables, assertSchemaParity } from "./lib/production-schema.mjs";
 const repo = process.cwd();
 const db = new PGlite();
 const sql = await readFile(`${repo}/supabase/degenaration-signal-fanout.sql`, "utf8");
+// #8 of the deployment package. Applied here in the same order production will apply it, so
+// this verifier exercises the body that will actually run.
+const sourceRefFix = await readFile(`${repo}/supabase/degenaration-signal-fanout-source-ref.sql`, "utf8");
 const T = ["app_private.bot_config_versions", "public.approved_groups", "public.call_channels"];
 
 await db.exec(`
@@ -28,6 +31,7 @@ await db.exec(`
   create table app_private.raw_signals (
     id uuid primary key default gen_random_uuid(),
     source_type text not null, source_ref text not null,
+    immutable_payload jsonb not null default '{}'::jsonb,
     content_hash text not null, received_at timestamptz not null default now());
   create table app_private.parsed_signals (
     id uuid primary key default gen_random_uuid(),
@@ -50,15 +54,23 @@ await db.exec(`
     updated_at timestamptz not null default now(), finished_at timestamptz);
 `);
 await db.exec(sql);
+await db.exec(sourceRefFix);
 
 const GROUP = "aaaaaaaa-0000-0000-0000-000000000001";
-const CH = "chan-1";
+// Real Discord shapes. The fixture previously used `chan-1` for the channel AND for
+// raw_signals.source_ref, which agreed with the reader and disagreed with the writer:
+// bot_ingest_discord_signal_v2 writes source_ref as `discord:<guild>:<channel>`, so the
+// join `ch.channel_id = rs.source_ref` could never match a real row. The fixture is what
+// made a total fan-out failure look green. Both are now the shapes ingestion produces.
+const GUILD = "1520209045544374342";
+const CH = "1521876069693526158";
+const sourceRefFor = (channelId) => `discord:${GUILD}:${channelId}`;
 const MINT = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
 const results = {};
 
 await db.query("insert into public.approved_groups (id, name) values ($1::uuid,'Src')", [GROUP]);
 await db.query(`insert into public.call_channels (group_id, guild_id, channel_id, status)
-  values ($1::uuid,'guild-1',$2::text,'approved')`, [GROUP, CH]);
+  values ($1::uuid,$2::text,$3::text,'approved')`, [GROUP, GUILD, CH]);
 
 const mkBot = async (owner, withVersion = true, status = "active") => {
   const b = (await db.query(`insert into app_private.bot_profiles
@@ -71,8 +83,10 @@ const mkBot = async (owner, withVersion = true, status = "active") => {
   return b;
 };
 const parse = async (status = "accepted", mint = MINT) => {
-  const raw = (await db.query(`insert into app_private.raw_signals (source_type, source_ref, content_hash)
-    values ('discord',$1::text, md5(random()::text)) returning id`, [CH])).rows[0].id;
+  const raw = (await db.query(
+    `insert into app_private.raw_signals (source_type, source_ref, immutable_payload, content_hash)
+     values ('discord',$1::text, jsonb_build_object('channelId',$2::text), md5(random()::text))
+     returning id`, [sourceRefFor(CH), CH])).rows[0].id;
   return (await db.query(`insert into app_private.parsed_signals
     (raw_signal_id, parser_version, status, mint, confidence_bps)
     values ($1::uuid,'v1',$2::text,$3::text,9000) returning id`, [raw, status, mint])).rows[0].id;
@@ -85,7 +99,8 @@ const b1 = await mkBot("did:privy:a");
 const b2 = await mkBot("did:privy:b");
 const p1 = await parse();
 const d1 = await deliveries(p1);
-assert.equal(d1.length, 2, "THE FIX: both subscribed bots are offered the call");
+assert.equal(d1.length, 2,
+  "THE FIX: both subscribed bots are offered a call whose source_ref is the shape ingestion writes");
 assert.ok(d1.every((d) => d.status === "pending"));
 assert.ok(d1.every((d) => d.config_version_id), "the config version in force is captured per delivery");
 assert.equal(d1[0].evaluation.mint, MINT);

@@ -2276,6 +2276,157 @@ console.log("price selection");
   });
 }
 
+// ─── the /api/ingest-call transformation ─────────────────────────────────────────────────
+//
+// These decisions lived inline in a .ts route and were therefore unreachable by this runner:
+// what shape of event is accepted, how confident the parse was, what the dedupe key hashes,
+// and which market pair becomes the immutable call-time price. Extracted to
+// lib/discord-ingest.js for exactly that reason.
+{
+  const di = require("../../lib/discord-ingest");
+  const { parseMessage: pm } = require("../bot/parser");
+  const CH = "1521876069693526158";
+  const MSG = "1600000000000000001";
+  const M = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
+  const M2 = "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm";
+  const req = (over) => di.normalizeIngestRequest(Object.assign(
+    { channelId: CH, messageId: MSG, mint: M, confidence: "link", eventType: "create" }, over));
+
+  // THE GATE. The confidence map once recognised only labels the bot has never sent, so every
+  // ingested call silently fell through to the 7500 default and confidence_bps was a constant.
+  // A map that drifts from its producer fails this way with nothing raising, so assert the
+  // relationship rather than the values.
+  test("every evidence label the parser can emit is priced by the confidence map", () => {
+    const emitted = new Set();
+    const probe = (message, expectSome) => {
+      const r = pm(message);
+      if (r && r.confidence) emitted.add(r.confidence);
+      if (expectSome) assert.ok(r && r.confidence, "probe produced no label: " + expectSome);
+    };
+    probe({ content: M }, "content address");
+    probe({ content: `https://pump.fun/coin/${M}` }, "content link");
+    probe({ content: "", embeds: [{ description: M }] }, "embed address");
+    probe({ content: "", embeds: [{ url: `https://pump.fun/coin/${M}` }] }, "embed link");
+    probe({ content: "gm", referencedMessage: { content: M } }, "reply address");
+    probe({ content: "gm", referencedMessage: { content: `https://pump.fun/coin/${M}` } }, "reply link");
+    probe({ content: "gm", referencedMessage: { content: "", embeds: [{ description: M }] } }, "reply embed address");
+    probe({ content: "gm", referencedMessage: { content: "", embeds: [{ url: `https://pump.fun/coin/${M}` }] } }, "reply embed link");
+    // A component and an attachment resolve at the same tier as message content by design —
+    // a button URL is a link — so they add no new labels. Included so a future change that
+    // starts qualifying them is caught here rather than in production.
+    probe({ content: "", components: [{ components: [{ url: `https://jup.ag/swap/SOL-${M}` }] }] }, "component link");
+    probe({ content: "", attachments: [{ name: `${M}.png` }] }, "attachment address");
+    assert.equal(emitted.size, 8, "the parser's label set changed; re-check the confidence map");
+    for (const label of emitted) {
+      assert.ok(Object.prototype.hasOwnProperty.call(di.CONFIDENCE_BPS, label),
+        `parser emits "${label}" and the confidence map does not price it, so it scores the default`);
+    }
+  });
+
+  test("evidence is ordered: a link outranks a bare address, and a reply ranks below both", () => {
+    assert.ok(di.confidenceBps("link") > di.confidenceBps("address"));
+    assert.ok(di.confidenceBps("address") > di.confidenceBps("reply-address"));
+    assert.ok(di.confidenceBps("embed-link") > di.confidenceBps("embed-address"));
+    assert.equal(di.confidenceBps("not-a-label"), di.DEFAULT_CONFIDENCE_BPS);
+    assert.equal(di.confidenceBps(undefined), di.DEFAULT_CONFIDENCE_BPS);
+  });
+
+  test("a malformed Discord identifier is refused, not journalled", () => {
+    assert.equal(req({ channelId: "nope" }).ok, false);
+    assert.equal(req({ messageId: "123" }).ok, false);
+    assert.equal(req({ channelId: `${CH}0000` }).ok, false, "a 22-digit id is not a snowflake");
+    assert.equal(req({ channelId: null }).ok, false);
+  });
+
+  test("a non-base58 mint is refused for create and edit, and not required for delete", () => {
+    assert.equal(req({ mint: "0OIl-not-base58" }).ok, false);
+    assert.equal(req({ mint: null }).ok, false);
+    assert.equal(req({ eventType: "edit", eventVersion: "e1", mint: "0OIl" }).ok, false);
+    const del = req({ eventType: "delete", eventVersion: "deleted", mint: null });
+    assert.equal(del.ok, true, "a delete carries no mint: the message it retracts is gone");
+    assert.equal(del.mint, null);
+  });
+
+  test("an edit or delete without an event version is refused; a create defaults to original", () => {
+    assert.equal(req({ eventType: "edit", eventVersion: null }).ok, false);
+    assert.equal(req({ eventType: "delete", eventVersion: "  ", mint: null }).ok, false);
+    assert.equal(req({ eventVersion: null }).eventVersion, "original");
+    assert.equal(req({ eventType: "sneeze" }).eventType, "create", "an unknown type falls back to create");
+  });
+
+  test("the dedupe hash separates a create from its own edit, and one mint from another", () => {
+    const base = { channelId: CH, messageId: MSG, eventVersion: "original", eventType: "create", mint: M };
+    const h = di.contentHashFor(base);
+    assert.match(h, /^[0-9a-f]{64}$/);
+    assert.equal(di.contentHashFor(base), h, "the same event hashes the same — replay must dedupe");
+    assert.notEqual(di.contentHashFor({ ...base, eventType: "edit" }), h,
+      "a create and an edit of one message are two journal entries, not one");
+    assert.notEqual(di.contentHashFor({ ...base, eventVersion: "e1" }), h);
+    assert.notEqual(di.contentHashFor({ ...base, mint: M2 }), h,
+      "an edit that changes the token is a different call");
+    assert.notEqual(di.contentHashFor({ ...base, messageId: "1600000000000000002" }), h);
+  });
+
+  test("the call price comes from the deepest Solana pair whose BASE token is the mint", () => {
+    const p = di.selectPricePair({ pairs: [
+      { chainId: "ethereum", baseToken: { address: M, symbol: "X" }, priceUsd: "9.99", liquidity: { usd: 99e6 } },
+      { chainId: "solana", baseToken: { address: M2 }, quoteToken: { address: M }, priceUsd: "123", liquidity: { usd: 50e6 } },
+      { chainId: "solana", baseToken: { address: M, symbol: "BONK" }, priceUsd: "0.001", marketCap: 10, liquidity: { usd: 1000 } },
+      { chainId: "solana", baseToken: { address: M, symbol: "BONK" }, priceUsd: "0.002", marketCap: 20, liquidity: { usd: 9000 } }
+    ] }, M);
+    assert.equal(p.calledPrice, 0.002, "the deepest pool's print is the one anyone could have traded at");
+    assert.equal(p.calledLiquidity, 9000);
+    assert.equal(p.calledMcap, 20);
+    assert.equal(p.symbol, "BONK");
+  });
+
+  test("a quote-side pair never prices the call, and market cap falls back to FDV", () => {
+    // Taking the quote-side pair would record the call at the OTHER token's price.
+    const only = di.selectPricePair({ pairs: [
+      { chainId: "solana", baseToken: { address: M2 }, quoteToken: { address: M }, priceUsd: "123", liquidity: { usd: 50e6 } }
+    ] }, M);
+    assert.equal(only.calledPrice, null, "no base-side pair means no price");
+    const fdv = di.selectPricePair({ pairs: [
+      { chainId: "solana", baseToken: { address: M, symbol: "S" }, priceUsd: "1", fdv: 500, liquidity: { usd: 1 } }
+    ] }, M);
+    assert.equal(fdv.calledMcap, 500);
+  });
+
+  test("an unresolvable token yields nulls, never a zero that reads as a real price", () => {
+    for (const payload of [{ pairs: [] }, {}, null, { pairs: "nope" }]) {
+      const p = di.selectPricePair(payload, M);
+      assert.deepEqual(p, { symbol: null, calledMcap: null, calledPrice: null, calledLiquidity: null });
+    }
+    const zero = di.selectPricePair({ pairs: [
+      { chainId: "solana", baseToken: { address: M }, priceUsd: "0", liquidity: { usd: 0 } }
+    ] }, M);
+    assert.equal(zero.calledPrice, null, "a zero price is missing data, not a price");
+  });
+
+  test("the bridge body carries the parse evidence and hash the RPC validates", () => {
+    const n = req({});
+    const p = di.buildIngestRpcParams({ normalized: n, price: di.selectPricePair({ pairs: [] }, M), secret: "s" });
+    assert.equal(p.operation, "ingest_signal_v2");
+    assert.equal(p.p_confidence_bps, 9500);
+    assert.match(p.p_content_hash, /^[0-9a-f]{64}$/);
+    assert.equal(p.p_parser_version, di.PARSER_VERSION);
+    assert.equal(p.p_called_price_usd, null);
+  });
+}
+
+// ─── the listener's bounded delete memory ────────────────────────────────────────────────
+{
+  const { IngestedMessages } = require("../bot/handlers");
+  test("the ingested-message set is bounded and evicts oldest first", () => {
+    const set = new IngestedMessages(3);
+    for (const id of ["a", "b", "c", "d"]) set.remember(id);
+    assert.equal(set.size, 3, "an active server must not grow this without limit");
+    assert.equal(set.has("a"), false, "the oldest is dropped, so an old deletion is simply not journalled");
+    assert.equal(set.has("d"), true);
+    set.forget("d");
+    assert.equal(set.has("d"), false, "a forwarded delete does not stay remembered");
+  });
+}
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

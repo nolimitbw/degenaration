@@ -4,6 +4,39 @@ Written 2026-08-04. **Migration status re-read directly from production 2026-08-
 carried forward from the previous revision of this file, which said "nothing here has been
 deployed" after ten of these had in fact been applied.
 
+## AWAITING APPROVAL — migrations 8 and 9, found 2026-08-05
+
+Two defects in code that is **already live in production**, both found by composing stages
+that each had a passing verifier of their own. Neither raises; both are silent. Neither can
+be triggered today because no automated Discord call has arrived yet, and both would fire on
+the first one.
+
+| # | File | The defect | Verifier |
+|---|---|---|---|
+| 8 | `degenaration-signal-fanout-source-ref.sql` | `fan_out_parsed_signal` joined `call_channels.channel_id = raw_signals.source_ref`, and ingestion writes `source_ref` as `discord:<guild>:<channel>`. The join **can never match**. Every real call would be journaled as accepted, counted by the marketplace, and offered to **zero** subscribers — with nothing raising, because `fan_out_on_parse` is an AFTER INSERT trigger that discards the return value | `verify:discord-replay` (control run reproduces it) |
+| 9 | `degenaration-discord-edit-retraction.sql` | The edit branch superseded the previous call **before** the same-token cooldown could refuse the edit. When it does refuse, the previous call is left retracted with no successor, and the response says `accepted:false, status:"duplicate"` — the caller told nothing happened by a call that removed a measured call from the source's record | `verify:discord-replay` |
+
+Both are `create or replace` at an unchanged arity, no DDL, no DML, no grant change. **They
+are independent of each other and of 1–7, and may be applied in either order or alone.**
+
+Confirmed against production before writing either fix:
+
+```
+source_ref          discord:1520209045544374342:1521876069693526158
+join_on_source_ref  NULL          -- what fan-out uses
+join_on_payload     1521876069693526158
+```
+
+and `pg_proc` shows the deployed `fan_out_parsed_signal` still contains
+`ch.channel_id = rs.source_ref`.
+
+**Why 8 was green for so long.** `verify:signal-fanout` built its own raw signal with
+`source_ref = 'chan-1'` — a bare channel id ingestion has never once written. The fixture
+agreed with the reader instead of the writer. That fixture is corrected in the same change,
+and `verify:discord-replay` now drives the real listener, the real payload builder, the real
+route transformation and the real RPC from a stored Discord event, so the two halves are
+checked against each other rather than against a hand-written row.
+
 ## Already applied — verified in production
 
 Each confirmed by querying `pg_proc` / `information_schema` for the object the file creates.
@@ -213,8 +246,10 @@ Rollback is now executable, one script per migration:
 | 5 | `supabase/rollback/05-exit-plan-state.sql` | `degenaration-position-exit-state.sql`, `degenaration-buy-settlement.sql`, `degenaration-copy-execution-integrity.sql`, `degenaration-position-bot-attribution.sql` |
 | 6 | `supabase/rollback/06-admin-client-volume-periods.sql` | `degenaration-admin-client-ledger.sql` |
 | 7 | `supabase/rollback/07-withdrawal-settlement.sql` | `degenaration-withdrawal-intents.sql` |
+| 8 | `supabase/rollback/08-signal-fanout-source-ref.sql` | `degenaration-signal-fanout.sql` |
+| 9 | `supabase/rollback/09-discord-edit-retraction.sql` | `degenaration-discord-signal-ingestion.sql` |
 
-**Roll back in reverse order, 7 → 1.** `supabase/rollback/plan.mjs` is the single source of
+**Roll back in reverse order, 9 → 1.** `supabase/rollback/plan.mjs` is the single source of
 truth for both directions; this table is a rendering of it.
 
 Two rollbacks **refuse rather than destroy**, and say why:
@@ -225,12 +260,16 @@ Two rollbacks **refuse rather than destroy**, and say why:
   carries a non-empty `entry_config` (the exit plan cannot be reconstructed from the bot,
   which may have been edited since).
 
-Both check **before** dropping anything, so a refusal leaves the schema untouched rather
-than half-reverted. Override deliberately with
+Two rollbacks **restore a defect**, and say so in their header: rolling back #8 restores a
+silent total failure of subscriber fan-out, and rolling back #9 restores an edit path that
+retracts a call while reporting that nothing happened. For both, prefer rolling forward.
+
+Both refusing rollbacks check **before** dropping anything, so a refusal leaves the schema
+untouched rather than half-reverted. Override deliberately with
 `set local degenaration.force_rollback = 'on';`.
 
-`npm run verify:migration-rollback` proves nine properties against real PostgreSQL: the
-package applies in order, is rerun-safe, rolls back to a byte-identical baseline catalog
+`npm run verify:migration-rollback` proves nine properties against real PostgreSQL across all
+nine migrations: the package applies in order, is rerun-safe, rolls back to a byte-identical baseline catalog
 (functions **and** bodies, columns, indexes, triggers, constraints), re-applies cleanly
 afterwards, leaves no duplicate arity, keeps the copy branch, **executes**
 `worker_load_submitted_executions` rather than only parsing it, and — as a control — that

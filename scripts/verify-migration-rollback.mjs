@@ -77,6 +77,40 @@ const STUBS = `
     id uuid primary key default gen_random_uuid(),
     tx_signature text
   );
+  -- The signal journal. degenaration-signal-fanout.sql is in the baseline, and its function
+  -- body and its AFTER INSERT trigger both resolve at creation time, so these must exist for
+  -- the baseline to apply at all.
+  create table if not exists app_private.raw_signals (
+    id uuid primary key default gen_random_uuid(),
+    source_type text not null,
+    source_ref text not null,
+    immutable_payload jsonb not null default '{}'::jsonb,
+    content_hash text not null
+  );
+  create table if not exists app_private.parsed_signals (
+    id uuid primary key default gen_random_uuid(),
+    raw_signal_id uuid not null references app_private.raw_signals(id),
+    parser_version text not null,
+    status text not null,
+    mint text,
+    confidence_bps integer,
+    rejection_reason text,
+    normalized_payload jsonb not null default '{}'::jsonb
+  );
+  create table if not exists app_private.signal_deliveries (
+    id uuid primary key default gen_random_uuid(),
+    parsed_signal_id uuid not null references app_private.parsed_signals(id),
+    bot_id uuid not null,
+    config_version_id uuid not null,
+    idempotency_key text not null unique,
+    status text not null,
+    evaluation jsonb not null default '{}'::jsonb
+  );
+  -- production-schema.mjs captures CONSTRAINTS but not standalone partial UNIQUE INDEXES, so
+  -- this one does not come through renderTables. bot_ingest_discord_signal_v2 infers its
+  -- ON CONFLICT against it, and without the index that statement raises 42P10.
+  create unique index if not exists calls_message_id_unique
+    on public.calls (message_id) where message_id is not null;
 `;
 
 async function freshDb() {
