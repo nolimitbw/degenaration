@@ -148,3 +148,53 @@ application deployed.
 
 No bot was created, saved or edited. Doing so would write production rows on the owner's
 account, which is not required to read the form's state and is not reversible by inspection.
+
+
+---
+
+# Post-deployment verification — `3facdfb`, 2026-08-05
+
+Deployed `7cdfd3d` plus two deploy-support commits to `de-generation/degenaration`
+(`prj_dNXJlDAhMucn0xTLXa66rNGP8iTi`), aliased to `https://degenaration.vercel.app`.
+Rollback target preserved and Ready: `dpl_Bt5cXhvkcaiquiEcYZLiRFY27RyB`.
+
+**The deployed SHA is `3facdfb`, not `7cdfd3d`.** Two commits were needed to make the deploy
+possible and verifiable, and both are recorded rather than folded in silently:
+
+- `839a912` — `.vercelignore`. The first CLI deploy uploaded **426.9MB** for a 24MB tracked
+  tree and failed on transport. The first version of that file used unanchored patterns, which
+  also matched `lib/server/*` (the build failed loudly with `Can't resolve '@/lib/server/admin'`),
+  `lib/supabase.ts`, and `app/docs/page.tsx` — a live route that would have vanished with **no
+  error at all**. Every directory pattern is now anchored; `/docs` returns 200.
+- `3facdfb` — `/api/build`, which the verification list asked for and which did not exist.
+
+| Requested check | Result |
+|---|---|
+| `/api/build` reports the deployed commit | `3facdfb`, branch `claude/continue-codex-unfinished-2026-08-02`, `environment: production`, from `VERCEL_GIT_COMMIT_SHA` |
+| Authenticated private routes load | **32/32** frames, `signedIn: true` on every one |
+| No infinite spinners | **0** |
+| No mobile overflow | **0/32** — was 8/8 routes before the deploy |
+| Mobile tap targets | **1 per route**, the skip-link — exactly the predicted post-deploy figure |
+| Mizar-familiar navigation and builder | Nav is Bots · Affiliate · Portfolio; the builder is the current **10-section** component, was 8 |
+| Discord marketplace | `HIT RATE (PEAK)` · `UP NOW` · `MEDIAN PEAK` · `MEDIAN NOW` all rendering, 2 sources, `Tracking started Jul 18` |
+| Bot Manager · Affiliate · Portfolio · Admin | All render; Admin as `VERIFIED OWNER WORKSPACE` with real counts |
+| PnL cards | Share controls correctly **disabled** — 0 positions, no reconciled snapshot. **E-3**, not a UI gap |
+| Admin restricted server-side | `/api/admin/summary` → **401** with no credential; all product APIs → 401 |
+| Browser console | **0 errors, 0 failed requests** across all 32 frames |
+| Financial rows changed | **None.** Every table identical to the pre-deploy baseline; `mainnet_execution_enabled` still `false` |
+| Transactions | None signed, none broadcast |
+
+## Tap-target counts at 768 and above are by design, not findings
+
+The summary flags 24 frames with more than one sub-44px control — all at 768px and wider. The
+design system specifies `sm:min-h-10`, a 40px control height above the `sm` breakpoint, and 44px
+is a **touch** minimum. Above `sm` the input device is a pointer. Mobile, where it matters, is
+**1 on every route**.
+
+## A measurement that was wrong three times
+
+The pending-control notices added to the bot builder appeared absent on production. They are
+not. The probe read `innerText` per `<details>`, and the builder nests sections, so the text sat
+in a node the regex never examined; a second attempt read `innerText` in the same task as
+toggling `open`, before layout. The decisive check is the server-rendered HTML, which contains
+the string **4 times on production and 4 times locally** — identical. The notices ship.
