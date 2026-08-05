@@ -7,15 +7,71 @@ The one file to read before touching anything. Written 2026-08-04.
 
 | | |
 |---|---|
-| Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `a173ed8` — **deployed**, `/api/build` confirms it |
-| Suite | `npm run check` exit 0 — **284 tests**, 34 verifier suites, 6 contract gates, browser audit over 9 surfaces × 4 widths, production build 65 pages |
-| Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
-| Deployed edge functions | `app-bridge` **v13**, `bot-bridge` **v4** (2026-08-05, adds `p_guild_id`) |
-| Migrations unapplied | **none.** Twelve applied, each verified by `md5(prosrc)` against this repository before the next was started |
-| Deployed application | `a173ed8` — production is no longer behind the repository |
-| Railway listener | `degenaration-bot` still runs the pre-`a173ed8` build — see "The one step not applied" |
+| Vercel production | **`cd60b3c`** — `/api/build` confirms it |
+| Railway `degenaration-bot` | **`543e419`**; `server/bot` is byte-identical at HEAD, which is why Railway correctly skipped the later rebuilds |
+| Railway `degenaration-worker` | **never deployed.** No source connected, last deployment 2026-07-08, `DELEGATED_SIGNING=off`, `WORKER_NET=devnet` |
+| Suite | `npm run check` exit 0 — **295 tests**, 34 verifiers, 6 contract gates, 11 surfaces × 4 widths, production build 65 pages |
+| Edge functions | `app-bridge` v13, `bot-bridge` v4 |
+| Migrations | **thirteen applied**, each verified by `md5(prosrc)` against this repository |
+| Bot-control contract | **32 enforced / 23 pending** (was 13 / 33 at the start of this work) |
+
+## Session 2026-08-06 — the capital figures, the listener, and two defects I introduced
+
+### The minimum-capital calculation
+
+The builder rendered "Maximum exposure 0.50 SOL" directly above "Minimum planned capital
+5.50 SOL" for one configuration. The expressions were inline, three hundred lines apart, and
+only one counted DCA. `lib/planned-capital.js` is now the only implementation, in integer
+lamports:
+
+```
+perPosition = entry + every ENABLED DCA allocation
+planned     = perPosition × maximumOpenTrades
+```
+
+Exits are excluded — they close a position, they do not fund one. The rent and fee reserve is
+reported separately. The screen shows the working, because a total with no derivation is what
+let 0.50 and 5.50 sit together unnoticed.
+
+It also exposed a third defect: the default per-token exposure is 0.50 against a 0.55 position,
+so the entry claims and the first DCA leg is refused, leaving the position half-built. Now a
+blocking validation error naming both numbers.
+
+**A correction to my own work.** I first asserted the double path was inexact here. It is not —
+`0.05 + 0.25 + 0.25` is exactly 0.55, and a search over 232,000 in-range combinations found no
+case where the old path disagreed after rounding. The test says so. Integer arithmetic is the
+specification's requirement made into a guarantee, not a rounding bug that was shipping.
+
+### Two defects I introduced earlier in this work, found by auditing production
+
+| What | How it was found |
+|---|---|
+| Six `LimitField` switches shipped at **25×44** — a third of the minimum wide | An audit against the deployed site. `verify:responsive` never covered the builder routes, the densest surfaces in the product. Both are now in it: 11 surfaces × 4 widths, 44 screenshots |
+| `worker.js` never passed `subscriberExecution` to the call watcher | Reading the worker while assessing E-3. The resolver existed, the engine accepted it, every unit test passed — and the priority-fee cap and quote window would have resolved to null in production, because the dependency defaults to "not configured" |
+
+### An emoji flag that was right to leave alone
+
+The production audit reported an emoji on the Discord builder. It was `🍆` inside a Discord
+**channel name** the owner's server actually uses. The rule forbids emoji as an interface icon —
+our icon language — not text we relay from someone else, and stripping it would have shown a
+channel that does not exist. The detector now measures our own copy only, scoped per element by
+`data-user-content` rather than blanket, so a real emoji icon in a dropdown still fails.
+
+### Registered-channel enforcement, observed live
+
+A message arrived in an **unapproved** channel on the new listener build:
+`messagesReceived: 1`, `emptyPayload: 0` — so it had content, which is live proof of the Message
+Content intent on this build — and `unapprovedMessages: 1`. It created nothing: `raw_signals`
+still 3 with its newest row hours older, `calls` 1, `parsed_signals` 3, `trade_intents` 0,
+`call_executions` 0.
+
+### What E-3 actually is
+
+The worker service already holds Privy delegated-signing credentials. The signer was never the
+blocker. What is missing is a connected source and the deliberate act of enabling signing —
+`server/worker.js` gates the entire trading stack behind `DELEGATED_SIGNING === "on"`, so
+watch-only cannot claim, sign or trade.
 
 ## Session 2026-08-05, fourth pass — the switches became real, and the two gates were reconciled
 
