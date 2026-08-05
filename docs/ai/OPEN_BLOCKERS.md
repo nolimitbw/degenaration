@@ -99,7 +99,8 @@ extended.
 | E-3 | Production worker | Provide a worker host, RPC/indexer configuration, Privy delegated-signing credentials, health alert destination, and deployment authorization. | BLOCKED |
 | E-4 | Mainnet fee collection | Create/configure the correct Jupiter output-mint fee account or referral account; a wallet address alone is not a valid per-mint fee account. | BLOCKED |
 | E-5 | Mainnet activation | Explicit controlled-mainnet authorization after staging, signer, reconciliation, provider, fee, withdrawal, alerting, and emergency-control gates pass. | BLOCKED |
-| E-6 | Authenticated browser evidence | Provide a non-production Privy test identity with a delegated dev/staging wallet, or an existing authenticated test browser session. No production funds are required. | BLOCKED |
+| E-6 | Authenticated browser evidence | **CONSUMED 2026-08-05.** The owner signed in to a remote-debugging Chrome and 32 frames were captured across 8 private routes at four widths. Record: `docs/ai/AUTHENTICATED_EVIDENCE_2026-08-05.md`. It produced three real fixes, one harness fix, and two reclassifications — the PnL cards turn out to need **E-3**, not a session, and the builder rows need the **application deployed**, because production is ~80 commits behind. | **CLOSED** |
+| E-7 | **Application deployment** | Newly the dominant blocker, and previously hidden behind E-6. Production runs `claude/degenaration-launch-remediation` @ `29291c9`. Every remaining authenticated finding — 56px of mobile overflow on all 8 private routes, a 21px navigation button, the sub-44px Affiliate controls, the 10-section builder, the pending-control notices, and the marketplace's current-return figures — is **already fixed in this repository and only awaits a deploy**. No further code closes any of them. | BLOCKED — owner deploy |
 
 ---
 

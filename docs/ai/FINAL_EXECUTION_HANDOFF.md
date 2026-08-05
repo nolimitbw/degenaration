@@ -9,8 +9,8 @@ The one file to read before touching anything. Written 2026-08-04.
 |---|---|
 | Repository root | `/Users/axell/Documents/degenaration` |
 | Branch | `claude/continue-codex-unfinished-2026-08-02` |
-| Commit | `e9aa8c3` |
-| Suite | `npm run check` exit 0 — **267 tests**, 30 verifier suites, 6 contract gates, 1 browser audit |
+| Commit | `c79ef79` |
+| Suite | `npm run check` exit 0 — **267 tests**, 30 verifier suites, 6 contract gates, 1 browser audit over 8 surfaces |
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
 | Deployed edge functions | `app-bridge` **v13** (deployed 2026-08-05), `bot-bridge` v3 |
@@ -89,7 +89,8 @@ a dash or a zero here, check the writer before checking the reader.
 | E-2 | Discord bot not deployed | Deploy with bot credentials |
 | E-3 | No worker host, no signer | Provision host + signing configuration |
 | E-4 | `PLATFORM_FEE_ACCOUNT` unset | A valid Jupiter output-mint fee **token account**, not a wallet |
-| E-6 | No signed-in Privy session | Walk `docs/ai/BROWSER_VERIFICATION_RUNBOOK.md` |
+| ~~E-6~~ | ~~No signed-in Privy session~~ | **CLOSED 2026-08-05** — captured; see `AUTHENTICATED_EVIDENCE_2026-08-05.md` |
+| **E-7** | **Application not deployed** — production is `29291c9`, ~80 commits behind | Deploy the app. Every remaining authenticated defect is already fixed in code and closes on deploy |
 | — | `78a4af0` promotion | Explicit approval; irreversible |
 
 ## Session 2026-08-05, second pass — composing the stages, and what that found
