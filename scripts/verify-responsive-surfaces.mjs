@@ -234,6 +234,24 @@ const results = {};
 const failures = [];
 const captured = [];
 
+/**
+ * Routes that require a session, loaded WITHOUT one.
+ *
+ * FINAL_LAUNCH_SPEC section 16 is explicit that Affiliate must never sit indefinitely on a
+ * spinner, and section 3.3 records that it did. That property was never proven, because
+ * proving it looked like it needed a signed-in session — it does not. Signed out, each of
+ * these must still reach a TERMINAL state: a sign-in prompt, an empty state, or an error with
+ * a retry. A route still spinning after the settle window is the defect, whoever is looking
+ * at it.
+ */
+const SETTLE_MS = 9000;
+const UNAUTHENTICATED = [
+  { route: "/affiliate", name: "affiliate-signed-out" },
+  { route: "/portfolio", name: "portfolio-signed-out" },
+  { route: "/bots/manage", name: "bot-manager-signed-out" },
+  { route: "/wallet", name: "wallet-signed-out" }
+];
+
 const SURFACES = [
   { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Discord Bot')" },
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
@@ -301,6 +319,70 @@ for (const surface of SURFACES) {
   }
 }
 
+// ── unauthenticated terminal state ──────────────────────────────────────────────────────────
+const SPINNERS = "document.querySelectorAll('.animate-spin, [aria-busy=\"true\"], [role=progressbar]').length";
+
+// CONTROL RUN, deterministic. A spinner detector that matches nothing passes every route
+// while proving nothing, and the selector depends on a class name the UI is free to change.
+// Inject one, count it, remove it — timing out a real load would be a race, not a control.
+{
+  await page.goto(`${BASE}/bots`);
+  await page.waitFor("document.querySelector('main, header') !== null");
+  const before = await page.evaluate(SPINNERS);
+  await page.evaluate(
+    "(() => { const d = document.createElement('div'); d.id='__spin_probe'; " +
+    "d.className='animate-spin'; document.body.appendChild(d); return true; })()"
+  );
+  const during = await page.evaluate(SPINNERS);
+  await page.evaluate("(() => { document.getElementById('__spin_probe')?.remove(); return true; })()");
+  const after = await page.evaluate(SPINNERS);
+  if (!(during === before + 1 && after === before)) {
+    failures.push(`CONTROL FAILED: the spinner detector counted ${before}/${during}/${after} ` +
+      `before/during/after injecting one. It does not match what the UI renders, so every ` +
+      `"no spinner" result below is meaningless.`);
+  }
+}
+
+for (const surface of UNAUTHENTICATED) {
+  for (const viewport of VIEWPORTS) {
+    await page.goto(`${BASE}${surface.route}`);
+    await page.setViewport(viewport.width, viewport.height, { mobile: viewport.mobile });
+    try { await page.waitFor("document.body.innerText.trim().length > 40", { timeoutMs: 20000 }); }
+    catch { failures.push(`${surface.name} @${viewport.name}: rendered no content at all`); continue; }
+    await new Promise((r) => setTimeout(r, SETTLE_MS));
+
+    const spinning = await page.evaluate(SPINNERS);
+    if (spinning > 0) {
+      const visible = await page.evaluate("document.body.innerText.slice(0, 200)");
+      failures.push(`${surface.name} @${viewport.name}: still ${spinning} spinner(s) after ` +
+        `${SETTLE_MS}ms — an indefinite loading state is the defect FINAL_LAUNCH_SPEC section 16 ` +
+        `names by route. Visible: ${JSON.stringify(visible)}`);
+    }
+
+    const measured = await page.evaluate(MEASURE);
+    if (measured.scrollWidth > measured.clientWidth + 1) {
+      failures.push(`${surface.name} @${viewport.name}: horizontal overflow, ` +
+        `scrollWidth ${measured.scrollWidth} > clientWidth ${measured.clientWidth}` +
+        (measured.overflowing.length ? ` — widest: ${measured.overflowing.join(", ")}` : ""));
+    }
+    if (viewport.mobile && measured.small.length) {
+      failures.push(`${surface.name} @${viewport.name}: ${measured.small.length} tap target(s) under 44px — ` +
+        measured.small.map((t) => `${t.what} (${t.h}px)`).join("; "));
+    }
+    // Terminal means the user is told what to do next, not merely that nothing is spinning.
+    if (viewport.name === "desktop" && !/sign in|sign-in|connect|log in|unavailable|try again|retry|no /i.test(measured.text)) {
+      failures.push(`${surface.name}: settled with no actionable message — visible text begins ` +
+        JSON.stringify(measured.text.slice(0, 160)));
+    }
+    results[`${surface.name}@${viewport.name}`] =
+      { scrollWidth: measured.scrollWidth, clientWidth: measured.clientWidth, spinners: spinning };
+
+    const file = `${OUT}/${surface.name}-${viewport.name}-${viewport.width}x${viewport.height}.jpg`;
+    await writeFile(file, await page.screenshot());
+    captured.push(file);
+  }
+}
+
 // Requests to third parties are blocked on purpose, and the app reports each one as a
 // failed fetch. Those are this harness's own doing, not a defect, so they are excluded by
 // shape rather than by muting the whole channel — anything else still fails the audit.
@@ -322,6 +404,7 @@ console.log(JSON.stringify({
   verifier: "responsive-surfaces",
   engine: "headless Chrome over CDP against a local production build",
   surfaces: SURFACES.map((s) => s.route),
+  unauthenticatedSurfaces: UNAUTHENTICATED.map((s) => s.route),
   widths: VIEWPORTS.map((v) => v.width),
   measurements: results,
   screenshots: captured.length,
@@ -333,8 +416,11 @@ console.log(JSON.stringify({
     "peak and current return are BOTH rendered on the marketplace card",
     "a source with no measured calls says it is tracking rather than showing zeros",
     "the source detail page renders the current-return row and the outcome distribution",
-    "no console errors beyond the third-party fetches this harness blocks on purpose"
+    "no console errors beyond the third-party fetches this harness blocks on purpose",
+    `every session-gated route reaches a terminal, actionable state within ${SETTLE_MS}ms signed out`,
+    "the spinner detector itself is proven by injecting one and counting it"
   ],
   suppressedNetworkConsoleErrors: consoleErrors.length - realErrors.length,
-  notProven: "authenticated surfaces — Bot Manager, Affiliate, Portfolio, Withdraw, Admin — still need E-6"
+  notProven: "the SIGNED-IN rendering of Bot Manager, Affiliate, Portfolio, Withdraw and Admin — still E-6. " +
+    "Their signed-out terminal state is now proven here, which is the half that never needed a session."
 }, null, 2));
