@@ -88,7 +88,18 @@ const PAGE_ASSERTIONS = `(() => {
     "database reserves", "engine not configured", "immutable accounting"
   ];
   // Emoji used as an interface icon. Excludes ordinary punctuation and the em dash.
+  //
+  // Measured against OUR copy only. Subtrees marked data-user-content carry third-party strings
+  // — Discord server and channel names — and a channel genuinely named "aubergine-sol-alpha"
+  // with the emoji in it is that channel's name. Stripping it would show a channel that does
+  // not exist, which is worse than displaying it. The rule is about the icon language we
+  // choose, not about text we are faithfully relaying.
   const EMOJI = /[\\u{1F300}-\\u{1FAFF}\\u{2600}-\\u{27BF}\\u{FE0F}]/u;
+  const ownCopy = (() => {
+    const clone = document.body.cloneNode(true);
+    clone.querySelectorAll('[data-user-content]').forEach((el) => el.remove());
+    return clone.innerText || '';
+  })();
   // BOTH dimensions. Filtering on height alone passed the header's navigation button, which
   // was squeezed to 21px WIDE while keeping its 44px height — the exact control this audit
   // exists to catch. A label wrapping a small input counts as the target, because the label
@@ -110,7 +121,7 @@ const PAGE_ASSERTIONS = `(() => {
     horizontalOverflow: de.scrollWidth > de.clientWidth,
     hasViewportMeta: Boolean(document.querySelector('meta[name="viewport"]')),
     forbiddenCopy: FORBIDDEN.filter((p) => text.toLowerCase().includes(p)),
-    emojiInUi: EMOJI.test(text),
+    emojiInUi: EMOJI.test(ownCopy),
     smallTapTargets: tooSmall,
     signedIn: !/\\bSign in\\b|\\bConnect\\b/i.test(text.slice(0, 400)),
     spinners: document.querySelectorAll('.animate-spin, [aria-busy="true"], [role=progressbar]').length,

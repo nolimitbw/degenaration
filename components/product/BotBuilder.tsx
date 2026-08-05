@@ -710,6 +710,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <div>
                   <SelectField
                     label="Approved Discord server"
+                    userContent
                     value={sourceId}
                     onChange={(value) => {
                       setSourceId(value);
@@ -730,6 +731,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 </div>
                 <SelectField
                   label="Discord channel"
+                  userContent
                   value={channelId}
                   onChange={setChannelId}
                   options={[{ value: "", label: "All approved channels" }, ...(source?.channels || []).map((channel) => ({ value: channel.id, label: channel.name || channel.id }))]}
@@ -1347,11 +1349,25 @@ function TextField({ label, value, onChange, maxLength }: { label: string; value
   );
 }
 
-function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }> }) {
+function SelectField({ label, value, onChange, options, userContent = false }: { label: string; value: string; onChange: (value: string) => void; options: Array<{ value: string; label: string }>;
+  /**
+   * The option labels are third-party strings — Discord server and channel names — not copy we
+   * wrote. `data-user-content` marks them so the browser audit's emoji rule skips them.
+   *
+   * The rule forbids emoji as an INTERFACE ICON. A Discord channel genuinely named
+   * "🍆︴sol-alpha" is the channel's name, and stripping it would show the user a channel that
+   * does not exist. Faithfully displaying someone else's name is not us picking an icon.
+   */
+  userContent?: boolean }) {
   return (
     <label className="block">
       <span className="field-label">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="field-control mt-1.5 px-3">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="field-control mt-1.5 px-3"
+        {...(userContent ? { "data-user-content": "true" } : {})}
+      >
         {options.length === 0 && <option value="">No options available</option>}
         {options.map((option) => <option key={option.value || "all"} value={option.value}>{option.label}</option>)}
       </select>
@@ -1389,9 +1405,14 @@ function LimitField({
           type="button"
           role="switch"
           aria-checked={on}
-          aria-label={`${label} limit`}
+          // Not `${label} limit`: several of these labels already end in "limit", which produced
+          // "Daily loss limit limit" for a screen reader.
+          aria-label={`${label}: ${on ? "on" : "off"}`}
           onClick={() => onToggle(!on)}
-          className="flex min-h-11 items-center gap-1.5 sm:min-h-0"
+          // 44px in BOTH dimensions. Shipped at 25x44 — tall enough, a third of the minimum
+          // wide — which is the exact shape the audit's min(width, height) rule exists to catch,
+          // and it caught it on production rather than in review.
+          className="flex min-h-11 min-w-11 items-center justify-end gap-1.5"
         >
           <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-up" : "bg-edge"}`} />
           <span className={`font-mono text-[9px] uppercase ${on ? "text-up" : "text-dim"}`}>{on ? "On" : "Off"}</span>

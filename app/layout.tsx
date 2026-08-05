@@ -34,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DegenBackdrop />
         <Providers>
           <ToastProvider>
-            <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-gold-400 px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
+            {/* min-h-11: it is off-screen until focused, but once focused it is a real control
+                and was 36px tall, under the 44px minimum every other target here holds to. */}
+            <a href="#main-content" className="fixed left-3 top-3 z-[100] inline-flex min-h-11 -translate-y-20 items-center rounded-md bg-gold-400 px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
               Skip to content
             </a>
             <ReleaseBanner />

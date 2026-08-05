@@ -17,10 +17,11 @@
       "emojiInUi": false,
       "smallTapTargets": 1,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
         "Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nManage bots\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nVERIFIED SOURCES\n\nDISCORD BOT\n\nCopy approved call channels with your own risk and exit rules.\n\nChoose an approved server, set exposure, retries, TP/SL, and fail-closed security filters. Source commission is itemized at 0.7%.\n\nAPPROVED SOURCES\n\n--\n\nCREATOR FEE\n\n0.70%\n\nAUTOMATION\n\nNot yet available\n\nManual trading is live\n\nApproved channels only\nBrowse sources\nCREATOR STRATEGY\n\nKOL BOT\n\nDiscover community strategies or publish one of your own.\n\nConfigure volatility triggers, DCA, execution limits, scanner presets, and advanced token filters. Publish up to three reviewed strategies.\n\nLIVE STRATEGIES\n\n--\n\nCREATOR FEE",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nMy Bots\nNew bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n\nAPPROVED SOURCES\n\n2\n\nKOL STRATEGIES\n\n0\n\nMEASURED CALLS 7D\n\n0\n\nCOPIED VOLUME 7D\n\n0 SOL\n\nYOUR BOTS\n\n--\n\nConnect to view\n\nACTIVE\n\n--\n\nDiscord sources\n7D\nAll sources\nSOURCE\tSTATUS\tLAST CALL\tMEASURED\tHIT RATE\tUP NOW\tMEDIAN PEAK\tMEDIAN NOW\tFOLLOWERS\t\n\nDegenAration\n\t\nConnected\tJul 18, 12:57 PM\t0\t--\t--\t--\t--\t0\tConfigure\n\nSLPR DEGEN\n\t\nConnected\tMonitoring\t0\t--\t--\t--\t--\t0\tConfigure\nYour bots\nManage\nConnect to see your bots\n\nBot configuration and performance are private account data.\n\nKOL strategies\nAll strategies\nNo published strategies yet\n\nPublish one from the KOL builder to list it here.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bots-mobile-390x844.jpg"
@@ -37,12 +38,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 7,
+      "smallTapTargets": 12,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
         "Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nManage bots\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nVERIFIED SOURCES\n\nDISCORD BOT\n\nCopy approved call channels with your own risk and exit rules.\n\nChoose an approved server, set exposure, retries, TP/SL, and fail-closed security filters. Source commission is itemized at 0.7%.\n\nAPPROVED SOURCES\n\n--\n\nCREATOR FEE\n\n0.70%\n\nAUTOMATION\n\nNot yet available\n\nManual trading is live\n\nApproved channels only\nBrowse sources\nCREATOR STRATEGY\n\nKOL BOT\n\nDiscover community strategies or publish one of your own.\n\nConfigure volatility triggers, DCA, execution limits, scanner presets, and advanced token filters. Publish up to three reviewed strategies.\n\nLIVE STRATEGIES\n\n",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nMy Bots\nNew bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n\nAPPROVED SOURCES\n\n2\n\nKOL STRATEGIES\n\n0\n\nMEASURED CALLS 7D\n\n0\n\nCOPIED VOLUME 7D\n\n0 SOL\n\nYOUR BOTS\n\n--\n\nConnect to view\n\nACTIVE\n\n--\n\nDiscord sources\n7D\nAll sources\nSOURCE\tSTATUS\tLAST CALL\tMEASURED\tHIT RATE\tUP NOW\tMEDIAN PEAK\tMEDIAN NOW\tFOLLOWERS\t\n\nDegenAration\n\t\nConnected\tJul 18, 12:57 PM\t0\t--\t--\t--\t--\t0\tConfigure\n\nSLPR DEGEN\n\t\nConnected\tMonitoring\t0\t--\t--\t--\t--\t0\tConfigure\nYour bots\nManage\nConnect to see your bots\n\nBot configuration and performance are private account data.\n\nKOL strategies\nAll strategies\nNo published strategies yet\n\nPublish one from the KOL builder to list it here.\n\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bots-tablet-768-768x1024.jpg"
@@ -59,13 +61,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 6,
+      "smallTapTargets": 11,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Bots",
         "Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nManage bots\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nVERIFIED SOURCES\n\nDISCORD BOT\n\nCopy approved call channels with your own risk and exit rules.\n\nChoose an approved server, set exposure, retries, TP/SL, and fail-closed security filters. Source commission is itemized at 0.7%.\n\nAPPROVED SOURCES\n\n--\n\nCREATOR FEE\n\n0.70%\n\nAUTOMATION\n\nNot yet available\n\nManual trading is live\n\nApproved channels only\nBrowse sources\nCREATOR STRATEGY\n\nKOL BOT\n\nDiscover community strategies or publish one of your own.\n\nConfigure volatility triggers, DCA, execution limits, scanner presets, and advanced token filters. Publish up to three reviewed strat",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nMy Bots\nNew bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n\nAPPROVED SOURCES\n\n2\n\nKOL STRATEGIES\n\n0\n\nMEASURED CALLS 7D\n\n0\n\nCOPIED VOLUME 7D\n\n0 SOL\n\nYOUR BOTS\n\n--\n\nConnect to view\n\nACTIVE\n\n--\n\nDiscord sources\n7D\nAll sources\nSOURCE\tSTATUS\tLAST CALL\tMEASURED\tHIT RATE\tUP NOW\tMEDIAN PEAK\tMEDIAN NOW\tFOLLOWERS\t\n\nDegenAration\n\t\nConnected\tJul 18, 12:57 PM\t0\t--\t--\t--\t--\t0\tConfigure\n\nSLPR DEGEN\n\t\nConnected\tMonitoring\t0\t--\t--\t--\t--\t0\tConfigure\nYour bots\nManage\nConnect to see your bots\n\nBot configuration and performance are private account data.\n\nKOL strategies\nAll strategies\nNo published strategies yet\n\nPublish one from the KOL builder to list it here.\n\nSolana",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bots-tablet-1024x768.jpg"
@@ -82,13 +84,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 6,
+      "smallTapTargets": 11,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Bots",
         "Bots"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nManage bots\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nVERIFIED SOURCES\n\nDISCORD BOT\n\nCopy approved call channels with your own risk and exit rules.\n\nChoose an approved server, set exposure, retries, TP/SL, and fail-closed security filters. Source commission is itemized at 0.7%.\n\nAPPROVED SOURCES\n\n--\n\nCREATOR FEE\n\n0.70%\n\nAUTOMATION\n\nNot yet available\n\nManual trading is live\n\nApproved channels only\nBrowse sources\nCREATOR STRATEGY\n\nKOL BOT\n\nDiscover community strategies or publish one of your own.\n\nConfigure volatility triggers, DCA, execution limits, scanner presets, and advanced token filters. Publish up to three reviewed strat",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nBots\n\nAutomate approved Discord calls or run a community strategy.\n\nMy Bots\nNew bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n\nAPPROVED SOURCES\n\n2\n\nKOL STRATEGIES\n\n0\n\nMEASURED CALLS 7D\n\n0\n\nCOPIED VOLUME 7D\n\n0 SOL\n\nYOUR BOTS\n\n--\n\nConnect to view\n\nACTIVE\n\n--\n\nDiscord sources\n7D\nAll sources\nSOURCE\tSTATUS\tLAST CALL\tMEASURED\tHIT RATE\tUP NOW\tMEDIAN PEAK\tMEDIAN NOW\tFOLLOWERS\t\n\nDegenAration\n\t\nConnected\tJul 18, 12:57 PM\t0\t--\t--\t--\t--\t0\tConfigure\n\nSLPR DEGEN\n\t\nConnected\tMonitoring\t0\t--\t--\t--\t--\t0\tConfigure\nYour bots\nManage\nConnect to see your bots\n\nBot configuration and performance are private account data.\n\nKOL strategies\nAll strategies\nNo published strategies yet\n\nPublish one from the KOL builder to list it here.\n\nSolana",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "bots-desktop-1440x1000.jpg"
@@ -105,13 +107,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 3,
+      "smallTapTargets": 1,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Discord Sources",
         "Discord Sources"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nDegenAration\nAPPROVED\nConnected\n\n21\n0 active followers\n\nApproved Discord source building a measured call history on DegenAration.\n\nLAST PROCESSED CALL\n\nJul 18, 12:57 PM\n\nLAST SUCCESSFUL EXECUTION\n\nNo successful execution yet\n\nDATA FRESHNESS\n\nCollecting data\n\n1D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n7D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n30D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\nHIT RATE (PEA",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-marketplace-mobile-390x844.jpg"
@@ -130,11 +132,11 @@
       "emojiInUi": false,
       "smallTapTargets": 18,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Discord Sources",
         "Discord Sources"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nDegenAration\nAPPROVED\nConnected\n\n16\n0 active followers\n\nApproved Discord source building a measured call history on DegenAration.\n\nWIN RATE\n\n--\n\nMEDIAN RETURN\n\n--\n\nAVERAGE RETURN\n\n--\n\nMAX DRAWDOWN\n\n--\n\nELIGIBLE CALLS\n\n0\n\n0 measured\n\n0\n\n<50%\n\n0\n\n+50%\n\n0\n\n2X\n\n0\n\n5X+\n\nTracking started Jul 18, 12:03 PM\n\nCreator share included in 2% fee\n\nDetails\nConfigure bot\nSLPR DEGEN\nAPPROVED\nConnected\n\n20\n0 active followers\n\nApproved Discord sour",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nDegenAration\nAPPROVED\nConnected\n\n21\n0 active followers\n\nApproved Discord source building a measured call history on DegenAration.\n\nLAST PROCESSED CALL\n\nJul 18, 12:57 PM\n\nLAST SUCCESSFUL EXECUTION\n\nNo successful execution yet\n\nDATA FRESHNESS\n\nCollecting data\n\n1D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n7D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n30D PERFORMANCE\n\nCollecting data\n\nLedger history is sti",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-marketplace-tablet-768-768x1024.jpg"
@@ -151,13 +153,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 13,
+      "smallTapTargets": 17,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Discord Sources",
         "Discord Sources"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nDegenAration\nAPPROVED\nConnected\n\n21\n0 active followers\n\nApproved Discord source building a measured call history on DegenAration.\n\nLAST PROCESSED CALL\n\nJul 18, 12:57 PM\n\nLAST SUCCESSFUL EXECUTION\n\nNo successful execution yet\n\nDATA FRESHNESS\n\nCollecting data\n\n1D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n7D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n30D PERFORMANCE\n\nCollecting da",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-marketplace-tablet-1024x768.jpg"
@@ -174,13 +176,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 13,
+      "smallTapTargets": 17,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Discord Sources",
         "Discord Sources"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nDiscord Sources\n\nApproved call communities with measured on-chain performance.\n\nAdd bot to server\nList a server\nNew Discord bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\nMinimum 5 measured calls\nSort sources\nBest performance\nLowest drawdown\nMost followers\nMost calls\nNewest\nLowest fee\nDegenAration\nAPPROVED\nConnected\n\n21\n0 active followers\n\nApproved Discord source building a measured call history on DegenAration.\n\nLAST PROCESSED CALL\n\nJul 18, 12:57 PM\n\nLAST SUCCESSFUL EXECUTION\n\nNo successful execution yet\n\nDATA FRESHNESS\n\nCollecting data\n\n1D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n7D PERFORMANCE\n\nCollecting data\n\nLedger history is still developing\n\n30D PERFORMANCE\n\nCollecting da",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-marketplace-desktop-1440x1000.jpg"
@@ -197,13 +199,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 2,
+      "smallTapTargets": 1,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "KOL Strategies",
         "KOL Strategies"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nNo public KOL strategies yet\n\nCreate a strategy, submit it for review, and it will appear here after approval with measured performance history.\n\nCreate KOL bot\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nNo public KOL strategies yet\n\nCreate a strategy, submit it for review, and it will appear here after approval with measured performance history.\n\nCreate KOL bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-marketplace-mobile-390x844.jpg"
@@ -220,13 +222,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 12,
+      "smallTapTargets": 13,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "KOL Strategies",
         "KOL Strategies"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nNo public KOL strategies yet\n\nCreate a strategy, submit it for review, and it will appear here after approval with measured performance history.\n\nCreate KOL bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-marketplace-tablet-768-768x1024.jpg"
@@ -245,11 +247,11 @@
       "emojiInUi": false,
       "smallTapTargets": 12,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "KOL Strategies",
         "KOL Strategies"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nNo public KOL strategies yet\n\nCreate a strategy, submit it for review, and it will appear here after approval with measured performance history.\n\nCreate KOL bot\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nNo public KOL strategies yet\n\nCreate a strategy, submit it for review, and it will appear here after approval with measured performance history.\n\nCreate KOL bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-marketplace-tablet-1024x768.jpg"
@@ -266,13 +268,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 11,
+      "smallTapTargets": 12,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "KOL Strategies",
         "KOL Strategies"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nSolana Mainnet workspace",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\nKOL Strategies\n\nCopy public strategies built and tracked on DegenAration.\n\nCreate KOL bot\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\n1D\n7D\n30D\n3M\nSort strategies\nBest net performance\nLowest drawdown\nMost followers\nNewest\nLowest fee\nNo public KOL strategies yet\n\nCreate a strategy, submit it for review, and it will appear here after approval with measured performance history.\n\nCreate KOL bot\nSolana Mainnet workspace",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-marketplace-desktop-1440x1000.jpg"
@@ -288,14 +290,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": false,
+      "emojiInUi": true,
       "smallTapTargets": 7,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Configure Discord bot",
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nChoose the approved community this bot follows.\nBOT NAME\nAPPROVED DISCORD SOURCE\nNo options available\n\nLoading approved sources…\n\nOptional description\nCALL CHANNEL\nAll approved channels\n\nSOURCE PERFORMANCE\n\n0 measured calls · -- 2x rate\n\n0.70% creator fee on confirmed copied notional\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily · 1.00 SOL per token\n\nEXECUTION WALLET\n\nNot connected\n\nDelegation required to activate\n",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\nAutomatic entries\nOpen new position",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-mobile-390x844.jpg"
@@ -311,14 +313,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": false,
-      "smallTapTargets": 20,
+      "emojiInUi": true,
+      "smallTapTargets": 21,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Configure Discord bot",
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nChoose the approved community this bot follows.\nSource required\nBOT NAME\nAPPROVED DISCORD SOURCE\nNo options available\n\nLoading approved sources…\n\nOptional description\nCALL CHANNEL\nAll approved channels\n\nSOURCE PERFORMANCE\n\n0 measured calls · -- 2x rate\n\n0.70% creator fee on confirmed copied notional\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily · 1.00 SOL per token\n\nEX",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nFunding and exposure\nSet t",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-tablet-768-768x1024.jpg"
@@ -334,14 +336,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": false,
-      "smallTapTargets": 19,
+      "emojiInUi": true,
+      "smallTapTargets": 20,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Configure Discord bot",
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nChoose the approved community this bot follows.\nSource required\nBOT NAME\nAPPROVED DISCORD SOURCE\nNo options available\n\nLoading approved sources…\n\nOptional description\nCALL CHANNEL\nAll approved channels\n\nSOURCE PERFORMANCE\n\n0 measured calls · -- 2x rate\n\n0.70% creator fee on confirmed copied notional\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nF",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-tablet-1024x768.jpg"
@@ -357,14 +359,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": false,
-      "smallTapTargets": 19,
+      "emojiInUi": true,
+      "smallTapTargets": 20,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Configure Discord bot",
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nChoose the approved community this bot follows.\nSource required\nBOT NAME\nAPPROVED DISCORD SOURCE\nNo options available\n\nLoading approved sources…\n\nOptional description\nCALL CHANNEL\nAll approved channels\n\nSOURCE PERFORMANCE\n\n0 measured calls · -- 2x rate\n\n0.70% creator fee on confirmed copied notional\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nF",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-desktop-1440x1000.jpg"
@@ -381,13 +383,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 11,
+      "smallTapTargets": 7,
       "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Build KOL strategy",
         "Build KOL strategy"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nConnect wallet\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nName the strategy and choose its visibility.\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily · 1.00 SOL per token\n\nEXECUTION WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\n\nMINIMUM PLANNED CAPITAL\n\n3.000 SOL\n\nEntries plus configured DCA levels\n\nEntry trigger\nChoose what must happen before the strategy can enter.\nMANUAL ",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\n\nSAVED, NOT ACTING ON TRADES YET\n\nRisk tier\n\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\nAutomatic entries\nOpen new positions from this source's calls.\nON\nAutomatic exits\nRun take profit, stop loss and trailing without you.\nON\nEmergency stop\nRefuse every new entry. Open positions still exit",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-builder-mobile-390x844.jpg"
@@ -404,13 +406,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 27,
-      "signedIn": true,
+      "smallTapTargets": 26,
+      "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Build KOL strategy",
         "Build KOL strategy"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nName the strategy and choose its visibility.\nPublic strategy\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily · 1.00 SOL per token\n\nEXECUTION WALLET\n\n2skP2NB...WEaWyg\n\nDelegation required to activate\n\nMINIMUM PLANNED CAPITAL\n\n3.000 SOL\n\nEntries plus configured DCA levels\n\nEntry trigger\nChoose what must",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nVolatility strategy\n\nSAVED, NOT ACTING ON TRADES YET\n\nRisk tier\n\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nAutomatic entries\nOpen new positions from this source's calls.\nON\nAutomatic exits\nRun take pro",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-builder-tablet-768-768x1024.jpg"
@@ -427,13 +429,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 26,
-      "signedIn": true,
+      "smallTapTargets": 25,
+      "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Build KOL strategy",
         "Build KOL strategy"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nName the strategy and choose its visibility.\nPublic strategy\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily · 1.00 SOL per token\n\nEXECUTION WALLET\n\n2skP2NB...WEaWyg\n\nDelegation required to activate\n\nMINIMUM PLANNED CAPITAL\n\n3.000 SOL\n\nEntries plus configured DCA levels\n\nEntry",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nVolatility strategy\n\nSAVED, NOT ACTING ON TRADES YET\n\nRisk tier\n\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nAutomatic entries\nOpen new positions from this source's calls.\nON\nAut",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-builder-tablet-1024x768.jpg"
@@ -450,13 +452,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 26,
-      "signedIn": true,
+      "smallTapTargets": 25,
+      "signedIn": false,
+      "spinners": 0,
       "headings": [
-        "Build KOL strategy",
         "Build KOL strategy"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nIdentity and source\nName the strategy and choose its visibility.\nPublic strategy\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nBUY AMOUNT\nSOL\nMAXIMUM CAPITAL\nSOL\nMAXIMUM OPEN TRADES\ntrades\n0.1 SOL\n0.5 SOL\n1 SOL\n5 SOL\nRisk limits\n1.00 SOL daily · 1.00 SOL per token\n\nEXECUTION WALLET\n\n2skP2NB...WEaWyg\n\nDelegation required to activate\n\nMINIMUM PLANNED CAPITAL\n\n3.000 SOL\n\nEntries plus configured DCA levels\n\nEntry",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / KOL / NEW\n\nBuild KOL strategy\n\nSet the entry, exits, and budget. Fine-tune safeguards only when needed.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nVolatility strategy\n\nSAVED, NOT ACTING ON TRADES YET\n\nRisk tier\n\nBOT NAME\nVISIBILITY\nPrivate draft\nPublic after review\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\n0.50 SOL per entry · 3 open max\nAutomatic entries\nOpen new positions from this source's calls.\nON\nAut",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "kol-builder-desktop-1440x1000.jpg"

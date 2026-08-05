@@ -260,6 +260,18 @@ const SURFACES = [
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: `/bots/discord/${SOURCE_MEASURED.id}`, name: "discord-source-detail", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: "/bots/kol", name: "kol-marketplace", ready: "document.body.innerText.length > 200" },
+  // THE BUILDERS. Not covered until now, which is how six switches shipped to production at
+  // 25px wide — tall enough at 44, a third of the minimum across — and were found by an audit
+  // against the deployed site rather than by this suite. They are the densest surfaces in the
+  // product and the ones most likely to breach a tap target, so they belong here.
+  //
+  // The readiness predicate asserts a heading the builder itself renders. `innerText.length >
+  // 200` is not enough: it let an earlier run measure a 404 page for four widths while
+  // reporting a real surface.
+  { route: "/bots/discord/new", name: "discord-builder",
+    ready: "document.body.innerText.includes('Funding and exposure')" },
+  { route: "/bots/kol/new", name: "kol-builder",
+    ready: "document.body.innerText.includes('Funding and exposure')" },
   // The public source profile. Its "Latest calls" table gained call price, market cap and
   // liquidity, taking it to nine columns — the exact shape that overflows a 390px page if the
   // scroll container is wrong.
