@@ -13,7 +13,7 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits, Partials, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
 const { parseCall, parseMessage } = require("./parser");
-const { loadApprovedChannels, registerChannel, getGuildStatus } = require("./store");
+const { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile } = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
 const { createMessageHandlers, IngestedMessages } = require("./handlers");
 
@@ -25,6 +25,10 @@ const BOT_BUILD = process.env.BOT_BUILD || "source-tools-v2";
 const SITE_URL = (process.env.SITE_URL || "https://degenaration.vercel.app").replace(/\/+$/, "");
 
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
+// Declared with the other configuration rather than beside its setInterval: the ready handler
+// reads it, and although that runs after module evaluation, depending on temporal-dead-zone
+// ordering for a constant is a footgun for whoever moves this code next.
+const PROFILE_SYNC_MS = Number(process.env.BOT_PROFILE_SYNC_MS || 21600000); // 6h
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -127,6 +131,29 @@ let approved = {};
 async function refresh() {
   try { approved = await loadApprovedChannels(); }
   catch (e) { console.error("[bot] channel refresh failed:", e.message); }
+}
+
+/**
+ * Keep every guild's public profile current.
+ *
+ * Counted rather than assumed successful: a marketplace avatar that silently stopped updating
+ * is indistinguishable from one that never changes, so the heartbeat reports the tally and a
+ * failure names the guild.
+ */
+const profileSync = { attempts: 0, succeeded: 0, failed: 0, lastError: null };
+async function syncAllProfiles() {
+  const guilds = [...(client.guilds?.cache?.values?.() ?? [])];
+  for (const guild of guilds) {
+    profileSync.attempts += 1;
+    try {
+      await syncSourceProfile(guild);
+      profileSync.succeeded += 1;
+    } catch (e) {
+      profileSync.failed += 1;
+      profileSync.lastError = e.message;
+      log("profile.sync.failed", { guildId: guild.id, error: e.message });
+    }
+  }
 }
 
 function canManageGuild(member, permissions) {
@@ -293,6 +320,11 @@ client.once("ready", async () => {
   await refresh();
   console.log(`[bot] watching ${Object.keys(approved).length} approved channel(s)`);
   setInterval(refresh, REFRESH_MS);
+  // The one duty the legacy degencalls service still performed that this listener did not.
+  // Until it does, retiring that service freezes every marketplace avatar, name and member
+  // count at whatever they were the day it stopped.
+  await syncAllProfiles();
+  setInterval(syncAllProfiles, PROFILE_SYNC_MS);
   // One immediately, so the verdict is readable the moment the process is up rather than
   // after the first interval. A diagnostic you have to wait ten minutes for is one you
   // reach for only after guessing first.
@@ -301,6 +333,9 @@ client.once("ready", async () => {
 
 client.on("guildCreate", (guild) => {
   syncRegisterCommand(guild);
+  // A newly added guild has no profile row yet, so waiting for the timer would leave its
+  // marketplace card blank for up to six hours.
+  syncAllProfiles().catch(() => {});
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -445,6 +480,7 @@ function emitHeartbeat() {
     watchedChannels: Object.keys(approved).length,
     guilds: client.guilds?.cache?.size ?? null,
     deadLetters: deadLetters.size,
+    profileSync: { ...profileSync },
     ...listener.diagnostics()
   });
 }
