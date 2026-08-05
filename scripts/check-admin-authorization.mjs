@@ -52,6 +52,13 @@ const fail = (message) => failures.push(message);
  * schema-qualifying every identifier in bodies that predate the convention, which is a real
  * change needing its own verification, and doing it badly breaks the admin console. A new
  * function may not join them.
+ *
+ * `admin_decide_call_channel` is a partial exit. Its CURRENT definition —
+ * degenaration-registered-channel-authorization.sql — pins '' with every name qualified, and
+ * that is the body production runs. The entry survives only because the superseded definition
+ * in public-source-profiles.sql is still on disk and must stay replayable, and this check scans
+ * every file rather than resolving which body wins. Removing the entry outright would fail on
+ * the historical file, not on anything deployed.
  */
 const LEGACY_UNQUALIFIED_PATH = new Set([
   "admin_list_server_applications",

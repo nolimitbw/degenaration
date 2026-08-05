@@ -21,7 +21,7 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
   ingest_signal_v2: {
     rpc: "bot_ingest_discord_signal_v2",
     params: [
-      "p_secret", "p_channel_id", "p_channel_name", "p_mint", "p_symbol",
+      "p_secret", "p_guild_id", "p_channel_id", "p_channel_name", "p_mint", "p_symbol",
       "p_called_mcap", "p_called_price_usd", "p_called_liquidity_usd",
       "p_message_id", "p_caller", "p_confidence", "p_event_type",
       "p_event_version", "p_edited_at", "p_parser_version",

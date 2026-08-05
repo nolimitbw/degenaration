@@ -55,10 +55,14 @@ function nextBackoffMs(attempt) {
  * create and again as an edit without either overwriting the other. The route rejects an
  * empty one for edits and deletes, so it is built here rather than defaulted there.
  */
-function buildIngestPayload({ channelId, channelName, messageId, caller, call, eventType = "create", eventVersion, editedAt }) {
+function buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, eventType = "create", eventVersion, editedAt }) {
   const version = eventVersion || (eventType === "create" ? "original" : null);
   if (!version) throw new Error(`event version required for ${eventType}`);
   return {
+    // The guild the message actually came from, checked against the registration server-side.
+    // Null is accepted rather than refused: it is what a build predating this field sends, and
+    // the gate records that it could not compare rather than treating it as a match.
+    guildId: guildId || null,
     channelId,
     channelName: channelName || null,
     messageId,

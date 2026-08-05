@@ -55,6 +55,12 @@ export const BASELINE = [
   // Applied in production, and the file that defines the attach_call_execution_intent body
   // #11 replaces.
   "degenaration-trade-intent-fanout.sql",
+  // Applied in production, and the file that defines bot_approved_call_channels — the map #12
+  // rebuilds on the shared authorization predicate.
+  "degenaration-discord-public-profiles.sql",
+  // Applied in production, and the file that defines admin_decide_call_channel, which #12
+  // replaces to refuse approving a channel on a removed source.
+  "public-source-profiles.sql",
 ];
 
 /**
@@ -175,10 +181,29 @@ export const PACKAGE = [
       "drop. Adds one nullable column. Rolling back returns seven controls to persisted-but-unenforced " +
       "with nothing surfaced to the user, so prefer rolling forward; see the script header.",
   },
+  {
+    n: 12,
+    apply: "degenaration-registered-channel-authorization.sql",
+    rollback: "12-registered-channel-authorization.sql",
+    reapply: [
+      "degenaration-discord-signal-ingestion.sql",
+      "degenaration-discord-edit-retraction.sql",
+      "degenaration-discord-public-profiles.sql",
+      "public-source-profiles.sql",
+    ],
+    note:
+      "THE SECOND ARITY CHANGE. bot_ingest_discord_signal_v2 goes 17 -> 18 arguments (p_guild_id, " +
+      "defaulted so a bot build predating it keeps ingesting), and the 17-argument signature is " +
+      "dropped explicitly in BOTH directions. MUST FOLLOW #9, whose body it is built on. Makes the " +
+      "journal's gate check the source's approval state — which it never did, while the listener's " +
+      "map always had — and refuses to approve a channel on a removed source. Rolling back " +
+      "silently restores all three holes; see the script header.",
+  },
 ];
 
 /** The two functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
   { fn: "public.worker_open_position", from: 15, to: 16, migration: 5 },
   { fn: "public.worker_settle_position_exit", from: 8, to: 9, migration: 5 },
+  { fn: "public.bot_ingest_discord_signal_v2", from: 17, to: 18, migration: 12 },
 ];

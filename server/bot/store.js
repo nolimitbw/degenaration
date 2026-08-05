@@ -15,24 +15,33 @@ function H(extra) {
   return { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json", ...extra };
 }
 
-// { channelId: { groupId, groupName } } for every APPROVED call channel.
+/**
+ * `{ channelId: { groupId, groupName, guildId } }` for every ACTIVE approved call channel.
+ *
+ * `guildId` is carried so the listener can check the guild/channel PAIR before forwarding.
+ * Channel snowflakes are globally unique, so the pair check is not about a collision — it is
+ * about the registration being stale. `source_ref` is built from the registered guild, and
+ * every downstream projection keys on it, so a wrong guild attributes calls to the wrong
+ * source with nothing able to notice.
+ *
+ * THE FALLBACK IS GONE, DELIBERATELY. It queried
+ *
+ *     call_channels?status=eq.approved
+ *
+ * which checks strictly LESS than the bridge: no `removed_at`, and no join to approved_groups
+ * at all, so a suspended or removed source stayed in the map. A bridge outage therefore WIDENED
+ * what the listener watched — the one direction an outage must never move authorization. The
+ * caller keeps its last known good map instead, which can only ever be narrower or equal.
+ */
 async function loadApprovedChannels() {
-  if (APPROVED_URL && BOT_SECRET) {
-    const r = await fetch(APPROVED_URL, { headers: { "x-bot-secret": BOT_SECRET } });
-    if (r.ok) {
-      const data = await r.json();
-      const map = {};
-      for (const c of data?.channels || []) map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name };
-      return map;
-    }
-    console.error(`[bot] approved channel bridge failed (${r.status}); falling back to Supabase`);
-  }
-  if (!SB || !KEY) throw new Error("approved channel query not configured");
-  const r = await fetch(`${SB}/rest/v1/call_channels?status=eq.approved&select=channel_id,group_id,guild_name`, { headers: H() });
+  if (!APPROVED_URL || !BOT_SECRET) throw new Error("approved channel bridge not configured");
+  const r = await fetch(APPROVED_URL, { headers: { "x-bot-secret": BOT_SECRET } });
   if (!r.ok) throw new Error(`approved channel query failed (${r.status})`);
-  const rows = await r.json();
+  const data = await r.json();
   const map = {};
-  for (const c of rows || []) map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name };
+  for (const c of data?.channels || []) {
+    map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name, guildId: c.guild_id };
+  }
   return map;
 }
 

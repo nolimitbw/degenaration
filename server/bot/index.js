@@ -212,9 +212,9 @@ async function postIngest(payload) {
  * journaled here, because "detected but never recorded" is the failure this whole path
  * exists to make visible.
  */
-async function ingestEvent({ channelId, channelName, messageId, caller, group, call, eventType = "create", eventVersion, editedAt }) {
+async function ingestEvent({ guildId, channelId, channelName, messageId, caller, group, call, eventType = "create", eventVersion, editedAt }) {
   if (!INGEST_URL || !BOT_SECRET) throw new Error("INGEST_URL / BOT_SHARED_SECRET not set");
-  const payload = buildIngestPayload({ channelId, channelName, messageId, caller, call, eventType, eventVersion, editedAt });
+  const payload = buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, eventType, eventVersion, editedAt });
 
   for (let attempt = 0; attempt < INGEST_ATTEMPTS; attempt += 1) {
     const result = await postIngest(payload);

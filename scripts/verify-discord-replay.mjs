@@ -57,16 +57,20 @@ const results = {};
 
 // ─── database ────────────────────────────────────────────────────────────────────────────
 const read = (f) => readFile(`${repo}/supabase/${f}`, "utf8");
-const [ingestSql, fanoutSql, fanoutFixSql, editFixSql] = await Promise.all([
+const [ingestSql, fanoutSql, fanoutFixSql, editFixSql, authSql, profilesSql] = await Promise.all([
   read("degenaration-discord-signal-ingestion.sql"),
   read("degenaration-signal-fanout.sql"),
   read("degenaration-signal-fanout-source-ref.sql"),
-  read("degenaration-discord-edit-retraction.sql")
+  read("degenaration-discord-edit-retraction.sql"),
+  read("degenaration-registered-channel-authorization.sql"),
+  // #12 rebuilds bot_approved_call_channels, which this file defines. Applying it first keeps
+  // the chain in the order production applies it.
+  read("degenaration-discord-public-profiles.sql")
 ]);
 
 const T = ["public.approved_groups", "public.call_channels", "public.calls", "app_private.bot_config_versions"];
 
-async function freshDb({ withFanoutFix = true, withEditFix = true } = {}) {
+async function freshDb({ withFanoutFix = true, withEditFix = true, withAuthFix = true } = {}) {
   const db = new PGlite();
   await db.exec(`
     create role anon nologin; create role authenticated nologin; create role service_role nologin;
@@ -107,6 +111,7 @@ async function freshDb({ withFanoutFix = true, withEditFix = true } = {}) {
   `);
   await db.exec(ingestSql);
   if (withEditFix) await db.exec(editFixSql);
+  if (withAuthFix) await db.exec(authSql);
   await db.exec(fanoutSql);
   if (withFanoutFix) await db.exec(fanoutFixSql);
 
@@ -162,15 +167,22 @@ async function routeIngest(db, payload) {
     ? selectPricePair(fixture.dexscreener, normalized.mint)
     : selectPricePair({ pairs: [] }, normalized.mint);
   const p = buildIngestRpcParams({ normalized, price, secret: "bot-secret" });
+  // Named arguments, exactly as PostgREST calls it. Positional would silently keep passing if
+  // the signature gained an argument in the middle, which is how a guild ends up in a channel
+  // parameter.
   const { rows } = await db.query(
     `select public.bot_ingest_discord_signal_v2(
-       $1::text,$2::text,$3::text,$4::text,$5::text,$6::numeric,$7::numeric,$8::numeric,
-       $9::text,$10::text,$11::text,$12::text,$13::text,$14::timestamptz,$15::text,
-       $16::integer,$17::text) as r`,
-    [p.p_secret, p.p_channel_id, p.p_channel_name, p.p_mint, p.p_symbol, p.p_called_mcap,
-     p.p_called_price_usd, p.p_called_liquidity_usd, p.p_message_id, p.p_caller, p.p_confidence,
-     p.p_event_type, p.p_event_version, p.p_edited_at, p.p_parser_version, p.p_confidence_bps,
-     p.p_content_hash]
+       p_secret => $1::text, p_guild_id => $2::text, p_channel_id => $3::text,
+       p_channel_name => $4::text, p_mint => $5::text, p_symbol => $6::text,
+       p_called_mcap => $7::numeric, p_called_price_usd => $8::numeric,
+       p_called_liquidity_usd => $9::numeric, p_message_id => $10::text, p_caller => $11::text,
+       p_confidence => $12::text, p_event_type => $13::text, p_event_version => $14::text,
+       p_edited_at => $15::timestamptz, p_parser_version => $16::text,
+       p_confidence_bps => $17::integer, p_content_hash => $18::text) as r`,
+    [p.p_secret, p.p_guild_id, p.p_channel_id, p.p_channel_name, p.p_mint, p.p_symbol,
+     p.p_called_mcap, p.p_called_price_usd, p.p_called_liquidity_usd, p.p_message_id,
+     p.p_caller, p.p_confidence, p.p_event_type, p.p_event_version, p.p_edited_at,
+     p.p_parser_version, p.p_confidence_bps, p.p_content_hash]
   );
   return { ...rows[0].r, normalized, price };
 }

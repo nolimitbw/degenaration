@@ -114,6 +114,40 @@ function createMessageHandlers({
 }) {
   /** Messages seen in channels this process does not watch, by channel. Diagnostics only. */
   const unapprovedSeen = new Map();
+  /** Messages seen in a watched channel that arrived from a DIFFERENT guild, by channel. */
+  const guildMismatch = new Map();
+
+  /**
+   * The approved channel for this message, or null — and the guild has to match.
+   *
+   * The map is keyed on the channel alone, which is what it was before. The pair check is the
+   * addition, and it is not about snowflake collisions: `source_ref` is built from the
+   * REGISTERED guild, and every downstream projection keys on it, so a stale registration
+   * attributes a call to the wrong source and nothing can detect it — the only two values being
+   * compared came from the same row.
+   *
+   * A registration with no stored guild is not treated as a match and not treated as a refusal
+   * either: it resolves on the channel alone, exactly as before, because refusing it would
+   * silence a legitimately approved channel over missing metadata.
+   */
+  function resolveChannel(msg) {
+    const group = approvedChannel(msg?.channel?.id);
+    if (!group) return null;
+    const registered = group.guildId;
+    const actual = msg?.guild?.id;
+    if (registered && actual && registered !== actual) {
+      guildMismatch.set(msg.channel.id, (guildMismatch.get(msg.channel.id) || 0) + 1);
+      log("call.guild-mismatch", {
+        channelId: msg.channel.id,
+        messageId: msg.id,
+        registeredGuild: registered,
+        actualGuild: actual,
+        reason: "channel is registered to a different guild"
+      });
+      return null;
+    }
+    return group;
+  }
   /**
    * Everything this process has SEEN, whether or not it became a call.
    *
@@ -203,6 +237,7 @@ function createMessageHandlers({
     });
     try {
       return await ingestEvent({
+        guildId: msg.guild?.id || null,
         channelId: msg.channel.id,
         channelName: msg.channel.name,
         messageId: msg.id,
@@ -240,8 +275,9 @@ function createMessageHandlers({
       return;
     }
 
-    // Otherwise: only act in APPROVED call channels.
-    const group = approvedChannel(msg.channel?.id);
+    // Otherwise: only act in APPROVED call channels, and only for the guild each is
+    // registered to.
+    const group = resolveChannel(msg);
     if (!group) {
       // Counted, not logged per message: an unapproved channel in a busy guild would flood the
       // log and drown the events that matter. The counter answers "is the approved map what I
@@ -276,7 +312,7 @@ function createMessageHandlers({
         : newMessage;
       if (!msg?.guild) return;
       if (msg.author?.id && msg.author.id === selfId()) return;
-      const group = approvedChannel(msg.channel?.id);
+      const group = resolveChannel(msg);
       if (!group) return;
 
       const editedAt = msg.editedTimestamp ? new Date(msg.editedTimestamp).toISOString() : null;
@@ -308,11 +344,12 @@ function createMessageHandlers({
   async function onMessageDelete(message) {
     try {
       if (!ingested.has(message?.id)) return;
-      const group = approvedChannel(message?.channel?.id);
+      const group = resolveChannel(message);
       if (!group) return;
       ingested.forget(message.id);
       log("call.deleted", { channelId: message.channel.id, messageId: message.id, group: group.groupName || group.groupId });
       return await ingestEvent({
+        guildId: message.guild?.id || null,
         channelId: message.channel.id,
         channelName: message.channel?.name,
         messageId: message.id,
@@ -335,6 +372,8 @@ function createMessageHandlers({
       ...counters,
       unapprovedChannelsSeen: unapprovedSeen.size,
       unapprovedMessages: [...unapprovedSeen.values()].reduce((a, b) => a + b, 0),
+      guildMismatchChannels: guildMismatch.size,
+      guildMismatchMessages: [...guildMismatch.values()].reduce((a, b) => a + b, 0),
       // The one-line reading of all of the above, so an operator does not have to infer it.
       verdict:
         counters.messagesReceived === 0

@@ -24,11 +24,11 @@
  *
  * What this verifies, against real PostgreSQL:
  *
- *   baseline            the seven already-applied files, in the order production applied them
- *   -> apply 1..7       the pending package, in its required order
- *   -> roll back 7..1   each rollback script, then its reapply list
+ *   baseline            the already-applied files, in the order production applied them
+ *   -> apply 1..N       the package, in its required order
+ *   -> roll back N..1   each rollback script, then its reapply list
  *   -> assert           the catalog is identical to baseline, object for object
- *   -> re-apply 1..7    and assert the catalog is identical to the applied state
+ *   -> re-apply 1..N    and assert the catalog is identical to the applied state
  *
  * The re-apply step is the one that matters operationally: a rollback that cannot be
  * followed by a second attempt is not a rollback, it is a one-way door.
@@ -111,6 +111,15 @@ const STUBS = `
   -- ON CONFLICT against it, and without the index that statement raises 42P10.
   create unique index if not exists calls_message_id_unique
     on public.calls (message_id) where message_id is not null;
+  -- The Discord source application queue. public-source-profiles.sql is in the baseline
+  -- (migration 12 replaces admin_decide_call_channel, which that file defines) and it also
+  -- defines admin_decide_server_application, whose body resolves this table at creation time.
+  create table if not exists public.server_applications (
+    id uuid primary key default gen_random_uuid(),
+    guild_id text, guild_name text, guild_member_count integer, channel_id text,
+    channel_name text, status text default 'pending', owner_privy_user_id text,
+    decided_at timestamptz, decision_reason text, created_at timestamptz not null default now()
+  );
   -- The limit-order queue. automation-execution-integrity.sql is in the baseline (migration 11
   -- replaces worker_claim_call_execution, which that file defines) and it also carries this
   -- table's constraint and index, both of which resolve at apply time.
@@ -299,10 +308,15 @@ results.loadSubmittedExecutionsRuns = "PASS";
 // ---------------------------------------------------------------------------------------
 const control = await freshDb();
 await applyPackage(control);
-const five = PACKAGE.find((s) => s.n === 5);
-// The rollback exactly as the migration header originally documented it: reapply only,
-// no explicit drop of the widened signatures.
-for (const f of five.reapply) await control.exec(await read(`supabase/${f}`));
+
+// The rollback exactly as each migration header ORIGINALLY documented it: reapply only, with
+// no explicit drop of the widened signature. Driven off ARITY_CHANGES so a future arity change
+// is covered the moment it is declared, rather than the day someone remembers this file.
+const arityMigrations = [...new Set(ARITY_CHANGES.map((a) => a.migration))];
+for (const n of arityMigrations) {
+  const step = PACKAGE.find((s) => s.n === n);
+  for (const f of step.reapply) await control.exec(await read(`supabase/${f}`));
+}
 
 const dupes = await duplicateArities(control);
 const byName = Object.fromEntries(dupes.map((d) => [d.name, d.arities.map(Number)]));
@@ -315,18 +329,35 @@ for (const { fn, from, to } of ARITY_CHANGES) {
   );
 }
 
-let ambiguous = "";
-try {
-  await control.query(`select public.worker_open_position(
-    'pk','wal','mint',1.0,1.0,'sig',300,null,0,null,0,null,'privy',null,null)`);
-} catch (err) {
-  ambiguous = err.message;
+// Two arities installed is not merely untidy — every call at the narrow arity raises. Proven
+// for one function of each shape, so the assertion is about behaviour and not about a catalog
+// row that might be harmless.
+const ambiguousCalls = [
+  {
+    fn: "public.worker_open_position",
+    sql: `select public.worker_open_position(
+      'pk','wal','mint',1.0,1.0,'sig',300,null,0,null,0,null,'privy',null,null)`,
+  },
+  {
+    fn: "public.bot_ingest_discord_signal_v2",
+    sql: `select public.bot_ingest_discord_signal_v2(
+      'secret','111','calls','mint','SYM',1,1,1,'222','caller','link','create','original',
+      null,'discord-v3',9500,'hash')`,
+  },
+];
+for (const { fn, sql: statement } of ambiguousCalls) {
+  let ambiguous = "";
+  try {
+    await control.query(statement);
+  } catch (err) {
+    ambiguous = err.message;
+  }
+  assert.match(
+    ambiguous,
+    /is not unique/,
+    `control run: a narrow-arity ${fn} call should have been ambiguous`,
+  );
 }
-assert.match(
-  ambiguous,
-  /is not unique/,
-  "control run: a 15-argument worker_open_position call should have been ambiguous",
-);
 results.controlProvesProseRollbackBroken = "PASS";
 await control.close();
 
