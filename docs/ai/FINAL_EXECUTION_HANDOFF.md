@@ -14,7 +14,7 @@ The one file to read before touching anything. Written 2026-08-04.
 | Modified, uncommitted | `docs/activity-log.md` (excluded from commits by policy) |
 | Untracked | none |
 | Deployed edge functions | `app-bridge` **v13** (deployed 2026-08-05), `bot-bridge` v3 |
-| Migrations unapplied | **three — 8, 9 and 10, added 2026-08-05 second pass.** Each corrects a defect in code that is already live; see `PENDING_DEPLOYMENT.md`. The earlier seven were applied to production 2026-08-05 with owner approval, one at a time, each verified by `md5(prosrc)` against this repository before the next was started. |
+| Migrations unapplied | **none.** All ten applied to production with owner approval, one at a time, each verified by `md5(prosrc)` against this repository before the next was started. 8, 9 and 10 applied 2026-08-05 second pass; `PENDING_DEPLOYMENT.md` records the per-migration result and the unchanged row counts. |
 | Deployed application | `claude/degenaration-launch-remediation` @ `29291c9` — **not** `master` |
 | Release awaiting promotion | `release/funds-runtime-hotfix-2026-08-04` @ `78a4af0` |
 
@@ -140,11 +140,20 @@ previously inside a `.ts` body the plain-node runner cannot require).
 - `lib/call-outcomes.js` has no production consumer and is now one definition behind the SQL;
   it says so, so nobody wires it up without closing the gap.
 
-### Migrations added, all awaiting approval
+### Migrations 8, 9 and 10 — APPLIED 2026-08-05
 
-8, 9 and 10. All `create or replace` at unchanged arity, no DDL, no DML, no grant change.
-8 and 9 are independent of everything. **10 supersedes 4 and must follow it.** Executable
-rollbacks for all three; `verify:migration-rollback` now covers ten migrations.
+Owner approved and applied sequentially, each verified before the next. All `create or replace`
+at unchanged arity: no DDL, no DML, no grant change, every row count identical to the pre-flight
+baseline, `mainnet_execution_enabled` still `false`, nothing signed or broadcast.
+
+Migration 8 has a functional proof on the real production row rather than a parse: the source
+reference the old join could never match now resolves to its approved group. Migration 10's new
+aggregates were executed against real rows — the source with one flat call reports
+`currentWinRate 0.00`, and the source with none reports `measuredCurrent 0` with all three
+statistics **null** rather than fabricated zeros.
+
+Full record, including the digests and the before/after counts, in `PENDING_DEPLOYMENT.md`.
+Executable rollbacks remain for all three; `verify:migration-rollback` covers ten migrations.
 
 ## Session 2026-08-05 — deployment, rollback, and the PnL unit defect
 

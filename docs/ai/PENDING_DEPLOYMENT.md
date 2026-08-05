@@ -4,11 +4,50 @@ Written 2026-08-04. **Migration status re-read directly from production 2026-08-
 carried forward from the previous revision of this file, which said "nothing here has been
 deployed" after ten of these had in fact been applied.
 
-## AWAITING APPROVAL — migrations 8, 9 and 10, found 2026-08-05
+## APPLIED 2026-08-05 — migrations 8, 9 and 10
 
-Three defects in code that is **already live in production**, found by composing stages that
-each had a passing verifier of their own. None raises; all are silent. None can be triggered
-today because no automated Discord call has arrived yet, and all would fire on the first one.
+Owner approved. Applied one at a time to `uqccguunmjabjheeivhx`, each verified before the next
+was started. Nothing was skipped and nothing failed, so no rollback ran.
+
+All three corrected defects in code that was **already live**, found by composing stages that
+each had a passing verifier of their own. None raised; all were silent. None could be triggered
+before an automated Discord call arrived, and all would have fired on the first one.
+
+Verification per migration: `md5(prosrc)` byte-identical to this repository (expected digests
+from `node scripts/deploy-checksums.mjs 10`); exactly one definition, so no overload; SECURITY
+DEFINER with `search_path=""`; anon and authenticated denied EXECUTE; and every row count equal
+to the pre-flight baseline.
+
+| # | Result |
+|---|---|
+| 8 | `3d37de97…` MATCH, 1 definition, `still_has_broken_join` **false**. **Functional proof on the real production row**: `discord:1520209045544374342:1521876069693526158` now resolves to channel `1521876069693526158` and its approved group — the old join returned NULL for that exact row. Trigger `parsed_signals_fan_out` intact |
+| 9 | `f0df0b78…` MATCH, 1 definition at arity 17, deferred-supersede branch present, `retractedCalls` in the response, service_role granted |
+| 10 | `51a785b9…` MATCH, 1 definition at arity 4. Guard raises `insufficient_privilege` on an invalid secret, so the function is callable; the new aggregates were **executed** against real rows: `DegenAration` → measuredCurrent 1, medianCurrentX 1.0000, currentWinRate 0.00 (flat is not up); `SLPR DEGEN` → measuredCurrent 0 with all three statistics **null**, not fabricated zeros |
+
+### Row counts, baseline → after all three
+
+Unchanged, every one: `raw_signals` 1, `parsed_signals` 1, `signal_deliveries` 0, `calls` 1
+(0 retracted), `approved_groups` 2, `call_channels` 2, `trade_intents` 0, `trade_executions` 0,
+both `positions` 0, `cash_movements` 0, `commission_ledger_entries` 0, `worker_leases` 0,
+`durable_jobs` 0. `mainnet_execution_enabled` remains **`false`**.
+
+**No transaction was signed or broadcast, no worker or signer was started, and no funds moved.**
+
+Supabase security advisors after the change: only the pre-existing INFO `rls_enabled_no_policy`
+on `app_private` tables — the deliberate deny-all posture — and the pre-existing WARN about
+Supabase Auth leaked-password protection, which this product does not use (identity is Privy).
+**No new finding.**
+
+### What was NOT deployed, by instruction
+
+The two corrected legacy SQL files (`admin-dashboard-secret-rpcs.sql`,
+`public-source-profiles.sql`). Production already denies `anon` and `authenticated` on those
+five functions, so the correction changes nothing live; it exists so a future replay cannot
+re-grant the admin API. No application code was deployed and the bridge was not redeployed —
+none of the three migrations adds or changes a bridge operation, and `verify:bridge-live`
+reported `deploymentDrift: NONE` beforehand.
+
+### Original finding, kept for the record
 
 | # | File | The defect | Verifier |
 |---|---|---|---|

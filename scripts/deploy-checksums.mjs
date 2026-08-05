@@ -42,6 +42,30 @@ await db.exec(`
     entry_config_snapshot jsonb not null default '{}'::jsonb, status text);
   create table if not exists app_private.cash_movements (
     id uuid primary key default gen_random_uuid(), tx_signature text);
+  -- The signal journal. degenaration-signal-fanout.sql and
+  -- degenaration-discord-signal-ingestion.sql are both in the baseline now, and a function
+  -- body and an AFTER INSERT trigger both resolve at creation time.
+  create table if not exists app_private.raw_signals (
+    id uuid primary key default gen_random_uuid(), source_type text not null,
+    source_ref text not null, external_event_id text, event_version text,
+    immutable_payload jsonb not null default '{}'::jsonb, content_hash text not null,
+    received_at timestamptz not null default now(), edited_at timestamptz, deleted_at timestamptz);
+  create table if not exists app_private.parsed_signals (
+    id uuid primary key default gen_random_uuid(),
+    raw_signal_id uuid not null references app_private.raw_signals(id),
+    parser_version text not null, status text not null, mint text, confidence_bps integer,
+    rejection_reason text, normalized_payload jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default now());
+  create table if not exists app_private.signal_deliveries (
+    id uuid primary key default gen_random_uuid(),
+    parsed_signal_id uuid not null references app_private.parsed_signals(id),
+    bot_id uuid not null, config_version_id uuid not null,
+    idempotency_key text not null unique, status text not null,
+    evaluation jsonb not null default '{}'::jsonb);
+  -- Partial unique indexes are not captured by production-schema.mjs, and
+  -- bot_ingest_discord_signal_v2 infers its ON CONFLICT against this one.
+  create unique index if not exists calls_message_id_unique
+    on public.calls (message_id) where message_id is not null;
 `);
 for (const f of BASELINE) await db.exec(await read(`supabase/${f}`));
 
