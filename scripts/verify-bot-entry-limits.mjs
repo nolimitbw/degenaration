@@ -362,6 +362,73 @@ const skipped = (subId) => all(
   results.killSwitchReachesColumn = "PASS";
 }
 
+// ── 7c. every limit has a switch, and the switch turns it off ───────────────────────────────
+//
+// The specification requires an ON/OFF control for each of these. The number stays in the
+// configuration either way — subscriber_config_valid demands several of them be present and
+// numeric — so the flag is the only thing that can express "off", and it has to be read.
+{
+  const cases = [
+    {
+      name: "maxOpenTrades",
+      config: { buyAmountLamports: SOL, maxOpenTrades: 1 },
+      refusal: "maximum open trades reached"
+    },
+    {
+      name: "maximumCapital",
+      config: { buyAmountLamports: SOL, maxOpenTrades: 50, maximumCapitalLamports: SOL },
+      refusal: "maximum capital reached"
+    },
+    {
+      name: "perTokenExposure",
+      config: { buyAmountLamports: SOL, maxOpenTrades: 50, perTokenExposureLamports: SOL },
+      refusal: "per-token exposure limit reached"
+    },
+    {
+      name: "cooldown",
+      config: { buyAmountLamports: SOL, maxOpenTrades: 50, cooldownSeconds: 900 },
+      refusal: "token cooldown active"
+    }
+  ];
+
+  for (const item of cases) {
+    // ON: the limit bites on the second call for the same token.
+    const on = await subscription({ ...item.config, limits: { [item.name]: true } });
+    const first = await call(`SWITCH-${item.name}`);
+    assert.equal((await claim(first.id, on.id)).ok, true, `${item.name}: the first entry is allowed`);
+    const second = await call(`SWITCH-${item.name}`);
+    const refused = await claim(second.id, on.id);
+    assert.equal(refused.ok, false, `${item.name}: switched on, the limit must refuse`);
+    assert.equal(refused.error, item.refusal);
+
+    // OFF: the identical configuration, with only the flag changed.
+    const off = await subscription({ ...item.config, limits: { [item.name]: false } });
+    const a = await call(`OFF-${item.name}`);
+    assert.equal((await claim(a.id, off.id)).ok, true);
+    const b = await call(`OFF-${item.name}`);
+    assert.equal((await claim(b.id, off.id)).ok, true,
+      `${item.name}: switched off, the same configuration must be allowed through`);
+  }
+  results.everyLimitHasAnEnforcedSwitch = "PASS";
+}
+
+// ── 7d. the daily cap switch, and what must keep accruing while it is off ───────────────────
+{
+  const off = await subscription(
+    { buyAmountLamports: SOL, maxOpenTrades: 50, limits: { dailyLoss: false } },
+    { sizeSol: 1, dailyCapSol: 2 }
+  );
+  for (let i = 0; i < 3; i += 1) {
+    const c = await call(`DAILYOFF-${i}`);
+    assert.equal((await claim(c.id, off.id)).ok, true, "the daily cap must not refuse while it is off");
+  }
+  // Accrual continues regardless, so switching the cap back on does not hand the bot a fresh
+  // day's budget it has already spent.
+  const row = await one("select daily_spent from public.subscriptions where id=$1::uuid", [off.id]);
+  assert.equal(Number(row.daily_spent), 3, "spend must still be recorded while the cap is off");
+  results.dailyCapSwitchStillAccrues = "PASS";
+}
+
 // ── 8. absent is not zero ───────────────────────────────────────────────────────────────────
 //
 // The failure mode this guards: reading an unset limit as 0 refuses every trade on every bot
@@ -526,12 +593,16 @@ console.log(JSON.stringify({
   ...results,
   enforcedControls: [
     "maxOpenTrades", "maximumCapitalLamports", "perTokenExposureLamports",
-    "cooldownSeconds", "firstCallOnly", "autoEntry", "killSwitch"
+    "cooldownSeconds", "firstCallOnly", "autoEntry", "killSwitch",
+    "limits.maxOpenTrades", "limits.maximumCapital", "limits.dailyLoss",
+    "limits.perTokenExposure", "limits.cooldown"
   ],
   proves:
-    "each limit refuses a real claim and names itself in the queue's audit row; an in-flight " +
-    "claim counts toward the maximum, so a burst cannot overshoot it; a refusal reserves no " +
-    "capital; an unset limit is not read as zero; and the previous body allows all of it",
+    "each limit refuses a real claim and names itself in the queue's audit row; each has an " +
+    "ON/OFF switch that the claim reads, proven by running the identical configuration with " +
+    "only the flag changed; an in-flight claim counts toward the maximum, so a burst cannot " +
+    "overshoot it; a refusal reserves no capital; an unset limit is not read as zero; and the " +
+    "previous body allows all of it",
   notProven: "that a deployed worker executes this path — E-3"
 }, null, 2));
 

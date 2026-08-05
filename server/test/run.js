@@ -2526,6 +2526,124 @@ console.log("price selection");
     assert.strictEqual(decide({ ...legacy }, 0.5).kind, "SL", "legacy stop must still fire");
   });
 
+  test("automatic exits OFF stops every exit, including the stop loss", () => {
+    // The master. Off means the owner exits by hand, and the builder says so — this asserts
+    // that it really is by hand and not merely a label.
+    const off = {
+      ...base,
+      entry_config: {
+        autoExit: false,
+        takeProfit: { enabled: true, levels: [{ targetBps: 10000, sellBps: 5000, trailingBps: 0 }] },
+        stopLoss: { enabled: true, stopBps: 4000 }
+      }
+    };
+    assert.strictEqual(decide(off, 10), null, "a 10x must not take profit with automatic exits off");
+    assert.strictEqual(decide(off, 0.1), null, "and a 90% drawdown must not stop out either");
+
+    const on = { ...off, entry_config: { ...off.entry_config, autoExit: true } };
+    assert.ok(decide(on, 10), "with it back on the same position exits");
+  });
+
+  test("a position saved before the switch existed keeps exiting automatically", () => {
+    // Absent must read as ON. Reading a missing key as off would strand every open position
+    // the first time this shipped, holding, with the owner told nothing.
+    const row = {
+      ...base,
+      entry_config: {
+        takeProfit: { enabled: true, levels: [{ targetBps: 10000, sellBps: 5000, trailingBps: 0 }] },
+        stopLoss: { enabled: true, stopBps: 4000 }
+      }
+    };
+    assert.ok(decide(row, 2.5), "no autoExit key means automatic exits, as before");
+  });
+
+  test("the trailing master gates the per-level distance", () => {
+    // trailingBps > 0 means a level ARMS at its target and sells once the price gives back the
+    // distance. With the master off the level must sell AT the target instead — which is what
+    // "Apply the per-level trailing distance after activation" says, and the one thing the
+    // switch did not do.
+    const levels = [{ targetBps: 10000, sellBps: 5000, trailingBps: 1000 }];
+    const armed = { ...base, peak_price_usd: 3, entry_config: { takeProfit: { enabled: true, trailing: true, levels }, stopLoss: { enabled: false, stopBps: 0 } } };
+    // At 3x with a 3x peak, an armed trailing level has given back nothing yet.
+    assert.strictEqual(decide(armed, 3), null, "trailing on: at the high, hold");
+    assert.ok(decide(armed, 2.6), "trailing on: a 10% give-back from the high sells");
+
+    const plain = { ...armed, entry_config: { ...armed.entry_config, takeProfit: { ...armed.entry_config.takeProfit, trailing: false } } };
+    assert.ok(decide(plain, 3), "trailing off: the level sells at its target rather than waiting");
+  });
+
+  test("the exit is priced under the position's own configuration, not the bot's", () => {
+    // entry_config is immutable for the life of the position, so editing the bot cannot change
+    // what an already-open trade pays to get out.
+    const policy = monitor.executionPolicy({
+      priorityFeeMaxLamports: 750000, priorityFeeStrategy: "fast", quoteExpirationSeconds: 12
+    });
+    assert.deepStrictEqual(policy, {
+      priorityFeeMaxLamports: 750000, priorityFeeStrategy: "fast", quoteExpirationSeconds: 12
+    });
+    assert.strictEqual(monitor.executionPolicy({}), null, "nothing configured means the platform default");
+    assert.strictEqual(monitor.executionPolicy({ priorityFeeMaxLamports: 0 }), null,
+      "a zero cap is unset, not an instruction to pay nothing");
+  });
+
+  test("the priority-fee cap and level reach the swap body", () => {
+    const jup = require("../engine/jupiter");
+    assert.deepStrictEqual(
+      jup.prioritizationFee({ priorityFeeMaxLamports: 500000, priorityFeeStrategy: "economy" }),
+      { priorityLevelWithMaxLamports: { maxLamports: 500000, priorityLevel: "low" } }
+    );
+    assert.deepStrictEqual(
+      jup.prioritizationFee({ priorityFeeMaxLamports: 500000, priorityFeeStrategy: "fast" }),
+      { priorityLevelWithMaxLamports: { maxLamports: 500000, priorityLevel: "high" } }
+    );
+    // Unset falls back to Jupiter's own policy rather than to a cap of zero, which would build
+    // a transaction that never lands.
+    assert.strictEqual(jup.prioritizationFee({}), "auto");
+    assert.strictEqual(jup.prioritizationFee({ priorityFeeMaxLamports: -1 }), "auto");
+    assert.strictEqual(jup.prioritizationFee(null), "auto");
+    // An unknown strategy is not a reason to refuse to trade; it takes the middle level.
+    assert.strictEqual(
+      jup.prioritizationFee({ priorityFeeMaxLamports: 1, priorityFeeStrategy: "turbo" })
+        .priorityLevelWithMaxLamports.priorityLevel,
+      "medium"
+    );
+  });
+
+  test("the configured quote window is what expires a quote", () => {
+    const jup = require("../engine/jupiter");
+    assert.strictEqual(jup.quoteExpired({ quotedAtMs: 0, nowMs: 9_000, quoteExpirationSeconds: 10 }), false);
+    assert.strictEqual(jup.quoteExpired({ quotedAtMs: 0, nowMs: 11_000, quoteExpirationSeconds: 10 }), true);
+    // Unset uses the engine default rather than expiring immediately.
+    assert.strictEqual(jup.quoteExpired({ quotedAtMs: 0, nowMs: 11_000 }), false);
+    assert.strictEqual(jup.quoteExpired({ quotedAtMs: 0, nowMs: 31_000 }), true);
+    assert.strictEqual(jup.quoteExpired({ quotedAtMs: 0, nowMs: 31_000, quoteExpirationSeconds: 0 }), true,
+      "zero is unset, so the default window still applies");
+  });
+
+  test("the subscriber's execution policy comes from the same snapshot as their filters", () => {
+    const store = require("../engine/store");
+    const versioned = store.subscriberExecution({
+      subscriber_config_snapshot: { priorityFeeMaxLamports: 900000, priorityFeeStrategy: "fast", quoteExpirationSeconds: 20 },
+      extended_config: { priorityFeeMaxLamports: 1 }
+    });
+    assert.strictEqual(versioned.priorityFeeMaxLamports, 900000, "the immutable snapshot wins");
+
+    // The empty-default trap: subscriber_config_snapshot is NOT NULL DEFAULT '{}', and '{}' is
+    // truthy, so a resolver testing truthiness would shadow a real extended_config.
+    assert.strictEqual(
+      store.subscriberExecution({ subscriber_config_snapshot: {}, extended_config: { priorityFeeMaxLamports: 4242 } })
+        .priorityFeeMaxLamports,
+      4242
+    );
+    // A legacy baseline carries no builder policy and must fall back to the platform default.
+    assert.strictEqual(
+      store.subscriberExecution({ subscriber_config_snapshot: { compatibilityMode: "legacy-baseline" }, extended_config: {} }),
+      null
+    );
+    assert.strictEqual(store.subscriberExecution({}), null);
+    assert.strictEqual(store.subscriberExecution(null), null);
+  });
+
   test("a disabled level is absent from the plan, so the next enabled one is used", () => {
     // The builder filters disabled levels out before saving, so the engine sees only the
     // enabled ones. This pins that the surviving level is what fires.

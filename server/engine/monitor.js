@@ -22,7 +22,7 @@
  * than abandoning or duplicating it. Token amounts are BigInt throughout: raw amounts for
  * high-supply tokens exceed 2^53 and float arithmetic would silently mis-size a sell.
  */
-const { sellToken } = require("./jupiter");
+const { sellToken, quoteExpired } = require("./jupiter");
 
 const POLL_MS = 5_000;
 /**
@@ -87,17 +87,38 @@ function exitPlan(row) {
   //
   // The presence of the takeProfit object is what distinguishes the two. A position opened
   // from the builder always has one; only a position predating entry_config does not.
+  // THE TRAILING MASTER GATES THE PER-LEVEL DISTANCE.
+  //
+  // `takeProfit.trailing` had no reader: each level's own `trailingBps` was applied whether the
+  // master was on or off, so a user who switched trailing off still had levels that armed at
+  // the target and waited for a retracement instead of selling. The switch's own description —
+  // "Apply the per-level trailing distance after activation" — is exactly this gate, and it was
+  // the one thing it did not do.
+  //
+  // Gating rather than inventing a default distance: a master with no per-level value would
+  // otherwise need a retracement nobody chose, and a fabricated exit distance is worse than an
+  // unread switch.
+  const trailingEnabled = config.takeProfit?.trailing !== false;
+  const level = (item, index) => ({
+    index,
+    target: 1 + Number(item?.targetBps ?? 0) / 10000,
+    sellPercent: Number(item?.sellBps ?? 0) / 100,
+    trailingBps: trailingEnabled ? Number(item?.trailingBps ?? 0) : 0
+  });
+
+  // AUTOMATIC EXITS OFF MEANS NO AUTOMATED EXIT AT ALL.
+  //
+  // Absent is ON: a position opened before this switch existed was being exited automatically,
+  // and reading a missing key as "off" would strand every one of them holding.
+  const autoExit = config.autoExit !== false;
+
   if (config.takeProfit && typeof config.takeProfit === "object") {
     const levels = configured || [];
     return {
+      autoExit,
       levels: levels
-        .map((level, index) => ({
-          index,
-          target: 1 + Number(level?.targetBps ?? 0) / 10000,
-          sellPercent: Number(level?.sellBps ?? 0) / 100,
-          trailingBps: Number(level?.trailingBps ?? 0)
-        }))
-        .filter((level) => isProfitTarget(level.target))
+        .map(level)
+        .filter((item) => isProfitTarget(item.target))
         .sort((a, b) => a.target - b.target),
       stop: {
         dropFraction: Number(config.stopLoss?.stopBps ?? 0) / 10000,
@@ -108,14 +129,10 @@ function exitPlan(row) {
 
   if (configured && configured.length) {
     return {
+      autoExit,
       levels: configured
-        .map((level, index) => ({
-          index,
-          target: 1 + Number(level?.targetBps ?? 0) / 10000,
-          sellPercent: Number(level?.sellBps ?? 0) / 100,
-          trailingBps: Number(level?.trailingBps ?? 0)
-        }))
-        .filter((level) => isProfitTarget(level.target))
+        .map(level)
+        .filter((item) => isProfitTarget(item.target))
         .sort((a, b) => a.target - b.target),
       stop: {
         dropFraction: Number(config.stopLoss?.stopBps ?? 0) / 10000,
@@ -129,11 +146,40 @@ function exitPlan(row) {
     { index: 1, target: row.tp2 == null ? null : Number(row.tp2), sellPercent: Number(row.tp2_sell ?? 0), trailingBps: 0 }
   ].filter((level) => isProfitTarget(level.target));
   return {
+    // A position with no builder configuration at all predates the switch and was being
+    // exited automatically. It keeps being.
+    autoExit: true,
     levels: legacy.sort((a, b) => a.target - b.target),
     stop: {
       dropFraction: row.stop_loss == null ? 0 : Number(row.stop_loss) / 100,
       trailing: false
     }
+  };
+}
+
+/**
+ * The priority-fee policy and quote window this position exits under.
+ *
+ * Same shape store.subscriberExecution returns for the entry side, read here from the
+ * position's own immutable entry_config rather than from the bot, so an exit is priced under
+ * the configuration the trade was opened with.
+ */
+function executionPolicy(entryConfig) {
+  const config = entryConfig && typeof entryConfig === "object" ? entryConfig : null;
+  if (!config) return null;
+  const number = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  };
+  // Same switch layer as the entry side reads, from this position's own frozen configuration.
+  const limits = config.limits && typeof config.limits === "object" ? config.limits : {};
+  const priorityFeeMaxLamports = limits.priorityFee === false ? null : number(config.priorityFeeMaxLamports);
+  const quoteExpirationSeconds = number(config.quoteExpirationSeconds);
+  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null) return null;
+  return {
+    priorityFeeMaxLamports,
+    priorityFeeStrategy: typeof config.priorityFeeStrategy === "string" ? config.priorityFeeStrategy : "auto",
+    quoteExpirationSeconds
   };
 }
 
@@ -168,7 +214,13 @@ function normalizePosition(row) {
     // Targets and stops live in `plan`, which is the single place a unit is interpreted.
     // The raw columns are deliberately not carried through: they are ambiguous on their
     // own, and reading one directly is how the 100x take-profit error happened.
-    settings: { slippageBps: Number(row.slippage_bps ?? 300) },
+    settings: {
+      slippageBps: Number(row.slippage_bps ?? 300),
+      // The exit is priced under the SAME configuration snapshot the position was opened
+      // under — entry_config, which positions_entry_config_guard makes immutable — so editing
+      // the bot cannot change how an already-open position pays to get out.
+      execution: executionPolicy(row.entry_config)
+    },
     status: row.status || "open",
     pending: row.pending_exit_sig
       ? {
@@ -201,6 +253,10 @@ function decideExit({ position, price }) {
 
   const mult = price / position.entryPriceUsd;
   const { plan } = position;
+  // The master. Off means the owner exits by hand — including the stop, which is why the
+  // builder says so plainly rather than burying it. Checked before the stop so there is
+  // exactly one place automated exits can be refused.
+  if (plan.autoExit === false) return null;
   // The peak includes this tick: a price that has just made a new high must be usable for
   // trailing immediately, not only after the write that persists it lands.
   const peak = Math.max(position.peakMultiple, mult);
@@ -434,7 +490,16 @@ function startMonitor(deps, pollMs = POLL_MS) {
 
     let sig = null;
     try {
-      const { tx } = await sellToken(position.mint, decision.amountRaw.toString(), position.userPubkey, position.settings.slippageBps);
+      const { tx, quotedAtMs } = await sellToken(
+        position.mint, decision.amountRaw.toString(), position.userPubkey,
+        position.settings.slippageBps, position.settings.execution
+      );
+      if (quoteExpired({
+        quotedAtMs, nowMs: Date.now(),
+        quoteExpirationSeconds: position.settings.execution?.quoteExpirationSeconds
+      })) {
+        throw new Error("quote expired before submission");
+      }
       sig = await signAndSend(tx, position.walletId);
       if (!sig) throw new Error("signer returned no signature");
       // Persist the signature IMMEDIATELY. If the process dies between submission and this
@@ -492,6 +557,6 @@ function startMonitor(deps, pollMs = POLL_MS) {
 }
 
 module.exports = {
-  startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition,
+  startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition, executionPolicy,
   isProfitTarget, exitPlan, fillState, MAX_EXIT_ATTEMPTS
 };

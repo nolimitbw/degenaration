@@ -33,7 +33,7 @@ import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 import { pendingNotice } from "@/lib/bot-control-contract";
 
 type TpLevel = { targetBps: number; sellBps: number; trailingBps: number; enabled: boolean };
-type DcaLevel = { dropBps: number; buyAmountSol: number };
+type DcaLevel = { dropBps: number; buyAmountSol: number; enabled: boolean };
 type FilterValue = { enabled: boolean; min: number; max: number };
 
 type FilterDefinition = {
@@ -169,6 +169,24 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   // they govern whether the bot may act at all, and each is enforced at the point it matters:
   // auto-entry and the emergency stop inside worker_claim_call_execution, auto-exit inside the
   // exit monitor. See supabase/degenaration-bot-entry-limits.sql and server/engine/monitor.js.
+  /**
+   * The switch layer for the numeric limits.
+   *
+   * Each limit keeps its number at all times: `subscriber_config_valid` requires several of
+   * them to be present and numeric, so "off" cannot be expressed by clearing the field. The
+   * flag is what the claim reads, and absent reads as ON so an existing bot keeps the limit
+   * its owner typed.
+   */
+  const [limits, setLimits] = useState({
+    maxOpenTrades: true,
+    maximumCapital: true,
+    dailyLoss: true,
+    perTokenExposure: true,
+    cooldown: true,
+    priorityFee: true
+  });
+  const setLimit = (key: keyof typeof limits, on: boolean) =>
+    setLimits((current) => ({ ...current, [key]: on }));
   const [autoEntry, setAutoEntry] = useState(true);
   const [autoExit, setAutoExit] = useState(true);
   const [killSwitch, setKillSwitch] = useState(false);
@@ -189,8 +207,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [lookbackMinutes, setLookbackMinutes] = useState(60);
   const [dcaEnabled, setDcaEnabled] = useState(true);
   const [dcaLevels, setDcaLevels] = useState<DcaLevel[]>([
-    { dropBps: 1000, buyAmountSol: 0.25 },
-    { dropBps: 2000, buyAmountSol: 0.25 }
+    { dropBps: 1000, buyAmountSol: 0.25, enabled: true },
+    { dropBps: 2000, buyAmountSol: 0.25, enabled: true }
   ]);
   const [dcaExpirationMinutes, setDcaExpirationMinutes] = useState(240);
   const [autoRefreshMinutes, setAutoRefreshMinutes] = useState(15);
@@ -299,6 +317,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         // Absent means a bot saved before these existed, and such a bot was automating both
         // sides. Defaulting them off would silently stop live bots the first time their owner
         // opened the editor; the emergency stop is the opposite and defaults off.
+        setLimits((current) => ({
+          maxOpenTrades: config.limits?.maxOpenTrades !== false,
+          maximumCapital: config.limits?.maximumCapital !== false,
+          dailyLoss: config.limits?.dailyLoss !== false,
+          perTokenExposure: config.limits?.perTokenExposure !== false,
+          cooldown: config.limits?.cooldown !== false,
+          priorityFee: config.limits?.priorityFee !== false,
+          ...(config.limits && typeof config.limits === "object" ? {} : current)
+        }));
         setAutoEntry(config.autoEntry !== false);
         setAutoExit(config.autoExit !== false);
         setKillSwitch(Boolean(config.killSwitch));
@@ -320,7 +347,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         if (Array.isArray(config.dca?.levels)) {
           setDcaLevels(config.dca.levels.map((level: Partial<DcaLevel>) => ({
             dropBps: numberOr(level.dropBps, 1000),
-            buyAmountSol: numberOr(level.buyAmountSol, 0.25)
+            buyAmountSol: numberOr(level.buyAmountSol, 0.25),
+            // A saved level with no explicit flag predates per-level switches and was, by
+            // definition, active. The take-profit levels take the same reading, for the same
+            // reason: defaulting to off would silently disable staged entries on every
+            // existing bot the first time its owner opened the editor.
+            enabled: level.enabled !== false
           })));
         }
         setDcaExpirationMinutes(numberOr(config.dca?.expirationMinutes, 240));
@@ -338,7 +370,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
   const source = sources.find((item) => item.id === sourceId);
   const tpAllocationBps = tpLevels.reduce((total, level) => total + level.sellBps, 0);
-  const dcaCapital = dcaEnabled ? dcaLevels.reduce((total, level) => total + level.buyAmountSol, 0) : 0;
+  const dcaCapital = dcaEnabled
+    ? dcaLevels.filter((level) => level.enabled).reduce((total, level) => total + level.buyAmountSol, 0)
+    : 0;
   const requiredCapital = (buyAmountSol + dcaCapital) * maxOpenTrades;
   const enabledSafetyCount = Object.values(filters).filter((filter) => filter.enabled).length + Object.values(flags).filter(Boolean).length;
   const totalSafetyCount = FILTERS.length + FLAG_FILTERS.length;
@@ -456,6 +490,17 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       autoEntry,
       autoExit,
       killSwitch,
+      // Spelled out rather than spread, so check:bot-control-contract sees one path per switch
+      // and each has to name the reader that enforces it. A spread would declare as a single
+      // opaque "limits" and let a new switch in silently.
+      limits: {
+        maxOpenTrades: limits.maxOpenTrades,
+        maximumCapital: limits.maximumCapital,
+        dailyLoss: limits.dailyLoss,
+        perTokenExposure: limits.perTokenExposure,
+        cooldown: limits.cooldown,
+        priorityFee: limits.priorityFee
+      },
       buyAmountLamports: solToLamports(buyAmountSol),
       maximumCapitalLamports: solToLamports(maximumCapitalSol),
       dailyLossLimitLamports: solToLamports(dailyLossSol),
@@ -497,9 +542,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       } : null,
       dca: kind === "kol" ? {
         enabled: dcaEnabled,
-        levels: dcaLevels,
+        // An off level is persisted as ABSENT, the same rule the take-profit levels follow:
+        // leaving a disabled level in the list behind a flag nothing checks is how a switched-
+        // off control keeps buying.
+        levels: dcaLevels.filter((level) => level.enabled),
         expirationMinutes: Math.round(dcaExpirationMinutes),
-        maximumEntries: dcaLevels.length
+        maximumEntries: dcaLevels.filter((level) => level.enabled).length
       } : { enabled: false, levels: [] },
       scanner: {
         preset,
@@ -696,8 +744,18 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             )}
             <div className="grid gap-4 md:grid-cols-3">
               <NumberField label="Buy amount" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
-              <NumberField label="Maximum capital" value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} />
-              <NumberField label="Maximum open trades" value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} />
+              <LimitField
+                label="Maximum capital" on={limits.maximumCapital}
+                onToggle={(on) => setLimit("maximumCapital", on)}
+              >
+                <NumberField label="Maximum capital" hideLabel value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} />
+              </LimitField>
+              <LimitField
+                label="Maximum open trades" on={limits.maxOpenTrades}
+                onToggle={(on) => setLimit("maxOpenTrades", on)}
+              >
+                <NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} />
+              </LimitField>
             </div>
             <div className="flex flex-wrap gap-2">
               {[0.1, 0.5, 1, 5].map((amount) => (
@@ -713,8 +771,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
               <div className="grid gap-4 border-t border-edge p-3 sm:grid-cols-2">
-                <NumberField label="Daily loss limit" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
-                <NumberField label="Per-token exposure" value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} />
+                <LimitField label="Daily loss limit" on={limits.dailyLoss} onToggle={(on) => setLimit("dailyLoss", on)}>
+                  <NumberField label="Daily loss limit" hideLabel value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.dailyLoss} />
+                </LimitField>
+                <LimitField label="Per-token exposure" on={limits.perTokenExposure} onToggle={(on) => setLimit("perTokenExposure", on)}>
+                  <NumberField label="Per-token exposure" hideLabel value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} />
+                </LimitField>
               </div>
             </details>
             <div className="rounded-md border border-edge bg-void px-4 py-3">
@@ -772,16 +834,29 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 <>
                   <div className="divide-y divide-edge rounded-md border border-edge">
                     {dcaLevels.map((level, index) => (
-                      <div key={index} className="grid gap-3 p-3 sm:grid-cols-[64px_repeat(2,minmax(0,1fr))_36px] sm:items-end">
-                        <p className="font-mono text-xs text-dim sm:self-center">DCA {index + 1}</p>
-                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} additional drop`} value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" /></span></label>
-                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} buy amount`} value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" /></span></label>
+                      <div key={index} className="grid gap-3 p-3 sm:grid-cols-[92px_repeat(2,minmax(0,1fr))_36px] sm:items-end">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={level.enabled}
+                          aria-label={`Dollar-cost averaging level ${index + 1}`}
+                          onClick={() => updateDca(index, { enabled: !level.enabled })}
+                          className="flex min-h-11 items-center gap-2 text-left sm:min-h-0 sm:self-center"
+                        >
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled ? "bg-up" : "bg-edge"}`} />
+                          <span className="font-mono text-xs text-dim">DCA {index + 1}</span>
+                          <span className={`font-mono text-[9px] uppercase ${level.enabled ? "text-up" : "text-dim"}`}>
+                            {level.enabled ? "On" : "Off"}
+                          </span>
+                        </button>
+                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} additional drop`} value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" disabled={!level.enabled} /></span></label>
+                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} buy amount`} value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" disabled={!level.enabled} /></span></label>
                         <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
                       </div>
                     ))}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25 }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
+                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25, enabled: true }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
                     <NumberField label="DCA expiration" value={dcaExpirationMinutes} onChange={(value) => setDcaExpirationMinutes(Math.round(value))} unit="min" step={30} min={30} max={10080} compact />
                   </div>
                 </>
@@ -927,11 +1002,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <SelectField label="Entry mode" value={entryMode} onChange={(value) => setEntryMode(value as typeof entryMode)} options={[{ value: "market", label: "Market route" }, { value: "limit", label: "Limit entry" }]} />
               <NumberField label="Slippage cap" value={slippageBps / 100} onChange={(value) => setSlippageBps(Math.round(value * 100))} unit="%" step={0.25} min={0.01} max={20} />
               <SelectField label="Priority fee" value={priorityStrategy} onChange={(value) => setPriorityStrategy(value as typeof priorityStrategy)} options={[{ value: "economy", label: "Economy" }, { value: "auto", label: "Automatic" }, { value: "fast", label: "Fast" }]} />
-              <NumberField label="Priority fee maximum" value={priorityFeeMax} onChange={(value) => setPriorityFeeMax(Math.round(value))} unit="lamports" step={100000} min={0} max={100000000} />
+              <LimitField label="Priority fee maximum" on={limits.priorityFee} onToggle={(on) => setLimit("priorityFee", on)}>
+                <NumberField label="Priority fee maximum" hideLabel value={priorityFeeMax} onChange={(value) => setPriorityFeeMax(Math.round(value))} unit="lamports" step={100000} min={0} max={100000000} disabled={!limits.priorityFee} />
+              </LimitField>
               <NumberField label="Auto retries" value={autoRetryCount} onChange={(value) => setAutoRetryCount(Math.round(value))} unit="tries" step={1} min={0} max={10} />
               <NumberField label="Limit retries" value={limitRetryCount} onChange={(value) => setLimitRetryCount(Math.round(value))} unit="tries" step={1} min={0} max={10} />
               <NumberField label="Quote expiration" value={quoteExpirationSeconds} onChange={(value) => setQuoteExpirationSeconds(Math.round(value))} unit="sec" step={5} min={5} max={300} />
-              <NumberField label="Token cooldown" value={cooldownSeconds / 60} onChange={(value) => setCooldownSeconds(Math.round(value * 60))} unit="min" step={5} min={0} max={10080} />
+              <LimitField label="Token cooldown" on={limits.cooldown} onToggle={(on) => setLimit("cooldown", on)}>
+                <NumberField label="Token cooldown" hideLabel value={cooldownSeconds / 60} onChange={(value) => setCooldownSeconds(Math.round(value * 60))} unit="min" step={5} min={0} max={10080} disabled={!limits.cooldown} />
+              </LimitField>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Toggle label="Transaction simulation" detail="Reject the order when simulation is unavailable or fails." checked={simulationRequired} onChange={setSimulationRequired} />
@@ -1247,6 +1326,49 @@ function SelectField({ label, value, onChange, options }: { label: string; value
   );
 }
 
+/**
+ * A numeric limit with its own ON/OFF switch.
+ *
+ * The switch is not cosmetic and it is not the same as clearing the field. Every one of these
+ * limits keeps its number at all times — `subscriber_config_valid` requires several of them to
+ * be present and numeric — so "off" is expressed by the flag in `config.limits`, which
+ * worker_claim_call_execution reads before it applies the corresponding cap.
+ *
+ * The state is in the text, not only in the colour: FINAL_LAUNCH_SPEC requires every switch to
+ * SAY On or Off, and a green dot alone is unreadable to anyone who cannot distinguish it.
+ */
+function LimitField({
+  label,
+  on,
+  onToggle,
+  children
+}: {
+  label: string;
+  on: boolean;
+  onToggle: (on: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="field-label">{label}</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label={`${label} limit`}
+          onClick={() => onToggle(!on)}
+          className="flex min-h-11 items-center gap-1.5 sm:min-h-0"
+        >
+          <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-up" : "bg-edge"}`} />
+          <span className={`font-mono text-[9px] uppercase ${on ? "text-up" : "text-dim"}`}>{on ? "On" : "Off"}</span>
+        </button>
+      </div>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
 function NumberField({
   label,
   value,
@@ -1256,7 +1378,8 @@ function NumberField({
   min,
   max = 1_000_000_000,
   compact = false,
-  disabled = false
+  disabled = false,
+  hideLabel = false
 }: {
   label: string;
   value: number;
@@ -1266,6 +1389,12 @@ function NumberField({
   min: number;
   max?: number;
   compact?: boolean;
+  /**
+   * The label is drawn by an enclosing LimitField, beside its switch. Hidden VISUALLY only —
+   * the input keeps its accessible name through NumericTextInput's ariaLabel, so a screen
+   * reader still hears "Maximum capital" rather than an unnamed spin button.
+   */
+  hideLabel?: boolean;
   /**
    * Semantically disabled, not just faded. A module switched off must leave its fields
    * unreachable by keyboard too — a greyed field that still accepts Tab and edits is a
@@ -1279,7 +1408,7 @@ function NumberField({
   const update = (next: number) => onChange(Math.min(max, Math.max(min, Number(next.toFixed(6)))));
   return (
     <label className={`${compact ? "block min-w-64" : "block"}${disabled ? " opacity-45" : ""}`}>
-      <span className="field-label">{label}</span>
+      {!hideLabel && <span className="field-label">{label}</span>}
       <span className="field-control mt-1.5 flex overflow-hidden">
         <button type="button" disabled={disabled} onClick={() => update(value - step)} className="grid h-11 w-10 shrink-0 place-items-center border-r border-edge text-dim hover:text-ink disabled:pointer-events-none" aria-label={`Decrease ${label}`}><Minus size={13} /></button>
         <NumericTextInput

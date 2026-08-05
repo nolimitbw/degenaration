@@ -118,6 +118,51 @@ function platformFeeSol(solAmount) {
   return Number(fee) / LAMPORTS_PER_SOL;
 }
 
+/**
+ * The bot's priority-fee policy, as Jupiter's swap API expects it.
+ *
+ * `prioritizationFeeLamports: "auto"` was hard-coded, so `priorityFeeStrategy` and
+ * `priorityFeeMaxLamports` were collected, range-validated on save, reloaded into the editor —
+ * and could not affect what a submission paid. Jupiter accepts a cap and a level instead, which
+ * is exactly what the two controls mean.
+ *
+ * An absent or non-positive cap falls back to "auto", because a cap of zero means "the owner
+ * never set one", not "pay nothing" — and paying nothing is a transaction that never lands.
+ */
+const PRIORITY_LEVELS = { economy: "low", auto: "medium", fast: "high" };
+
+function prioritizationFee(execution) {
+  // `= {}` is not enough: a default only fires for `undefined`, and the callers pass through a
+  // resolver that returns NULL for "nothing configured". Destructuring that throws, which would
+  // take down the submission for the most ordinary case there is.
+  const { priorityFeeMaxLamports, priorityFeeStrategy } = execution || {};
+  const maxLamports = Math.floor(Number(priorityFeeMaxLamports));
+  if (!Number.isFinite(maxLamports) || maxLamports <= 0) return "auto";
+  return {
+    priorityLevelWithMaxLamports: {
+      maxLamports,
+      priorityLevel: PRIORITY_LEVELS[priorityFeeStrategy] || PRIORITY_LEVELS.auto
+    }
+  };
+}
+
+/**
+ * Whether a quote is still fresh enough to submit.
+ *
+ * `quoteExpirationSeconds` had no reader: the engine applied its own window and a bot
+ * configured for 10 seconds submitted a quote it had held for a minute. Zero or absent means
+ * unset, and falls back to the engine's default rather than expiring everything instantly.
+ */
+const DEFAULT_QUOTE_TTL_SECONDS = 30;
+
+function quoteExpired(args) {
+  const { quotedAtMs, nowMs, quoteExpirationSeconds } = args || {};
+  if (!Number.isFinite(quotedAtMs) || !Number.isFinite(nowMs)) return false;
+  const configured = Math.floor(Number(quoteExpirationSeconds));
+  const ttl = Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_QUOTE_TTL_SECONDS;
+  return nowMs - quotedAtMs > ttl * 1000;
+}
+
 async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) {
   const url = new URL(`${JUP}/quote`);
   url.searchParams.set("inputMint", inputMint);
@@ -138,7 +183,7 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
 }
 
 /** Build unsigned swap tx — signed by the USER's delegated session key, never by us. */
-async function buildSwapTx({ quote, userPublicKey }) {
+async function buildSwapTx({ quote, userPublicKey, execution }) {
   // Mirror the quote decision exactly. Requesting platformFeeBps without feeAccount (or the
   // reverse) makes Jupiter reject the build, so both calls must agree on the same mint.
   const outputMint = quote?.outputMint;
@@ -147,7 +192,7 @@ async function buildSwapTx({ quote, userPublicKey }) {
     userPublicKey,
     wrapAndUnwrapSol: true,
     dynamicComputeUnitLimit: true,
-    prioritizationFeeLamports: "auto"
+    prioritizationFeeLamports: prioritizationFee(execution)
   };
   await ensureFeeAccountChecked();
   if (feeAppliesToOutput(outputMint)) swapBody.feeAccount = FEE_ACCOUNT;
@@ -187,16 +232,27 @@ function solToLamports(solAmount) {
   return Math.round(amount * LAMPORTS_PER_SOL);
 }
 
-const buyToken = (mint, solAmount, userPublicKey, slippageBps = 300) =>
+/**
+ * `execution` carries the bot's own priority-fee policy and quote freshness window, resolved
+ * from the subscriber's immutable configuration snapshot. Omitted, both fall back to the engine
+ * defaults, which is what a legacy subscription with no builder configuration gets.
+ *
+ * `quotedAtMs` is returned rather than checked here: the caller submits, so the caller is the
+ * only place that knows how long the quote was actually held.
+ */
+const buyToken = (mint, solAmount, userPublicKey, slippageBps = 300, execution = null) =>
   getQuote({ inputMint: SOL_MINT, outputMint: mint, amountLamports: solToLamports(solAmount), slippageBps })
-    .then(quote => buildSwapTx({ quote, userPublicKey }).then(tx => ({ quote, tx })));
+    .then(quote => buildSwapTx({ quote, userPublicKey, execution })
+      .then(tx => ({ quote, tx, quotedAtMs: Date.now() })));
 
-const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300) =>
+const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300, execution = null) =>
   getQuote({ inputMint: mint, outputMint: SOL_MINT, amountLamports: tokenAmountRaw, slippageBps })
-    .then(quote => buildSwapTx({ quote, userPublicKey }).then(tx => ({ quote, tx })));
+    .then(quote => buildSwapTx({ quote, userPublicKey, execution })
+      .then(tx => ({ quote, tx, quotedAtMs: Date.now() })));
 
 module.exports = {
   getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports, solToLamports,
+  prioritizationFee, quoteExpired, PRIORITY_LEVELS, DEFAULT_QUOTE_TTL_SECONDS,
   ensureFeeAccountChecked, __setFeeAccountUsable, feeAppliesToOutput,
   SOL_MINT, PLATFORM_FEE_BPS,
   // APPLY_FEE is resolved asynchronously by the probe, so it is exposed as a getter

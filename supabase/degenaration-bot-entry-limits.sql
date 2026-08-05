@@ -211,6 +211,8 @@ declare
   v_exposure record;
   v_reason text;
   v_status integer;
+  v_limits jsonb;
+  v_daily_cap_on boolean;
 begin
   select c.group_id, c.mint into v_group_id, v_mint
   from public.calls c
@@ -275,10 +277,31 @@ begin
 
   -- Absent means "not configured", which is not the same as zero. A zero maximum would
   -- otherwise refuse every trade on a bot whose owner never set that limit.
-  v_max_open := nullif(v_config->>'maxOpenTrades', '')::integer;
-  v_max_capital := nullif(v_config->>'maximumCapitalLamports', '')::bigint;
-  v_per_token := nullif(v_config->>'perTokenExposureLamports', '')::bigint;
-  v_cooldown := nullif(v_config->>'cooldownSeconds', '')::integer;
+  --
+  -- `limits` is the switch layer. Each limit keeps a number at all times — the configuration
+  -- validator requires several of them to be present and numeric, so an off switch cannot be
+  -- expressed by removing the value — and `limits.<name> = false` is what turns it off. Absent
+  -- reads as ON, which is correct in both directions: a bot saved before the switches existed
+  -- gets the limit its owner typed, and one saved before the limits were enforced at all is in
+  -- exactly the state this migration is fixing.
+  v_limits := case
+    when jsonb_typeof(v_config->'limits') = 'object' then v_config->'limits'
+    else '{}'::jsonb
+  end;
+
+  if coalesce((v_limits->>'maxOpenTrades')::boolean, true) then
+    v_max_open := nullif(v_config->>'maxOpenTrades', '')::integer;
+  end if;
+  if coalesce((v_limits->>'maximumCapital')::boolean, true) then
+    v_max_capital := nullif(v_config->>'maximumCapitalLamports', '')::bigint;
+  end if;
+  if coalesce((v_limits->>'perTokenExposure')::boolean, true) then
+    v_per_token := nullif(v_config->>'perTokenExposureLamports', '')::bigint;
+  end if;
+  if coalesce((v_limits->>'cooldown')::boolean, true) then
+    v_cooldown := nullif(v_config->>'cooldownSeconds', '')::integer;
+  end if;
+  v_daily_cap_on := coalesce((v_limits->>'dailyLoss')::boolean, true);
   v_first_only := coalesce((v_config->>'firstCallOnly')::boolean, false);
 
   select * into v_exposure
@@ -319,7 +342,9 @@ begin
   end if;
 
   v_spent := case when v_sub.daily_spent_on = v_day then coalesce(v_sub.daily_spent, 0) else 0 end;
-  if v_spent + v_sub.size_sol > v_sub.daily_cap_sol then
+  -- The daily cap keeps ACCRUING whether or not it is enforced, so switching it back on does
+  -- not hand the bot a fresh day's budget. Only the refusal is switched.
+  if v_daily_cap_on and v_spent + v_sub.size_sol > v_sub.daily_cap_sol then
     insert into app_private.call_executions (
       call_id, subscription_id, claim_token, status, amount_sol, amount_lamports,
       error, finished_at

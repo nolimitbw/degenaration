@@ -105,6 +105,43 @@ function subscriberSafety(subscription) {
   // Legacy subscription with no builder config: platform baseline checks still applied.
   return { ok: true, safety: null, fromBuilder: false };
 }
+/**
+ * The subscriber's own execution policy — priority fee and quote freshness.
+ *
+ * Resolved from the SAME snapshot `subscriberSafety` reads, deliberately: two resolvers over
+ * two sources is how the filters and the limits would drift apart, and the immutable snapshot
+ * is the configuration the trade is authorised under.
+ *
+ * Returns null when there is nothing configured, which the engine reads as "use the platform
+ * default". That is not the same as returning zeros: a zero priority-fee cap would mean paying
+ * nothing, and a zero quote window would expire every quote before it could be submitted.
+ */
+function subscriberExecution(subscription) {
+  const row = subscription || {};
+  const snapshot = row.subscriber_config_snapshot;
+  const hasSnapshot = snapshot && typeof snapshot === "object" && Object.keys(snapshot).length > 0
+    && snapshot.compatibilityMode !== "legacy-baseline";
+  const config = hasSnapshot ? snapshot : row.extended_config;
+  if (!config || typeof config !== "object") return null;
+
+  const number = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  };
+  // The switch layer. `limits.priorityFee = false` means the owner turned the cap off, which
+  // is not the same as a cap of zero: off falls back to the aggregator's own policy, zero would
+  // build a transaction that never lands. Absent reads as on.
+  const limits = config.limits && typeof config.limits === "object" ? config.limits : {};
+  const priorityFeeMaxLamports = limits.priorityFee === false ? null : number(config.priorityFeeMaxLamports);
+  const quoteExpirationSeconds = number(config.quoteExpirationSeconds);
+  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null) return null;
+  return {
+    priorityFeeMaxLamports,
+    priorityFeeStrategy: typeof config.priorityFeeStrategy === "string" ? config.priorityFeeStrategy : "auto",
+    quoteExpirationSeconds
+  };
+}
+
 const recordTrade = (evt) => sbInsert("trades", {
   privy_user_id: evt.privy_user_id || null,
   user_pubkey: evt.user || evt.user_pubkey || null,
@@ -253,4 +290,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { subscriberSafety, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };
+module.exports = { subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };

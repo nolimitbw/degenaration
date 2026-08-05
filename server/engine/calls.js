@@ -6,7 +6,7 @@
  */
 const { rugCheck } = require("./rugcheck");
 const { evaluateSafety } = require("./safety");
-const { buyToken } = require("./jupiter");
+const { buyToken, quoteExpired } = require("./jupiter");
 
 // Pure, testable: calls that are executable and not yet handled this run.
 // A call is executable if it has a mint + group and has not been executed.
@@ -31,7 +31,10 @@ function startCallWatcher(deps, pollMs = 8000) {
   const { loadPendingCalls, loadGroupSubscribers, claimCallExecution, finishCallExecution, submitCallExecution, completeCall, markCallExecuted, signAndSend, onEvent = () => {},
     // Resolves a subscriber's own safety filters. Defaults to "no builder config", which
     // keeps legacy rows on the platform baseline rather than failing them closed.
-    subscriberSafety = () => ({ ok: true, safety: null, fromBuilder: false }) } = deps;
+    subscriberSafety = () => ({ ok: true, safety: null, fromBuilder: false }),
+    // The subscriber's own priority-fee policy and quote freshness window. Defaults to "not
+    // configured", which the engine reads as the platform default rather than as zero.
+    subscriberExecution = () => null } = deps;
   const seen = new Set();
 
   const runTick = async () => {
@@ -87,8 +90,21 @@ function startCallWatcher(deps, pollMs = 8000) {
           continue;
         }
         let sig = null;
+        // The bot's own execution policy. Read once per subscriber, from the same immutable
+        // snapshot its safety filters came from, so a trade cannot be priced under one
+        // configuration and filtered under another.
+        const execution = subscriberExecution(s);
         try {
-          const { tx } = await buyToken(c.mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300);
+          const { tx, quotedAtMs } = await buyToken(
+            c.mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300, execution
+          );
+          // The configured freshness window, enforced between building and submitting. Without
+          // this the control saved, validated and reloaded while the engine applied its own
+          // window to every bot. Refusing here is the safe direction: a stale quote submitted
+          // is a fill at a price the user never agreed to.
+          if (quoteExpired({ quotedAtMs, nowMs: Date.now(), quoteExpirationSeconds: execution?.quoteExpirationSeconds })) {
+            throw new Error("quote expired before submission");
+          }
           sig = await signAndSend(tx, claim.wallet_id); // walletId signs the tx built for user_pubkey
           // SUBMITTED, not succeeded. signAndSend returns as soon as Privy sends the
           // transaction, and a swap can still fail on chain for slippage or an expired
