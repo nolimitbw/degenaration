@@ -11,6 +11,24 @@ import { getPublicSource } from "@/lib/publicSource";
 type Props = { params: Promise<{ slug: string }> };
 
 const metric = (value: number | null, digits = 1) => value == null ? "Pending" : `${value.toFixed(digits)}x`;
+
+/**
+ * The price a call was made at, in the smallest form that stays readable.
+ *
+ * Memecoin prices routinely sit below a cent, and `toFixed(2)` renders every one of them as
+ * "$0.00" — a number that looks recorded and says nothing. Below a cent this switches to
+ * significant digits so 0.00002341 reads as itself.
+ */
+const usd = (value: number | null) => {
+  if (value == null) return "Collecting data";
+  if (value >= 1) return `$${value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  if (value >= 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toPrecision(3)}`;
+};
+
+/** Market cap and liquidity, which are always large enough for compact notation. */
+const compactUsd = (value: number | null) =>
+  value == null ? "Collecting data" : `$${Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)}`;
 const safeDiscordInvite = (value: string | null) => {
   if (!value) return null;
   try {
@@ -91,9 +109,9 @@ export default async function SourceProfile({ params }: Props) {
             <h2 className="text-sm font-bold">Latest calls</h2>
             <div className="mt-3 overflow-x-auto rounded-md border border-edge">
               {source.recentCalls.length ? (
-                <table className="w-full min-w-[680px] text-left">
+                <table className="w-full min-w-[980px] text-left">
                   <thead className="bg-panel font-mono text-[10px] uppercase text-dim">
-                    <tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Caller</th><th className="px-4 py-3">Called</th><th className="px-4 py-3">Current</th><th className="px-4 py-3">Peak</th><th className="px-4 py-3">Report</th></tr>
+                    <tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Caller</th><th className="px-4 py-3">Called</th><th className="px-4 py-3">Call price</th><th className="px-4 py-3">Market cap</th><th className="px-4 py-3">Liquidity</th><th className="px-4 py-3">Current</th><th className="px-4 py-3">Peak</th><th className="px-4 py-3">Report</th></tr>
                   </thead>
                   <tbody>
                     {source.recentCalls.map((call) => (
@@ -101,9 +119,19 @@ export default async function SourceProfile({ params }: Props) {
                         <td className="px-4 py-3 font-bold text-ink">{call.symbol || call.mint?.slice(0, 8) || "Unknown"}</td>
                         <td className="px-4 py-3 text-dim">{call.caller || "Channel call"}</td>
                         <td className="px-4 py-3 text-dim">{call.calledAt ? new Date(call.calledAt).toLocaleDateString() : "-"}</td>
+                        {/* The immutable call-time snapshot, never recomputed. An absent figure
+                            says "Collecting data" rather than $0.00, which would read as a
+                            recorded price of nothing. */}
+                        <td className="px-4 py-3 tabular-nums text-ink">{usd(call.calledPriceUsd)}</td>
+                        <td className="px-4 py-3 tabular-nums text-dim">{compactUsd(call.calledMcapUsd)}</td>
+                        <td className="px-4 py-3 tabular-nums text-dim">{compactUsd(call.calledLiquidityUsd)}</td>
                         <td className="px-4 py-3">{metric(call.currentX, 2)}</td>
                         <td className="px-4 py-3 font-bold text-up">{metric(call.peakX, 2)}</td>
-                        <td className="px-4 py-3">{call.mint ? <Link href={`/risk/${call.mint}`} className="text-gold-400 hover:underline">Risk report</Link> : "-"}</td>
+                        {/* The row's only action. It measured 16px tall at 390px — a third of the minimum —
+                            which the audit caught once it was pointed at a real slug rather than
+                            one that 404'd. The link is inline text, so the hit area grows
+                            without changing how the row reads. */}
+                        <td className="px-4 py-3">{call.mint ? <Link href={`/risk/${call.mint}`} className="inline-flex min-h-11 items-center text-gold-400 hover:underline sm:min-h-0">Risk report</Link> : "-"}</td>
                       </tr>
                     ))}
                   </tbody>

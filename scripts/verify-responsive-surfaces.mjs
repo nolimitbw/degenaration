@@ -258,7 +258,21 @@ const SURFACES = [
   { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Discord Bot')" },
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: `/bots/discord/${SOURCE_MEASURED.id}`, name: "discord-source-detail", ready: "document.body.innerText.includes('Alpha Desk')" },
-  { route: "/bots/kol", name: "kol-marketplace", ready: "document.body.innerText.length > 200" }
+  { route: "/bots/kol", name: "kol-marketplace", ready: "document.body.innerText.length > 200" },
+  // The public source profile. Its "Latest calls" table gained call price, market cap and
+  // liquidity, taking it to nine columns — the exact shape that overflows a 390px page if the
+  // scroll container is wrong.
+  //
+  // A REAL slug, and a predicate that proves the profile rendered. The first version used a
+  // fixture slug that does not exist, so the page 404'd and the audit measured the not-found
+  // page for four widths while reporting "source-profile" — the finding it produced was a
+  // 32px brand link on the 404 page. getPublicSource reads Supabase with the publishable key,
+  // so a real slug renders real data here without any credential.
+  {
+    route: "/source/degenaration-548e33f6",
+    name: "source-profile",
+    ready: "document.body.innerText.includes('All-time recorded performance')"
+  }
 ];
 
 for (const surface of SURFACES) {

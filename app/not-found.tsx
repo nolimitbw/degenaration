@@ -4,7 +4,7 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <main id="main-content" tabIndex={-1} className="grid-bg flex min-h-screen flex-col items-center justify-center gap-4 px-5 text-center">
-      <Link href="/" className="text-2xl font-bold">
+      <Link href="/" className="inline-flex min-h-11 min-w-11 items-center text-2xl font-bold sm:min-h-0 sm:min-w-0">
         DEGEN<span className="text-gold-400 text-glow-gold">ARATION</span>
       </Link>
       <p className="font-mono text-6xl font-bold text-gold-400">404</p>
