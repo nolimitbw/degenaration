@@ -1,0 +1,50 @@
+# What NOT to upload to Vercel.
+#
+# WHY THIS EXISTS. The first CLI deploy of this project reported "Uploading (0.0B/426.9MB)"
+# and failed on transport. The tracked tree is 24MB — `git ls-files | du -ch` — so roughly
+# 400MB of it was build output and dependency trees the platform reinstalls and rebuilds
+# anyway. A 426MB upload is slow, fragile, and hides what is actually being shipped.
+#
+# EVERY DIRECTORY PATTERN IS ANCHORED WITH A LEADING SLASH, and that is load-bearing.
+# .vercelignore matches at any depth, exactly like .gitignore. The first version of this file
+# wrote `server`, `supabase` and `docs` unanchored, which also matched:
+#
+#     lib/server/*        the entire server-side library — the build failed with
+#                         "Can't resolve '@/lib/server/admin'"
+#     lib/supabase.ts     the Supabase client
+#     app/docs/page.tsx   a live route, which would have vanished from the build
+#
+# The first of those failed loudly. The third would not have: the route would simply have
+# stopped existing, and nothing in the deploy output would have said so.
+#
+# Nothing here changes what the application DOES. The Next build reads app/, components/,
+# lib/, public/ and the manifests; none of the paths below is imported by any of them.
+
+# Reinstalled and rebuilt by the platform. Deliberately unanchored: node_modules must match at
+# every depth, which is what picks up server/node_modules and server/bot/node_modules.
+node_modules
+.next
+tsconfig.tsbuildinfo
+
+# The Discord listener and the trading worker. Deployed separately to Railway and Render, and
+# imported by nothing in the Next build — `grep -rn "from \"@/server" app lib components`
+# returns nothing. NOT lib/server, which the build needs.
+/server
+
+# Database migrations and rollback scripts. Applied through the Supabase MCP connection, never
+# read at request time. NOT lib/supabase.ts.
+/supabase
+
+# Verification tooling and its evidence. docs/ai/evidence holds several megabytes of
+# screenshots that no route serves. NOT app/docs, which is a route.
+/scripts
+/docs
+
+# Local-only.
+/.git
+/.github
+/.claude
+/.agents
+/.references
+*.log
+.DS_Store
