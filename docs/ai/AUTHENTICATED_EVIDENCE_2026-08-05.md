@@ -97,6 +97,27 @@ had been invisible: the brand home link is the 32px compact mark, so it was a **
 target on every route. Widened to 44 × 44 on mobile — the header row measures 307px of content
 in 390px, so the 12px is free, and the mark itself is untouched.
 
+## Every remaining sub-44px control on the deployed build, accounted for
+
+Re-measured with the corrected `min(width, height)` filter. The counts are HIGHER than the
+first pass because the filter now catches the two controls the height-only version passed.
+Every one is fixed in this repository and awaiting the application deploy — none is open:
+
+| Route (390px) | Count | Which controls |
+|---|---|---|
+| portfolio, positions, trades, movements | 2 | skip-link (36px, off-screen until focused) + nav button **21px wide** |
+| bot-manager, admin | 2 | same two |
+| onboarding | 3 | those two + the risk-acceptance checkbox label |
+| affiliate | 6 | those two + `Connect Discord`, `Add bot`, `Open application`, `Copy referral link` |
+
+The skip-link is not a touch target — it is `-translate-y-20` and only reachable by keyboard
+focus, at which point it is 137 × 36 with a visible focus ring. It is the irreducible baseline
+of this measurement, not a defect.
+
+After the deploy the expected count at 390px is **1 on every route**, the skip-link alone. The
+local audit already reports that: `verify:responsive` runs the current build and passes with
+zero findings under the same filter.
+
 ---
 
 ## What a session could NOT close, and why

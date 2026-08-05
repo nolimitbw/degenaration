@@ -15,7 +15,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 2,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -107,7 +107,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 2,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -199,7 +199,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 2,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -291,7 +291,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 2,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -383,7 +383,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 5,
+      "smallTapTargets": 6,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -475,7 +475,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 2,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -567,7 +567,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 2,
+      "smallTapTargets": 3,
       "signedIn": true,
       "spinners": 0,
       "headings": [
@@ -659,13 +659,13 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 2,
       "signedIn": true,
       "spinners": 0,
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:06 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed executions (24h)\n\nControlled execution attemp",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 1:23:27 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed executions (24h)\n\nControlled execution attempt",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-mobile-390x844.jpg"
@@ -688,7 +688,7 @@
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:12 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed executions (24h)\n\nControlled e",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 1:23:32 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed executions (24h)\n\nControlled ex",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-tablet-768-768x1024.jpg"
@@ -711,7 +711,7 @@
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:16 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed execu",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 1:23:37 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed execut",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-tablet-1024x768.jpg"
@@ -734,7 +734,7 @@
       "headings": [
         "Operations console"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 12:58:21 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed execu",
+      "visibleText": "Skip to content\nSOLANA MAINNET. You confirm every transaction in your own wallet. Automated trading and payouts are not yet available.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\n2skP...aWyg\n\nVERIFIED OWNER WORKSPACE\n\nOperations console\n\nReview Discord sources, moderate KOL strategies, reconcile creator payouts, inspect scanner and execution health, and control audited feature gates.\n\nRefresh\nflipthatsol@gmail.com · signed Google identity required\nLast synced 1:23:41 PM\nOverview\nDiscord\nKOL\nReferrals\nPayouts\nOperations\nUsers\nSystem\nAudit\n\nUSERS\n\n5\n\nACTIVE BOTS\n\n0\n\nOPEN POSITIONS\n\n0\n\nPENDING REVIEWS\n\n0\n\nOperational queue\n\nDatabase-backed state\n\nDiscord registrations\n\n/register submissions awaiting approval\n\n0\n\nKOL moderation\n\nStrategies awaiting owner review\n\n0\n\nPayout review\n\nExecution remains disabled\n\n0\n\nUnreconciled executions\n\nSubmitted or confirmed records\n\n0\n\nFailed execut",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "admin-desktop-1440x1000.jpg"
