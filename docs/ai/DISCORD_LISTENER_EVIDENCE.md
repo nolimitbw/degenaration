@@ -72,3 +72,34 @@ write path end to end; what has never arrived is a call embed.
 
 Until a real automated embed arrives, every surface shows a truthful state — Monitoring,
 Collecting data, Insufficient history — and no metric is fabricated.
+
+
+---
+
+## `server/.env` is stale local dev config, and it is a trap (2026-08-05)
+
+Checked while looking for a credential to drive an approved test webhook. Every value in it
+is wrong for production, and two of them fail in ways that imitate the exact fault this
+document exists to diagnose:
+
+| Key | Local value | Reality |
+|---|---|---|
+| `DISCORD_BOT_TOKEN` | a token for **`De Generation PR#8755`** | Production runs **`DegenAration#9645`**. The local application is in **0 guilds** and returns **403 Missing Access** on the approved channel |
+| `PLATFORM_FEE_ACCOUNT` | 9 characters | A Solana address is 32–44. This is a placeholder |
+| `ENGINE_WEBHOOK_URL` | `localhost:8787/call` | A dev endpoint |
+| `APPROVED_CHANNELS` | `{}` | Empty |
+
+**Why the token matters.** Running the listener locally with it produces a process that logs
+in, reports ready, registers commands in zero guilds and receives nothing — which is
+indistinguishable from the gateway fault we spent three rounds on, and would send anyone
+debugging it down the same path. The heartbeat now separates the two: a listener in 0 guilds
+reports `guilds: 0`, and one in 2 guilds receiving nothing reports `guilds: 2,
+messagesReceived: 0`.
+
+**No usable path to a test webhook from here.** Creating one needs the production token, which
+lives only in Railway and is not something to copy out. Posting a deterministic fixture
+straight at `/api/ingest-call` would prove the whole chain against production — but it would
+write a synthetic call into a real source's journal, attributing a call to a community that
+never made it. That is fabricated performance data, and it is the one thing the rules forbid
+outright. The chain is proven instead by `verify:discord-replay`, which drives the same
+handlers, payload builder, route transformation and RPC against real PostgreSQL.
