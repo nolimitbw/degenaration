@@ -45,9 +45,22 @@ const deadLetters = new DeadLetterQueue();
 /** Message IDs this process successfully ingested; see handlers.js. */
 const ingestedMessages = new IngestedMessages();
 
-/** One-line JSON so a log aggregator can filter on `event` without parsing prose. */
+/**
+ * One line per event: a text prefix, then the JSON payload.
+ *
+ * The prefix is not decoration. This previously wrote bare `JSON.stringify(...)`, and Railway
+ * parses a log line that is valid JSON into structured attributes — which leaves the line's
+ * `message` field EMPTY. Every structured event this process emitted therefore rendered as a
+ * blank line in the log viewer and matched no text search, so the listener looked completely
+ * silent for a week while it was in fact logging. Diagnosing an ingestion fault against a log
+ * that swallows exactly the lines you need is not possible, and that is most of why E-2 took
+ * as long as it did.
+ *
+ * `[bot] <event> {...}` keeps the line human-readable and greppable, and the JSON after it
+ * stays machine-parseable.
+ */
 function log(event, fields = {}) {
-  console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...fields }));
+  console.log(`[bot] ${event} ${JSON.stringify({ ts: new Date().toISOString(), ...fields })}`);
 }
 
 /**
@@ -280,6 +293,10 @@ client.once("ready", async () => {
   await refresh();
   console.log(`[bot] watching ${Object.keys(approved).length} approved channel(s)`);
   setInterval(refresh, REFRESH_MS);
+  // One immediately, so the verdict is readable the moment the process is up rather than
+  // after the first interval. A diagnostic you have to wait ten minutes for is one you
+  // reach for only after guessing first.
+  emitHeartbeat();
 });
 
 client.on("guildCreate", (guild) => {
@@ -410,6 +427,28 @@ const listener = createMessageHandlers({
 });
 
 client.on("messageCreate", listener.onMessageCreate);
+
+/**
+ * Say what has been seen, on a timer, whether or not anything happened.
+ *
+ * Without this, "is the listener receiving messages?" can only be answered by asking someone
+ * to post one and watching — which is what the last two diagnostic rounds cost. A heartbeat
+ * makes the answer readable at any moment from the log alone, and its `verdict` field states
+ * the reading rather than leaving an operator to infer it from nine counters.
+ *
+ * Ten minutes is chosen so a quiet server produces 144 lines a day, which is cheap enough to
+ * leave on permanently. Counters only: no message text, no author, no channel content.
+ */
+const HEARTBEAT_MS = Number(process.env.BOT_HEARTBEAT_MS || 600000);
+function emitHeartbeat() {
+  log("listener.heartbeat", {
+    watchedChannels: Object.keys(approved).length,
+    guilds: client.guilds?.cache?.size ?? null,
+    deadLetters: deadLetters.size,
+    ...listener.diagnostics()
+  });
+}
+setInterval(emitHeartbeat, HEARTBEAT_MS);
 client.on("messageUpdate", listener.onMessageUpdate);
 client.on("messageDelete", listener.onMessageDelete);
 

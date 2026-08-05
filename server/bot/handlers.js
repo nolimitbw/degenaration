@@ -115,6 +115,25 @@ function createMessageHandlers({
   /** Messages seen in channels this process does not watch, by channel. Diagnostics only. */
   const unapprovedSeen = new Map();
   /**
+   * Everything this process has SEEN, whether or not it became a call.
+   *
+   * The counter that matters is `messagesReceived`. If it is 0 while a human is posting, the
+   * gateway is not delivering MESSAGE_CREATE at all — a privileged-intent or channel-permission
+   * fault — and no amount of parser work will help. Every other number here is only meaningful
+   * once that one is moving. Counters, never content.
+   */
+  const counters = {
+    messagesReceived: 0,
+    inApprovedChannel: 0,
+    skippedSelf: 0,
+    detected: 0,
+    refusedAmbiguous: 0,
+    ignoredNoMint: 0,
+    emptyPayload: 0,
+    updates: 0,
+    deletes: 0
+  };
+  /**
    * Resolve a message into a parse result, including the message it replied to.
    *
    * The parent is only consulted when the reply itself carries nothing, so an ordinary
@@ -143,6 +162,7 @@ function createMessageHandlers({
    */
   async function handleDetectedCall({ msg, group, parsed, eventType, eventVersion, editedAt }) {
     if (parsed?.rejected) {
+      counters.refusedAmbiguous += 1;
       log("call.rejected", {
         channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
         reason: parsed.rejected, candidates: parsed.candidates, eventType
@@ -164,6 +184,7 @@ function createMessageHandlers({
       // no mint is a parser result. No message-shaped log line at all means the event never
       // arrived. Nothing here logs message text, author ids or attachment URLs — the shape is
       // enough to choose the next action, and the content is not ours to copy into a log.
+      counters.ignoredNoMint += 1;
       log("call.ignored", {
         channelId: msg.channel.id,
         messageId: msg.id,
@@ -174,6 +195,7 @@ function createMessageHandlers({
       });
       return null;
     }
+    counters.detected += 1;
     noteFreshness(msg.channel.id, "lastDetected");
     log("call.detected", {
       channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
@@ -199,10 +221,18 @@ function createMessageHandlers({
 
   async function onMessageCreate(msg) {
     if (!msg?.guild) return;
+    counters.messagesReceived += 1;
+    // A message with no content, no embeds and no attachments is the shape a process gets when
+    // it is connected but not authorised to read content. Counted separately from "no mint",
+    // because the two need completely different fixes.
+    const shape = describeShape(msg);
+    if (!shape.contentLength && !shape.embeds && !shape.attachments && !shape.components) {
+      counters.emptyPayload += 1;
+    }
     // Our own messages only — NOT all bots. Call channels overwhelmingly relay through a
     // webhook or a companion bot, so `author.bot` excluded exactly the messages that carry
     // the calls. Skipping just ourselves keeps the relay embed from feeding back in.
-    if (msg.author?.id && msg.author.id === selfId()) return;
+    if (msg.author?.id && msg.author.id === selfId()) { counters.skippedSelf += 1; return; }
 
     // Legacy fallback: `!register` in the channel they want watched.
     if (onLegacyRegister && !msg.author?.bot && String(msg.content || "").trim().toLowerCase() === "!register") {
@@ -220,6 +250,7 @@ function createMessageHandlers({
       unapprovedSeen.set(msg.channel?.id, (unapprovedSeen.get(msg.channel?.id) || 0) + 1);
       return;
     }
+    counters.inApprovedChannel += 1;
 
     const parsed = await parseWithContext(msg);
     return handleDetectedCall({ msg, group, parsed, eventType: "create", eventVersion: "original" });
@@ -301,8 +332,20 @@ function createMessageHandlers({
     onMessageCreate, onMessageUpdate, onMessageDelete, parseWithContext, handleDetectedCall,
     /** What this process has seen but not watched. Answers "is the approved map correct?" */
     diagnostics: () => ({
+      ...counters,
       unapprovedChannelsSeen: unapprovedSeen.size,
-      unapprovedMessages: [...unapprovedSeen.values()].reduce((a, b) => a + b, 0)
+      unapprovedMessages: [...unapprovedSeen.values()].reduce((a, b) => a + b, 0),
+      // The one-line reading of all of the above, so an operator does not have to infer it.
+      verdict:
+        counters.messagesReceived === 0
+          ? "no MESSAGE_CREATE received since boot — if anyone has posted, this is a gateway " +
+            "intent or channel-permission fault, not a parser one"
+          : counters.emptyPayload === counters.messagesReceived
+            ? "every message arrived with no content, embeds or attachments — the process is " +
+              "connected but cannot read message content"
+            : counters.inApprovedChannel === 0
+              ? "messages are arriving, but none in a watched channel — check the approved map"
+              : "messages are arriving in watched channels and being parsed"
     })
   };
 }

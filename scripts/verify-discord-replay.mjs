@@ -268,6 +268,31 @@ results.listenerGate = "PASS";
   assert.ok(listener.handlers.diagnostics().unapprovedMessages >= 1,
     "but it IS counted, so 'is the approved map correct?' has an answer");
   results.nonCallIsObservable = "PASS";
+
+  // The verdict is the whole point: nine counters that an operator has to interpret is what
+  // produced two rounds of guessing. It must name the fault, not the numbers.
+  const d = listener.handlers.diagnostics();
+  assert.ok(d.messagesReceived > 0, "messages seen must be counted");
+  assert.ok(d.emptyPayload >= 1, "a message with no content, embeds or attachments is counted apart");
+  assert.match(d.verdict, /arriving in watched channels/,
+    "with real traffic in a watched channel the verdict must say so");
+
+  // The case that cost two diagnostic rounds: nothing arriving at all.
+  const quiet = makeListener({ db, approvedChannels, onPayload: () => ({ accepted: false }) });
+  assert.match(quiet.handlers.diagnostics().verdict, /no MESSAGE_CREATE received since boot/,
+    "a listener that has seen nothing must SAY it has seen nothing, not stay silent");
+
+  // And the one that looks identical in a log but needs a completely different fix.
+  const blindListener = makeListener({ db, approvedChannels, onPayload: () => ({ accepted: false }) });
+  await blindListener.handlers.onMessageCreate({
+    id: "1600000000000000301", content: "", embeds: [],
+    guild: { id: ids.guild },
+    channel: { id: ids.approvedChannel, name: "alpha-calls" },
+    author: { id: "1400000000000000060", bot: false, username: "member" }
+  });
+  assert.match(blindListener.handlers.diagnostics().verdict, /cannot read message content/,
+    "every message arriving empty is a permission fault and must be named as one");
+  results.heartbeatVerdict = "PASS";
 }
 
 // The production shape reached the journal, with a real price attached.
