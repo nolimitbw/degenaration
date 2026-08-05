@@ -137,6 +137,17 @@ export const PACKAGE = [
       "happened. Same arity (17), no DDL, no DML. Independent of 1-8. Calls already retracted by the " +
       "old behaviour cannot be restored by the rollback; production has none.",
   },
+  {
+    n: 10,
+    apply: "degenaration-discord-current-return.sql",
+    rollback: "10-discord-current-return.sql",
+    reapply: ["degenaration-discord-call-performance.sql"],
+    note:
+      "Adds current-return aggregates beside the peak ones, so the marketplace stops reporting only " +
+      "best-case outcomes. Supersedes #4 in full and MUST FOLLOW IT — both replace " +
+      "app_public_list_discord_marketplace at arity 4, and applying #10 before #4 leaves #4's body " +
+      "installed. Read-only, no DDL, no DML.",
+  },
 ];
 
 /** The two functions whose arity changes — the reason explicit drops exist at all. */

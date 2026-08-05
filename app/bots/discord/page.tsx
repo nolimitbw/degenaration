@@ -185,11 +185,34 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
       <div className="border-b border-edge"><DiscordActivityGrid source={source} /></div>
       <div className="border-b border-edge"><DiscordPerformanceGrid source={source} /></div>
 
+      {/* Peak and current are shown side by side, always. Every return figure this card used
+          to show was a peak multiple with nothing saying so, so a source whose calls had all
+          round-tripped to zero read "Win rate 100% · Average return 2.00x". The pairing is
+          the point: one number alone cannot be read honestly. */}
       <div className="grid grid-cols-2 divide-x divide-y divide-edge border-b border-edge py-4 sm:grid-cols-4 sm:divide-y-0">
-        <Metric label="Win rate" value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "--"} tone={measured ? "positive" : "default"} />
-        <Metric label="Average return" value={measured && source.averageReturnX != null ? `${source.averageReturnX.toFixed(2)}x` : "--"} />
-        <Metric label="Median return" value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"} />
-        <Metric label="Max drawdown" value={measured ? formatPercentBps(source.maxDrawdownBps) : "--"} tone={source.maxDrawdownBps != null ? "negative" : "default"} />
+        <Metric
+          label="Hit rate (peak)"
+          value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "--"}
+          tone={measured ? "positive" : "default"}
+          hint="Share of measured calls that traded above entry at any point."
+        />
+        <Metric
+          label="Up now"
+          value={measured && source.currentWinRate != null ? `${source.currentWinRate.toFixed(1)}%` : "--"}
+          tone={measured && source.currentWinRate != null && source.currentWinRate >= 50 ? "positive" : "default"}
+          hint="Share of those same calls trading above entry right now."
+        />
+        <Metric
+          label="Median peak"
+          value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"}
+          hint="Best multiple the middle call reached. Not where it is now."
+        />
+        <Metric
+          label="Median now"
+          value={measured && source.medianCurrentX != null ? `${source.medianCurrentX.toFixed(2)}x` : "--"}
+          tone={measured && source.medianCurrentX != null && source.medianCurrentX < 1 ? "negative" : "default"}
+          hint="Where the middle call is trading today, on the same set of calls."
+        />
       </div>
 
       <div className="p-5">

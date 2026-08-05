@@ -66,14 +66,42 @@ export default function DiscordSourceDetailsPage() {
                 {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Source performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]} /></div>
-              <div className="grid grid-cols-2 divide-x divide-y divide-edge py-4 sm:grid-cols-3 lg:grid-cols-7 lg:divide-y-0">
+              {/* Two families, kept visibly apart. Everything on the first row is a PEAK
+                  statistic — the best each call ever reached — and read alone it flatters
+                  any source whose calls round-tripped. The second row is the same calls
+                  today. Neither row is a complete answer without the other. */}
+              <div className="grid grid-cols-2 divide-x divide-y divide-edge pt-4 pb-3 sm:grid-cols-3 lg:grid-cols-7 lg:divide-y-0">
                 <Metric label="Eligible calls" value={source.eligibleCalls} />
                 <Metric label="Measured" value={source.measuredCalls} />
-                <Metric label="Win rate" value={source.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} />
-                <Metric label="2x rate" value={source.twoXRate == null ? "--" : `${source.twoXRate.toFixed(1)}%`} tone={source.twoXRate == null ? "default" : "positive"} />
-                <Metric label="Median peak" value={source.medianReturnX == null ? "--" : `${source.medianReturnX.toFixed(2)}x`} />
-                <Metric label="Average peak" value={source.averageReturnX == null ? "--" : `${source.averageReturnX.toFixed(2)}x`} />
-                <Metric label="Max drawdown" value={formatPercentBps(source.maxDrawdownBps)} tone={source.maxDrawdownBps == null ? "default" : "negative"} />
+                <Metric label="Hit rate (peak)" value={source.winRate == null ? "--" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} hint="Share of measured calls that traded above entry at any point." />
+                <Metric label="2x rate" value={source.twoXRate == null ? "--" : `${source.twoXRate.toFixed(1)}%`} tone={source.twoXRate == null ? "default" : "positive"} hint="Share of measured calls whose peak reached twice entry." />
+                <Metric label="Median peak" value={source.medianReturnX == null ? "--" : `${source.medianReturnX.toFixed(2)}x`} hint="Best multiple the middle call reached. Not where it is now." />
+                <Metric label="Average peak" value={source.averageReturnX == null ? "--" : `${source.averageReturnX.toFixed(2)}x`} hint="Mean of the best multiple each call reached." />
+                <Metric label="Max drawdown" value={formatPercentBps(source.maxDrawdownBps)} tone={source.maxDrawdownBps == null ? "default" : "negative"} hint="Largest fall from peak to today across this source's calls." />
+              </div>
+              <div className="border-t border-edge px-4 pt-3">
+                <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-dim">Where those calls are now</p>
+              </div>
+              <div className="grid grid-cols-2 divide-x divide-y divide-edge pb-4 pt-2 sm:grid-cols-4 sm:divide-y-0">
+                <Metric label="Priced now" value={source.measuredCurrent ?? 0} hint="Measured calls whose token still has a resolvable price. Its own denominator: a call that stops pricing must not silently leave the averages." />
+                <Metric
+                  label="Up now"
+                  value={source.currentWinRate == null ? "--" : `${source.currentWinRate.toFixed(1)}%`}
+                  tone={source.currentWinRate == null ? "default" : source.currentWinRate >= 50 ? "positive" : "negative"}
+                  hint="Share of those same calls trading above entry right now."
+                />
+                <Metric
+                  label="Median now"
+                  value={source.medianCurrentX == null ? "--" : `${source.medianCurrentX.toFixed(2)}x`}
+                  tone={source.medianCurrentX == null ? "default" : source.medianCurrentX < 1 ? "negative" : "positive"}
+                  hint="Where the middle call is trading today."
+                />
+                <Metric
+                  label="Average now"
+                  value={source.averageCurrentX == null ? "--" : `${source.averageCurrentX.toFixed(2)}x`}
+                  tone={source.averageCurrentX == null ? "default" : source.averageCurrentX < 1 ? "negative" : "positive"}
+                  hint="Mean of where the calls are trading today, over the same set."
+                />
               </div>
             </section>
 

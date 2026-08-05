@@ -50,16 +50,23 @@ export function Metric({
   label,
   value,
   detail,
+  hint,
   tone = "default"
 }: {
   label: string;
   value: React.ReactNode;
   detail?: string;
+  /**
+   * What the number actually measures, for a label too short to say it. Rendered as the
+   * title on the whole tile rather than as visible copy, so a dense metric row stays dense
+   * — the progressive-disclosure rule in FINAL_LAUNCH_SPEC section 6.3.
+   */
+  hint?: string;
   tone?: "default" | "positive" | "negative" | "warning";
 }) {
   const toneClass = tone === "positive" ? "text-up" : tone === "negative" ? "text-down" : tone === "warning" ? "text-gold-400" : "text-ink";
   return (
-    <div className="min-w-0 border-l border-edge px-4 first:border-l-0">
+    <div className="min-w-0 border-l border-edge px-4 first:border-l-0" title={hint}>
       <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-dim">{label}</p>
       <p className={`mt-2 truncate font-mono text-lg font-semibold tabular-nums ${toneClass}`}>{value}</p>
       {detail && <p className="mt-1 truncate text-[11px] text-dim">{detail}</p>}

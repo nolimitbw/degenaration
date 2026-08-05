@@ -297,6 +297,58 @@ assert.equal(stillCollecting.twoXRate, null);
 assert.equal(stillCollecting.bestCall, null);
 assert.equal(stillCollecting.down50, 0);
 
+// ─── migration 10: current return, beside peak ───────────────────────────────────────────
+//
+// Every return figure above is a PEAK multiple. Nothing in the payload said so and nothing
+// said where the call is now, so a source whose calls all round-tripped to zero reported a
+// perfect record. The fixture gains exactly that call — peaked 3x, currently at 0.5x — and
+// the two families of statistic must now disagree. If they agreed, this would not
+// distinguish the fix from the defect.
+await db.exec(`
+  insert into public.calls (
+    id, group_id, mint, symbol, called_at, parse_status, called_price_usd, peak_price_usd,
+    latest_price_usd, last_scanned_at
+  ) values
+    ('40000000-0000-0000-0000-000000000012', '${MEASURED}', 'mintRound', 'ROUND',
+      now() - interval '4 hours', 'accepted', 100, 300, 50, now() - interval '1 hour');
+`);
+
+const currentReturn = await readFile(`${repo}/supabase/degenaration-discord-current-return.sql`, "utf8");
+const countsBeforeCurrent = await counts();
+await db.exec(currentReturn);
+await db.exec(currentReturn);
+assert.deepEqual(await counts(), countsBeforeCurrent, "current-return migration and rerun write no row");
+
+const now = (await marketplace()).sources.find((source) => source.id === MEASURED);
+
+// Peaks 2.0 / 0.4 / 1.2 / 3.0 — three of four traded above entry at some point.
+assert.equal(now.measuredCalls, 4);
+assert.equal(Number(now.winRate), 75, "peak: three of four went up at any point");
+assert.equal(Number(now.averageReturnX), 1.65);
+assert.equal(Number(now.medianReturnX), 1.6);
+
+// Currents 1.5 / 0.2 / 1.1 / 0.5 — only two of four are above entry right now.
+assert.equal(now.measuredCurrent, 4);
+assert.equal(Number(now.currentWinRate), 50, "THE FIX: half of them are below entry today");
+assert.equal(Number(now.averageCurrentX), 0.825, "the average call is currently DOWN, on the same population");
+assert.equal(Number(now.medianCurrentX), 0.8);
+
+assert.notEqual(Number(now.winRate), Number(now.currentWinRate),
+  "peak and current win rate must be separately computed; equal values would prove nothing");
+assert.ok(Number(now.averageReturnX) > 1 && Number(now.averageCurrentX) < 1,
+  "the exact presentation this migration exists to end: a losing source with a winning average");
+
+// The round trip is what drives drawdown, so the two must agree about it.
+assert.equal(Number(now.maxDrawdownBps), 8333, "1 - (0.5 / 3.0) on the round-tripped call");
+
+// Unknown still stays unknown. A source with no measured call reports null for the new
+// figures too, never 0 — a zero here would read as "every call is flat", which is a claim.
+const noHistory = (await marketplace()).sources.find((source) => source.id === "10000000-0000-0000-0000-000000000002");
+assert.equal(noHistory.measuredCurrent, 0);
+assert.equal(noHistory.averageCurrentX, null);
+assert.equal(noHistory.medianCurrentX, null);
+assert.equal(noHistory.currentWinRate, null);
+
 await db.exec("set role anon");
 await assert.rejects(() => marketplace(), /permission denied/i);
 await db.exec("reset role");
@@ -337,6 +389,8 @@ console.log(JSON.stringify({
   bestAndWorstCall: "PASS",
   copiedVolumeExcludesUnconfirmed: "PASS",
   zeroVolumeIsNotNullMetrics: "PASS",
+  currentReturnReportedBesidePeak: "PASS",
+  unknownCurrentReturnStaysNull: "PASS",
   callPerformance: {
     down50: perf.down50,
     under50: perf.under50,

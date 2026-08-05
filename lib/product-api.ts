@@ -99,8 +99,19 @@ export type DiscordSource = {
   plus50: number;
   twoX: number;
   fiveX: number;
+  // PEAK multiples: the best each call ever traded. Every figure on this line is best-case
+  // by construction, which is why the current-return pair below exists and why no surface
+  // may label either family simply "return".
   averageReturnX: number | null;
   medianReturnX: number | null;
+  // CURRENT multiples: where those same calls are now. A source whose calls all round-tripped
+  // reads 2.00x on the peak figures and below 1.00x here. `measuredCurrent` has its own
+  // denominator because a call can have a peak and no current price once its pair stops
+  // resolving, and folding those in would quietly drop dead tokens out of the average.
+  measuredCurrent?: number;
+  averageCurrentX?: number | null;
+  medianCurrentX?: number | null;
+  currentWinRate?: number | null;
   // Two distinct figures. `winRate` is the share that traded above entry at any point;
   // `twoXRate` is the share that doubled. They were one field named after the first and
   // computed as the second, so the marketplace list understated every source.
