@@ -165,6 +165,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   // off stop loss persists stopBps 0, and server/engine/monitor.js already treats both as "no
   // such exit" — it filters levels through isProfitTarget and gates the stop on
   // `dropFraction > 0`. So the state the user sets is the state the worker enforces.
+  // The three masters. Unlike the section switches below these are not about one exit rule —
+  // they govern whether the bot may act at all, and each is enforced at the point it matters:
+  // auto-entry and the emergency stop inside worker_claim_call_execution, auto-exit inside the
+  // exit monitor. See supabase/degenaration-bot-entry-limits.sql and server/engine/monitor.js.
+  const [autoEntry, setAutoEntry] = useState(true);
+  const [autoExit, setAutoExit] = useState(true);
+  const [killSwitch, setKillSwitch] = useState(false);
   const [takeProfitEnabled, setTakeProfitEnabled] = useState(true);
   const [stopLossEnabled, setStopLossEnabled] = useState(true);
   const [trailingTakeProfit, setTrailingTakeProfit] = useState(false);
@@ -289,6 +296,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             enabled: level.enabled !== false
           })));
         }
+        // Absent means a bot saved before these existed, and such a bot was automating both
+        // sides. Defaulting them off would silently stop live bots the first time their owner
+        // opened the editor; the emergency stop is the opposite and defaults off.
+        setAutoEntry(config.autoEntry !== false);
+        setAutoExit(config.autoExit !== false);
+        setKillSwitch(Boolean(config.killSwitch));
         setTrailingTakeProfit(Boolean(config.takeProfit?.trailing));
         setTakeProfitEnabled(config.takeProfit?.enabled !== false);
         setStopLossEnabled(config.stopLoss?.enabled !== false);
@@ -440,6 +453,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       walletAddress,
       walletId,
       channelId: channelId || null,
+      autoEntry,
+      autoExit,
+      killSwitch,
       buyAmountLamports: solToLamports(buyAmountSol),
       maximumCapitalLamports: solToLamports(maximumCapitalSol),
       dailyLossLimitLamports: solToLamports(dailyLossSol),
@@ -668,6 +684,16 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
             defaultOpen
           >
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Toggle label="Automatic entries" detail="Open new positions from this source's calls." checked={autoEntry} onChange={setAutoEntry} compact disabled={killSwitch} />
+              <Toggle label="Automatic exits" detail="Run take profit, stop loss and trailing without you." checked={autoExit} onChange={setAutoExit} compact disabled={killSwitch} />
+              <Toggle label="Emergency stop" detail="Refuse every new entry. Open positions still exit." checked={killSwitch} onChange={setKillSwitch} compact danger />
+            </div>
+            {killSwitch && (
+              <p role="status" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-ink">
+                Emergency stop is on. This bot will not open a new position, and its open positions keep exiting.
+              </p>
+            )}
             <div className="grid gap-4 md:grid-cols-3">
               <NumberField label="Buy amount" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
               <NumberField label="Maximum capital" value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} />

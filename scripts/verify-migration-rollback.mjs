@@ -111,6 +111,16 @@ const STUBS = `
   -- ON CONFLICT against it, and without the index that statement raises 42P10.
   create unique index if not exists calls_message_id_unique
     on public.calls (message_id) where message_id is not null;
+  -- The limit-order queue. automation-execution-integrity.sql is in the baseline (migration 11
+  -- replaces worker_claim_call_execution, which that file defines) and it also carries this
+  -- table's constraint and index, both of which resolve at apply time.
+  create table if not exists public.limit_orders (
+    id uuid primary key default gen_random_uuid(),
+    privy_user_id text, user_pubkey text, mint text, symbol text, trigger text,
+    target_usd numeric, amount_sol numeric, slippage_bps integer,
+    status text not null default 'open', sig text, filled_at timestamptz,
+    created_at timestamptz not null default now()
+  );
 `;
 
 async function freshDb() {

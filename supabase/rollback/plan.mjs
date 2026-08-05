@@ -49,6 +49,12 @@ export const BASELINE = [
   "degenaration-signal-fanout.sql",
   // Applied in production, and the file that defines the body #9 replaces.
   "degenaration-discord-signal-ingestion.sql",
+  // Applied in production, and the file that defines the worker_claim_call_execution body
+  // #11 replaces. Without it in the baseline the rollback of #11 has nothing to restore.
+  "automation-execution-integrity.sql",
+  // Applied in production, and the file that defines the attach_call_execution_intent body
+  // #11 replaces.
+  "degenaration-trade-intent-fanout.sql",
 ];
 
 /**
@@ -147,6 +153,27 @@ export const PACKAGE = [
       "best-case outcomes. Supersedes #4 in full and MUST FOLLOW IT — both replace " +
       "app_public_list_discord_marketplace at arity 4, and applying #10 before #4 leaves #4's body " +
       "installed. Read-only, no DDL, no DML.",
+  },
+  {
+    n: 11,
+    apply: "degenaration-bot-entry-limits.sql",
+    rollback: "11-bot-entry-limits.sql",
+    reapply: [
+      "automation-execution-integrity.sql",
+      "degenaration-trade-intent-fanout.sql",
+      // Inside the package rather than in the baseline: #1 defines attach_call_execution_config,
+      // which #11 replaces. Reverse order makes this safe — #11's rollback reapplies #1's body,
+      // and #1's own rollback then removes everything #1 added.
+      "degenaration-subscriber-config-versioning.sql",
+    ],
+    note:
+      "Enforces maximum open trades, maximum capital, per-token exposure, token cooldown, " +
+      "first-call-only, the automatic-entry switch and the emergency stop inside " +
+      "worker_claim_call_execution — the one instant capital stops being free. MUST FOLLOW #1: it " +
+      "reads subscriptions.subscriber_config_snapshot. Both functions are replaced at unchanged " +
+      "arities ((uuid, uuid) and ()), so no overload is created and the rollback needs no explicit " +
+      "drop. Adds one nullable column. Rolling back returns seven controls to persisted-but-unenforced " +
+      "with nothing surfaced to the user, so prefer rolling forward; see the script header.",
   },
 ];
 
