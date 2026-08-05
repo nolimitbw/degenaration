@@ -182,16 +182,32 @@ begin
 end;
 $$;
 
-revoke all on function public.admin_list_server_applications(text) from public;
-revoke all on function public.admin_decide_server_application(text, uuid, text) from public;
-revoke all on function public.admin_list_call_channels(text) from public;
-revoke all on function public.admin_decide_call_channel(text, uuid, text) from public;
-revoke all on function public.admin_dashboard_summary(text) from public;
+-- THIS BLOCK GRANTED THE ADMIN API TO ANONYMOUS CALLERS. Corrected 2026-08-05.
+--
+-- It read `grant execute ... to anon, authenticated` for all five functions, two of which
+-- APPROVE OR REJECT a Discord source. The only thing standing between an anonymous visitor
+-- and the source-approval API was `p_secret`, whose SHA-256 digest is committed on line 14
+-- of this same file.
+--
+-- Production is not exposed: a later migration revoked both roles, and pg_proc confirms
+-- has_function_privilege('anon', ...) is false for all five today. The exposure was in the
+-- FILE. It is a first-class migration whose own header tells an operator to run
+-- public-source-profiles.sql after it, so a rebuild, a new environment or a disaster restore
+-- would have re-granted the admin API to anon while looking like an ordinary replay.
+--
+-- The correct posture, and what every migration written since does: nothing but service_role
+-- may execute an admin function. The web app reaches these through the secret-checked bridge
+-- running as service_role, so no caller loses access.
+revoke execute on function public.admin_list_server_applications(text) from public, anon, authenticated;
+revoke execute on function public.admin_decide_server_application(text, uuid, text) from public, anon, authenticated;
+revoke execute on function public.admin_list_call_channels(text) from public, anon, authenticated;
+revoke execute on function public.admin_decide_call_channel(text, uuid, text) from public, anon, authenticated;
+revoke execute on function public.admin_dashboard_summary(text) from public, anon, authenticated;
 
-grant execute on function public.admin_list_server_applications(text) to anon, authenticated;
-grant execute on function public.admin_decide_server_application(text, uuid, text) to anon, authenticated;
-grant execute on function public.admin_list_call_channels(text) to anon, authenticated;
-grant execute on function public.admin_decide_call_channel(text, uuid, text) to anon, authenticated;
-grant execute on function public.admin_dashboard_summary(text) to anon, authenticated;
+grant execute on function public.admin_list_server_applications(text) to service_role;
+grant execute on function public.admin_decide_server_application(text, uuid, text) to service_role;
+grant execute on function public.admin_list_call_channels(text) to service_role;
+grant execute on function public.admin_decide_call_channel(text, uuid, text) to service_role;
+grant execute on function public.admin_dashboard_summary(text) to service_role;
 -- Run supabase/public-source-profiles.sql after this file so approval also assigns
 -- public profile and referral identities.

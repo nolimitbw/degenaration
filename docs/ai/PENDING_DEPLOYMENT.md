@@ -98,8 +98,29 @@ remains `false`.
 
 ### Authorization, re-verified after the DDL
 
-88 `admin_*` / `app_user_*` / `worker_*` / `app_public_*` RPCs checked. **Every admin RPC is
-`SECURITY DEFINER` with `search_path` pinned to the empty string — 0 exceptions.** anon and
+88 `admin_*` / `app_user_*` / `worker_*` / `app_public_*` RPCs checked. Every admin RPC is
+`SECURITY DEFINER`.
+
+**CORRECTION, 2026-08-05.** The claim previously made here — *"`search_path` pinned to the
+empty string — 0 exceptions"* — was wrong. Four are pinned to `public, pg_temp`:
+`admin_list_server_applications`, `admin_decide_server_application`,
+`admin_decide_call_channel`, `admin_dashboard_summary`. `pg_temp` is **last**, which is the
+documented mitigation, so a caller's temp object cannot shadow anything that exists in
+`public`; the residual vector is an unqualified name absent from `public`. Narrow, and not
+what was claimed. The four are now a frozen allowlist in `check:admin-authorization`, which
+lets the list shrink and never grow.
+
+**And a worse one in the same area.** `supabase/admin-dashboard-secret-rpcs.sql` ended with
+`grant execute ... to anon, authenticated` on all five of its admin functions — including
+`admin_decide_server_application` and `admin_decide_call_channel`, which approve or reject a
+Discord source. Production is **not** exposed: `has_function_privilege('anon', ...)` is false
+for all five, so a later migration revoked them. The exposure was in the **file**, which is a
+first-class migration whose own header tells an operator to run another file after it — so a
+rebuild, a new environment or a disaster restore would have re-granted the admin API to
+anonymous callers while looking like an ordinary replay, guarded only by a shared secret whose
+SHA-256 digest is committed on line 14 of that same file (blocker I-2). Both files are
+corrected, and `check:admin-authorization` fails on a grant to `anon`, `authenticated` or
+`public` anywhere in a file that defines an admin function. Proven by control run. anon and
 authenticated hold EXECUTE on none of them. `app_private.admin_secret_ok` does carry a
 PUBLIC EXECUTE grant, but anon and authenticated are denied USAGE on schema `app_private`,
 so it is unreachable — EXECUTE without schema USAGE grants nothing.
