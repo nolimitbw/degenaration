@@ -30,6 +30,7 @@ import {
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 import { NumericTextInput } from "@/components/product/NumericField";
 import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
+import { pendingNotice } from "@/lib/bot-control-contract";
 
 type TpLevel = { targetBps: number; sellBps: number; trailingBps: number };
 type DcaLevel = { dropBps: number; buyAmountSol: number };
@@ -534,12 +535,18 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     return <div className="grid min-h-[520px] place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>;
   }
 
+  // Controls this bot kind saves that no execution path reads yet, from the one contract the
+  // build gate checks. Rendering them from the same list is what keeps the notice honest:
+  // implementing a control and forgetting to update the note fails check:bot-control-contract.
+  const pendingFor = (section: string) => pendingNotice(kind, section);
+
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-px overflow-hidden rounded-md border border-edge bg-edge">
           <FormSection
             title="Bot identity"
+            pending={pendingFor("identity")}
             description="Name this setup before choosing where it trades."
             summary={name || "Name required"}
             defaultOpen
@@ -564,6 +571,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
           <FormSection
             title="Execution wallet"
+            pending={pendingFor("wallet")}
             description="Use the verified Solana wallet that owns this bot's trades."
             summary={walletAddress ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}` : "Wallet required to activate"}
             defaultOpen
@@ -591,6 +599,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           {kind === "discord" && (
             <FormSection
               title="Discord source"
+            pending={pendingFor("source")}
               description="Choose an approved server and either one channel or all approved channels."
               summary={source?.name || "Source required"}
               defaultOpen
@@ -634,6 +643,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
           <FormSection
             title="Funding and exposure"
+            pending={pendingFor("funding")}
             description="Set the amount per entry and the total capital ceiling."
             summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
             defaultOpen
@@ -671,6 +681,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           {kind === "kol" && (
             <FormSection
               title="Entry trigger"
+            pending={pendingFor("entry")}
               description="Choose what must happen before the strategy can enter."
               summary={`-${(priceDropBps / 100).toFixed(1)}% over ${lookbackMinutes < 60 ? `${lookbackMinutes}m` : `${lookbackMinutes / 60}h`} · ${preset}`}
               defaultOpen
@@ -706,6 +717,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           {kind === "kol" && (
             <FormSection
               title="Dollar-cost averaging"
+            pending={pendingFor("dca")}
               description="Optional staged entries after a deeper drop."
               summary={dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(2)} SOL` : "Off"}
             >
@@ -733,6 +745,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
           <FormSection
             title="Take profit"
+            pending={pendingFor("takeProfit")}
             description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}
             summary={`${tpLevels.length} levels · first at +${(tpLevels[0]?.targetBps / 100 || 0).toFixed(0)}%`}
           >
@@ -756,6 +769,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
           <FormSection
             title="Stop loss"
+            pending={pendingFor("stopLoss")}
             description="Exit management continues when new entries are paused."
             summary={`-${(stopBps / 100).toFixed(1)}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`}
           >
@@ -773,6 +787,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
           <FormSection
             title="Security filters"
+            pending={pendingFor("safety")}
             description="Only open this when you need to change the recommended safeguards."
             summary={`${enabledSafetyCount} checks enabled`}
           >
@@ -822,6 +837,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
 
           <FormSection
             title="Execution and retries"
+            pending={pendingFor("execution")}
             description="Fine-tune route, fees, retry bounds, and cooldown."
             summary={`${entryMode} · ${(slippageBps / 100).toFixed(2)}% slippage · ${autoRetryCount} retries`}
           >
@@ -1089,12 +1105,15 @@ function FormSection({
   description,
   summary,
   defaultOpen = false,
+  pending = null,
   children
 }: {
   title: string;
   description: string;
   summary?: string;
   defaultOpen?: boolean;
+  /** Controls in this section that persist and version but do not yet change execution. */
+  pending?: { labels: string[]; reasons: string[] } | null;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -1112,7 +1131,15 @@ function FormSection({
           </span>
         </span>
       </summary>
-      <div className="space-y-4 border-t border-edge p-5">{children}</div>
+      <div className="space-y-4 border-t border-edge p-5">
+        {pending && (
+          <div className="rounded-md border border-edge bg-void px-3.5 py-3" title={pending.reasons.join("\n\n")}>
+            <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-gold-400">Saved, not acting on trades yet</p>
+            <p className="mt-1.5 text-[11px] leading-5 text-dim">{pending.labels.join(" · ")}</p>
+          </div>
+        )}
+        {children}
+      </div>
     </details>
   );
 }
