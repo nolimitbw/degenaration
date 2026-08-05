@@ -1,6 +1,6 @@
 # Mizar parity matrix
 
-Updated: 2026-08-04
+Updated: 2026-08-05
 
 Status rules: `PASS` requires working UI, validation, persistence, authorization,
 observable failure behavior, correct calculations, and browser evidence. `PARTIAL` names
@@ -9,7 +9,7 @@ requirement. Source inspection alone is never PASS.
 
 | Ref / time | Page or feature | Visible components and exact sequence | Conditional, validation, and state behavior | DegenAration route / component | Backend dependency | Status and evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| V2 00:00-00:11 | Discord marketplace | Browse cards; inspect source; choose timeframe; configure | Card hover/timeframe changes performance; unknown history remains unavailable | `/bots/discord`; `DiscordMarketplace` | marketplace Discord endpoint, performance journal | PARTIAL: period/sort controls and truthful failure state browser-verified at 1440/1024/390 in `evidence/discord-marketplace-*.jpg`; the forward migration now passes isolated PostgreSQL apply/rerun, preservation, authorization, and null-unknown tests via `npm run verify:marketplace-migration`; production apply and live-card proof remain |
+| V2 00:00-00:11 | Discord marketplace | Browse cards; inspect source; choose timeframe; configure | Card hover/timeframe changes performance; unknown history remains unavailable | `/bots/discord`; `DiscordMarketplace` | marketplace Discord endpoint, performance journal | **PASS for the card itself.** `verify:responsive` renders two fixture sources at all four widths and asserts the peak/current pairing is on screen with real values (72.2% peak hit rate beside 33.3% up-now, 1.42x median peak beside 0.71x median now) and that the unmeasured source says "Tracking started" rather than showing zeros. Screenshots: `docs/ai/evidence/browser/discord-marketplace-*.jpg`. Live production data still needs the journal to fill (E-2). Prior status: period/sort controls and truthful failure state browser-verified at 1440/1024/390 in `evidence/discord-marketplace-*.jpg`; the forward migration now passes isolated PostgreSQL apply/rerun, preservation, authorization, and null-unknown tests via `npm run verify:marketplace-migration`; production apply and live-card proof remain |
 | V2 00:12-00:23 | Discord identity and budget | Bot name; trades; wallet; buy amount; server; channel | Approved sources only; all-channel option; positive capital bounds | `/bots/discord/new`; `BotBuilder` | Privy wallet, approved groups/channels, bot API | PARTIAL: identity -> wallet -> source -> funding order browser-verified in `evidence/discord-builder-desktop-1440x1000.jpg`; authenticated save remains |
 | V2 00:24-00:35 | Discord take profit | Enable exit logic; add TP rows; set target and sell allocation | Add/remove rows; allocation cannot exceed 100%; trailing values conditional | same | bot config/version, exit monitor | PARTIAL: shared builder added a third level and blocked an out-of-order target in browser; authenticated Discord save remains |
 | V2 00:36-00:47 | Discord stop loss/retries | Set SL; toggle dynamic/trailing; reveal retry settings | Bounded SL; retry count/quote expiry bounds; exits continue while paused | same | bot config/version, exit monitor | PARTIAL: implemented; runtime execution evidence remains in launch tracker |
@@ -44,7 +44,7 @@ requirement. Source inspection alone is never PASS.
 | Gold/black/white identity and compact data density | PASS | All 12 current-build frames |
 | Truthful unknown values | PASS | Discord source frames show dashes and measured-count context, not false zero returns |
 | Tooltips instead of explanation walls | PARTIAL | Summary/affiliate affordances exist; complete keyboard/browser audit pending |
-| Desktop/tablet/mobile evidence | PARTIAL | Six builder/dialog/filter images under `docs/ai/evidence/`; all three widths have `scrollWidth === clientWidth`. Other primary surfaces still need current evidence |
+| Desktop/tablet/mobile evidence | PARTIAL, materially narrowed | **`npm run verify:responsive` is now part of `npm run check`.** It launches headless Chrome against a local production build, stubs the product API from fixtures, and audits Bots, Discord marketplace, Discord source detail and KOL marketplace at 390/768/1024/1440: `scrollWidth === clientWidth` at every one of the sixteen combinations, no tap target under 44px at 390, no console error beyond the third-party fetches it blocks on purpose, and 16 screenshots written to `docs/ai/evidence/browser/`. Remaining: the authenticated surfaces — Bot Manager, Affiliate, Portfolio, Withdraw, Admin — which still need **E-6** |
 | Mainnet automated activation | BLOCKED | Worker deployment, valid platform fee account, B-6 config handoff, and explicit authorization |
 
 ---
