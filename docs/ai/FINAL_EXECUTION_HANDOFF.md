@@ -93,6 +93,47 @@ a dash or a zero here, check the writer before checking the reader.
 | **E-7** | **Application not deployed** — production is `29291c9`, ~80 commits behind | Deploy the app. Every remaining authenticated defect is already fixed in code and closes on deploy |
 | — | `78a4af0` promotion | Explicit approval; irreversible |
 
+## Session 2026-08-05, third pass — deployed, observable, and what is genuinely left
+
+Production now serves current code (`/api/build` reports it), the Discord listener is
+observable, and every milestone of `DEGENARATION_FINAL_GOAL_4000.md` is complete to the limit
+of what does not need a credential.
+
+### Defects found and fixed in this pass
+
+| Where | Defect | How it would have surfaced |
+|---|---|---|
+| `server/bot/index.js` | `log()` wrote bare `JSON.stringify(...)`. Railway parses a valid-JSON line into attributes and leaves `message` **empty** — every structured event rendered as a blank line and matched no text search | The listener looked silent for a week while it was logging. Most of why E-2 took three rounds |
+| `server/bot/handlers.js` | A no-mint message ended in a bare `return null` | Gateway-never-delivered, channel-unreadable and parser-found-nothing produced *identical* evidence |
+| `server/bot/store.js` | The listener never synced guild profiles — only the legacy `degencalls` did | Retiring `degencalls` would have frozen every marketplace avatar and member count, silently |
+| `lib/publicSource.ts` + source profile | Call price, market cap and liquidity were never surfaced; `called_liquidity_usd` was not even selected | The per-call history showed a token and a multiple with no price it was called at |
+| `app/not-found.tsx`, `app/error.tsx` | Brand wordmark was a 32px tap target | Under the minimum on every 404 |
+| source profile table | `Risk report`, the row's only action, was **16px** tall | Under a third of the minimum at 390px |
+| `server/engine/jupiter.js` | `Math.floor(sol * 1e9)` — the last float money arithmetic in the engine | A user configuring 1.001 SOL bought 1.000999999. **271** values in the offered range diverge |
+
+### Two of my own measurements were wrong, and both are recorded
+
+The responsive audit was pointed at `/source/alpha-desk`, a slug that does not exist, so it
+measured the **404 page** at four widths while reporting `source-profile` — its readiness
+predicate (`innerText.length > 200`) was weak enough to let that through. Fixed to a real slug
+asserting the profile's own heading, after which it immediately found the 16px Risk-report
+link.
+
+The buy-size defect was first written up citing `0.29 SOL`; the test failed because
+`Math.floor(0.29 * 1e9)` is 290000000. The defect is real, the example was not, so the offered
+range was searched for a case that genuinely holds rather than adjusting the assertion to fit.
+
+### Where each milestone stands
+
+| # | Milestone | State |
+|---|---|---|
+| 1 | Discord | Chain proven end to end by `verify:discord-replay` against real PostgreSQL, driving the deployed handlers. Listener observable and syncing profiles. **Residual: one `MESSAGE_CREATE` observation** |
+| 2 | Marketplace | Call price / market cap / liquidity added and **deployed**. Aggregates, distribution, best/worst, 1D/7D/30D, peak *and* current return all present; unknowns say Collecting data |
+| 3 | Settings + auto-trading | Settings reach the intent snapshot and the quote — traced, not assumed. Unsigned mainnet simulation PASS (72,071 CU). Signing and submission boundaries need **E-3** to exercise |
+| 4 | Mizar UI | Builder order, disclosure and gating PASS on the deployed build. Responsive audit clean across **9 surfaces × 4 widths** |
+| 5 | Portfolio / PnL / Admin | Verified signed in. PnL cards need one settled position — **E-3**, not a UI gap |
+| 6 | Deploy + verify | No verified fix left undeployed. `npm run check` exit 0 |
+
 ## Session 2026-08-05, second pass — composing the stages, and what that found
 
 Five commits, `21361f9`..`e9aa8c3`. Every one of them found a defect in code **already live in
