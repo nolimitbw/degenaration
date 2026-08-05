@@ -48,7 +48,7 @@ const repo = process.cwd();
 // The REAL modules, not reimplementations. If any of these changes shape, this fails.
 const { parseMessage } = require(`${repo}/server/bot/parser.js`);
 const { buildIngestPayload } = require(`${repo}/server/bot/ingest.js`);
-const { createMessageHandlers, IngestedMessages } = require(`${repo}/server/bot/handlers.js`);
+const { createMessageHandlers, IngestedMessages, describeShape } = require(`${repo}/server/bot/handlers.js`);
 const { normalizeIngestRequest, selectPricePair, buildIngestRpcParams } = require(`${repo}/lib/discord-ingest.js`);
 
 const fixture = JSON.parse(await readFile(`${repo}/server/test/fixtures/discord-events.json`, "utf8"));
@@ -219,6 +219,56 @@ for (const event of fixture.events) {
   }
 }
 results.listenerGate = "PASS";
+
+// ---- a message that is not a call must still be visible ----
+//
+// The branch that returns for an ordinary message looked like the one to stay quiet on, and
+// staying quiet is what made the listener undiagnosable: on 2026-08-05 a real mint was posted
+// in an approved channel and the process logged nothing at all, which is equally consistent
+// with the gateway never delivering it, the bot being unable to read the channel, and the
+// parser finding no mint. The shape is what separates those three.
+{
+  const chatter = {
+    id: "1600000000000000201", content: "gm everyone",
+    guild: { id: ids.guild },
+    channel: { id: ids.approvedChannel, name: "alpha-calls" },
+    author: { id: "1400000000000000050", bot: false, username: "member" }
+  };
+  const before = listener.delivered.length;
+  await listener.handlers.onMessageCreate(chatter);
+  assert.equal(listener.delivered.length, before, "ordinary chatter is not ingested");
+  const ignored = listener.logged.find((l) => l.event === "call.ignored" && l.messageId === chatter.id);
+  assert.ok(ignored, "a message in an approved channel that yields no mint MUST be logged");
+  assert.equal(ignored.shape.contentLength, 11, "the shape records that content was received");
+  assert.equal(ignored.shape.embeds, 0);
+
+  // The signature of the fault the shape exists to expose: the process is being handed a
+  // message with no content and no embeds, which no parser can rescue.
+  const blind = { ...chatter, id: "1600000000000000202", content: "", embeds: [] };
+  await listener.handlers.onMessageCreate(blind);
+  const blindLog = listener.logged.find((l) => l.event === "call.ignored" && l.messageId === blind.id);
+  assert.ok(blindLog, "an empty message must be logged too — that is the diagnostic case");
+  assert.equal(blindLog.shape.contentLength, 0);
+  assert.equal(blindLog.shape.embeds, 0,
+    "contentLength 0 with embeds 0 is the permission/intent signature, and must be visible");
+
+  // Shape is counts only. A call channel's text belongs to the source owner.
+  const shape = describeShape({ content: "secret alpha", embeds: [{ title: "T", fields: [{ name: "CA", value: "x" }] }] });
+  const serialized = JSON.stringify(shape);
+  assert.ok(!serialized.includes("secret alpha"), "the shape must never carry message text");
+  assert.ok(!serialized.includes("CA"), "the shape must never carry embed field names");
+  assert.equal(shape.embedFields, 1);
+
+  // A channel nobody approved is counted, not logged per message: one unapproved channel in a
+  // busy guild would flood the log and bury the events that matter.
+  const elsewhere = { ...chatter, id: "1600000000000000203", channel: { id: ids.unapprovedChannel, name: "off-topic" } };
+  const loggedBefore = listener.logged.length;
+  await listener.handlers.onMessageCreate(elsewhere);
+  assert.equal(listener.logged.length, loggedBefore, "an unapproved channel does not log per message");
+  assert.ok(listener.handlers.diagnostics().unapprovedMessages >= 1,
+    "but it IS counted, so 'is the approved map correct?' has an answer");
+  results.nonCallIsObservable = "PASS";
+}
 
 // The production shape reached the journal, with a real price attached.
 const primary = outcomes.get("buttonOnlyEmbed").outcome;

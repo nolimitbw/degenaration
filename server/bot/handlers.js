@@ -62,6 +62,39 @@ function callerName(msg) {
 }
 
 /**
+ * Counts, not content.
+ *
+ * The single most useful fact about a message that produced no call is whether the process
+ * could SEE it. `contentLength: 0` together with `embeds: 0` on a message a human watched
+ * someone type is the signature of missing message content — the MessageContent intent or the
+ * channel's Read Messages permission — and it is indistinguishable from "the parser found no
+ * mint" unless the shape is recorded.
+ *
+ * Deliberately no text, no author id, no attachment URL. A call channel's messages are the
+ * source owner's, not ours to copy into a log aggregator, and the counts are enough to decide
+ * what to do next.
+ */
+function describeShape(msg) {
+  const size = (value) => {
+    if (Array.isArray(value)) return value.length;
+    if (value && typeof value.size === "number") return value.size;
+    return 0;
+  };
+  const embeds = Array.isArray(msg?.embeds) ? msg.embeds : [];
+  return {
+    contentLength: typeof msg?.content === "string" ? msg.content.length : 0,
+    embeds: embeds.length,
+    // An embed with a title but no fields parses very differently from one with twenty.
+    embedFields: embeds.reduce((total, embed) => total + (Array.isArray(embed?.fields) ? embed.fields.length : 0), 0),
+    components: size(msg?.components),
+    attachments: size(msg?.attachments),
+    isReply: Boolean(msg?.reference?.messageId),
+    authorIsBot: Boolean(msg?.author?.bot),
+    viaWebhook: Boolean(msg?.webhookId)
+  };
+}
+
+/**
  * Build the three gateway handlers.
  *
  * Every dependency is a function rather than a value because each one is live at the moment
@@ -79,6 +112,8 @@ function createMessageHandlers({
   onLegacyRegister = null,
   onError = (scope, error) => console.error(`[bot] ${scope} failed:`, error?.message)
 }) {
+  /** Messages seen in channels this process does not watch, by channel. Diagnostics only. */
+  const unapprovedSeen = new Map();
   /**
    * Resolve a message into a parse result, including the message it replied to.
    *
@@ -114,7 +149,31 @@ function createMessageHandlers({
       });
       return null;
     }
-    if (!parsed?.mint) return null;
+    if (!parsed?.mint) {
+      // NOT a silent return. This branch is reached by every ordinary message in an approved
+      // channel, so it looks like the one to stay quiet on — and staying quiet is what made
+      // the listener undiagnosable. On 2026-08-05 a real mint was posted in an approved
+      // channel and the process logged NOTHING: no detection, no rejection, nothing. That is
+      // consistent with three completely different faults — the gateway never delivered the
+      // message, the bot cannot read that channel, or the parser found no mint — and the logs
+      // could not tell them apart, so the next step was a guess.
+      //
+      // The message's SHAPE is what separates them, so it is recorded rather than the content:
+      // empty content AND no embeds on a message a human saw text in means the bot is not
+      // receiving message content, which is a permission or intent fault. Content present with
+      // no mint is a parser result. No message-shaped log line at all means the event never
+      // arrived. Nothing here logs message text, author ids or attachment URLs — the shape is
+      // enough to choose the next action, and the content is not ours to copy into a log.
+      log("call.ignored", {
+        channelId: msg.channel.id,
+        messageId: msg.id,
+        group: group.groupName || group.groupId,
+        reason: "no mint found in this message",
+        eventType,
+        shape: describeShape(msg)
+      });
+      return null;
+    }
     noteFreshness(msg.channel.id, "lastDetected");
     log("call.detected", {
       channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
@@ -153,7 +212,14 @@ function createMessageHandlers({
 
     // Otherwise: only act in APPROVED call channels.
     const group = approvedChannel(msg.channel?.id);
-    if (!group) return;
+    if (!group) {
+      // Counted, not logged per message: an unapproved channel in a busy guild would flood the
+      // log and drown the events that matter. The counter answers "is the approved map what I
+      // think it is?" — which is the other way this fault presents, and it is reported by
+      // /degen status rather than by a line per message.
+      unapprovedSeen.set(msg.channel?.id, (unapprovedSeen.get(msg.channel?.id) || 0) + 1);
+      return;
+    }
 
     const parsed = await parseWithContext(msg);
     return handleDetectedCall({ msg, group, parsed, eventType: "create", eventVersion: "original" });
@@ -231,7 +297,14 @@ function createMessageHandlers({
     }
   }
 
-  return { onMessageCreate, onMessageUpdate, onMessageDelete, parseWithContext, handleDetectedCall };
+  return {
+    onMessageCreate, onMessageUpdate, onMessageDelete, parseWithContext, handleDetectedCall,
+    /** What this process has seen but not watched. Answers "is the approved map correct?" */
+    diagnostics: () => ({
+      unapprovedChannelsSeen: unapprovedSeen.size,
+      unapprovedMessages: [...unapprovedSeen.values()].reduce((a, b) => a + b, 0)
+    })
+  };
 }
 
-module.exports = { createMessageHandlers, IngestedMessages, callerName, INGESTED_LIMIT };
+module.exports = { createMessageHandlers, IngestedMessages, callerName, describeShape, INGESTED_LIMIT };
