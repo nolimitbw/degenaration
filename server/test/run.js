@@ -2805,6 +2805,24 @@ console.log("price selection");
       "zero is unset, so the default window still applies");
   });
 
+  test("the worker actually passes the execution resolver to the call watcher", () => {
+    // The resolver existed, the engine accepted it, every unit test passed — and worker.js
+    // never handed it over, so both controls would have resolved to null in production. A
+    // default of "not configured" is exactly what makes that invisible. Asserted against the
+    // deployed file's text because the alternative is booting a worker in a test.
+    const fs = require("node:fs");
+    const worker = fs.readFileSync(`${__dirname}/../worker.js`, "utf8");
+    const stripped = worker.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+    assert.ok(
+      /subscriberExecution:\s*store\.subscriberExecution/.test(stripped),
+      "worker.js must pass store.subscriberExecution to startCallWatcher, or the priority-fee " +
+        "cap and quote window silently do not apply"
+    );
+    // And the engine must still accept it under that exact name.
+    const calls = fs.readFileSync(`${__dirname}/../engine/calls.js`, "utf8");
+    assert.ok(calls.includes("subscriberExecution"), "engine/calls.js must read the dependency");
+  });
+
   test("the subscriber's execution policy comes from the same snapshot as their filters", () => {
     const store = require("../engine/store");
     const versioned = store.subscriberExecution({

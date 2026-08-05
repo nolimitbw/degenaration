@@ -138,6 +138,12 @@ if (SIGNING_READY) {
   startCallWatcher({
     loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
     subscriberSafety: store.subscriberSafety,
+    // The subscriber's own priority-fee cap and quote window, from the SAME immutable snapshot
+    // their filters come from. engine/calls.js defaults this to "not configured", so leaving it
+    // unwired here would have made both controls resolve to null in production while every
+    // test passed — the control wired at one end and not the other, which is the defect class
+    // this whole session has been closing.
+    subscriberExecution: store.subscriberExecution,
     claimCallExecution: store.claimCallExecution, finishCallExecution: store.finishCallExecution,
     submitCallExecution: store.submitCallExecution,
     completeCall: store.completeCall, markCallExecuted: store.markCallExecuted, signAndSend,

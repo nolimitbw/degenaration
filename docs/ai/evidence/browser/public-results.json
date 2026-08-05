@@ -15,7 +15,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 0,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -38,7 +38,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 12,
+      "smallTapTargets": 11,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -61,7 +61,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 11,
+      "smallTapTargets": 10,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -84,7 +84,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 11,
+      "smallTapTargets": 10,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -107,7 +107,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 0,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -130,7 +130,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 18,
+      "smallTapTargets": 17,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -153,7 +153,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 17,
+      "smallTapTargets": 16,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -176,7 +176,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 17,
+      "smallTapTargets": 16,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -199,7 +199,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 1,
+      "smallTapTargets": 0,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -222,7 +222,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 13,
+      "smallTapTargets": 12,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -245,7 +245,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 12,
+      "smallTapTargets": 11,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -268,7 +268,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 12,
+      "smallTapTargets": 11,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -290,14 +290,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": true,
-      "smallTapTargets": 7,
+      "emojiInUi": false,
+      "smallTapTargets": 0,
       "signedIn": false,
       "spinners": 0,
       "headings": [
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\nAutomatic entries\nOpen new position",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🫟︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nFunding and exposure\nSet the amount per entry and the total capital ceiling.\nAutomatic entries\nOpen new position",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-mobile-390x844.jpg"
@@ -313,16 +313,21 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": true,
-      "smallTapTargets": 21,
+      "emojiInUi": false,
+      "smallTapTargets": 15,
       "signedIn": false,
       "spinners": 0,
       "headings": [
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nFunding and exposure\nSet t",
-      "consoleErrors": 0,
-      "failedRequests": [],
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nSource required\nAPPROVED DISCORD SERVER\nNo options available\n\nApproved sources could not be loaded right now.\nTry again\n\nDISCORD CHANNEL\nAll approved channels\n\nMEASURED CALLS\n\n--\n\n2X RATE\n\nCollecting data\n\n",
+      "consoleErrors": 2,
+      "failedRequests": [
+        {
+          "status": 0,
+          "url": "[Fetch] net::ERR_NETWORK_CHANGED"
+        }
+      ],
       "screenshot": "discord-builder-tablet-768-768x1024.jpg"
     },
     {
@@ -336,14 +341,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": true,
-      "smallTapTargets": 20,
+      "emojiInUi": false,
+      "smallTapTargets": 13,
       "signedIn": false,
       "spinners": 0,
       "headings": [
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nF",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🫟︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nF",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-tablet-1024x768.jpg"
@@ -359,14 +364,14 @@
       "horizontalOverflow": false,
       "hasViewportMeta": true,
       "forbiddenCopy": [],
-      "emojiInUi": true,
-      "smallTapTargets": 20,
+      "emojiInUi": false,
+      "smallTapTargets": 13,
       "signedIn": false,
       "spinners": 0,
       "headings": [
         "Configure Discord bot"
       ],
-      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🍆︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nF",
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nBOTS / DISCORD / NEW\n\nConfigure Discord bot\n\nChoose a call source, set the budget, then review the safeguards.\n\nOverview\nDiscord Bot\nKOL Bot\nMy Bots\nBot identity\nName this setup before choosing where it trades.\nDiscord call bot\nBOT NAME\nOptional description\nExecution wallet\nUse the verified Solana wallet that owns this bot's trades.\nWallet required to activate\n\nSELECTED WALLET\n\nNot connected\n\nDelegation required to activate\n\nConnect account\nDiscord source\nChoose an approved server and either one channel or all approved channels.\nDegenAration\nAPPROVED DISCORD SERVER\nDegenAration\nSLPR DEGEN\nDISCORD CHANNEL\nAll approved channels\n🫟︴sol-alpha\n\nMEASURED CALLS\n\n0\n\n2X RATE\n\nCollecting data\n\nCREATOR SHARE\n\n0.70%\n\nF",
       "consoleErrors": 0,
       "failedRequests": [],
       "screenshot": "discord-builder-desktop-1440x1000.jpg"
@@ -383,7 +388,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 7,
+      "smallTapTargets": 0,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -406,7 +411,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 26,
+      "smallTapTargets": 19,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -429,7 +434,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 25,
+      "smallTapTargets": 18,
       "signedIn": false,
       "spinners": 0,
       "headings": [
@@ -452,7 +457,7 @@
       "hasViewportMeta": true,
       "forbiddenCopy": [],
       "emojiInUi": false,
-      "smallTapTargets": 25,
+      "smallTapTargets": 18,
       "signedIn": false,
       "spinners": 0,
       "headings": [
