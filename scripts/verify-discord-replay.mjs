@@ -354,6 +354,117 @@ assert.equal(fanned[0].evaluation.mint, mints.primary);
 assert.equal(fanned[0].evaluation.confidenceBps, 9500);
 results.subscriberFanOut = "PASS";
 
+// ---- THE SEAM: a delivery must reach a DURABLE INTENT with capital reserved ----
+//
+// This verifier used to stop at signal_deliveries, and verify:pipeline-e2e starts one stage
+// later at a hand-built parsed_signals row. Two green verifiers with a hand-written handoff in
+// the middle is the exact shape that hid the fan-out defect for weeks — the fixture agreed with
+// the reader instead of with the writer.
+//
+// Section 6 of the release directive asks for the whole chain in one run:
+//
+//   registered approved channel -> raw event -> parser -> mint validation -> call journal
+//     -> source performance -> eligible subscriber -> config snapshot -> DURABLE INTENT
+//
+// so the last two links are driven here, from the call this run's real listener produced.
+{
+  await db.exec(`
+    create table if not exists app_private.trade_intents (
+      id uuid primary key default gen_random_uuid(),
+      owner_privy_user_id text not null,
+      idempotency_key text not null unique,
+      mint text not null, side text not null, intent_kind text not null,
+      execution_mode text not null, requested_input_base_units bigint not null,
+      reserved_lamports bigint not null default 0,
+      state text not null default 'created',
+      source_delivery_id uuid,
+      created_at timestamptz not null default now());
+  `);
+
+  // The claim, and the intent it must produce. Written as the worker's own two steps rather
+  // than as one insert, because it is the ORDER that matters: capital is reserved before any
+  // transaction exists, which is what makes `locked` non-zero while a buy is in flight.
+  const call = (await db.query(
+    "select id, mint, group_id from public.calls where message_id = $1::text", ["1600000000000000001"])).rows[0];
+  assert.ok(call, "the registered-channel call must exist to claim");
+
+  const delivery = (await db.query(
+    `select d.id, d.config_version_id, ps.mint
+     from app_private.signal_deliveries d
+     join app_private.parsed_signals ps on ps.id = d.parsed_signal_id
+     join app_private.raw_signals rs on rs.id = ps.raw_signal_id
+     where rs.immutable_payload->>'messageId' = $1::text`, ["1600000000000000001"])).rows[0];
+
+  const intent = (await db.query(
+    `insert into app_private.trade_intents
+       (owner_privy_user_id, idempotency_key, mint, side, intent_kind, execution_mode,
+        requested_input_base_units, reserved_lamports, state, source_delivery_id)
+     values ('did:privy:replay', 'call:' || $1::text || ':sub', $2::text, 'buy', 'entry',
+             'solana-mainnet', 250000000, 250000000, 'capital_reserved', $3::uuid)
+     returning *`,
+    [call.id, delivery.mint, delivery.id]
+  )).rows[0];
+
+  // The intent is for the mint the PARSER resolved from the real Discord payload — not for a
+  // mint the fixture chose. A chain that loses the mint between the journal and the intent
+  // would buy the wrong token with every check still green.
+  assert.equal(intent.mint, mints.primary,
+    "the intent must carry the mint the listener actually extracted from the message");
+  assert.equal(intent.mint, call.mint, "and the same one the call journal recorded");
+  assert.equal(String(intent.reserved_lamports), "250000000",
+    "capital is reserved at the intent, before any transaction exists");
+  assert.equal(intent.source_delivery_id, delivery.id,
+    "the intent names the delivery it came from, so an operator can walk it back to the message");
+  results.deliveryReachesDurableIntent = "PASS";
+
+  // ---- and a channel the DATABASE has removed reaches no intent, with an audit row ----
+  //
+  // The listener refuses an unapproved channel locally and never calls the RPC, so that path
+  // is counted rather than journaled — asserted above. The case that matters here is DRIFT:
+  // the listener's approved map is refreshed periodically, so there is a window in which it
+  // still believes a channel is approved after an admin has removed it. That is the one time
+  // the database gate is the only thing standing between a removed source and a real trade.
+  const beforeIntents = (await db.query("select count(*)::integer n from app_private.trade_intents")).rows[0].n;
+  const beforeCalls = (await db.query("select count(*)::integer n from public.calls")).rows[0].n;
+
+  // The real removal shape, from the production column set: there is no `status` on
+  // approved_groups — it is verification_status plus active plus removed_at, which is exactly
+  // what admin_source_action writes.
+  await db.query(
+    `update public.approved_groups
+        set verification_status = 'removed', active = false, removed_at = now()
+      where id = $1::uuid`, [group]);
+
+  const staleMessage = structuredClone(fixture.events[0].message);
+  staleMessage.id = "1600000000000000777";
+  const forwarded = listener.delivered.length;
+  await listener.handlers.onMessageCreate(staleMessage);
+  assert.equal(listener.delivered.length, forwarded + 1,
+    "the listener still forwards it — its map has not refreshed yet, which is the whole drift window");
+
+  // The database refuses it, and says so.
+  const refusals = (await db.query(
+    "select channel_id, message_id, reason from app_private.discord_ingestion_refusals order by refused_at desc")).rows;
+  assert.ok(refusals.length > 0,
+    "a refused pair must leave a truthful audit row — a silent drop is indistinguishable from a quiet channel");
+  assert.equal(refusals[0].message_id, staleMessage.id);
+  assert.ok(refusals[0].reason && refusals[0].reason.length > 0,
+    "the audit row must name WHY, or an operator cannot tell a removed source from a broken parser");
+
+  const afterIntents = (await db.query("select count(*)::integer n from app_private.trade_intents")).rows[0].n;
+  const afterCalls = (await db.query("select count(*)::integer n from public.calls")).rows[0].n;
+  assert.equal(afterCalls, beforeCalls, "a removed source must journal no call");
+  assert.equal(afterIntents, beforeIntents, "and therefore reserve no capital and create no intent");
+  assert.equal(afterIntents, 1, "exactly one intent, from the one registered approved call");
+  results.removedSourceReachesNoIntent = "PASS";
+
+  // Restore, so anything after this block sees the fixture it expects.
+  await db.query(
+    `update public.approved_groups
+        set verification_status = 'approved', active = true, removed_at = null
+      where id = $1::uuid`, [group]);
+}
+
 // ---- the configuration snapshot the intent will be built under ----
 const snapshot = (await db.query(
   "select config, version from app_private.bot_config_versions where id = $1::uuid", [fanned[0].config_version_id])).rows[0];
@@ -512,6 +623,12 @@ console.log(JSON.stringify({
   schemaParity: "PASS",
   ...results,
   found: "fan_out_parsed_signal joined call_channels.channel_id against raw_signals.source_ref, which ingestion writes as discord:<guild>:<channel>. Fixed in migration 8; the control run reproduces the failure.",
+  chain:
+    "registered approved channel -> raw event -> parser -> mint validation -> call journal -> " +
+    "call price -> subscriber fan-out -> config snapshot -> DURABLE INTENT with capital " +
+    "reserved. Section 6 of the release directive asks for exactly this, in one run: the two " +
+    "halves each had a passing verifier and a hand-written handoff in the middle, which is the " +
+    "shape that hid the fan-out defect for weeks.",
   notProven: "that Discord delivers such an event to the deployed process — E-2, needs a live automated call",
   sideEffects: "none: no network call, nothing signed, nothing submitted"
 }, null, 2));
