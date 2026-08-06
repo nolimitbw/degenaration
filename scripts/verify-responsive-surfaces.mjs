@@ -268,10 +268,14 @@ const SURFACES = [
   // The readiness predicate asserts a heading the builder itself renders. `innerText.length >
   // 200` is not enough: it let an earlier run measure a 404 page for four widths while
   // reporting a real surface.
+  //
+  // The predicate asserts BOTH halves of the section-4 split — a basic control and the optional
+  // divider — so a regression that flattens the two groups back into one list fails here rather
+  // than passing because the page still renders something.
   { route: "/bots/discord/new", name: "discord-builder",
-    ready: "document.body.innerText.includes('Funding and exposure')" },
+    ready: "document.body.innerText.includes('Buy amount') && document.body.innerText.includes('Optional settings')" },
   { route: "/bots/kol/new", name: "kol-builder",
-    ready: "document.body.innerText.includes('Funding and exposure')" },
+    ready: "document.body.innerText.includes('Buy amount') && document.body.innerText.includes('Optional settings')" },
   // The public source profile. Its "Latest calls" table gained call price, market cap and
   // liquidity, taking it to nine columns — the exact shape that overflows a 390px page if the
   // scroll container is wrong.

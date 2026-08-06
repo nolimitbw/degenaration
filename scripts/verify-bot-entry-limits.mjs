@@ -81,7 +81,8 @@ for (const file of [
   "degenaration-bot-entry-limits.sql",
   "degenaration-subscription-channel-scope.sql",
   "degenaration-exit-reason.sql",
-  "degenaration-freeze-after-stop.sql"
+  "degenaration-freeze-after-stop.sql",
+  "degenaration-auto-reentry.sql"
 ]) {
   await db.exec(await sql(file));
 }
@@ -89,6 +90,7 @@ for (const file of [
 await db.exec(await sql("degenaration-bot-entry-limits.sql"));
 await db.exec(await sql("degenaration-subscription-channel-scope.sql"));
 await db.exec(await sql("degenaration-freeze-after-stop.sql"));
+await db.exec(await sql("degenaration-auto-reentry.sql"));
 results.rerunSafe = "PASS";
 
 const one = async (text, params = []) => (await db.query(text, params)).rows[0];
@@ -537,6 +539,75 @@ const skipped = (subId) => all(
   results.freezeAfterStop = "PASS";
 }
 
+// ── 7g. auto re-entry, and that it is NOT first-call-only wearing a different label ──────────
+//
+// Section 4 of the release directive adds one switch below Stop loss. The risk with a new
+// entry control is not that it fails to refuse — it is that it refuses in exactly the same
+// circumstances as a control that already exists, giving two switches one meaning. These
+// assertions are mostly about the DIFFERENCE.
+{
+  // OFF, and a position in this token has already closed. Refused, with its own reason.
+  const off = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, autoReentry: false, firstCallOnly: false
+  });
+  await db.query(
+    `insert into public.positions
+       (user_pubkey, mint, entry_price_usd, amount_raw, entry_sig, status, group_id, closed_at)
+     values ('PUBKEY', 'REENTRY', 1, 1000, 'sig-reentry-closed', 'closed', $1::uuid, now())`,
+    [GROUP]
+  );
+  const refused = await claim((await call("REENTRY")).id, off.id);
+  assert.equal(refused.ok, false);
+  assert.equal(refused.error, "auto re-entry is off: this token was already traded to close");
+  // Its own reason, not borrowed from a neighbouring control. An owner reading "token cooldown
+  // active" would go looking in Execution and retries for a setting that is not the cause.
+  assert.notEqual(refused.error, "token cooldown active");
+  assert.notEqual(refused.error, "first call only: this token was already traded");
+
+  // ON — the builder's other position — allows the same re-entry.
+  const on = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, autoReentry: true, firstCallOnly: false
+  });
+  assert.equal((await claim((await call("REENTRY")).id, on.id)).ok, true,
+    "switched on, a closed position must not block a fresh entry");
+
+  // THE DISTINCTION. An OPEN position is not a completed cycle: auto re-entry off must still
+  // permit adding to a live position, which is what per-token exposure governs. First-call-only
+  // is the control that refuses here, and it is separately switchable.
+  const openSub = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, autoReentry: false, firstCallOnly: false
+  });
+  const openCall = await call("STILLOPEN");
+  const first = await claim(openCall.id, openSub.id);
+  assert.equal(first.ok, true);
+  await fill(openCall.id, openSub.id, first, { mint: "STILLOPEN" });
+  assert.equal((await claim((await call("STILLOPEN")).id, openSub.id)).ok, true,
+    "auto re-entry off must NOT refuse a second entry while the position is still open — " +
+    "that is first-call-only's job, and collapsing the two would delete a real behaviour");
+
+  // And with first-call-only ON, the same second entry IS refused — by the other control,
+  // naming itself. This is the assertion that proves the two are genuinely separate.
+  const bothSub = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, autoReentry: false, firstCallOnly: true
+  });
+  const bothCall = await call("BOTH");
+  const bothFirst = await claim(bothCall.id, bothSub.id);
+  assert.equal(bothFirst.ok, true);
+  await fill(bothCall.id, bothSub.id, bothFirst, { mint: "BOTH" });
+  const bothSecond = await claim((await call("BOTH")).id, bothSub.id);
+  assert.equal(bothSecond.ok, false);
+  assert.equal(bothSecond.error, "first call only: this token was already traded");
+
+  // ABSENT reads as ON. A snapshot written before this control existed was saved by an owner
+  // under semantics where re-entry was allowed; reading its silence as "off" would tighten a
+  // saved bot that nobody edited.
+  const legacy = await subscription({ buyAmountLamports: SOL, maxOpenTrades: 50, firstCallOnly: false });
+  assert.equal((await claim((await call("REENTRY")).id, legacy.id)).ok, true,
+    "absent autoReentry must read as ON, or an older configuration is silently tightened");
+
+  results.autoReentry = "PASS";
+}
+
 // ── 8. absent is not zero ───────────────────────────────────────────────────────────────────
 //
 // The failure mode this guards: reading an unset limit as 0 refuses every trade on every bot
@@ -701,7 +772,8 @@ console.log(JSON.stringify({
   ...results,
   enforcedControls: [
     "maxOpenTrades", "maximumCapitalLamports", "perTokenExposureLamports",
-    "cooldownSeconds", "firstCallOnly", "autoEntry", "killSwitch", "channelId",
+    "cooldownSeconds", "firstCallOnly", "autoEntry", "autoReentry", "killSwitch", "channelId",
+    "stopLoss.freezeAfterStop",
     "limits.maxOpenTrades", "limits.maximumCapital", "limits.dailyLoss",
     "limits.perTokenExposure", "limits.cooldown"
   ],

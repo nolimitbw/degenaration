@@ -131,6 +131,52 @@ http.createServer((req, res) => {
   }));
 }).listen(PORT, "0.0.0.0", () => console.log(`[worker] health listening on :${PORT}`));
 
+/**
+ * Report liveness into the database the trades are recorded in.
+ *
+ * The /health endpoint above answers whoever can reach this container's port. That is not the
+ * question the product asks: `RUN` has to know, from the app, whether a worker is alive before
+ * it activates a bot, and the app cannot reach a Railway-internal port. The database is the one
+ * place both sides already meet.
+ *
+ * The writer for this has existed and been deployed the whole time and nothing ever called it,
+ * which left app_private.worker_leases empty while the worker ran. See
+ * supabase/degenaration-worker-liveness.sql.
+ *
+ * THE LEASE IS A PROMISE, so the interval must be comfortably shorter than it. 90 seconds of
+ * lease against a 30-second beat survives two consecutive failures before the app is told the
+ * worker is gone.
+ *
+ * Reporting is not trading. A heartbeat failure is counted and logged and changes nothing else:
+ * a worker that cannot reach PostgREST for a status write can still be mid-exit on a real
+ * position, and stopping it to preserve a report would be exactly backwards.
+ */
+const HEARTBEAT_INTERVAL_MS = 30_000;
+const HEARTBEAT_LEASE_SECONDS = 90;
+const INSTANCE_ID = `${process.env.RAILWAY_REPLICA_ID || process.env.HOSTNAME || "local"}:${startedAt}`;
+const heartbeatMode = NET === "devnet" ? "solana-devnet" : NET === "paper" ? "paper" : "solana-mainnet";
+
+async function beat() {
+  try {
+    await store.workerHeartbeat(INSTANCE_ID, heartbeatMode, HEARTBEAT_LEASE_SECONDS, {
+      // Facts the Admin Console can act on. Deliberately no secret, no wallet, no signer
+      // material -- this row is readable by every server-side caller of app_worker_liveness.
+      signingEnabled: SIGNING_READY,
+      copyTradingEnabled: COPY_TRADING_READY,
+      feeConfigured: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
+      uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+      events: state.events,
+      errors: state.errors
+    });
+  } catch (error) {
+    state.errors += 1;
+    state.lastError = `heartbeat: ${String(error.message).slice(0, 160)}`;
+    console.error("[worker] heartbeat failed —", state.lastError);
+  }
+}
+beat();
+setInterval(beat, HEARTBEAT_INTERVAL_MS).unref?.();
+
 if (SIGNING_READY) {
   startLimitWatcher({
     loadOpenOrders: store.loadOpenOrders, getPrice, signAndSend,

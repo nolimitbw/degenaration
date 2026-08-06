@@ -3285,6 +3285,154 @@ console.log("price selection");
     assert.ok(decide(row, 5.5), "the surviving +400% level must");
   });
 }
+// ── RUN readiness, and the eight bot states ────────────────────────────────────────────────
+//
+// What is being pinned is not "does it refuse" — it is that the refusal is SPECIFIC. The three
+// strings this replaces were computed on the client from a frozen constant, so they said the
+// same sentence to a user with no wallet, a user with no capital, and a user whose only
+// problem was the fee account. A message that cannot vary is not a diagnosis.
+{
+  const { evaluateReadiness, CHECKS } = require("../../lib/bot-readiness");
+  const { displayState, canTransition, DISPLAY, STORED } = require("../../lib/bot-states");
+
+  const READY = {
+    authenticated: true,
+    configurationValid: true,
+    walletOwned: true,
+    walletDelegated: true,
+    sourceApproved: true,
+    channelRegistered: true,
+    duplicateActiveBot: false,
+    requiredLamports: "500000000",
+    availableLamports: "2000000000",
+    killSwitch: false,
+    platformEntriesPaused: false,
+    workerLive: true,
+    workerReason: null,
+    signerConfigured: true,
+    feeAccountReady: true,
+    mainnetReleased: true
+  };
+
+  test("every fact present and true means ready, with no reason to show", () => {
+    const verdict = evaluateReadiness(READY);
+    assert.strictEqual(verdict.ready, true);
+    assert.strictEqual(verdict.reason, null);
+    assert.strictEqual(verdict.failedCheck, null);
+  });
+
+  test("each blocker produces its OWN reason, not a shared sentence", () => {
+    // The assertion that matters. Six different faults, six different messages.
+    const reasons = new Set();
+    for (const [field, value] of [
+      ["walletOwned", false], ["configurationValid", false], ["killSwitch", true],
+      ["workerLive", false], ["feeAccountReady", false], ["mainnetReleased", false]
+    ]) {
+      const verdict = evaluateReadiness({ ...READY, [field]: value });
+      assert.strictEqual(verdict.ready, false, `${field} must block`);
+      assert.ok(verdict.reason && verdict.reason.length > 10, `${field} must name itself`);
+      reasons.add(verdict.reason);
+    }
+    assert.strictEqual(reasons.size, 6, "six distinct faults must give six distinct messages");
+  });
+
+  test("the user's own problem is shown before a platform blocker", () => {
+    // Ordering is the whole point. A user with no wallet who is told "the fee account is not
+    // ready" waits for us when the fix was theirs.
+    const verdict = evaluateReadiness({
+      ...READY, walletOwned: false, feeAccountReady: false, mainnetReleased: false
+    });
+    assert.strictEqual(verdict.failedCheck, "wallet");
+    assert.strictEqual(verdict.blocking, "user");
+  });
+
+  test("exactly one reason is shown even when several checks fail", () => {
+    const verdict = evaluateReadiness({
+      ...READY, walletOwned: false, killSwitch: true, workerLive: false
+    });
+    assert.strictEqual(typeof verdict.reason, "string");
+    assert.ok(verdict.checks.filter((check) => !check.ok).length >= 3, "all failures are still computed");
+  });
+
+  test("an unknown fact fails closed", () => {
+    // undefined is not true. Activating on a fact we could not establish is the shape of every
+    // defect this project has spent its time removing.
+    for (const field of ["workerLive", "signerConfigured", "feeAccountReady", "mainnetReleased"]) {
+      const facts = { ...READY };
+      delete facts[field];
+      assert.strictEqual(evaluateReadiness(facts).ready, false, `${field} unknown must not pass`);
+    }
+  });
+
+  test("a check that throws fails closed rather than passing", () => {
+    // requiredLamports that BigInt() cannot parse.
+    const verdict = evaluateReadiness({ ...READY, requiredLamports: "not-a-number" });
+    assert.strictEqual(verdict.ready, false);
+    assert.strictEqual(verdict.failedCheck, "capital");
+  });
+
+  test("the capital shortfall names the amount, not just the fact", () => {
+    const verdict = evaluateReadiness({
+      ...READY, requiredLamports: "5500000000", availableLamports: "1000000000"
+    });
+    assert.strictEqual(verdict.failedCheck, "capital");
+    assert.ok(verdict.reason.includes("4.5"), `expected the 4.5 SOL shortfall, got: ${verdict.reason}`);
+  });
+
+  test("a KOL bot is not blocked for having no Discord source", () => {
+    const facts = { ...READY };
+    delete facts.sourceApproved;
+    assert.strictEqual(evaluateReadiness(facts).ready, true);
+  });
+
+  test("no two checks share an id", () => {
+    assert.strictEqual(new Set(CHECKS.map((entry) => entry.id)).size, CHECKS.length);
+  });
+
+  test("all eight directive states have a label", () => {
+    for (const label of ["Draft", "Validated", "Ready", "Active", "Paused", "Exit-only", "Error", "Archived"]) {
+      assert.ok(Object.values(DISPLAY).includes(label), `${label} must be reachable`);
+    }
+  });
+
+  test("Validated and Ready are DERIVED from a draft, never stored", () => {
+    // Storing them would freeze a verdict that goes stale the moment the worker, the fee
+    // account or the user's balance changes.
+    for (const key of ["validated", "ready"]) assert.ok(!STORED.includes(key));
+
+    const ready = displayState("draft", evaluateReadiness(READY));
+    assert.strictEqual(ready.label, "Ready");
+    assert.strictEqual(ready.derived, true);
+
+    // Everything the USER controls passes; only a platform blocker remains.
+    const validated = displayState("draft", evaluateReadiness({ ...READY, mainnetReleased: false }));
+    assert.strictEqual(validated.label, "Validated");
+
+    // The user's form is incomplete. That is a Draft, and calling it Validated would tell them
+    // they are waiting on us.
+    const draft = displayState("draft", evaluateReadiness({ ...READY, walletOwned: false }));
+    assert.strictEqual(draft.label, "Draft");
+  });
+
+  test("a stored status is never overwritten by a live readiness verdict", () => {
+    // An active bot must not appear to change state because the fee account went unready.
+    const active = displayState("active", evaluateReadiness({ ...READY, feeAccountReady: false }));
+    assert.strictEqual(active.label, "Active");
+    assert.strictEqual(active.derived, false);
+  });
+
+  test("exit-only is the stored `stopping`, and cannot go straight back to active", () => {
+    assert.strictEqual(displayState("stopping", null).label, "Exit-only");
+    assert.strictEqual(canTransition("stopping", "active"), false,
+      "re-activating over draining positions would let new entries in mid-wind-down");
+    assert.strictEqual(canTransition("stopping", "archived"), true);
+  });
+
+  test("archived is terminal", () => {
+    for (const to of STORED) assert.strictEqual(canTransition("archived", to), false);
+  });
+}
+
 console.log("");
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

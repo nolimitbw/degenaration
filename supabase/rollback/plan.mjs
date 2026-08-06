@@ -265,6 +265,18 @@ export const PACKAGE = [
       "available-to-withdraw, and the allocation invariant (creator + referral + retained == " +
       "platform fee) reported rather than assumed. Writes nothing, touches no existing object.",
   },
+  {
+    n: 19,
+    apply: "degenaration-auto-reentry.sql",
+    rollback: "19-auto-reentry.sql",
+    reapply: ["degenaration-freeze-after-stop.sql"],
+    note:
+      "Enforces `autoReentry`, the one new control section 4 of the release directive adds. " +
+      "Distinct from firstCallOnly: that one is about the SIGNAL (any repeat call for a token " +
+      "already acted on), this one is about the POSITION LIFECYCLE (a token already traded to " +
+      "close). Supersedes #16 in full and MUST FOLLOW IT. Same arity (uuid, uuid), no DDL, no " +
+      "DML. Absent reads as ON so an older snapshot is not silently tightened.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

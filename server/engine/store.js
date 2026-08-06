@@ -44,6 +44,26 @@ async function sbRpc(name, body) {
   return data;
 }
 
+/**
+ * Tell the database this worker is alive.
+ *
+ * `public.worker_heartbeat` has been deployed since degenaration-product-rpcs.sql and had
+ * NEVER been called. So `app_private.worker_leases` held zero rows while the worker ran, and
+ * one status document read that zero as proof the worker had never started — an empty table
+ * treated as a measurement, which is worse than an empty table.
+ *
+ * Failure here must never stop trading: a heartbeat is a report, and a worker that cannot
+ * report is still a worker that can exit an open position. The caller swallows the error and
+ * counts it.
+ */
+const workerHeartbeat = (instanceId, executionMode, leaseSeconds, metadata) => sbRpc("worker_heartbeat", {
+  p_worker_key: "trading-worker",
+  p_instance_id: instanceId,
+  p_execution_mode: executionMode,
+  p_lease_seconds: leaseSeconds,
+  p_metadata: metadata
+});
+
 // ---- limit orders ----
 const loadOpenOrders = () => sbGet("limit_orders?status=eq.open&select=*", true);
 const claimLimitOrder = (id) => sbRpc("worker_claim_limit_order", { p_id: id });
@@ -312,4 +332,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, recordStopBreach, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };
+module.exports = { workerHeartbeat, subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, recordStopBreach, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };

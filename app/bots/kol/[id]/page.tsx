@@ -49,6 +49,8 @@ export default function KolStrategyDetailsPage() {
   const [priorityFee, setPriorityFee] = useState(500000);
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [readiness, setReadiness] = useState<{ ready: boolean; reason: string | null } | null>(null);
 
   useEffect(() => {
     setStrategy(undefined);
@@ -87,6 +89,48 @@ export default function KolStrategyDetailsPage() {
     if (slippage <= 0 || slippage > 20) return "Slippage must be 0.01% to 20%.";
     return null;
   }, [buyAmount, dailyLoss, maxOpenTrades, maximumCapital, slippage]);
+
+  /**
+   * Ask the server whether this copy subscription can activate.
+   *
+   * Shares lib/bot-readiness.js with the builder, through /api/product/bots/readiness, so a
+   * subscriber and a bot owner cannot be told different things about the same platform state.
+   */
+  async function run() {
+    if (!authenticated) { login(); return; }
+    if (invalid) { toast(invalid, "err"); return; }
+    if (!confirmed) { toast("Confirm the copy settings and fee before activation.", "err"); return; }
+    setChecking(true);
+    setReadiness(null);
+    try {
+      const verdict = await productFetch<{ ready: boolean; reason: string | null }>(
+        "/api/product/bots/readiness",
+        { getAccessToken, identityToken },
+        {
+          method: "POST",
+          body: JSON.stringify({
+            kind: "kol",
+            name: strategy?.name || "Copy",
+            status: "active",
+            visibility: "private",
+            executionMode: "solana-mainnet",
+            confirmed: true,
+            config: { walletAddress, walletId, buyAmountLamports: String(Math.round(buyAmount * 1e9)), maxOpenTrades, simulationRequired: true }
+          })
+        }
+      );
+      setReadiness(verdict);
+      if (!verdict.ready) { toast(verdict.reason || "This strategy cannot run yet.", "err"); return; }
+      await save("active");
+    } catch (reason) {
+      // Fail closed: a readiness check that could not run is not a pass.
+      const message = reason instanceof Error ? reason.message : "Readiness could not be checked.";
+      setReadiness({ ready: false, reason: message });
+      toast(message, "err");
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function save(status: "active" | "paused") {
     if (!authenticated) {
@@ -224,18 +268,33 @@ export default function KolStrategyDetailsPage() {
               </div>
               {invalid && <p className="rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">{invalid}</p>}
               <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I reviewed this strategy, its fee, and my worst-case capital limit.</label>
+              {/* The same two actions as the builder, for the same reason: this page carried a
+                  permanently disabled button whose label came from a frozen constant, so a user
+                  with no delegated wallet and a user waiting on the fee account read the
+                  identical sentence. RUN asks the server and reports the one check that failed. */}
+              {readiness && (
+                <p role={readiness.ready ? "status" : "alert"} className={`rounded-md border px-3 py-2 text-[11px] leading-5 ${readiness.ready ? "border-up/30 bg-up/5 text-up" : "border-down/35 bg-down/5 text-down"}`}>
+                  {readiness.ready ? "Every readiness check passes." : readiness.reason}
+                </p>
+              )}
               <button
                 type="button"
-                disabled
-                title={AUTOMATED_MAINNET_RELEASE.reason}
-                className="inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-dim opacity-70"
+                onClick={run}
+                disabled={saving || checking}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:opacity-50"
               >
                 <Play size={15} />
-                {AUTOMATED_MAINNET_RELEASE.activationLabel}
+                {checking ? "Checking" : "RUN"}
               </button>
-              {subscription?.status === "active" && <button type="button" onClick={() => save("paused")} disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><Pause size={15} /> Pause entries</button>}
+              <button
+                type="button"
+                onClick={() => save("paused")}
+                disabled={saving}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40"
+              >
+                <Pause size={15} /> Save and use later
+              </button>
               {!authenticated && <button type="button" onClick={login} className="min-h-11 w-full rounded-md border border-edge text-sm font-semibold text-ink">Connect account</button>}
-              <p className="flex gap-2 text-[10px] leading-4 text-dim"><ShieldCheck size={14} className="shrink-0 text-up" />{AUTOMATED_MAINNET_RELEASE.reason}</p>
             </div>
           </aside>
         </div>

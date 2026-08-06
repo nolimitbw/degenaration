@@ -31,6 +31,7 @@ import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 import { NumericTextInput } from "@/components/product/NumericField";
 import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 import { pendingNotice } from "@/lib/bot-control-contract";
+import { displayState } from "@/lib/bot-states";
 // One authoritative, integer-safe capital formula. Previously the builder computed this twice,
 // inline, three hundred lines apart — and the two expressions disagreed, because only one of
 // them counted DCA. See the header of lib/planned-capital.js.
@@ -161,6 +162,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [cooldownSeconds, setCooldownSeconds] = useState(900);
   const [simulationRequired, setSimulationRequired] = useState(true);
   const [firstCallOnly, setFirstCallOnly] = useState(false);
+  // Section 4: off by default, directly below Stop loss. Enforced in the claim by
+  // supabase/degenaration-auto-reentry.sql, and distinct from firstCallOnly — that one is
+  // about a repeat CALL, this one about a fresh entry after a POSITION has closed.
+  const [autoReentry, setAutoReentry] = useState(false);
   const [tpLevels, setTpLevels] = useState<TpLevel[]>([
     { targetBps: 10000, sellBps: 5000, trailingBps: 0, enabled: true },
     { targetBps: 40000, sellBps: 2500, trailingBps: 0, enabled: true }
@@ -231,6 +236,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [loading, setLoading] = useState(Boolean(botId));
   const [confirmStatus, setConfirmStatus] = useState<"draft" | "active" | null>(null);
   const [confirmReviewed, setConfirmReviewed] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [readiness, setReadiness] = useState<{ ready: boolean; reason: string | null; blocking: string | null } | null>(null);
 
   useEffect(() => {
     if (!securityOpen && !confirmStatus) return;
@@ -307,6 +314,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         setCooldownSeconds(numberOr(config.cooldownSeconds, 900));
         setSimulationRequired(config.simulationRequired !== false);
         setFirstCallOnly(Boolean(config.firstCallOnly));
+        // A saved bot with no autoReentry key predates the control, and the claim reads its
+        // absence as ON. Hydrating it as `false` here would show the owner an OFF switch for a
+        // bot that behaves as ON — the editor lying about the running configuration.
+        setAutoReentry(config.autoReentry === undefined ? true : Boolean(config.autoReentry));
         if (Array.isArray(config.takeProfit?.levels)) {
           setTpLevels(config.takeProfit.levels.map((level: Partial<TpLevel>) => ({
             targetBps: numberOr(level.targetBps, 10000),
@@ -534,6 +545,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       cooldownSeconds: Math.round(cooldownSeconds),
       simulationRequired,
       firstCallOnly,
+      autoReentry,
       // An off module is persisted as ABSENT, not as a flag alongside live values. The worker
       // reads levels and stopBps; leaving populated levels behind an `enabled: false` it does
       // not check would keep selling while the user believes take profit is off.
@@ -580,6 +592,70 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         unavailableDataBehavior: "fail-closed"
       },
       riskTier
+    };
+  }
+
+  /**
+   * `RUN` asks the SERVER whether this bot can activate, and shows the one reason it cannot.
+   *
+   * The three strings this replaces — "Configuration passes client validation…", "Activation
+   * needs trading enabled", "Activation needs the execution worker" — were all computed here,
+   * on the client, from a frozen constant. So they said the same sentence to a user with no
+   * wallet, a user with no capital, and a user whose only problem was the fee account. A
+   * message that cannot vary is not a diagnosis, and that is why they are gone rather than
+   * reworded.
+   */
+  async function checkReadiness() {
+    setChecking(true);
+    setReadiness(null);
+    try {
+      const verdict = await productFetch<{ ready: boolean; reason: string | null; blocking: string | null }>(
+        "/api/product/bots/readiness",
+        { getAccessToken, identityToken },
+        { method: "POST", body: JSON.stringify(activationPayload()) }
+      );
+      setReadiness(verdict);
+      return verdict;
+    } catch (reason) {
+      // Fail closed and say so. Reporting "ready" because the check itself failed is the one
+      // outcome that must never happen here.
+      const verdict = {
+        ready: false,
+        reason: reason instanceof Error ? reason.message : "Readiness could not be checked.",
+        blocking: "operator" as const
+      };
+      setReadiness(verdict);
+      return verdict;
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function run() {
+    if (!authenticated) { login(); return; }
+    if (validationError) { toast(validationError, "err"); return; }
+    const verdict = await checkReadiness();
+    if (!verdict.ready) {
+      toast(verdict.reason || "This bot cannot run yet.", "err");
+      return;
+    }
+    setConfirmReviewed(false);
+    setConfirmStatus("active");
+  }
+
+  function activationPayload() {
+    return {
+      id: botId,
+      kind,
+      name: name.trim(),
+      description: description.trim(),
+      status: "active",
+      visibility: kind === "discord" ? "private" : visibility,
+      executionMode: "solana-mainnet",
+      sourceId: kind === "discord" ? sourceId : null,
+      sourceGroupId: kind === "discord" ? sourceId : null,
+      confirmed: true,
+      config: buildConfig()
     };
   }
 
@@ -636,6 +712,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   if (loading) {
     return <div className="grid min-h-[520px] place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>;
   }
+
+  // Draft / Validated / Ready, derived — never stored. Storing "Ready" would freeze a verdict
+  // that goes stale the moment the worker, the fee account or the balance changes, and the
+  // user would be told to press RUN on something that cannot run. See lib/bot-states.js.
+  const stateLabel = displayState(botId ? "draft" : "draft", readiness
+    ? { ready: readiness.ready, checks: readiness.ready ? [] : [{ blocking: readiness.blocking, ok: false }] }
+    : null).label;
 
   // Controls this bot kind saves that no execution path reads yet, from the one contract the
   // build gate checks. Rendering them from the same list is what keeps the notice honest:
@@ -746,9 +829,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           )}
 
           <FormSection
-            title="Funding and exposure"
+            title="Buy amount"
             pending={pendingFor("funding")}
-            description="Set the amount per entry and the total capital ceiling."
+            description="How much this bot spends per entry."
             summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
             defaultOpen
           >
@@ -762,21 +845,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 Emergency stop is on. This bot will not open a new position, and its open positions keep exiting.
               </p>
             )}
-            <div className="grid gap-4 md:grid-cols-3">
-              <NumberField label="Buy amount" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
-              <LimitField
-                label="Maximum capital" on={limits.maximumCapital}
-                onToggle={(on) => setLimit("maximumCapital", on)}
-              >
-                <NumberField label="Maximum capital" hideLabel value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} />
-              </LimitField>
-              <LimitField
-                label="Maximum open trades" on={limits.maxOpenTrades}
-                onToggle={(on) => setLimit("maxOpenTrades", on)}
-              >
-                <NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} />
-              </LimitField>
-            </div>
+            {/* Buy amount is the one funding control section 4 keeps on the first screen. The
+                four exposure limits move into the collapsed group below it — they are real and
+                enforced, but a beginner does not have to answer them to start. */}
+            <NumberField label="Buy amount" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
             <div className="flex flex-wrap gap-2">
               {[0.1, 0.5, 1, 5].map((amount) => (
                 <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-11 sm:min-h-9 rounded-md border px-3 font-mono text-xs ${buyAmountSol === amount ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
@@ -785,12 +857,18 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <details className="group rounded-md border border-edge bg-void">
               <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
                 <span>
-                  <span className="block text-xs font-medium text-ink">Risk limits</span>
-                  <span className="mt-0.5 block font-mono text-[9px] text-dim">{dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
+                  <span className="block text-xs font-medium text-ink">Exposure limits</span>
+                  <span className="mt-0.5 block font-mono text-[9px] text-dim">{maximumCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
                 </span>
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
               <div className="grid gap-4 border-t border-edge p-3 sm:grid-cols-2">
+                <LimitField label="Maximum capital" on={limits.maximumCapital} onToggle={(on) => setLimit("maximumCapital", on)}>
+                  <NumberField label="Maximum capital" hideLabel value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} />
+                </LimitField>
+                <LimitField label="Maximum open trades" on={limits.maxOpenTrades} onToggle={(on) => setLimit("maxOpenTrades", on)}>
+                  <NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} />
+                </LimitField>
                 <LimitField label="Daily loss limit" on={limits.dailyLoss} onToggle={(on) => setLimit("dailyLoss", on)}>
                   <NumberField label="Daily loss limit" hideLabel value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.dailyLoss} />
                 </LimitField>
@@ -817,88 +895,16 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
           </FormSection>
 
-          {kind === "kol" && (
-            <FormSection
-              title="Entry trigger"
-            pending={pendingFor("entry")}
-              description="Choose what must happen before the strategy can enter."
-              summary={`-${(priceDropBps / 100).toFixed(1)}% over ${lookbackMinutes < 60 ? `${lookbackMinutes}m` : `${lookbackMinutes / 60}h`} · ${preset}`}
-              defaultOpen
-            >
-              <div className="grid gap-4 lg:grid-cols-2">
-                <label className="block">
-                  <span className="field-label">Manual Solana mints</span>
-                  <textarea value={manualMints} onChange={(event) => setManualMints(event.target.value)} rows={4} className="field-control mt-1.5 resize-y px-3 py-2.5 font-mono text-xs" placeholder="One mint per line, optional when scanner discovery is enabled" />
-                </label>
-                <div>
-                  <span className="field-label">Scanner quick set</span>
-                  <div className="mt-1.5 grid grid-cols-2 gap-2">
-                    {PRESET_NAMES.map((value) => (
-                      <button key={value} type="button" onClick={() => applyPreset(value)} className={`min-h-11 rounded-md border px-3 text-left text-xs font-medium ${preset === value ? "border-gold-400 bg-gold-400/10 text-ink" : "border-edge bg-void text-dim hover:text-ink"}`}>{value}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <NumberField label="Price drop" value={priceDropBps / 100} onChange={(value) => setPriceDropBps(Math.round(value * 100))} unit="%" step={0.5} min={0.1} max={99} />
-                <SelectField label="Reference" value={referenceMode} onChange={(value) => setReferenceMode(value as typeof referenceMode)} options={[{ value: "recent-ath", label: "Recent ATH" }, { value: "moving-average", label: "Moving average" }]} />
-                <NumberField label="Lookback period" value={lookbackMinutes} onChange={(value) => setLookbackMinutes(Math.round(value))} unit="min" step={15} min={5} max={10080} />
-                <SelectField label="Risk tier" value={riskTier} onChange={(value) => setRiskTier(value as typeof riskTier)} options={[{ value: "moderate", label: "Moderate" }, { value: "high", label: "High" }, { value: "very-high", label: "Very high" }]} />
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <SelectField label="Auto-refresh" value={String(autoRefreshMinutes)} onChange={(value) => setAutoRefreshMinutes(Number(value))} options={[5, 15, 30, 60, 360, 1440].map((value) => ({ value: String(value), label: value < 60 ? `${value} minutes` : `${value / 60} hours` }))} />
-                <NumberField label="Preview tokens" value={previewCount} onChange={(value) => setPreviewCount(Math.round(value))} unit="tokens" step={5} min={5} max={50} />
-                <Toggle label="Degen Mode" detail="Loosens non-critical discovery ranges, never authority or route checks." checked={degenMode} onChange={setDegenMode} danger />
-              </div>
-            </FormSection>
-          )}
 
-          {kind === "kol" && (
-            <FormSection
-              title="Dollar-cost averaging"
-            pending={pendingFor("dca")}
-              description="Optional staged entries after a deeper drop."
-              summary={dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(2)} SOL` : "Off"}
-            >
-              <Toggle label="Enable DCA" detail="Add bounded buys after deeper price drops." checked={dcaEnabled} onChange={setDcaEnabled} />
-              {dcaEnabled && (
-                <>
-                  <div className="divide-y divide-edge rounded-md border border-edge">
-                    {dcaLevels.map((level, index) => (
-                      <div key={index} className="grid gap-3 p-3 sm:grid-cols-[92px_repeat(2,minmax(0,1fr))_36px] sm:items-end">
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={level.enabled}
-                          aria-label={`Dollar-cost averaging level ${index + 1}`}
-                          onClick={() => updateDca(index, { enabled: !level.enabled })}
-                          className="flex min-h-11 items-center gap-2 text-left sm:min-h-0 sm:self-center"
-                        >
-                          <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled ? "bg-up" : "bg-edge"}`} />
-                          <span className="font-mono text-xs text-dim">DCA {index + 1}</span>
-                          <span className={`font-mono text-[9px] uppercase ${level.enabled ? "text-up" : "text-dim"}`}>
-                            {level.enabled ? "On" : "Off"}
-                          </span>
-                        </button>
-                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} additional drop`} value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" disabled={!level.enabled} /></span></label>
-                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} buy amount`} value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" disabled={!level.enabled} /></span></label>
-                        <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25, enabled: true }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
-                    <NumberField label="DCA expiration" value={dcaExpirationMinutes} onChange={(value) => setDcaExpirationMinutes(Math.round(value))} unit="min" step={30} min={30} max={10080} compact />
-                  </div>
-                </>
-              )}
-            </FormSection>
-          )}
+
+
+
 
           <FormSection
             title="Take profit"
             pending={pendingFor("takeProfit")}
             description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}
+            defaultOpen
             summary={takeProfitEnabled
               ? `${tpLevels.filter((level) => level.enabled).length} of ${tpLevels.length} levels on`
               : "Off"}
@@ -940,11 +946,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
             {tpAllocationBps > 10000 && <InlineError>Sell allocation exceeds 100%.</InlineError>}
           </FormSection>
-
           <FormSection
             title="Stop loss"
             pending={pendingFor("stopLoss")}
             description="Exit management continues when new entries are paused."
+            defaultOpen
             summary={stopLossEnabled
               ? `-${(stopBps / 100).toFixed(1)}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`
               : "Off"}
@@ -971,8 +977,100 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <Toggle label="Freeze token after stop" detail="Block re-entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
               <Toggle label="Emergency exit" detail="Use the best bounded route when the normal exit fails." checked={emergencyExit} onChange={setEmergencyExit} />
             </div>
+            {/* Directly below stop loss, per section 4. Not the same control as First call
+                only: that one refuses a repeat call while a position is open, this one refuses
+                a fresh entry once the position has closed. */}
+            <Toggle
+              label="Auto re-entry"
+              detail="Allow a new position in a token this bot has already closed. Off finishes with the token."
+              checked={autoReentry}
+              onChange={setAutoReentry}
+            />
           </FormSection>
-
+          {/* Section 4: everything below is real, persisted, and mostly enforced — it is
+              collapsed because a beginner should not have to answer sixty questions to place
+              their first trade, not because any of it is decorative. */}
+          <SectionGroup
+            title="Optional settings"
+            description="Entry triggers, staged buys, safety filters, routing and retries."
+            count={kind === "kol" ? "4 sections" : "2 sections"}
+          >
+          {kind === "kol" && (
+            <FormSection
+              title="Entry trigger"
+            pending={pendingFor("entry")}
+              description="Choose what must happen before the strategy can enter."
+              summary={`-${(priceDropBps / 100).toFixed(1)}% over ${lookbackMinutes < 60 ? `${lookbackMinutes}m` : `${lookbackMinutes / 60}h`} · ${preset}`}
+              defaultOpen
+            >
+              <div className="grid gap-4 lg:grid-cols-2">
+                <label className="block">
+                  <span className="field-label">Manual Solana mints</span>
+                  <textarea value={manualMints} onChange={(event) => setManualMints(event.target.value)} rows={4} className="field-control mt-1.5 resize-y px-3 py-2.5 font-mono text-xs" placeholder="One mint per line, optional when scanner discovery is enabled" />
+                </label>
+                <div>
+                  <span className="field-label">Scanner quick set</span>
+                  <div className="mt-1.5 grid grid-cols-2 gap-2">
+                    {PRESET_NAMES.map((value) => (
+                      <button key={value} type="button" onClick={() => applyPreset(value)} className={`min-h-11 rounded-md border px-3 text-left text-xs font-medium ${preset === value ? "border-gold-400 bg-gold-400/10 text-ink" : "border-edge bg-void text-dim hover:text-ink"}`}>{value}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <NumberField label="Price drop" value={priceDropBps / 100} onChange={(value) => setPriceDropBps(Math.round(value * 100))} unit="%" step={0.5} min={0.1} max={99} />
+                <SelectField label="Reference" value={referenceMode} onChange={(value) => setReferenceMode(value as typeof referenceMode)} options={[{ value: "recent-ath", label: "Recent ATH" }, { value: "moving-average", label: "Moving average" }]} />
+                <NumberField label="Lookback period" value={lookbackMinutes} onChange={(value) => setLookbackMinutes(Math.round(value))} unit="min" step={15} min={5} max={10080} />
+                <SelectField label="Risk tier" value={riskTier} onChange={(value) => setRiskTier(value as typeof riskTier)} options={[{ value: "moderate", label: "Moderate" }, { value: "high", label: "High" }, { value: "very-high", label: "Very high" }]} />
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <SelectField label="Auto-refresh" value={String(autoRefreshMinutes)} onChange={(value) => setAutoRefreshMinutes(Number(value))} options={[5, 15, 30, 60, 360, 1440].map((value) => ({ value: String(value), label: value < 60 ? `${value} minutes` : `${value / 60} hours` }))} />
+                <NumberField label="Preview tokens" value={previewCount} onChange={(value) => setPreviewCount(Math.round(value))} unit="tokens" step={5} min={5} max={50} />
+                <Toggle label="Degen Mode" detail="Loosens non-critical discovery ranges, never authority or route checks." checked={degenMode} onChange={setDegenMode} danger />
+              </div>
+            </FormSection>
+          )}
+          {kind === "kol" && (
+            <FormSection
+              title="Dollar-cost averaging"
+            pending={pendingFor("dca")}
+              description="Optional staged entries after a deeper drop."
+              summary={dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(2)} SOL` : "Off"}
+            >
+              <Toggle label="Enable DCA" detail="Add bounded buys after deeper price drops." checked={dcaEnabled} onChange={setDcaEnabled} />
+              {dcaEnabled && (
+                <>
+                  <div className="divide-y divide-edge rounded-md border border-edge">
+                    {dcaLevels.map((level, index) => (
+                      <div key={index} className="grid gap-3 p-3 sm:grid-cols-[92px_repeat(2,minmax(0,1fr))_36px] sm:items-end">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={level.enabled}
+                          aria-label={`Dollar-cost averaging level ${index + 1}`}
+                          onClick={() => updateDca(index, { enabled: !level.enabled })}
+                          className="flex min-h-11 items-center gap-2 text-left sm:min-h-0 sm:self-center"
+                        >
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled ? "bg-up" : "bg-edge"}`} />
+                          <span className="font-mono text-xs text-dim">DCA {index + 1}</span>
+                          <span className={`font-mono text-[9px] uppercase ${level.enabled ? "text-up" : "text-dim"}`}>
+                            {level.enabled ? "On" : "Off"}
+                          </span>
+                        </button>
+                        <label><span className="field-label">Additional drop</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} additional drop`} value={level.dropBps / 100} onChange={(value) => updateDca(index, { dropBps: Math.round(value * 100) })} suffix="%" disabled={!level.enabled} /></span></label>
+                        <label><span className="field-label">Buy amount</span><span className="mt-1.5 block"><CompactNumber ariaLabel={`DCA ${index + 1} buy amount`} value={level.buyAmountSol} onChange={(value) => updateDca(index, { buyAmountSol: value })} suffix="SOL" disabled={!level.enabled} /></span></label>
+                        <button type="button" onClick={() => setDcaLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={dcaLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove DCA level ${index + 1}`}><X size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25, enabled: true }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
+                    <NumberField label="DCA expiration" value={dcaExpirationMinutes} onChange={(value) => setDcaExpirationMinutes(Math.round(value))} unit="min" step={30} min={30} max={10080} compact />
+                  </div>
+                </>
+              )}
+            </FormSection>
+          )}
           <FormSection
             title="Security filters"
             pending={pendingFor("safety")}
@@ -1022,7 +1120,6 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </div>
             )}
           </FormSection>
-
           <FormSection
             title="Execution and retries"
             pending={pendingFor("execution")}
@@ -1048,6 +1145,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               {kind === "discord" && <Toggle label="First call only" detail="Ignore repeat calls for the token during the cooldown." checked={firstCallOnly} onChange={setFirstCallOnly} />}
             </div>
           </FormSection>
+          </SectionGroup>
         </div>
 
         <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
@@ -1089,19 +1187,36 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               hint={`Estimated on a ${buyAmountSol.toFixed(3)} SOL entry. Solana network and priority fees are separate.`}
             />
           </dl>
+          {/* Two actions, exactly as section 5 specifies. RUN asks the server; the reason it
+              shows is whichever single check failed first, so it is different for a user with
+              no wallet and a user waiting on the fee account. Nothing here is computed from a
+              frozen constant any more. */}
           <div className="border-t border-edge p-5">
-            <div className={`rounded-md border px-3 py-2.5 text-[11px] leading-5 ${validationError ? "border-down/35 bg-down/5 text-down" : "border-up/30 bg-up/5 text-up"}`}>
-              {validationError || "Configuration passes client validation. Server and scanner checks still apply."}
-            </div>
+            <p className="flex items-center justify-between gap-3">
+              <span className="field-label">State</span>
+              <span className="font-mono text-[10px] uppercase tracking-wide text-gold-400">{stateLabel}</span>
+            </p>
+            {(validationError || readiness) && (
+              <div
+                role={validationError || readiness?.ready === false ? "alert" : "status"}
+                className={`mt-3 rounded-md border px-3 py-2.5 text-[11px] leading-5 ${
+                  validationError || readiness?.ready === false
+                    ? "border-down/35 bg-down/5 text-down"
+                    : "border-up/30 bg-up/5 text-up"
+                }`}
+              >
+                {validationError || (readiness?.ready ? "Every readiness check passes." : readiness?.reason)}
+              </div>
+            )}
             <div className="mt-4 grid gap-2">
               <button
                 type="button"
-                disabled
-                className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-dim opacity-70"
-                title={AUTOMATED_MAINNET_RELEASE.reason}
+                onClick={run}
+                disabled={saving || checking}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:opacity-50"
               >
-                <ShieldCheck size={15} />
-                {AUTOMATED_MAINNET_RELEASE.activationLabel}
+                {checking ? <Loader2 aria-hidden="true" size={15} className="animate-spin" /> : <ShieldCheck aria-hidden="true" size={15} />}
+                {checking ? "Checking" : "RUN"}
               </button>
               <button
                 type="button"
@@ -1116,10 +1231,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 disabled={saving}
                 className="min-h-11 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40"
               >
-                Review and save draft
+                Save and use later
               </button>
             </div>
-            <p className="mt-3 text-center font-mono text-[9px] leading-4 text-dim">{AUTOMATED_MAINNET_RELEASE.reason}</p>
           </div>
         </aside>
       </div>
@@ -1336,6 +1450,44 @@ function FormSection({
         )}
         {children}
       </div>
+    </details>
+  );
+}
+
+/**
+ * The `Optional settings` divider from section 4 of the release directive.
+ *
+ * The problem it solves is not that the advanced controls are wrong — every one of them is
+ * real, persisted and, for 37 of them, enforced. It is that presenting sixty controls flat
+ * makes the five that decide whether a bot makes money indistinguishable from the fifty-five
+ * that tune it. A beginner reads all of them or none.
+ *
+ * Collapsed by default and NEVER auto-expanded on validation error: an error inside a closed
+ * group is surfaced by the summary line and the sticky panel, and popping the group open would
+ * undo the simplification exactly when the user is already confused. The summary counts what is
+ * inside so a closed group is not an empty promise.
+ */
+function SectionGroup({ title, description, count, children }: {
+  title: string;
+  description: string;
+  count: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group bg-void">
+      <summary className="flex min-h-[68px] list-none items-center justify-between gap-4 px-5 py-3.5">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-ink">{title}</span>
+          <span className="mt-1 block text-[11px] leading-4 text-dim">{description}</span>
+        </span>
+        <span className="flex shrink-0 items-center gap-3">
+          <span className="hidden font-mono text-[9px] text-dim sm:block">{count}</span>
+          <span className="grid h-8 w-8 place-items-center rounded-md border border-edge text-dim transition group-open:border-gold-400/40 group-open:text-gold-400">
+            <ChevronDown aria-hidden="true" size={15} className="transition group-open:rotate-180" />
+          </span>
+        </span>
+      </summary>
+      <div className="space-y-px border-t border-edge bg-edge">{children}</div>
     </details>
   );
 }

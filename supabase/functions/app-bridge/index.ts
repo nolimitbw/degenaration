@@ -93,6 +93,10 @@ const operations: Record<string, string[]> = {
     "p_subject_id", "p_snapshot", "p_referral_code", "p_render_version"
   ],
   app_scanner_status: ["p_secret"],
+  // Whether a worker is heartbeating, and how stale. The RUN readiness check needs it and
+  // cannot reach the worker's own /health port -- that answers whoever can reach the container,
+  // and the app is not on that network. The database is where both sides already meet.
+  app_worker_liveness: ["p_secret"],
   app_consume_rate_limit: [
     "p_secret", "p_scope", "p_subject_hash", "p_limit", "p_window_seconds", "p_cost"
   ],
