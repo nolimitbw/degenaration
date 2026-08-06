@@ -1,5 +1,36 @@
 # Pending deployment package
 
+## PENDING — migration 22, dollar-cost averaging
+
+**`supabase/degenaration-dca-placement.sql` — NOT YET APPLIED.**
+
+Adds `public.positions.filled_dca_levels` and `public.worker_record_dca_fill`.
+
+**Must be applied BEFORE the worker build that reads it.** `server/engine/store.js` selects
+`filled_dca_levels`, and PostgREST answers an unknown column with **400** — the same shape as
+the funds incident. `npm run check:worker-schema-contract` is what makes that impossible to
+forget, and it fired on this file's first draft for a different column: `positions.opened_at`,
+which exists only in `degenaration-product-ledgers-operations.sql` and is **not** on
+`public.positions` in production. The monitor reads `created_at` instead.
+
+Why it matters more than the other pending controls: `dca.enabled`, `dca.levels`,
+`dca.expirationMinutes` and `dca.maximumEntries` are already **counted toward the minimum
+planned capital the builder tells the user to fund**. A bot with a 0.05 entry and two 0.25
+levels asks for 0.55 SOL per position and spends 0.05. Every other unenforced control costs the
+user nothing; this one reserves their money.
+
+Fully additive: one defaulted column, one new function. `worker_open_position` and
+`worker_settle_position_exit` are untouched, so there is no arity change and no overload risk.
+Rollback `supabase/rollback/22-dca-placement.sql` **refuses** if any level has been placed —
+dropping the column makes placed levels look unplaced, and the restored worker would buy the
+whole ladder again into positions that already hold it.
+
+Verified by `npm run verify:dca-placement` and `npm run verify:migration-rollback` (22
+migrations applied in order, rolled back in reverse, baseline restored byte-identically).
+
+---
+
+
 Written 2026-08-04. **Migration status re-read directly from production 2026-08-04**, not
 carried forward from the previous revision of this file, which said "nothing here has been
 deployed" after ten of these had in fact been applied.

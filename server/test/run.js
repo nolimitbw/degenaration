@@ -3285,6 +3285,131 @@ console.log("price selection");
     assert.ok(decide(row, 5.5), "the surviving +400% level must");
   });
 }
+// ── dollar-cost averaging: the decision, and the unit it is measured in ────────────────────
+//
+// The dangerous defect here is not "it never fires". It is firing at the WRONG PRICE, which is
+// the same class as the take-profit unit error that liquidated at entry: `dropBps` is an
+// additional drop below the position's average ENTRY, not below the previous level's price.
+// Read the other way, two levels at 3000 and 5000 bps place the second at -65% instead of -50%.
+{
+  const { dcaPlan, decideDca } = require("../engine/dca");
+
+  const config = (dca) => ({ dca, autoEntry: true });
+  const position = (overrides = {}) => ({
+    id: "p1", status: "open", pending: null, entryPriceUsd: 1, autoEntry: true, killSwitch: false,
+    openedAtMs: 1_000_000, filledDcaLevels: new Set(),
+    dca: dcaPlan(config({
+      enabled: true,
+      levels: [{ dropBps: 3000, buyAmountSol: 0.25 }, { dropBps: 5000, buyAmountSol: 0.5 }],
+      expirationMinutes: 60
+    })),
+    ...overrides
+  });
+  const NOW = 1_000_000;
+
+  test("a level fires at its drop BELOW ENTRY, not below the previous level", () => {
+    const p = position();
+    assert.strictEqual(decideDca({ position: p, price: 0.75, nowMs: NOW }), null, "-25% is short of the -30% level");
+    assert.strictEqual(decideDca({ position: p, price: 0.7, nowMs: NOW })?.index, 0, "-30% exactly must fire");
+
+    // THE UNIT. At -50% from entry the SECOND level is due. Read as "30% below the first
+    // level's price" it would need -65%, so this assertion is the one that pins the meaning.
+    const afterFirst = position({ filledDcaLevels: new Set([0]) });
+    assert.strictEqual(decideDca({ position: afterFirst, price: 0.5, nowMs: NOW })?.index, 1);
+    assert.strictEqual(decideDca({ position: afterFirst, price: 0.6, nowMs: NOW }), null,
+      "-40% must not reach the -50% level");
+  });
+
+  test("a filled level never fires twice", () => {
+    const p = position({ filledDcaLevels: new Set([0]) });
+    // Deep enough for level 0, which is already placed; level 1 is not yet reached.
+    assert.strictEqual(decideDca({ position: p, price: 0.65, nowMs: NOW }), null);
+  });
+
+  test("one level per tick, shallowest first", () => {
+    // Price gapped past BOTH levels. The nearer one fills now; the deeper one waits for the
+    // next tick, so a level the user configured is never skipped.
+    const p = position();
+    assert.strictEqual(decideDca({ position: p, price: 0.2, nowMs: NOW })?.index, 0);
+  });
+
+  test("maximumEntries caps the ladder", () => {
+    const plan = dcaPlan(config({
+      enabled: true, maximumEntries: 1,
+      levels: [{ dropBps: 3000, buyAmountSol: 0.25 }, { dropBps: 5000, buyAmountSol: 0.5 }]
+    }));
+    const p = position({ dca: plan, filledDcaLevels: new Set([0]) });
+    assert.strictEqual(decideDca({ position: p, price: 0.4, nowMs: NOW }), null);
+  });
+
+  test("an absent maximumEntries is not zero", () => {
+    // The "absent is not zero" rule the entry limits were already bitten by: a zero cap would
+    // refuse every fill on a bot whose owner never touched that field.
+    const plan = dcaPlan(config({ enabled: true, levels: [{ dropBps: 3000, buyAmountSol: 0.25 }] }));
+    assert.strictEqual(plan.maximumEntries, 1);
+    assert.ok(decideDca({ position: position({ dca: plan }), price: 0.7, nowMs: NOW }));
+  });
+
+  test("the expiry is anchored to the position, not to the last fill", () => {
+    const p = position();
+    // 61 minutes after opening, with a 60-minute window.
+    assert.strictEqual(decideDca({ position: p, price: 0.5, nowMs: NOW + 61 * 60_000 }), null);
+    assert.ok(decideDca({ position: p, price: 0.5, nowMs: NOW + 59 * 60_000 }));
+  });
+
+  test("an unknown opening time refuses rather than reading as just now", () => {
+    const p = position({ openedAtMs: NaN });
+    assert.strictEqual(decideDca({ position: p, price: 0.5, nowMs: NOW }), null,
+      "treating an unknown opening as fresh would keep buying past an expired window");
+  });
+
+  test("DCA off means absent, not a flag beside live levels", () => {
+    // Absent is OFF here, unlike autoExit: a position opened before DCA existed was never
+    // having levels placed, and reading a missing key as on would spend money on a bot whose
+    // owner never configured it.
+    assert.strictEqual(dcaPlan({}).enabled, false);
+    assert.strictEqual(dcaPlan({ dca: { enabled: false, levels: [{ dropBps: 3000, buyAmountSol: 1 }] } }).enabled, false);
+    assert.strictEqual(decideDca({ position: position({ dca: dcaPlan({}) }), price: 0.1, nowMs: NOW }), null);
+  });
+
+  test("a DCA fill is an ENTRY, so it obeys the entry switches", () => {
+    for (const override of [{ autoEntry: false }, { killSwitch: true }]) {
+      assert.strictEqual(decideDca({ position: position(override), price: 0.5, nowMs: NOW }), null,
+        `${JSON.stringify(override)} must stop a DCA buy — it is an entry, not an exit`);
+    }
+  });
+
+  test("a pending exit blocks a fill", () => {
+    // The same blocking invariant decideExit has: we do not know what the position holds.
+    const p = position({ pending: { kind: "SL", sig: "s" } });
+    assert.strictEqual(decideDca({ position: p, price: 0.5, nowMs: NOW }), null);
+  });
+
+  test("a closed or exiting position is never added to", () => {
+    for (const status of ["closed", "exiting"]) {
+      assert.strictEqual(decideDca({ position: position({ status }), price: 0.5, nowMs: NOW }), null);
+    }
+  });
+
+  test("a disabled level is absent from the ladder, so its index is skipped", () => {
+    const plan = dcaPlan(config({
+      enabled: true,
+      levels: [{ dropBps: 3000, buyAmountSol: 0.25, enabled: false }, { dropBps: 5000, buyAmountSol: 0.5 }]
+    }));
+    assert.strictEqual(plan.levels.length, 1);
+    // Index 1 is preserved from the original array, so a fill records the level the user's
+    // configuration actually names rather than a position in a filtered list.
+    assert.strictEqual(plan.levels[0].index, 1);
+    assert.strictEqual(decideDca({ position: position({ dca: plan }), price: 0.7, nowMs: NOW }), null,
+      "the disabled -30% level must not fire");
+    assert.strictEqual(decideDca({ position: position({ dca: plan }), price: 0.5, nowMs: NOW })?.index, 1);
+  });
+
+  test("a rising price never triggers a DCA", () => {
+    assert.strictEqual(decideDca({ position: position(), price: 2, nowMs: NOW }), null);
+  });
+}
+
 // ── RUN readiness, and the eight bot states ────────────────────────────────────────────────
 //
 // What is being pinned is not "does it refuse" — it is that the refusal is SPECIFIC. The three

@@ -303,6 +303,20 @@ export const PACKAGE = [
       "object touched. Its rollback REFUSES if any withdrawal is recorded, because that table " +
       "is the only evidence company money moved and under which signature.",
   },
+  {
+    n: 22,
+    apply: "degenaration-dca-placement.sql",
+    rollback: "22-dca-placement.sql",
+    reapply: [],
+    note:
+      "Dollar-cost averaging: positions.filled_dca_levels plus worker_record_dca_fill. The " +
+      "four dca.* controls were already COUNTED TOWARD REQUIRED CAPITAL and never placed, " +
+      "which is the only unenforced control that reserves the user's money. Fully additive: " +
+      "one defaulted column, one new function; worker_open_position and " +
+      "worker_settle_position_exit are untouched, so no arity change. MUST be applied BEFORE " +
+      "the worker build that reads it — store.js selects filled_dca_levels and PostgREST " +
+      "answers an unknown column with 400.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

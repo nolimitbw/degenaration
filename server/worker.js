@@ -216,6 +216,11 @@ if (SIGNING_READY) {
     claimExit: store.claimPositionExit, settleExit: store.settlePositionExit,
     recordPendingExit: store.recordPositionExitSig, recordPeak: store.recordPositionPeak,
     recordStopBreach: store.recordStopBreach,
+    // Dollar-cost averaging. Wired here or the four controls stay exactly where they have been
+    // since the builder shipped: persisted, counted toward the capital the user is told to
+    // fund, and never placed. The monitor no-ops without it, which is the safe default but is
+    // also the defect.
+    recordDcaFill: store.recordDcaFill,
     signAndSend, confirmSignature, recordTrade: store.recordTrade, onEvent: log("monitor")
   });
 }

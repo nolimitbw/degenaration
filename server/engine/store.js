@@ -255,7 +255,7 @@ const updateCallPerformance = (id, update) => sbPatch(`calls?id=eq.${id}`, updat
 // worker.js will not boot with signing enabled while the worker has no way to exit a
 // position. Do not rename it without reading that guard.
 const loadOpenPositions = () => sbGet(
-  "positions?status=in.(open,exiting)&select=id,user_pubkey,wallet_id,privy_user_id,group_id,mint,entry_price_usd,amount_raw,original_amount_raw,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,filled_tp1,filled_tp2,entry_config,peak_price_usd,filled_levels,stop_breached_at,status,pending_exit_kind,pending_exit_sig,pending_exit_amount_raw,pending_exit_claim_token,pending_exit_at,exit_attempts&order=created_at.asc&limit=500",
+  "positions?status=in.(open,exiting)&select=id,user_pubkey,wallet_id,privy_user_id,group_id,mint,entry_price_usd,amount_raw,original_amount_raw,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,filled_tp1,filled_tp2,entry_config,peak_price_usd,filled_levels,filled_dca_levels,created_at,stop_breached_at,status,pending_exit_kind,pending_exit_sig,pending_exit_amount_raw,pending_exit_claim_token,pending_exit_at,exit_attempts&order=created_at.asc&limit=500",
   true
 );
 
@@ -307,6 +307,18 @@ const settlePositionExit = (id, claimToken, settlement) => sbRpc("worker_settle_
  * ticking every few seconds cannot keep pushing the deadline away and stop the stop from ever
  * firing. That is the whole reason the decision lives in the database rather than here.
  */
+/**
+ * Record a DCA fill and add its purchase to the position, in one statement.
+ *
+ * Marking the level and growing the position are the same fact. Split across two calls there
+ * is a window where the level is marked and the tokens are not counted — the position
+ * under-reports what it holds and the next exit undersells — or the reverse, and the next tick
+ * buys the level again.
+ */
+const recordDcaFill = (id, level, amountRaw, fillPriceUsd, sig) => sbRpc("worker_record_dca_fill", {
+  p_id: id, p_level: level, p_amount_raw: amountRaw, p_fill_price_usd: fillPriceUsd, p_sig: sig
+});
+
 const recordStopBreach = (id, breached) => sbRpc("worker_record_stop_breach", {
   p_id: id, p_breached: Boolean(breached)
 });
@@ -332,4 +344,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { workerHeartbeat, subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, recordStopBreach, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };
+module.exports = { workerHeartbeat, recordDcaFill, subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, recordStopBreach, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };

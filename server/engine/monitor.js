@@ -22,8 +22,10 @@
  * than abandoning or duplicating it. Token amounts are BigInt throughout: raw amounts for
  * high-supply tokens exceed 2^53 and float arithmetic would silently mis-size a sell.
  */
-const { sellToken, quoteExpired } = require("./jupiter");
+const { buyToken, sellToken, quoteExpired } = require("./jupiter");
 const { guardWithSimulation } = require("./simulate");
+const { dcaPlan, decideDca } = require("./dca");
+const { bindQuoteToIntent } = require("./signer-policy");
 
 const POLL_MS = 5_000;
 /**
@@ -223,6 +225,28 @@ function normalizePosition(row) {
     // The raw columns are deliberately not carried through: they are ambiguous on their
     // own, and reading one directly is how the 100x take-profit error happened.
     stopBreachedAtMs: row.stop_breached_at ? Date.parse(row.stop_breached_at) : null,
+    // Dollar-cost averaging. Read from the SAME immutable entry_config the exit plan comes
+    // from, so editing the bot cannot change the ladder of a position already open under it.
+    dca: dcaPlan(row.entry_config),
+    filledDcaLevels: new Set(
+      (Array.isArray(row.filled_dca_levels) ? row.filled_dca_levels : []).map(Number).filter(Number.isFinite)
+    ),
+    // The expiry window is anchored to when the position BEGAN, not to the last fill —
+    // anchored to the last fill it would extend itself every time it fired.
+    //
+    // `created_at`, not `opened_at`. An earlier draft read `opened_at`, which exists only in
+    // degenaration-product-ledgers-operations.sql and is NOT on public.positions in
+    // production: PostgREST answers an unknown column with 400, so the worker would have
+    // failed on its first read of every tick. check:worker-schema-contract caught it, which is
+    // the third time that gate has fired on a real defect.
+    openedAtMs: row.created_at ? Date.parse(row.created_at) : NaN,
+    // A DCA fill is an ENTRY, so it obeys the entry switches rather than the exit ones. A user
+    // who turned automatic entries off did not exempt the buys attached to a position they
+    // already hold. Absent is ON, matching how the claim reads the same keys.
+    autoEntry: (row.entry_config && typeof row.entry_config === "object")
+      ? row.entry_config.autoEntry !== false : true,
+    killSwitch: (row.entry_config && typeof row.entry_config === "object")
+      ? row.entry_config.killSwitch === true : false,
     settings: {
       slippageBps: Number(row.slippage_bps ?? 300),
       // The exit is priced under the SAME configuration snapshot the position was opened
@@ -423,6 +447,10 @@ function startMonitor(deps, pollMs = POLL_MS) {
     // simply never persists a breach — which, combined with decideExit arming on the first
     // observation, means the stop holds rather than fires. Holding is the safe default here.
     recordStopBreach = async () => {},
+    // Dollar-cost averaging. Defaults to a no-op so a caller that has not wired it simply
+    // never places a level — the state this control has been in since the builder shipped,
+    // and the safe direction: not spending is recoverable, spending is not.
+    recordDcaFill = null,
     onEvent = () => {}
   } = deps;
 
@@ -468,6 +496,72 @@ function startMonitor(deps, pollMs = POLL_MS) {
     }
   };
 
+  /**
+   * Buy one DCA level into an open position.
+   *
+   * Deliberately the SAME guarded path an entry takes in engine/calls.js — quote, bind the
+   * quote to the intent, check freshness, simulate, then sign under the policy. A second buy
+   * path with weaker checks would be a hole in exactly the boundary the signer policy exists
+   * to hold, and this one moves money into a position the user is already exposed on.
+   */
+  const placeDca = async (position, fill, price) => {
+    const execution = position.settings.execution;
+    const slippageBps = position.settings.slippageBps || 300;
+    const { tx, quote, quotedAtMs } = await buyToken(
+      position.mint, fill.buyAmountSol, position.userPubkey, slippageBps, execution
+    );
+
+    // The mint and slippage the signer policy cannot see in the serialized transaction.
+    const mismatch = bindQuoteToIntent(quote, { mint: position.mint, side: "buy", slippageBps });
+    if (mismatch) throw new Error(`quote does not match the position: ${mismatch}`);
+
+    if (quoteExpired({ quotedAtMs, nowMs: Date.now(), quoteExpirationSeconds: execution?.quoteExpirationSeconds })) {
+      throw new Error("quote expired before submission");
+    }
+
+    const simulation = await guardWithSimulation(tx, { required: execution?.simulationRequired });
+    if (!simulation.ok) throw new Error(simulation.reason);
+
+    const lamports = Math.round(fill.buyAmountSol * 1e9);
+    const sig = await signAndSend(tx, position.walletId, {
+      walletAddress: position.userPubkey,
+      // Bounded by THIS LEVEL's allocation, not by the position's whole plan. A bug that
+      // resolved the wrong level must not be able to spend a deeper level's budget.
+      maxLamports: lamports,
+      builtAtMs: quotedAtMs,
+      maxAgeMs: execution?.quoteExpirationSeconds ? execution.quoteExpirationSeconds * 1000 : undefined,
+      // Stable per position and level, so a retry after a lost response cannot buy twice.
+      idempotencyKey: `dca:${position.id}:${fill.index}`
+    });
+
+    // The quote's own output amount is what the swap is routed to deliver. Using it rather
+    // than re-reading the wallet balance keeps the recorded amount tied to the transaction
+    // this signature belongs to, instead of to whatever the balance happens to be when the
+    // next tick looks.
+    const amountRaw = String(quote?.outAmount ?? "0");
+    if (!/^[1-9][0-9]*$/.test(amountRaw)) throw new Error("quote returned no output amount");
+
+    const recorded = await recordDcaFill(position.id, fill.index, amountRaw, price, sig);
+    if (!recorded?.ok) throw new Error(recorded?.error || "could not record the DCA fill");
+
+    if (recorded.duplicate) {
+      onEvent({ type: "DCA_DUPLICATE", position: position.id, level: fill.index, sig });
+      return;
+    }
+    try {
+      await recordTrade({
+        privy_user_id: position.privyUserId, user_pubkey: position.userPubkey,
+        group_id: position.groupId, mint: position.mint, side: "buy", sig, kind: "dca"
+      });
+    } catch (e) {
+      onEvent({ type: "RECORD_ERROR", position: position.id, sig, error: e.message });
+    }
+    onEvent({
+      type: "DCA_FILLED", position: position.id, mint: position.mint,
+      level: fill.index, dropFraction: fill.dropFraction, sol: fill.buyAmountSol, sig
+    });
+  };
+
   /** Evaluate triggers and submit at most one exit. Only ever called with no pending exit. */
   const evaluate = async (position) => {
     const price = await getPrice(position.mint);
@@ -485,6 +579,35 @@ function startMonitor(deps, pollMs = POLL_MS) {
         // A failed write is not a reason to skip the tick: `decideExit` floors the peak at
         // the current price anyway, so trailing still behaves correctly for this decision.
         onEvent({ type: "PEAK_ERROR", position: position.id, error: e.message });
+      }
+    }
+
+    // DOLLAR-COST AVERAGING, decided before the exit.
+    //
+    // Order matters and this is the safe one. A DCA fill raises the average entry, so
+    // evaluating it first means the exit decision that follows on the NEXT tick is measured
+    // against the price the position actually averages. Deciding the exit first and then
+    // buying would let a stop fire against an entry the fill was about to correct — selling
+    // at a loss the user's own configuration was in the middle of preventing.
+    //
+    // At most one per tick, like exits: each needs its own confirmation round trip, and two
+    // concurrent buys against the same daily cap is how a limit gets overspent.
+    if (recordDcaFill) {
+      const fill = decideDca({ position, price });
+      if (fill) {
+        try {
+          await placeDca(position, fill, price);
+        } catch (e) {
+          // A failed DCA is not a reason to skip the exit evaluation below. The position is
+          // still open, its stop still matters, and refusing to look at it because an
+          // optional buy failed would be the more dangerous failure of the two.
+          onEvent({ type: "DCA_ERROR", position: position.id, mint: position.mint, level: fill.index, error: e.message });
+        }
+        // Return either way. The fill changed amount_raw and entry_price_usd underneath this
+        // in-memory row, so every exit threshold computed from it is now stale — and a stale
+        // threshold is exactly what the volume-weighting exists to prevent. The next tick
+        // reloads and decides against the real numbers.
+        return;
       }
     }
 
@@ -622,5 +745,6 @@ function startMonitor(deps, pollMs = POLL_MS) {
 
 module.exports = {
   startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition, executionPolicy,
+  dcaPlan, decideDca,
   isProfitTarget, exitPlan, fillState, MAX_EXIT_ATTEMPTS
 };
