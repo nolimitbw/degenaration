@@ -130,6 +130,18 @@ const STUBS = `
     status text not null default 'open', sig text, filled_at timestamptz,
     created_at timestamptz not null default now()
   );
+  -- The worker's own liveness lease, verbatim from degenaration-product-ledgers-operations.sql
+  -- (which is applied in production but is far too large a dependency chain to put in the
+  -- baseline for one table). Migration 20's app_worker_liveness reads it.
+  create table if not exists app_private.worker_leases (
+    worker_key text primary key,
+    instance_id text not null,
+    execution_mode text not null
+      check (execution_mode in ('paper', 'solana-devnet', 'solana-mainnet')),
+    heartbeat_at timestamptz not null default now(),
+    lease_expires_at timestamptz not null,
+    metadata jsonb not null default '{}'::jsonb
+  );
 `;
 
 async function freshDb() {

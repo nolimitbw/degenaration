@@ -81,6 +81,17 @@ await db.exec(`
     channel_name text, status text default 'pending', owner_privy_user_id text,
     decided_at timestamptz, decision_reason text,
     created_at timestamptz not null default now());
+  -- Verbatim from degenaration-product-ledgers-operations.sql, which is applied in production
+  -- but is far too large a dependency chain to add to the baseline for one table. Migration 20
+  -- reads it.
+  create table if not exists app_private.worker_leases (
+    worker_key text primary key,
+    instance_id text not null,
+    execution_mode text not null
+      check (execution_mode in ('paper', 'solana-devnet', 'solana-mainnet')),
+    heartbeat_at timestamptz not null default now(),
+    lease_expires_at timestamptz not null,
+    metadata jsonb not null default '{}'::jsonb);
 `);
 for (const f of BASELINE) await db.exec(await read(`supabase/${f}`));
 

@@ -277,6 +277,18 @@ export const PACKAGE = [
       "close). Supersedes #16 in full and MUST FOLLOW IT. Same arity (uuid, uuid), no DDL, no " +
       "DML. Absent reads as ON so an older snapshot is not silently tightened.",
   },
+  {
+    n: 20,
+    apply: "degenaration-worker-liveness.sql",
+    rollback: "20-worker-liveness.sql",
+    reapply: [],
+    note:
+      "One new read-only function answering whether a worker is heartbeating. public." +
+      "worker_heartbeat had been deployed and never called, so app_private.worker_leases held " +
+      "zero rows while the worker ran — and one status document read that zero as proof the " +
+      "worker had never started. Fully additive; writes nothing. Rolling it back makes RUN " +
+      "fail closed, which is the correct direction.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
