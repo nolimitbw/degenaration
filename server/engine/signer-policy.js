@@ -61,6 +61,7 @@ const ALLOWED_PROGRAMS = new Map([
 ]);
 
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 /** SystemInstruction::Transfer discriminator, little-endian u32 = 2. */
 const SYSTEM_TRANSFER = 2;
 
@@ -217,7 +218,48 @@ function authorizeSigning({ base64Tx, walletAddress, intent = {}, nowMs = Date.n
   };
 }
 
+/**
+ * Bind the QUOTE to the intent, before the transaction is even built.
+ *
+ * `authorizeSigning` reads the serialized transaction, and two of the things the release
+ * specification requires it to bind are not visible there: the swap's mint pair lives inside the
+ * aggregator's instruction data, and slippage is not in the transaction at all — it is a
+ * parameter of the route. Both ARE on the quote, so they are checked where they exist rather
+ * than approximated where they do not.
+ *
+ * This matters for a specific bug shape: a caller that resolves the wrong mint — an off-by-one
+ * in a subscriber loop, a stale variable — would otherwise produce a perfectly well-formed
+ * transaction, from the right wallet, inside the lamport ceiling, buying the wrong token.
+ * Nothing downstream would notice, because every other check would pass.
+ *
+ * Returns null when the quote matches, or a message naming what differs.
+ */
+function bindQuoteToIntent(quote, { mint, side = "buy", slippageBps } = {}) {
+  if (!quote || typeof quote !== "object") return "no quote to bind";
+  // ExactIn: a buy spends SOL for the mint, a sell spends the mint for SOL.
+  const expectedOut = side === "sell" ? SOL_MINT : mint;
+  const expectedIn = side === "sell" ? mint : SOL_MINT;
+  if (!mint) return "intent names no mint";
+
+  if (quote.outputMint !== expectedOut) {
+    return `quote output mint ${quote.outputMint} is not the intent's ${expectedOut}`;
+  }
+  if (quote.inputMint !== expectedIn) {
+    return `quote input mint ${quote.inputMint} is not the intent's ${expectedIn}`;
+  }
+  // Slippage may be tighter than asked but never looser: a route quoted at a wider tolerance
+  // than the user configured can fill at a price they did not agree to.
+  const configured = Math.floor(Number(slippageBps));
+  const quoted = Math.floor(Number(quote.slippageBps));
+  if (Number.isFinite(configured) && Number.isFinite(quoted) && quoted > configured) {
+    return `quote slippage ${quoted} bps exceeds the configured ${configured} bps`;
+  }
+  return null;
+}
+
 module.exports = {
+  bindQuoteToIntent,
+  SOL_MINT,
   authorizeSigning,
   systemTransferLamports,
   ALLOWED_PROGRAMS,

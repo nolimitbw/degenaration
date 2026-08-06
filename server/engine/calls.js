@@ -36,6 +36,7 @@ const { rugCheck } = require("./rugcheck");
 const { evaluateSafety } = require("./safety");
 const { buyToken, quoteExpired } = require("./jupiter");
 const { guardWithSimulation } = require("./simulate");
+const { bindQuoteToIntent } = require("./signer-policy");
 
 // Pure, testable: calls that are executable and not yet handled this run.
 // A call is executable if it has a mint + group and has not been executed.
@@ -130,9 +131,16 @@ function startCallWatcher(deps, pollMs = 8000) {
         // a price the market has left — and the loop cannot run once a signature exists.
         while (attempt < attempts && !sig) {
         try {
-          const { tx, quotedAtMs } = await buyToken(
+          const { tx, quote, quotedAtMs } = await buyToken(
             c.mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300, execution
           );
+          // The mint and slippage the signer policy cannot see in the serialized transaction.
+          // A caller that resolved the wrong mint would otherwise build a perfectly valid swap,
+          // from the right wallet, inside the lamport ceiling, for the wrong token.
+          const mismatch = bindQuoteToIntent(quote, {
+            mint: c.mint, side: "buy", slippageBps: claim.slippage_bps || 300
+          });
+          if (mismatch) throw new Error(`quote does not match the intent: ${mismatch}`);
           // The configured freshness window, enforced between building and submitting. Without
           // this the control saved, validated and reloaded while the engine applied its own
           // window to every bot. Refusing here is the safe direction: a stale quote submitted

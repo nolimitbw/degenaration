@@ -2646,6 +2646,54 @@ console.log("price selection");
     data: Buffer.from([1, 2, 3, 4])
   });
 
+  test("the quote's mint and slippage are bound to the intent", () => {
+    // Neither is visible in the serialized transaction: the mint pair lives inside the
+    // aggregator's instruction data and slippage is a route parameter, not part of the
+    // transaction at all. Both ARE on the quote, so they are checked where they exist.
+    //
+    // The bug shape this catches: a caller that resolved the wrong mint builds a perfectly
+    // well-formed swap, from the right wallet, inside the lamport ceiling, for the wrong token.
+    // Every other check passes.
+    const { bindQuoteToIntent, SOL_MINT } = policy;
+    const buy = (over = {}) => ({ inputMint: SOL_MINT, outputMint: "MINT", slippageBps: 300, ...over });
+
+    assert.strictEqual(bindQuoteToIntent(buy(), { mint: "MINT", slippageBps: 300 }), null);
+    assert.match(
+      bindQuoteToIntent(buy({ outputMint: "OTHER" }), { mint: "MINT", slippageBps: 300 }),
+      /output mint OTHER is not the intent's MINT/
+    );
+    assert.match(
+      bindQuoteToIntent(buy({ inputMint: "NOTSOL" }), { mint: "MINT", slippageBps: 300 }),
+      /input mint NOTSOL/
+    );
+
+    // Tighter than configured is fine; LOOSER is not. A route quoted at a wider tolerance than
+    // the user set can fill at a price they did not agree to.
+    assert.strictEqual(bindQuoteToIntent(buy({ slippageBps: 100 }), { mint: "MINT", slippageBps: 300 }), null);
+    assert.match(
+      bindQuoteToIntent(buy({ slippageBps: 900 }), { mint: "MINT", slippageBps: 300 }),
+      /900 bps exceeds the configured 300/
+    );
+
+    // A sell inverts the pair rather than being waved through.
+    const sell = { inputMint: "MINT", outputMint: SOL_MINT, slippageBps: 300 };
+    assert.strictEqual(bindQuoteToIntent(sell, { mint: "MINT", side: "sell", slippageBps: 300 }), null);
+    assert.match(bindQuoteToIntent(buy(), { mint: "MINT", side: "sell", slippageBps: 300 }), /output mint/);
+
+    // Fails closed on nothing to check.
+    assert.match(bindQuoteToIntent(null, { mint: "MINT" }), /no quote to bind/);
+    assert.match(bindQuoteToIntent(buy(), {}), /names no mint/);
+  });
+
+  test("the entry path binds the quote before it signs", () => {
+    const src = require("node:fs").readFileSync(`${__dirname}/../engine/calls.js`, "utf8");
+    const stripped = src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+    const bind = stripped.indexOf("bindQuoteToIntent");
+    const sign = stripped.indexOf("signAndSend(");
+    assert.ok(bind > 0, "calls.js must bind the quote to the intent");
+    assert.ok(bind < sign, "the binding must precede signing");
+  });
+
   test("a well-formed swap for the intent's own wallet is authorized", () => {
     const tx = build(OWNER.publicKey, [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
