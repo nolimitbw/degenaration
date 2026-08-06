@@ -255,6 +255,16 @@ export const PACKAGE = [
       "function. MUST be applied BEFORE the worker build that reads it: server/engine/store.js " +
       "selects stop_breached_at and PostgREST answers an unknown column with 400.",
   },
+  {
+    n: 18,
+    apply: "degenaration-admin-revenue.sql",
+    rollback: "18-admin-revenue.sql",
+    reapply: [],
+    note:
+      "One new read-only function: platform revenue by period, the confirmed/pending split, " +
+      "available-to-withdraw, and the allocation invariant (creator + referral + retained == " +
+      "platform fee) reported rather than assumed. Writes nothing, touches no existing object.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
