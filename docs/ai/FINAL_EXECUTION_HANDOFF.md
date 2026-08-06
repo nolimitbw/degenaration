@@ -214,6 +214,91 @@ a dash or a zero here, check the writer before checking the reader.
 | **E-7** | **Application not deployed** — production is `29291c9`, ~80 commits behind | Deploy the app. Every remaining authenticated defect is already fixed in code and closes on deploy |
 | — | `78a4af0` promotion | Explicit approval; irreversible |
 
+## Session 2026-08-06 — Admin Revenue, RUN, and the fifth unwritten table
+
+Five commits, `20b488a`..`ce1a2d6`. Migrations **19, 20 and 21 authored, applied and verified**;
+app-bridge **v16**; production application at `ce1a2d6`.
+
+### Section 3 — Admin Revenue and Withdraw fees
+
+`admin_revenue_summary` (migration 18, applied) and `admin_open_revenue_withdrawal` +
+signature/settle/list (migration 21, applied). Both surfaced in a new owner-only Revenue tab.
+
+The withdrawal ledger is a **fourth** money table, deliberately. Reusing `payout_requests` —
+the obvious candidate, and what an earlier draft of the summary did — would report CREATOR
+payouts as company withdrawals and double-count the creator allocation that
+`creator_fee_lamports` already removes once. It draws against `sum(retained_fee_lamports)` and
+nothing else, so it cannot reach client principal or the creator and referral shares by
+construction rather than by policy.
+
+Two defects the fixture caught before either shipped:
+
+| Where | Defect |
+|---|---|
+| `admin_revenue_summary` | filtered creator payouts on `status = 'paid'`, which the CHECK does not permit — it allows requested/reviewing/approved/processing/confirmed/failed/rejected/reversed. Would have reported 0 for ever while looking correct |
+| `21-revenue-withdrawal.sql` | the refusal guard was one `IF` with a subquery in it. PL/pgSQL plans an IF condition as a single SQL expression, so `to_regclass(...) is not null and exists (select 1 from t)` resolves the table at plan time and fails on the rerun after the drop — the guard would have broken the rerun-safety it is part of |
+
+**`trade_executions` has no `fee_mint` column.** Its fee columns are lamports with no
+denomination anywhere on the row, so a per-mint revenue figure cannot be sourced from it.
+`revenue_available` returns **NULL — not answerable** for any mint other than wSOL, and the
+open refuses on NULL. Zero would have been equally wrong: it reads as "nothing earned yet", and
+an operator would have withdrawn the wSOL total under a USDC label.
+
+### Sections 4 and 5 — the simple first screen, RUN, and Save and use later
+
+The three strings the directive names as failed acceptance evidence are gone. Not reworded:
+all three were computed on the CLIENT from a frozen constant, so a user with no wallet, a user
+4.5 SOL short and a user whose only blocker was the fee account read the identical sentence.
+
+`lib/bot-readiness.js` replaces them with fourteen ordered checks. RUN shows exactly one — the
+first failure — and the order runs from "the user can fix this now" to "only an operator can",
+because telling someone the fee account is not ready while their wallet is unconnected makes
+them wait for us when the fix was theirs. Unknown facts fail closed; a check that throws fails
+closed. A test asserts six different faults give six DISTINCT messages.
+
+`lib/bot-states.js` adds the eight states. `Validated` and `Ready` are DERIVED from a draft,
+never stored — storing "Ready" freezes a verdict that goes stale the moment the worker, the fee
+account or the balance changes. `Exit-only` is the stored `stopping`, projected rather than
+migrated.
+
+The builder now shows Buy amount, Take profit, Stop loss and Auto re-entry first, with
+everything else behind one collapsed `Optional settings` group.
+
+### `worker_leases` — the fifth table nothing writes, and the first to produce a FALSE INFERENCE
+
+"Is the worker healthy?" had no answerable form. `public.worker_heartbeat` has been deployed
+since `degenaration-product-rpcs.sql` and **had never been called by anything**.
+
+The other four unwritten tables rendered a dash. This one was read as a **measurement**:
+`docs/coordination/IMPLEMENTATION_STATUS.md` cited `worker_leases`=0 as proof "the worker has
+never run", which was sound when written and is now wrong — the worker is live with signing
+enabled. Both citations are corrected in place rather than deleted.
+
+`server/worker.js` now heartbeats every 30s against a 90s lease. Heartbeat failure is counted
+and logged and stops nothing: a worker that cannot write a status row can still be mid-exit on
+a real position.
+
+### Migration 19 — auto re-entry, and why it is not `firstCallOnly` renamed
+
+Section 4's one new control. The risk with a new entry switch is not that it fails to refuse;
+it is that it refuses in the same circumstances as an existing one, giving two controls one
+meaning. `firstCallOnly` is about the SIGNAL (a repeat call for a token already acted on);
+`autoReentry` is about the POSITION (a fresh entry after one has closed). The test asserts the
+middle behaviour that proves them distinct: with auto re-entry off and first-call-only off, a
+second call while the position is still OPEN is still allowed.
+
+Contract: **37 enforced / 19 pending**, from 36/19.
+
+### What is blocked, and by what
+
+| | |
+|---|---|
+| **Worker redeploy** | The Railway MCP connection lost its project link this session and every project-scoped tool refuses with "No linked project". The heartbeat code is committed and pushed at `26128f4`; until the worker redeploys, `worker_leases` stays empty and RUN correctly reports the execution service as not reporting. **Owner action: redeploy `degenaration-worker`,** or confirm it auto-deploys from this branch |
+| E-2 | one Discord message that stays up in an approved channel |
+| E-4 | the fee-account ATA — the final irreversible owner action |
+
+---
+
 ## Session 2026-08-05, third pass — deployed, observable, and what is genuinely left
 
 Production now serves current code (`/api/build` reports it), the Discord listener is
