@@ -476,3 +476,19 @@ production, so 16 supersedes it in full and must follow it.
 ### Contract movement across this whole session
 
 **13 enforced / 33 pending → 34 enforced / 21 pending.**
+
+## Migration 17 — `degenaration-stop-breach-state.sql`
+
+The durable stop-delay clock. `stopLoss.delaySeconds` was unenforceable without it: a debounce
+needs to know WHEN the breach started, and the monitor is a stateless polling loop — holding
+that in process memory loses it on a worker restart, which is exactly the volatile minute the
+setting exists to absorb.
+
+Fully additive: one nullable column on `public.positions`, one new function
+`worker_record_stop_breach`. No existing function replaced.
+
+**MUST be applied BEFORE the worker build that reads it.** `server/engine/store.js` selects
+`stop_breached_at`, and PostgREST answers an unknown column with 400, so the worker would fail
+on its first position load. `npm run check:worker-schema-contract` enforces this.
+
+Rollback: `supabase/rollback/17-stop-breach-state.sql`.

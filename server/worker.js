@@ -169,6 +169,7 @@ if (SIGNING_READY) {
     loadOpenPositions: store.loadOpenPositions, getPrice,
     claimExit: store.claimPositionExit, settleExit: store.settlePositionExit,
     recordPendingExit: store.recordPositionExitSig, recordPeak: store.recordPositionPeak,
+    recordStopBreach: store.recordStopBreach,
     signAndSend, confirmSignature, recordTrade: store.recordTrade, onEvent: log("monitor")
   });
 }

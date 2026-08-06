@@ -52,7 +52,11 @@ function workerQueries() {
       if (entry.isDirectory()) { scan(full); continue; }
       if (!/\.(js|mjs)$/.test(entry.name)) continue;
       const source = readFileSync(full, "utf8");
-      for (const match of source.matchAll(/sb(?:Get|Post|Patch|Delete)\(`([a-z_]+)\?([^`]*)`/g)) {
+      // BOTH quote styles. This matched only template literals, and `loadOpenPositions` — the
+      // largest query in the worker, ~27 columns of public.positions — is a double-quoted
+      // string. So the one query most likely to read a column production lacks was the one
+      // query this gate never checked, and it reported a clean run while skipping it.
+      for (const match of source.matchAll(/sb(?:Get|Post|Patch|Delete)\(\s*[`"']([a-z_]+)\?((?:[^`"']|\\.)*)[`"']/g)) {
         found.push({ file: entry.name, table: match[1], query: match[2] });
       }
     }

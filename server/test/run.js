@@ -3117,6 +3117,68 @@ console.log("price selection");
     assert.strictEqual(store.subscriberExecution(null), null);
   });
 
+  test("the stop delay holds a single noisy print, then fires", () => {
+    // The control fired on the FIRST tick past the threshold, so a print that recovered on the
+    // next poll liquidated the position anyway — the exact noise the setting exists to absorb.
+    const row = {
+      ...base,
+      entry_config: {
+        takeProfit: { enabled: true, levels: [] },
+        stopLoss: { enabled: true, stopBps: 4000, delaySeconds: 30 }
+      }
+    };
+    const at = (r, price, nowMs) => monitor.decideExit({ position: monitor.normalizePosition(r), price, nowMs });
+
+    // First observation of the breach: arm the clock and HOLD. No exit.
+    const armed = at(row, 0.5, 1_000_000);
+    assert.strictEqual(armed.kind, null, "the first tick past the stop must not sell");
+    assert.strictEqual(armed.stopBreach, "start");
+
+    // Still breached, inside the window: still holding.
+    const breached = { ...row, stop_breached_at: new Date(1_000_000).toISOString() };
+    assert.strictEqual(at(breached, 0.5, 1_010_000).stopBreach, "hold");
+
+    // Past the window: it fires, and for the whole remaining position.
+    const fired = at(breached, 0.5, 1_031_000);
+    assert.strictEqual(fired.kind, "SL");
+    assert.strictEqual(String(fired.amountRaw), "1000000");
+  });
+
+  test("a recovery clears the clock, so the next breach starts fresh", () => {
+    // Without clearing, a breach from minutes ago would make the NEXT dip fire instantly —
+    // inheriting a stale clock is worse than having none.
+    const row = {
+      ...base,
+      stop_breached_at: new Date(1_000_000).toISOString(),
+      entry_config: {
+        takeProfit: { enabled: true, levels: [] },
+        stopLoss: { enabled: true, stopBps: 4000, delaySeconds: 30 }
+      }
+    };
+    const recovered = monitor.decideExit({
+      position: monitor.normalizePosition(row), price: 0.9, nowMs: 1_010_000
+    });
+    assert.strictEqual(recovered.kind, null);
+    assert.strictEqual(recovered.stopBreach, "clear", "back above the stop, the clock must be cleared");
+  });
+
+  test("no delay configured still fires on the first tick", () => {
+    // The control is opt-in. A bot that set no delay must behave exactly as before.
+    const row = {
+      ...base,
+      entry_config: {
+        takeProfit: { enabled: true, levels: [] },
+        stopLoss: { enabled: true, stopBps: 4000, delaySeconds: 0 }
+      }
+    };
+    const exit = monitor.decideExit({ position: monitor.normalizePosition(row), price: 0.5, nowMs: 1 });
+    assert.strictEqual(exit.kind, "SL", "delay 0 must not introduce a hold");
+
+    // And a position with no builder configuration at all predates the control entirely.
+    const legacy = { ...base, entry_config: {}, tp1: 2, tp1_sell: 50, stop_loss: 40 };
+    assert.strictEqual(monitor.decideExit({ position: monitor.normalizePosition(legacy), price: 0.5, nowMs: 1 }).kind, "SL");
+  });
+
   test("a disabled level is absent from the plan, so the next enabled one is used", () => {
     // The builder filters disabled levels out before saving, so the engine sees only the
     // enabled ones. This pins that the surviving level is what fires.

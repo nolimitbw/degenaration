@@ -123,7 +123,8 @@ function exitPlan(row) {
         .sort((a, b) => a.target - b.target),
       stop: {
         dropFraction: Number(config.stopLoss?.stopBps ?? 0) / 10000,
-        trailing: Boolean(config.stopLoss?.trailing)
+        trailing: Boolean(config.stopLoss?.trailing),
+        delaySeconds: Math.max(0, Number(config.stopLoss?.delaySeconds ?? 0))
       }
     };
   }
@@ -137,7 +138,8 @@ function exitPlan(row) {
         .sort((a, b) => a.target - b.target),
       stop: {
         dropFraction: Number(config.stopLoss?.stopBps ?? 0) / 10000,
-        trailing: Boolean(config.stopLoss?.trailing)
+        trailing: Boolean(config.stopLoss?.trailing),
+        delaySeconds: Math.max(0, Number(config.stopLoss?.delaySeconds ?? 0))
       }
     };
   }
@@ -153,7 +155,10 @@ function exitPlan(row) {
     levels: legacy.sort((a, b) => a.target - b.target),
     stop: {
       dropFraction: row.stop_loss == null ? 0 : Number(row.stop_loss) / 100,
-      trailing: false
+      trailing: false,
+      // A position with no builder configuration predates the control and fires immediately,
+      // which is what it did before.
+      delaySeconds: 0
     }
   };
 }
@@ -217,6 +222,7 @@ function normalizePosition(row) {
     // Targets and stops live in `plan`, which is the single place a unit is interpreted.
     // The raw columns are deliberately not carried through: they are ambiguous on their
     // own, and reading one directly is how the 100x take-profit error happened.
+    stopBreachedAtMs: row.stop_breached_at ? Date.parse(row.stop_breached_at) : null,
     settings: {
       slippageBps: Number(row.slippage_bps ?? 300),
       // The exit is priced under the SAME configuration snapshot the position was opened
@@ -245,7 +251,7 @@ function normalizePosition(row) {
  * needs a claim and a confirmation round trip, and firing two concurrently against the same
  * balance is how a position oversells itself.
  */
-function decideExit({ position, price }) {
+function decideExit({ position, price, nowMs = Date.now() }) {
   // THE BLOCKING INVARIANT. An unresolved submitted exit means we do not yet know whether
   // those tokens are still held. Deciding anything here would be deciding on stale balance.
   if (position.pending) return null;
@@ -272,8 +278,24 @@ function decideExit({ position, price }) {
   if (plan.stop.dropFraction > 0) {
     const reference = plan.stop.trailing ? peak : 1;
     if (mult <= reference * (1 - plan.stop.dropFraction)) {
+      // THE DELAY. A single noisy print must not liquidate a position that recovers on the next
+      // tick, which is the entire meaning of the control and was enforced by nothing: the stop
+      // fired on the FIRST tick past the threshold.
+      //
+      // The clock is durable (positions.stop_breached_at) rather than in process memory,
+      // because a worker restart during a volatile minute is exactly when losing it would make
+      // the setting a lie.
+      const delayMs = (plan.stop.delaySeconds || 0) * 1000;
+      if (delayMs > 0) {
+        // First observation of this breach: arm the clock and hold. The monitor persists it.
+        if (!position.stopBreachedAtMs) return { kind: null, stopBreach: "start", mult };
+        if (nowMs - position.stopBreachedAtMs < delayMs) return { kind: null, stopBreach: "hold", mult };
+      }
       return { kind: "SL", amountRaw: position.amountRaw, mult };
     }
+    // Recovered above the threshold. Clearing is what makes the next breach start a fresh
+    // clock rather than inheriting a stale one from minutes ago.
+    if (position.stopBreachedAtMs) return { kind: null, stopBreach: "clear", mult };
   }
 
   const share = (percent) => takeProfitShare(position.originalAmountRaw, position.amountRaw, percent);
@@ -385,6 +407,7 @@ function resolveExit({ position, verdict }) {
  *   settleExit(id, claimToken, settlement)       -> persist a terminal transition
  *   recordPendingExit(id, claimToken, sig)       -> store the signature before confirming
  *   recordPeak(id, priceUsd)                     -> raise the high-water mark (monotonic)
+ *   recordStopBreach(id, breached)               -> arm or clear the durable stop-delay clock
  *   signAndSend(tx, walletId)                    -> submits, returns a signature
  *   confirmSignature(sig, { submittedAtMs })     -> { verdict }
  *   recordTrade(evt)                             -> ledger row for the realised sell
@@ -395,7 +418,12 @@ function startMonitor(deps, pollMs = POLL_MS) {
     signAndSend, confirmSignature, recordTrade = async () => {},
     // Optional so an older caller keeps working: without it the peak simply is not
     // persisted, and trailing degrades to measuring from this process's own high.
-    recordPeak = async () => {}, onEvent = () => {}
+    recordPeak = async () => {},
+    // Durable stop-breach clock. Defaults to a no-op so a caller that has not wired it yet
+    // simply never persists a breach — which, combined with decideExit arming on the first
+    // observation, means the stop holds rather than fires. Holding is the safe default here.
+    recordStopBreach = async () => {},
+    onEvent = () => {}
   } = deps;
 
   /** Resolve an already-submitted exit. Never fires a transaction. */
@@ -462,6 +490,22 @@ function startMonitor(deps, pollMs = POLL_MS) {
 
     const decision = decideExit({ position, price });
     if (!decision) return;
+
+    // A breach observation, not an exit. The clock lives on the row so it survives a restart;
+    // recording it here rather than inside decideExit keeps that function pure and testable.
+    if (decision.kind === null) {
+      if (decision.stopBreach === "start" || decision.stopBreach === "clear") {
+        try {
+          await recordStopBreach(position.id, decision.stopBreach === "start");
+          onEvent({ type: `STOP_BREACH_${decision.stopBreach.toUpperCase()}`, position: position.id, mult: decision.mult });
+        } catch (e) {
+          // A clock we could not write means the next tick re-observes the breach and tries
+          // again. Failing to persist must not exit the position early.
+          onEvent({ type: "STOP_BREACH_WRITE_ERROR", position: position.id, error: e.message });
+        }
+      }
+      return;
+    }
 
     // A level whose allocation rounds to zero tokens still has to be marked filled, or it
     // re-triggers every tick forever. Settle it as a no-op rather than sending a swap.

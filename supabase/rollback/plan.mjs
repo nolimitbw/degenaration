@@ -243,6 +243,18 @@ export const PACKAGE = [
       "(uuid, uuid), no DDL, no DML. Rolling back lets a bot re-enter a token that just stopped " +
       "it out while its editor still shows the switch on.",
   },
+  {
+    n: 17,
+    apply: "degenaration-stop-breach-state.sql",
+    rollback: "17-stop-breach-state.sql",
+    reapply: [],
+    note:
+      "Adds the durable stop-delay clock. stopLoss.delaySeconds was unenforceable without it: a " +
+      "debounce needs to know WHEN the breach started, and holding that in process memory loses " +
+      "it on the restart that matters most. Fully additive — one nullable column, one new " +
+      "function. MUST be applied BEFORE the worker build that reads it: server/engine/store.js " +
+      "selects stop_breached_at and PostgREST answers an unknown column with 400.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
