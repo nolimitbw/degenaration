@@ -210,6 +210,17 @@ export const PACKAGE = [
       "MUST FOLLOW #11, whose worker_claim_call_execution body it is a superset of. Same arity " +
       "(uuid, uuid), no DDL, no DML. Rolling back returns the control to persisted-but-unenforced.",
   },
+  {
+    n: 14,
+    apply: "degenaration-current-drawdown-bucket.sql",
+    rollback: "14-current-drawdown-bucket.sql",
+    reapply: ["degenaration-discord-current-return.sql"],
+    note:
+      "Adds currentlyDown50 over current_x, because the profile row labelled \"Down 50%+\" was " +
+      "counting peak_x < 0.5 — calls that never recovered half the entry, not calls that are down " +
+      "half. A call that opened flat and fell 78% reported 0. Supersedes #10 in full and MUST " +
+      "FOLLOW IT; both replace app_public_list_discord_marketplace at arity 4. No DDL, no DML.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

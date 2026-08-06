@@ -341,6 +341,58 @@ assert.ok(Number(now.averageReturnX) > 1 && Number(now.averageCurrentX) < 1,
 // The round trip is what drives drawdown, so the two must agree about it.
 assert.equal(Number(now.maxDrawdownBps), 8333, "1 - (0.5 / 3.0) on the round-tripped call");
 
+// ── the "-50%" bucket counted the wrong thing ─────────────────────────────────────────────
+//
+// `down50` is peak_x < 0.5 and the profile page rendered it as "Down 50%+". Those differ: a
+// call that opened flat and then collapsed has peak_x = 1.0 and was reported as NOT down 50%.
+// Observed on the only real measured call in production — called at 0.01842, now 0.003962, a
+// 78.5% loss — where the source profile said "Down 50%+: 0".
+const drawdownFix = await readFile(`${repo}/supabase/degenaration-current-drawdown-bucket.sql`, "utf8");
+
+// The exact production shape: peak equals the call price, current far below it.
+await db.exec(`
+  insert into public.calls (
+    id, group_id, mint, symbol, called_at, parse_status, called_price_usd, peak_price_usd,
+    latest_price_usd, last_scanned_at
+  ) values
+    ('40000000-0000-0000-0000-000000000013', '${MEASURED}', 'mintFlat', 'FLAT',
+      now() - interval '3 hours', 'accepted', 100, 100, 21.51, now() - interval '1 hour');
+`);
+
+const beforeFix = (await marketplace()).sources.find((source) => source.id === MEASURED);
+assert.equal(beforeFix.down50, 1,
+  "CONTROL: the flat-then-crashed call is NOT in the peak bucket, so only the original 0.4x call is");
+assert.equal(beforeFix.currentlyDown50, undefined,
+  "CONTROL: the current-drawdown count does not exist before the migration");
+
+const countsBeforeDrawdown = await counts();
+await db.exec(drawdownFix);
+await db.exec(drawdownFix);
+assert.deepEqual(await counts(), countsBeforeDrawdown, "drawdown migration and rerun write no row");
+
+const fixed = (await marketplace()).sources.find((source) => source.id === MEASURED);
+// Currents are now 1.5 / 0.2 / 1.1 / 0.5 / 0.2151 — three of five are below half.
+assert.equal(fixed.currentlyDown50, 3,
+  "THE FIX: 0.2x, 0.5x and the 0.2151x flat-then-crashed call are all down 50% or more");
+// The boundary is inclusive because the label says "50%+". A call at exactly 0.5x is down
+// exactly 50% and belongs in it; the peak buckets use `<` because they must partition.
+assert.equal(fixed.down50, 1, "the peak bucket is unchanged — it is a different question");
+assert.notEqual(fixed.currentlyDown50, fixed.down50,
+  "the two must be separately computed; equal values would prove nothing");
+
+// The peak buckets must still partition the population, or the distribution stops summing.
+assert.equal(
+  fixed.down50 + fixed.under50 + fixed.plus50 + fixed.twoX + fixed.fiveX,
+  fixed.measuredCalls,
+  "the five peak buckets still sum to the measured count — currentlyDown50 sits beside them"
+);
+
+// A source with no measured call must not report a fabricated zero drawdown count... it must
+// report 0, which for a COUNT is a fact rather than a claim, exactly as measuredCurrent does.
+const quiet = (await marketplace()).sources.find((source) => source.id === "10000000-0000-0000-0000-000000000002");
+assert.equal(quiet.currentlyDown50, 0, "a count of nothing is 0; the STATISTICS stay null");
+assert.equal(quiet.medianCurrentX, null);
+
 // Unknown still stays unknown. A source with no measured call reports null for the new
 // figures too, never 0 — a zero here would read as "every call is flat", which is a claim.
 const noHistory = (await marketplace()).sources.find((source) => source.id === "10000000-0000-0000-0000-000000000002");

@@ -1,0 +1,11 @@
+-- Rollback of degenaration-current-drawdown-bucket.sql
+--
+-- Replaces one function body at an unchanged arity (4), so there is nothing to drop. The body
+-- is restored by the reapply step in supabase/rollback/plan.mjs:
+--
+--     degenaration-discord-current-return.sql
+--
+-- WHAT ROLLING THIS BACK MEANS. The source profile's "Down 50%+" row goes back to counting
+-- calls that never recovered half the entry rather than calls that are down half. A source
+-- whose calls opened flat and then collapsed shows an empty risk bucket again, which
+-- understates the downside a subscriber is copying. Prefer rolling forward.

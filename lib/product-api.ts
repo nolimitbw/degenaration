@@ -93,8 +93,12 @@ export type DiscordSource = {
   executedCalls?: number;
   measuredCalls: number;
   // Peak-multiple ladder, lowest first. Exclusive: a measured call is in exactly one.
-  // `down50` — peak never reached 0.5x, so entry was never half recovered.
+  // `down50` — peak never reached 0.5x, so entry was never half recovered. This is a PEAK
+  // bucket and part of the five-way partition; it is NOT the answer to "how many are down 50%".
   down50?: number;
+  // How many accepted calls are currently below half their call price. Overlaps the peak
+  // buckets on purpose: a call can have reached 2x and be underwater by half today.
+  currentlyDown50?: number;
   under50: number;
   plus50: number;
   twoX: number;

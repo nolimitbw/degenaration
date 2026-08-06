@@ -117,10 +117,15 @@ export default function DiscordSourceDetailsPage() {
             </section>
 
             <section className="rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Result distribution</h2><p className="mt-1 text-[11px] text-dim">All eligible calls in the selected period, including losing and unmeasured outcomes.</p></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Result distribution</h2><p className="mt-1 text-[11px] text-dim">Best level each eligible call reached, plus how many are underwater by half right now.</p></header>
               <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-5">
+                {/* "Down 50%+" read `down50`, which counts peak_x < 0.5 — calls that never
+                    recovered half the entry, not calls that are down half. A call that opened
+                    flat and fell 78% reported 0, understating the downside a subscriber copies.
+                    It now reads the current-drawdown count. The other four stay peak-based:
+                    "reached 2x" is a milestone, and they partition the population. */}
                 {[
-                  ["Down 50%+", source.down50 ?? 0, "text-down"],
+                  ["Down 50%+ now", source.currentlyDown50 ?? 0, "text-down"],
                   ["Below +50%", source.under50, "text-dim"],
                   ["Reached +50%", source.plus50, "text-gold-400"],
                   ["Reached 2x", source.twoX, "text-up"],
