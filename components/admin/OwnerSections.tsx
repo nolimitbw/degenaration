@@ -650,9 +650,68 @@ function UserList({ data }: { data: AdminData }) {
   );
 }
 
+/**
+ * Whether the platform fee can actually be collected, and the exact account that has to exist.
+ *
+ * `feeWalletConfigured` only ever said the environment variable was non-empty, which is how a
+ * 2.00% preview coexisted with a 0 bps charge for weeks: the configured value is a WALLET, and
+ * Jupiter needs a token account for the mint the fee arrives in. This names the derived
+ * account per mint so the owner can create it, rather than leaving "create the right fee
+ * account" as an instruction nobody can act on.
+ */
+function FeeAccountPanel({ data }: { data: AdminData }) {
+  const fee = (data.summary as Record<string, any>)?.feeAccount;
+  if (!fee) return null;
+
+  if (!fee.configured) {
+    return (
+      <div className="mb-6 rounded-md border border-danger/40 bg-danger/5 px-4 py-3">
+        <p className="text-xs font-semibold text-ink">Platform fee is not collecting</p>
+        <p className="mt-1 text-[11px] leading-5 text-dim">
+          No fee account is configured, so every swap is built with a zero fee.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 rounded-md border border-edge bg-panel">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold text-ink">Platform fee account</p>
+          <p className="mt-0.5 font-mono text-[10px] text-dim">{compact(fee.owner, 8, 6)}</p>
+        </div>
+        <StatusPill status={fee.ready ? "enabled" : "disabled"} />
+      </header>
+      {!fee.ready && (
+        <p className="border-b border-edge px-4 py-3 text-[11px] leading-5 text-dim">
+          A fee is skipped whenever its account does not exist, so the swap still succeeds and
+          collects nothing. Creating an account below is a one-off transaction that pays rent;
+          it moves no client funds.
+        </p>
+      )}
+      <div className="divide-y divide-edge">
+        {(fee.mints || []).map((mint: Record<string, any>) => (
+          <div key={mint.mint} className="grid gap-2 px-4 py-3 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-ink">{mint.symbol}</p>
+              <p className="mt-0.5 text-[10px] leading-4 text-dim">{mint.why}</p>
+            </div>
+            <p className="min-w-0 break-all font-mono text-[10px] text-dim">
+              {mint.ready ? mint.feeAccount : mint.derivedAccount || "could not derive"}
+            </p>
+            <StatusPill status={mint.ready ? "enabled" : "disabled"} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function System({ data, act }: { data: AdminData; act: (action: AdminAction) => void }) {
   return (
     <section>
+      <FeeAccountPanel data={data} />
       <SectionTitle title="System flags" detail="Every mutation requires a reason and is audited" />
       <div className="divide-y divide-edge rounded-md border border-edge bg-panel">
         {data.flags.map((flag) => {

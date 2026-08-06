@@ -124,6 +124,66 @@ export async function resolveFeeAccount(feeMint: string): Promise<Resolution> {
   });
 }
 
+/**
+ * Fee readiness, per mint the fee can actually arrive in — for the Admin Console.
+ *
+ * WHY THIS IS SERVER-SIDE AND ADMIN-GATED. Computing the derived account needs
+ * `PLATFORM_FEE_ACCOUNT`, which is an encrypted production variable. Reporting it through an
+ * admin-authenticated route means the owner can see exactly which account has to exist without
+ * the value ever leaving the server for anyone else — and without anyone having to pull the
+ * whole production environment to a laptop to find out.
+ *
+ * Jupiter's default ExactIn mode takes the fee from the swap's OUTPUT mint, so a SELL pays in
+ * wSOL and a BUY pays in the token bought. wSOL therefore covers every exit and is the account
+ * that matters most. A buy into an arbitrary memecoin needs that coin's account, which cannot
+ * be pre-created for a token nobody has called yet — a real limitation of collecting on the
+ * output side, stated here rather than discovered later.
+ */
+export const FEE_MINTS: Array<{ mint: string; symbol: string; why: string }> = [
+  {
+    mint: "So11111111111111111111111111111111111111112",
+    symbol: "wSOL",
+    why: "every sell pays its fee here — the one account that matters most"
+  },
+  {
+    mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    symbol: "USDC",
+    why: "the common stable-quoted pair"
+  }
+];
+
+export async function feeAccountReadiness() {
+  const configured = process.env.PLATFORM_FEE_ACCOUNT?.trim() || null;
+  if (!configured) {
+    return { configured: false, owner: null, ready: false, mints: [] };
+  }
+  const mints = [];
+  for (const entry of FEE_MINTS) {
+    const resolution = await resolveFeeAccount(entry.mint);
+    let derived: string | null = null;
+    try {
+      derived = associatedTokenAddress(new PublicKey(configured), new PublicKey(entry.mint)).toBase58();
+    } catch {
+      derived = null;
+    }
+    mints.push({
+      ...entry,
+      // The account the fee would actually be paid into, when one resolves.
+      feeAccount: resolution.feeAccount,
+      derivedAccount: derived,
+      ready: Boolean(resolution.feeAccount),
+      reason: resolution.reason
+    });
+  }
+  return {
+    configured: true,
+    owner: configured,
+    // Every fee is skipped until at least wSOL exists, so readiness is not "any mint resolves".
+    ready: mints.every((m) => m.ready),
+    mints
+  };
+}
+
 /** Test seam — the cache is process-local and would otherwise persist across suites. */
 export function __clearFeeAccountCache() {
   cache.clear();
