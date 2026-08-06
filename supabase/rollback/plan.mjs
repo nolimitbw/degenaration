@@ -221,6 +221,17 @@ export const PACKAGE = [
       "half. A call that opened flat and fell 78% reported 0. Supersedes #10 in full and MUST " +
       "FOLLOW IT; both replace app_public_list_discord_marketplace at arity 4. No DDL, no DML.",
   },
+  {
+    n: 15,
+    apply: "degenaration-exit-reason.sql",
+    rollback: "15-exit-reason.sql",
+    reapply: ["degenaration-exit-plan-state.sql"],
+    note:
+      "worker_settle_position_exit cleared pending_exit_kind on settlement before anything read " +
+      "it, so nothing recorded WHY a position closed. Captures it into exit_reason on close only. " +
+      "MUST FOLLOW #5, which defines the body. Same arity (9), one nullable column, one partial " +
+      "index. Rolling back discards reasons already recorded and cannot reconstruct them.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

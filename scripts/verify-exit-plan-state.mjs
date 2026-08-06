@@ -167,6 +167,67 @@ for (const fn of FNS) {
 }
 results.authorization = "PASS";
 
+// ─── the exit kind was discarded at settlement ────────────────────────────────────────────
+//
+// `pending_exit_kind` carries 'SL' or 'TPn' while the exit is in flight and the settle statement
+// nulls it. Nothing read it first, so the moment a position closed the fact that it STOPPED OUT
+// rather than took profit was gone — which is why stopLoss.freezeAfterStop could never be
+// implemented, and why trade history cannot say how a trade ended.
+{
+  await db.exec(await readFile(`${repo}/supabase/degenaration-exit-reason.sql`, "utf8"));
+  await db.exec(await readFile(`${repo}/supabase/degenaration-exit-reason.sql`, "utf8"));
+  results.exitReasonRerunSafe = "PASS";
+
+  const opened = await open("sig-reason");
+  const row = await one("select * from public.positions where entry_sig='sig-reason'");
+
+  // A PARTIAL take profit leaves the position open. It must NOT stamp an exit reason: the
+  // reason belongs to the exit that ended the position, not to every leg along the way.
+  const tp = (await one("select public.worker_claim_position_exit($1::uuid,'TP1',300) as r", [row.id])).r;
+  await one(
+    `select public.worker_settle_position_exit($1::uuid,$2::uuid,'open',700,true,false,0,null,$3::jsonb) as r`,
+    [row.id, tp.claim_token, JSON.stringify([0])]
+  );
+  let after = await one("select status, exit_reason from public.positions where id=$1::uuid", [row.id]);
+  assert.equal(after.status, "open");
+  assert.equal(after.exit_reason, null, "a partial take profit must not stamp the position as closed by TP1");
+
+  // The exit that CLOSES it records how.
+  const sl = (await one("select public.worker_claim_position_exit($1::uuid,'SL',700) as r", [row.id])).r;
+  await one(
+    `select public.worker_settle_position_exit($1::uuid,$2::uuid,'closed',0,true,false,0,null) as r`,
+    [row.id, sl.claim_token]
+  );
+  after = await one("select status, exit_reason, pending_exit_kind from public.positions where id=$1::uuid", [row.id]);
+  assert.equal(after.status, "closed");
+  assert.equal(after.exit_reason, "SL", "THE FIX: the position records that it stopped out");
+  assert.equal(after.pending_exit_kind, null, "the in-flight field is still cleared");
+  results.exitReasonRecordedOnClose = "PASS";
+
+  // A take-profit close records TP, so the two are genuinely distinguishable rather than
+  // everything defaulting to one value.
+  const second = await open("sig-reason-2");
+  const row2 = await one("select * from public.positions where entry_sig='sig-reason-2'");
+  const tp2 = (await one("select public.worker_claim_position_exit($1::uuid,'TP2',1000) as r", [row2.id])).r;
+  await one(
+    `select public.worker_settle_position_exit($1::uuid,$2::uuid,'closed',0,true,true,0,null) as r`,
+    [row2.id, tp2.claim_token]
+  );
+  const closedInProfit = await one("select exit_reason from public.positions where id=$1::uuid", [row2.id]);
+  assert.equal(closedInProfit.exit_reason, "TP2");
+  assert.notEqual(closedInProfit.exit_reason, after.exit_reason,
+    "stopped-out and taken-profit must be separately recorded; equal values would prove nothing");
+  results.stopAndProfitDistinguishable = "PASS";
+
+  // The CHECK still constrains the shape rather than accepting any string.
+  await assert.rejects(
+    () => db.query("update public.positions set exit_reason = 'whatever' where id=$1::uuid", [row2.id]),
+    /positions_exit_reason_check/,
+    "an arbitrary exit reason must be refused"
+  );
+  results.exitReasonShapeConstrained = "PASS";
+}
+
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",
   fixture: `generated from production shapes (${T.length} tables)`,
