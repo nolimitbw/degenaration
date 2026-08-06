@@ -500,7 +500,17 @@ function startMonitor(deps, pollMs = POLL_MS) {
       })) {
         throw new Error("quote expired before submission");
       }
-      sig = await signAndSend(tx, position.walletId);
+      sig = await signAndSend(tx, position.walletId, {
+        walletAddress: position.userPubkey,
+        // An exit SELLS a token; it moves no bare SOL beyond wrapped-SOL account rent, so the
+        // lamport ceiling stays at the policy default rather than being derived from a buy
+        // amount that does not apply here.
+        builtAtMs: quotedAtMs,
+        maxAgeMs: position.settings.execution?.quoteExpirationSeconds
+          ? position.settings.execution.quoteExpirationSeconds * 1000
+          : undefined,
+        idempotencyKey: `exit:${position.id}:${decision.kind}`
+      });
       if (!sig) throw new Error("signer returned no signature");
       // Persist the signature IMMEDIATELY. If the process dies between submission and this
       // write, the position is left claimed with no signature and the sell is invisible —

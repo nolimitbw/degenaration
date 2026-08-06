@@ -35,9 +35,13 @@ const state = { events: 0, errors: 0, lastEventAt: null, lastError: null };
  * Gated by DELEGATED_SIGNING so the worker is watch-only until you have verified signing on
  * devnet. walletId is the Privy embedded-wallet id stored on the order/subscription.
  */
-async function signAndSend(base64Tx, walletId) {
+async function signAndSend(base64Tx, walletId, intent = {}) {
   if (!SIGNING_READY) throw new Error("delegated signing OFF (watch-only) — set DELEGATED_SIGNING=on after devnet verification");
-  return signer.signAndSend(base64Tx, walletId, NET);
+  // `intent` binds the signature to the authorisation: the wallet that must be the fee payer,
+  // the lamport ceiling, and when the transaction was built. engine/signer-policy.js refuses
+  // anything that does not match, so a caller that omits it gets a refusal rather than a
+  // permissive default.
+  return signer.signAndSend(base64Tx, walletId, NET, intent);
 }
 
 function log(tag) {

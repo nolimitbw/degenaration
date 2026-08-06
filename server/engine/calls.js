@@ -105,7 +105,16 @@ function startCallWatcher(deps, pollMs = 8000) {
           if (quoteExpired({ quotedAtMs, nowMs: Date.now(), quoteExpirationSeconds: execution?.quoteExpirationSeconds })) {
             throw new Error("quote expired before submission");
           }
-          sig = await signAndSend(tx, claim.wallet_id); // walletId signs the tx built for user_pubkey
+          // Bound to the authorisation, not merely submitted. engine/signer-policy.js refuses a
+          // transaction whose fee payer is not this wallet, that invokes a program outside the
+          // allowlist, that moves more lamports than the claim reserved, or that is stale.
+          sig = await signAndSend(tx, claim.wallet_id, {
+            walletAddress: claim.user_pubkey,
+            maxLamports: claim.size_lamports ?? undefined,
+            builtAtMs: quotedAtMs,
+            maxAgeMs: execution?.quoteExpirationSeconds ? execution.quoteExpirationSeconds * 1000 : undefined,
+            idempotencyKey: `call:${c.id}:${s.id}`
+          });
           // SUBMITTED, not succeeded. signAndSend returns as soon as Privy sends the
           // transaction, and a swap can still fail on chain for slippage or an expired
           // blockhash. engine/settlement.js resolves this signature against the chain and

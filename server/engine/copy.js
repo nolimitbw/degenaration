@@ -122,8 +122,13 @@ function startCopyWatcher(deps, pollMs = 10000) {
 
           let sig = null;
           try {
-            const { tx } = await buyToken(mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300);
-            sig = await signAndSend(tx, claim.wallet_id); // walletId signs; user_pubkey built the tx
+            const { tx, quotedAtMs } = await buyToken(mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300);
+            sig = await signAndSend(tx, claim.wallet_id, {
+              walletAddress: claim.user_pubkey,
+              maxLamports: claim.size_lamports ?? undefined,
+              builtAtMs: quotedAtMs,
+              idempotencyKey: key
+            });
             // SUBMITTED, not succeeded. engine/settlement.js confirms this signature against
             // the chain, records the trade only if it landed, and opens the position that
             // gives this copy trade a working stop-loss.

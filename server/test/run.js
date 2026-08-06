@@ -2477,6 +2477,187 @@ console.log("price selection");
     assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
   });
 }
+// ─── the signer boundary refuses, rather than signing whatever it is handed ──────────────
+//
+// engine/signer.js took a base64 string and a wallet id and signed. Nothing checked the
+// transaction was the one the intent authorised, that the wallet paying was the wallet the
+// intent belonged to, what programs it invoked, or what it spent. Every caller was our own
+// code, so the risk was a bug rather than an attacker — but this is the last boundary before a
+// user's funds move, and a key that signs anything is a boundary in name only.
+{
+  const policy = require("../engine/signer-policy");
+  const { authorizeSigning } = policy;
+  const {
+    VersionedTransaction, TransactionMessage, PublicKey, Keypair, SystemProgram, ComputeBudgetProgram
+  } = require("../node_modules/@solana/web3.js");
+
+  const OWNER = Keypair.generate();
+  const OTHER = Keypair.generate();
+  const JUPITER = new PublicKey("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4");
+  const BLOCKHASH = "11111111111111111111111111111111";
+
+  /** A v0 transaction, built the way Jupiter builds one: a payer and some instructions. */
+  const build = (payer, instructions) => new VersionedTransaction(
+    new TransactionMessage({ payerKey: payer, recentBlockhash: BLOCKHASH, instructions })
+      .compileToV0Message()
+  );
+  const b64 = (tx) => Buffer.from(tx.serialize()).toString("base64");
+
+  const swapIx = (payer) => ({
+    programId: JUPITER,
+    keys: [{ pubkey: payer, isSigner: true, isWritable: true }],
+    data: Buffer.from([1, 2, 3, 4])
+  });
+
+  test("a well-formed swap for the intent's own wallet is authorized", () => {
+    const tx = build(OWNER.publicKey, [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 200000 }),
+      swapIx(OWNER.publicKey)
+    ]);
+    const verdict = authorizeSigning({
+      base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58(), intent: {}
+    });
+    assert.strictEqual(verdict.ok, true, verdict.reason);
+    assert.ok(verdict.audit.programs.includes("Jupiter aggregator v6"));
+    assert.strictEqual(verdict.audit.requiredSignatures, 1);
+    // The audit line must not carry the payload or anything signable.
+    assert.ok(!JSON.stringify(verdict.audit).includes(b64(tx).slice(0, 40)));
+  });
+
+  test("a transaction built for a DIFFERENT wallet cannot be signed under this intent", () => {
+    // The cross-user case. Before this, whatever base64 arrived was signed with whatever
+    // walletId arrived, and nothing tied the two together.
+    const tx = build(OTHER.publicKey, [swapIx(OTHER.publicKey)]);
+    const verdict = authorizeSigning({
+      base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58(), intent: {}
+    });
+    assert.strictEqual(verdict.ok, false);
+    assert.strictEqual(verdict.reason, "fee payer is not the wallet this intent belongs to");
+  });
+
+  test("a program outside the allowlist is refused", () => {
+    const unknown = new PublicKey("Stake11111111111111111111111111111111111111");
+    const tx = build(OWNER.publicKey, [{
+      programId: unknown,
+      keys: [{ pubkey: OWNER.publicKey, isSigner: true, isWritable: true }],
+      data: Buffer.from([9])
+    }]);
+    const verdict = authorizeSigning({
+      base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58(), intent: {}
+    });
+    assert.strictEqual(verdict.ok, false);
+    assert.strictEqual(verdict.reason, "transaction invokes a program outside the allowlist");
+    assert.strictEqual(verdict.programId, unknown.toBase58());
+  });
+
+  test("a lamport transfer beyond what the intent reserved is refused", () => {
+    // A wrapped-SOL swap funds its wSOL account through SystemProgram, so the buy amount is
+    // visible here. Two SOL against a one-SOL reservation must not sign.
+    const tx = build(OWNER.publicKey, [
+      SystemProgram.transfer({
+        fromPubkey: OWNER.publicKey, toPubkey: OTHER.publicKey, lamports: 2_000_000_000
+      }),
+      swapIx(OWNER.publicKey)
+    ]);
+    const refused = authorizeSigning({
+      base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58(),
+      intent: { maxLamports: 1_000_000_000 }
+    });
+    assert.strictEqual(refused.ok, false);
+    assert.strictEqual(refused.reason, "transaction moves more lamports than the intent reserved");
+    assert.strictEqual(refused.systemLamports, "2000000000");
+
+    // The same transaction under a reservation that covers it is fine.
+    const allowed = authorizeSigning({
+      base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58(),
+      intent: { maxLamports: 2_000_000_000 }
+    });
+    assert.strictEqual(allowed.ok, true, allowed.reason);
+    assert.strictEqual(allowed.audit.systemLamports, "2000000000");
+  });
+
+  test("several transfers are summed, not checked one at a time", () => {
+    // Splitting a spend across instructions must not slip under a per-instruction ceiling.
+    const half = () => SystemProgram.transfer({
+      fromPubkey: OWNER.publicKey, toPubkey: OTHER.publicKey, lamports: 600_000_000
+    });
+    const tx = build(OWNER.publicKey, [half(), half(), swapIx(OWNER.publicKey)]);
+    const verdict = authorizeSigning({
+      base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58(),
+      intent: { maxLamports: 1_000_000_000 }
+    });
+    assert.strictEqual(verdict.ok, false);
+    assert.strictEqual(verdict.systemLamports, "1200000000");
+  });
+
+  test("a stale transaction is refused at the signer, not only at the quote", () => {
+    const tx = build(OWNER.publicKey, [swapIx(OWNER.publicKey)]);
+    const base = { base64Tx: b64(tx), walletAddress: OWNER.publicKey.toBase58() };
+    assert.strictEqual(
+      authorizeSigning({ ...base, intent: { builtAtMs: 1_000_000 }, nowMs: 1_010_000 }).ok, true
+    );
+    const stale = authorizeSigning({ ...base, intent: { builtAtMs: 1_000_000 }, nowMs: 1_100_000 });
+    assert.strictEqual(stale.ok, false);
+    assert.strictEqual(stale.reason, "transaction is older than the signing window");
+    // A clock claiming the future by more than a few seconds makes the window meaningless.
+    const future = authorizeSigning({ ...base, intent: { builtAtMs: 2_000_000 }, nowMs: 1_000_000 });
+    assert.strictEqual(future.ok, false);
+    assert.strictEqual(future.reason, "transaction claims to be built in the future");
+  });
+
+  test("undecodable, empty and unbound inputs fail closed", () => {
+    const w = OWNER.publicKey.toBase58();
+    assert.strictEqual(authorizeSigning({ base64Tx: "", walletAddress: w }).ok, false);
+    assert.strictEqual(authorizeSigning({ base64Tx: "not-base64!!", walletAddress: w }).reason,
+      "transaction could not be decoded");
+    const tx = build(OWNER.publicKey, [swapIx(OWNER.publicKey)]);
+    assert.strictEqual(authorizeSigning({ base64Tx: b64(tx) }).reason,
+      "no wallet bound to this intent");
+    assert.strictEqual(authorizeSigning({ base64Tx: b64(tx), walletAddress: "not-an-address" }).reason,
+      "intent wallet is not a valid Solana address");
+    // A transaction with no instructions is not a swap and is not signed.
+    assert.strictEqual(authorizeSigning({ base64Tx: b64(build(OWNER.publicKey, [])), walletAddress: w }).reason,
+      "transaction carries no instructions");
+  });
+
+  test("every engine call site binds its signature to an intent", () => {
+    // The policy lives in signer.js so a caller cannot skip it — but a caller that passes no
+    // intent gets "no wallet bound", which would turn every trade into a refusal. This asserts
+    // the four call sites actually supply one, which no unit test of the policy can see.
+    const fs = require("node:fs");
+    for (const file of ["calls.js", "copy.js", "limits.js", "monitor.js"]) {
+      const src = fs.readFileSync(`${__dirname}/../engine/${file}`, "utf8");
+      const stripped = src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+      const calls = [...stripped.matchAll(/signAndSend\(/g)];
+      assert.ok(calls.length > 0, `${file} should call signAndSend`);
+      assert.ok(
+        /walletAddress:/.test(stripped),
+        `${file} calls signAndSend without binding walletAddress — every signature would be refused`
+      );
+    }
+  });
+
+  test("the signer refuses before it ever reaches Privy", () => {
+    // The runner is synchronous by design, and signAndSend is async, so its rejection cannot be
+    // awaited here. What IS assertable synchronously is the wiring that makes the refusal
+    // unavoidable: signer.js exports the same policy function this suite exercises directly
+    // above, and its body reaches the refusal `throw` before it ever constructs a client.
+    const signer = require("../engine/signer");
+    assert.strictEqual(signer.authorizeSigning, policy.authorizeSigning,
+      "signer.js must use this exact policy, not a copy that can drift");
+
+    const src = require("node:fs").readFileSync(`${__dirname}/../engine/signer.js`, "utf8");
+    const body = src.slice(src.indexOf("async function signAndSend"));
+    const refuseAt = body.indexOf("signing refused");
+    const clientAt = body.indexOf("client()");
+    assert.ok(refuseAt > 0, "signer.js must throw on a policy refusal");
+    assert.ok(clientAt > 0, "fixture check: signer.js must still construct a client somewhere");
+    assert.ok(refuseAt < clientAt,
+      "the refusal must come BEFORE the Privy client is constructed — otherwise a refused " +
+      "transaction has already been handed to the signing service");
+  });
+}
+
 // ─── planned capital: one formula, integer-safe, and the two figures agree ───────────────
 //
 // The builder showed "Maximum exposure 0.50 SOL" directly above "Minimum planned capital

@@ -44,8 +44,12 @@ function startLimitWatcher(deps, pollMs = 8000) {
       const order = { ...o, ...(claimed.order || {}) };
       let sig = null;
       try {
-        const { tx } = await buyToken(order.mint, order.amount_sol, order.user_pubkey, order.slippage_bps || 300);
-        sig = await signAndSend(tx, order.wallet_id); // walletId signs; user_pubkey built the tx
+        const { tx, quotedAtMs } = await buyToken(order.mint, order.amount_sol, order.user_pubkey, order.slippage_bps || 300);
+        sig = await signAndSend(tx, order.wallet_id, {
+          walletAddress: order.user_pubkey,
+          builtAtMs: quotedAtMs,
+          idempotencyKey: `limit:${order.id}`
+        });
         const finished = await finishOrder(order.id, claimed.claim_token, "filled", sig, null);
         if (!finished?.ok) throw new Error(finished?.error || "could not persist filled order");
         try {
