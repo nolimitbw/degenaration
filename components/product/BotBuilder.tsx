@@ -1101,7 +1101,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 title={AUTOMATED_MAINNET_RELEASE.reason}
               >
                 <ShieldCheck size={15} />
-                Activation needs the execution worker
+                {AUTOMATED_MAINNET_RELEASE.activationLabel}
               </button>
               <button
                 type="button"
