@@ -15,7 +15,27 @@ Last updated: 2026-07-30 · Branch `claude/degenaration-launch-remediation`
 | 3 | Self-service user principal withdrawal | §12 | **PASS (transaction + reserve math)** | `47dec45`; endpoint + rules module + real modal; 11 unit tests; RPC verified against live Postgres. **`npm run verify:withdrawal` now runs end to end on a local validator: 16/16 — transaction confirmed on chain, destination received exactly the requested lamports, source retained above the rent-exempt minimum, and a subsequent Max withdrawal still retains the reserve.** Remaining: the Privy signing UI itself is unexercised (needs the owner's wallet); mainnet unauthorized by design (B-3) |
 | 4 | Affiliate payout rules kept separate | §12.6 | PASS | `47dec45`; test asserts principal withdrawal ignores the 0.1 SOL minimum and 0.043 SOL fee |
 | 5 | Discord/KOL signal journal end-to-end | §9 | **PASS (schema + chain)** | `d792d7f` outcome layer + 12 tests. Chain traced end to end against the **live database** (rolled back): raw persisted before parse → parse linked and idempotent per version → new version may re-parse → baseline captured with mandatory provider and token FK → duplicate sample rejected → aggregate accepts winRate null at sample_size 1. **Live testing found dedupe was defeatable by NULL** (`external_event_id`); fixed with a `content_hash`-anchored unique index and retested. Runtime ingestion still needs the bot deployed — `docs/launch/DEPLOYMENT.md` |
-| 6 | Two approved sources show measured data | §9.8 | **DIAGNOSED — not a code defect** | Live DB: `approved_groups`=2, `call_channels`=2, but `calls`=1, `raw_signals`=0, `market_snapshots`=0, `performance_snapshots`=0, `durable_jobs`=0, `worker_leases`=0. The single call came via `/alpha` (`confidence: slash-command`) with `last_scanned_at=NULL` and called=peak=latest price. **The worker has never run and passive ingestion has produced nothing.** The dashes are correct; deploying the worker is the fix |
+| 6 | Two approved sources show measured data | §9.8 | **DIAGNOSED — not a code defect** | Live DB: `approved_groups`=2, `call_channels`=2, but `calls`=1, `raw_signals`=0, `market_snapshots`=0, `performance_snapshots`=0, `durable_jobs`=0, `worker_leases`=0.
+
+### CORRECTION 2026-08-06 — `worker_leases`=0 never meant what this file said it meant
+
+The inference above — "`worker_leases`=0, therefore the worker has never run" — was sound when
+it was written and is now **wrong**. The worker is deployed and live with signing enabled.
+
+`app_private.worker_leases` has zero rows because **nothing has ever written to it**.
+`public.worker_heartbeat` has existed and been deployed since
+`degenaration-product-rpcs.sql`, and a grep of `server/` finds no call to it anywhere outside
+`node_modules`. It is the fifth table in this project that several surfaces read and nothing
+writes, after `trade_intents`, the execution/position family, `signal_deliveries` and
+`performance_snapshots`.
+
+This one is worse than the others, because an empty table was treated as a **measurement**. The
+other four rendered a dash; this one answered a question it had never been connected to.
+
+Fixed 2026-08-06: `server/worker.js` heartbeats every 30s against a 90s lease, and
+`public.app_worker_liveness` (migration 20, applied) is how the RUN readiness check asks.
+The rest of the row still holds — `raw_signals`=0 and `market_snapshots`=0 are separate facts
+with their own causes (E-2), and the dashes on those two sources remain correct. The single call came via `/alpha` (`confidence: slash-command`) with `last_scanned_at=NULL` and called=peak=latest price. **The worker has never run and passive ingestion has produced nothing.** The dashes are correct; deploying the worker is the fix |
 | 7 | Exactly one `/register`; stale scopes cleared | §15 | PARTIAL | `b65e069`; root cause fixed + `npm run check:discord-commands` clean; **unobserved against a live Discord application** |
 | 8 | Affiliate never indefinitely loading | §16 | PASS | `cb4abb3`; allSettled + timeout + retry + stale banner; browser-verified, no console errors |
 | 9 | Portfolio/KOL empty + error states | §16, §17 | PASS | `f31f106`; Portfolio had the identical blank-page defect — fixed with allSettled + timeout + retry + stale banner; KOL splits failure from empty |

@@ -244,7 +244,7 @@ Steps 1, 2, 3 and 4 are **built and verified locally**. None is deployed.
 | Requested control | Actual state |
 |---|---|
 | Prevent new live bot activation | **Already prevented**, independently: `lib/trading-release.ts` sets `AUTOMATED_MAINNET_RELEASE.enabled = false`, so `app/api/product/bots/route.ts:40` refuses every active bot with 503. |
-| Prevent new automated entries | **Already prevented** by the same gate, and by the worker not being deployed (`worker_leases` = 0, `durable_jobs` = 0, no `pg_cron`). |
+| Prevent new automated entries | **Already prevented** by the same gate. (The `worker_leases` = 0 evidence originally cited here does NOT support the claim and has been withdrawn — nothing wrote that table until 2026-08-06. `durable_jobs` = 0 and no `pg_cron` still stand. See the correction in `docs/coordination/IMPLEMENTATION_STATUS.md`.) |
 | Preserve exits for open positions | **Nothing to preserve.** Both position ledgers hold 0 rows. No exit path was touched. |
 | Prevent new deposits while withdrawal is unverified | **Not applicable, and blocking it would be misleading.** There is no deposit mechanism: a "deposit" is the user sending SOL to *their own* Privy wallet, which they can always move again through Privy directly. Blocking a screen that only displays the user's own address would imply custody that does not exist. |
 | Concise truthful maintenance message | **Not added, deliberately.** Production runs a build from before any of this work (130 unpushed commits), so no user is currently exposed to a half-applied change. A banner describing a condition that does not exist in the deployed product would be false. |
