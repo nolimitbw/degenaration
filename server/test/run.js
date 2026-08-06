@@ -3285,6 +3285,61 @@ console.log("price selection");
     assert.ok(decide(row, 5.5), "the surviving +400% level must");
   });
 }
+// ── emergency exit: bounded, opt-in, and never on the first attempt ────────────────────────
+//
+// The control promises "the best bounded route when the normal exit fails". BOUNDED is the
+// load-bearing word: a position that cannot sell at 3% is stuck holding through its own stop
+// loss, but an unbounded retry sells it at any price at all — a worse outcome than the one it
+// fixes. Every assertion here is about a limit, not about the escalation.
+{
+  const { exitSlippageBps, EMERGENCY_SLIPPAGE_CAP_BPS } = require("../engine/monitor");
+
+  test("switched OFF, slippage never moves however many attempts fail", () => {
+    for (const attempts of [0, 1, 2, 5, 50]) {
+      assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts }), 300,
+        "widening a user's tolerance without them asking costs them money");
+    }
+  });
+
+  test("switched ON, the first two attempts still use exactly what the user configured", () => {
+    // A transient RPC error must never cost a worse fill.
+    assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts: 0, emergencyExit: true }), 300);
+    assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts: 1, emergencyExit: true }), 300);
+  });
+
+  test("it escalates gradually and stops at the cap", () => {
+    assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts: 2, emergencyExit: true }), 600);
+    assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts: 3, emergencyExit: true }), 1200);
+    assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts: 4, emergencyExit: true }), EMERGENCY_SLIPPAGE_CAP_BPS);
+    // Unbounded escalation is the failure mode. However many attempts, never past the cap.
+    for (const attempts of [5, 12, 400]) {
+      assert.strictEqual(exitSlippageBps({ configuredBps: 300, attempts, emergencyExit: true }), EMERGENCY_SLIPPAGE_CAP_BPS);
+    }
+  });
+
+  test("a user who configured MORE than the cap keeps their own value", () => {
+    // Clamping down to the cap would TIGHTEN slippage on an emergency exit, making the sell
+    // less likely to land — the opposite of what the switch is for.
+    assert.strictEqual(exitSlippageBps({ configuredBps: 2000, attempts: 0, emergencyExit: true }), 2000);
+    assert.strictEqual(exitSlippageBps({ configuredBps: 2000, attempts: 9, emergencyExit: true }), 2000);
+  });
+
+  test("it never returns less than the configured tolerance", () => {
+    for (const configuredBps of [1, 50, 300, 1499, 1500, 5000]) {
+      for (const attempts of [0, 2, 9]) {
+        assert.ok(exitSlippageBps({ configuredBps, attempts, emergencyExit: true }) >= configuredBps);
+      }
+    }
+  });
+
+  test("a missing or nonsense configuration falls back rather than to zero", () => {
+    // Zero slippage would refuse every route, which reads as "the token cannot be sold".
+    for (const configuredBps of [undefined, null, 0, -5, NaN]) {
+      assert.strictEqual(exitSlippageBps({ configuredBps, attempts: 0 }), 300);
+    }
+  });
+}
+
 // ── dollar-cost averaging: the decision, and the unit it is measured in ────────────────────
 //
 // The dangerous defect here is not "it never fires". It is firing at the WRONG PRICE, which is

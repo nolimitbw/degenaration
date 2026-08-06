@@ -37,6 +37,38 @@ const POLL_MS = 5_000;
 const MAX_EXIT_ATTEMPTS = 5;
 
 /**
+ * The hard ceiling on emergency slippage. 15%.
+ *
+ * `stopLoss.emergencyExit` promises "the best bounded route when the normal exit fails", and
+ * BOUNDED is the load-bearing word: a position that cannot sell at 3% is stuck holding through
+ * its own stop, but an unbounded retry would sell it at any price at all, which is a worse
+ * outcome than the one it is fixing. This cap is what makes the difference.
+ */
+const EMERGENCY_SLIPPAGE_CAP_BPS = 1500;
+
+/**
+ * The slippage this exit attempt should use.
+ *
+ * Escalates ONLY when the user switched emergency exit on, and only after the ordinary attempts
+ * have actually failed — the first two attempts always use exactly what the user configured, so
+ * a transient RPC error never costs them a worse fill. From the third attempt the tolerance
+ * doubles per attempt, capped.
+ *
+ * Pure, so the whole ladder is testable without a network.
+ */
+function exitSlippageBps({ configuredBps, attempts = 0, emergencyExit = false }) {
+  const base = Number(configuredBps) > 0 ? Math.floor(Number(configuredBps)) : 300;
+  if (!emergencyExit) return base;
+  // attempts is how many have already failed. 0 and 1 use the configured value.
+  const escalations = Math.max(0, Math.floor(Number(attempts) || 0) - 1);
+  if (escalations === 0) return base;
+  const widened = base * 2 ** escalations;
+  // Never below what the user asked for, never above the cap, and never widened past the cap
+  // even if their own configured value is already higher — a user who chose 20% keeps 20%.
+  return Math.max(base, Math.min(widened, Math.max(base, EMERGENCY_SLIPPAGE_CAP_BPS)));
+}
+
+/**
  * Tokens to sell for one take-profit level.
  *
  * `percent` is a share of the ORIGINAL position, never of what an earlier level left. The
@@ -252,7 +284,12 @@ function normalizePosition(row) {
       // The exit is priced under the SAME configuration snapshot the position was opened
       // under — entry_config, which positions_entry_config_guard makes immutable — so editing
       // the bot cannot change how an already-open position pays to get out.
-      execution: executionPolicy(row.entry_config)
+      execution: executionPolicy(row.entry_config),
+      // `stopLoss.emergencyExit`. Absent is OFF: widening a user's slippage is a decision that
+      // costs them money, and it must be one they made rather than one a missing key made for
+      // them. Read from the position's own immutable entry_config, like every other exit term.
+      emergencyExit: (row.entry_config && typeof row.entry_config === "object")
+        ? row.entry_config.stopLoss?.emergencyExit === true : false
     },
     status: row.status || "open",
     pending: row.pending_exit_sig
@@ -660,9 +697,23 @@ function startMonitor(deps, pollMs = POLL_MS) {
 
     let sig = null;
     try {
+      // Emergency exit, bounded. After two failed attempts a position that cannot sell at its
+      // configured tolerance is stuck holding through its own stop loss — the exact outcome
+      // the stop exists to prevent. Widening is opt-in, gradual, and capped.
+      const attemptSlippageBps = exitSlippageBps({
+        configuredBps: position.settings.slippageBps,
+        attempts: position.attempts,
+        emergencyExit: position.settings.emergencyExit
+      });
+      if (attemptSlippageBps !== position.settings.slippageBps) {
+        onEvent({
+          type: "EMERGENCY_EXIT_WIDENED", position: position.id, mint: position.mint,
+          attempts: position.attempts, fromBps: position.settings.slippageBps, toBps: attemptSlippageBps
+        });
+      }
       const { tx, quotedAtMs } = await sellToken(
         position.mint, decision.amountRaw.toString(), position.userPubkey,
-        position.settings.slippageBps, position.settings.execution
+        attemptSlippageBps, position.settings.execution
       );
       if (quoteExpired({
         quotedAtMs, nowMs: Date.now(),
@@ -746,5 +797,6 @@ function startMonitor(deps, pollMs = POLL_MS) {
 module.exports = {
   startMonitor, takeProfitShare, decideExit, resolveExit, normalizePosition, executionPolicy,
   dcaPlan, decideDca,
-  isProfitTarget, exitPlan, fillState, MAX_EXIT_ATTEMPTS
+  isProfitTarget, exitPlan, fillState, MAX_EXIT_ATTEMPTS,
+  exitSlippageBps, EMERGENCY_SLIPPAGE_CAP_BPS
 };

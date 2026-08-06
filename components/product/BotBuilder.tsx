@@ -975,7 +975,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Toggle label="Freeze token after stop" detail="Block re-entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
-              <Toggle label="Emergency exit" detail="Use the best bounded route when the normal exit fails." checked={emergencyExit} onChange={setEmergencyExit} />
+              <Toggle label="Emergency exit" detail="If a sell keeps failing, widen slippage step by step up to 15% so the position can close." checked={emergencyExit} onChange={setEmergencyExit} />
             </div>
             {/* Directly below stop loss, per section 4. Not the same control as First call
                 only: that one refuses a repeat call while a position is open, this one refuses
