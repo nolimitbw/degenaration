@@ -449,3 +449,30 @@ Verified on production after deploying: `medianCurrentX 0.226`, `down50` (peak b
 The worker uses the EXISTING Railway project and service — no duplicate project was created, no
 secret was read or written. It runs watch-only because `server/worker.js` gates the entire
 trading stack behind `DELEGATED_SIGNING === "on"`.
+
+## APPLIED 2026-08-06 (second pass) — migrations 15 and 16
+
+| # | Migration | Verification |
+|---|---|---|
+| 15 | `degenaration-exit-reason.sql` | `md5(prosrc)` **MATCH**, `worker_settle_position_exit` arities `[9]` — no overload — column and partial index present, row counts unchanged |
+| 16 | `degenaration-freeze-after-stop.sql` | **MATCH**, 1 signature at (uuid, uuid), anon denied, row counts unchanged |
+
+### Why 15 had to come first
+
+`stopLoss.freezeAfterStop` has been in the builder since it shipped, persisted and versioned,
+enforced by nothing — and it was **unimplementable**, not merely unimplemented.
+`worker_settle_position_exit` cleared `pending_exit_kind` in the same statement that closed the
+position, so "closed" and "stopped out" were the same row. 15 captures the reason on close only;
+16 reads it.
+
+The same missing fact also blocked trade history and the losing PnL card from saying how a trade
+ended, and stopped a source's record separating stopped-out calls from calls closed in profit.
+
+### 16 is a new migration rather than an edit to 13
+
+13 is already deployed. Editing a deployed migration file desyncs this repository from
+production, so 16 supersedes it in full and must follow it.
+
+### Contract movement across this whole session
+
+**13 enforced / 33 pending → 34 enforced / 21 pending.**
