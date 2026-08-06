@@ -216,8 +216,8 @@ a dash or a zero here, check the writer before checking the reader.
 
 ## Session 2026-08-06 — Admin Revenue, RUN, and the fifth unwritten table
 
-Five commits, `20b488a`..`ce1a2d6`. Migrations **19, 20 and 21 authored, applied and verified**;
-app-bridge **v16**; production application at `ce1a2d6`.
+Eight commits, `20b488a`..`1043b1e`. Migrations **19, 20, 21 and 22 authored, applied and
+verified**; app-bridge **v16**; production application at `1043b1e`.
 
 ### Section 3 — Admin Revenue and Withdraw fees
 
@@ -288,6 +288,34 @@ middle behaviour that proves them distinct: with auto re-entry off and first-cal
 second call while the position is still OPEN is still allowed.
 
 Contract: **37 enforced / 19 pending**, from 36/19.
+
+### Migration 22 — DCA placement, the only unenforced control that reserved the user's money
+
+`dca.enabled`, `dca.levels`, `dca.expirationMinutes` and `dca.maximumEntries` were persisted,
+validated, versioned, reloaded, **counted toward the minimum planned capital the builder tells
+the user to fund** — and never placed. A bot with a 0.05 entry and two 0.25 levels asked for
+0.55 SOL per position and spent 0.05. Every other pending control cost the user nothing.
+
+`server/engine/dca.js` is the pure decision; `worker_record_dca_fill` is the write. The unit is
+pinned by test: `dropBps` is an additional drop below the position's **average entry**, not
+below the previous level's price — read the other way, levels at 3000 and 5000 place the second
+at −65% instead of −50%. Same class as the take-profit unit defect that liquidated at entry.
+
+Four ways adding to a position corrupts its exit plan, all closed and all asserted: the average
+entry is volume-weighted, `original_amount_raw` grows so take-profit shares stay the size the
+user configured, the peak is rebased so trailing does not fire against a drawdown that never
+happened, and a stale stop breach is cleared. The fill goes through the **same guarded path an
+entry takes** — quote, bind quote to intent, freshness, simulate, sign under policy — bounded
+by that level's own allocation.
+
+**Two defects the gates caught before apply.** `positions.opened_at` does not exist in
+production (only in `degenaration-product-ledgers-operations.sql`), so the worker would have
+taken a 400 on its first read of every tick — `check:worker-schema-contract`'s third real
+catch. And `positions.updated_at` does not exist either, so the migration would have failed to
+apply; the fixture caught that one, because it is generated from the captured production shape
+rather than written by hand.
+
+Contract: **41 enforced / 15 pending**, from 37/19.
 
 ### What is blocked, and by what
 
