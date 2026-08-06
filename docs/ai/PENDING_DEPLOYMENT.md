@@ -417,3 +417,35 @@ finding.**
 in reverse order 12 → 11, each followed by its reapply list in `supabase/rollback/plan.mjs`.
 `npm run verify:migration-rollback` proves all twelve round-trip to a byte-identical baseline.
 Both headers say plainly what rolling back RESTORES, because both restore a silent defect.
+
+## APPLIED 2026-08-06 — migrations 13 and 14, worker deployed
+
+| # | Migration | Verification |
+|---|---|---|
+| 13 | `degenaration-subscription-channel-scope.sql` | `md5(prosrc)` **MATCH**, 1 signature at (uuid, uuid), anon denied, row counts unchanged. Enforces `subscriptions.channel_id`, which `app_user_save_bot` has always written and nothing ever read |
+| 14 | `degenaration-current-drawdown-bucket.sql` | **MATCH**, 1 signature at arity 4, anon denied. Adds `currentlyDown50` |
+
+### Migration 14 was found by the newly deployed worker
+
+The performance scanner measured the one real call in production — called at
+`0.01842`, now `0.003962`, a 78.5% loss — and the source profile's "Down 50%+" row read **0**.
+`down50` counts `peak_x < 0.5`, meaning "never recovered half the entry", not "is down half". A
+call that opens flat and collapses has `peak_x = 1.0` and was never counted.
+
+It failed in the direction that matters: a source whose every call crashed showed an empty risk
+bucket, understating the downside a subscriber copies.
+
+Verified on production after deploying: `medianCurrentX 0.226`, `down50` (peak bucket) `0`,
+`currentlyDown50` **1**.
+
+### Services
+
+| | |
+|---|---|
+| Vercel | `c179f98` |
+| Railway `degenaration-bot` | `543e419` — `server/bot` byte-identical at HEAD |
+| Railway `degenaration-worker` | **deployed 2026-08-06**, `rootDir server`, `/health` returns `ok`, `watch-only`, 0 errors. Performance scanner measuring real calls |
+
+The worker uses the EXISTING Railway project and service — no duplicate project was created, no
+secret was read or written. It runs watch-only because `server/worker.js` gates the entire
+trading stack behind `DELEGATED_SIGNING === "on"`.
