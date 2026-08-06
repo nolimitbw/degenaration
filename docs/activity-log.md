@@ -1056,3 +1056,84 @@ over the entire codebase. Found 19 real bugs. Fixed all of them.
 - `git diff --check`: passed for committed runtime changes.
 - Production browser smoke: seven primary routes at 1440px, 768px, and 390px with no
   console/page errors or horizontal overflow.
+
+## Session: mandatory Mizar reference and builder parity (2026-08-01)
+
+- Inventoried all 49 mandatory files in `.references/PNL CARDS/` and
+  `.references/SETTINGS AND FUNCTIONS IDEA/`; opened all 41 images at original
+  resolution and reviewed complete one-second contact-sheet coverage for all five videos.
+- Probed and decoded every video frame with temporary `/private/tmp` ffmpeg tooling. No
+  project dependency or lockfile changed.
+- Added the required inventory, parity matrix, click-flow map, and reference-coverage
+  documents under `docs/ai/`.
+- Reordered the shared Discord/KOL builder around identity, wallet, source/strategy, and
+  funding before advanced decisions; grouped final confirmation into Main, Buy, Sell, and
+  Advanced settings.
+- Fixed edit hydration for scanner presets and valid zero-valued cooldown, delay, and
+  priority settings. Added TP/DCA ordering and enabled-range validation, a distinct
+  preview failure state, and channel reset when changing Discord servers.
+- Browser testing exposed invalid nested labels in compact TP/DCA/range inputs. Replaced
+  them with stable per-control accessible names and reran the multi-level flow.
+- Captured six builder/dialog/filter evidence images across 1440, 1024, and 390 widths.
+  All widths had no page overflow and the final browser pass had no console errors.
+- `npm run check`: passed, including 170 tests and the production build.
+
+## Session: Discord marketplace parity contract (2026-08-01)
+
+- Added a forward-safe Discord marketplace RPC replacement that returns accepted,
+  rejected, and successfully executed call counts; latest processed and successful
+  execution timestamps; scanner freshness; and authoritative 1D/7D/30D net PnL
+  snapshots without converting missing ledger history to zero.
+- Reworked Discord source cards and profiles around shared activity, performance, and
+  call-count components while retaining the real server avatar, verification, scanner
+  health, followers, return statistics, drawdown, and creator commission.
+- Browser-tested the marketplace at 1440x1000, 1024x768, and 390x844. All three widths
+  had no horizontal overflow; period and sort controls changed state; the browser console
+  had no warnings or errors.
+- The local app bridge lacked product database credentials, so it correctly rendered the
+  provider-failure state. The migration was not applied and live source cards remain
+  deployment evidence rather than a PASS claim.
+- Typecheck, code quality, 170 tests, performance-journal verification, and visible-copy
+  checks passed.
+
+## Session: Bot Manager fee and archive parity (2026-08-01)
+
+- Confirmed the user bot list RPC already returns authoritative 30-day network,
+  platform, and creator fee fields; added them to the client contract and manager table.
+- Added a compact total-fee cell with visible gas cost and a tooltip breakdown without
+  treating a missing snapshot as zero.
+- Replaced direct archive with an accessible confirmation. Escape, backdrop, and Cancel
+  close safely; submission is locked while pending; bots with open positions cannot enter
+  the archive flow; historical versions, executions, performance, and finances remain.
+- Typecheck, code quality, visible-copy, and whitespace checks passed. Authenticated
+  lifecycle browser evidence remains pending because no test user session is available.
+
+## Session: PnL share identity and link parity (2026-08-01)
+
+- Replaced the PnL export's decorative letter block with the same original SVG geometry
+  used by the DegenAration application logo.
+- Made the visible card URL, QR target, response metadata, native share text, and
+  clipboard fallback resolve to the same canonical or verified referral URL.
+- Retained server-side PnL derivation, authenticated record lookup, immutable snapshot
+  recording, restrained win/loss colors, and deterministic 1600x900 export dimensions.
+- Did not infer completed-trade exit prices: the current ledger lacks a durable position
+  to exit-execution price relationship, so losing completed-trade parity remains BLOCKED.
+- `npm run check` passed, including 170 tests and the production build. Authenticated PnL
+  render screenshots remain pending.
+
+## Session: Safe migration and bot lifecycle verification (2026-08-01)
+
+- Added repeatable PostgreSQL migration verification with PGlite and proved the Discord
+  marketplace migration preserves fixture history, keeps unknown metrics null, reruns
+  safely, and remains callable only through the service-role bridge.
+- Added terminal archive, live Discord source uniqueness, and immutable position entry
+  configuration guards without rewriting existing bot or position history.
+- Added an owner-only signal and execution journal RPC, API route, manager action, and
+  responsive activity table while keeping Portfolio positions as a separate action.
+- Exercised actual bot RPCs with two isolated subjects: create, persisted hydration, edit,
+  versions 1 through 6, activate, pause, resume, archive guard, archive, denied restore,
+  allowed KOL duplication, denied Discord source duplication, owner denial, and retained
+  entry snapshots all passed.
+- Queried production read-only before deployment: no duplicate live Discord source/profile
+  sets and no bot positions missing snapshots were found. New lifecycle/activity migrations
+  remain intentionally unapplied pending a confirmed safe target.

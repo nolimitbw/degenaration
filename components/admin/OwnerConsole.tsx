@@ -6,6 +6,7 @@ import {
   Activity,
   Bot,
   ClipboardList,
+  Coins,
   History,
   Link2,
   RefreshCw,
@@ -19,6 +20,7 @@ import { adminFetchJson, emailFromPrivyUser, useIsAdmin } from "@/lib/admin";
 import { LoadingRows, PageHeader } from "@/components/product/Primitives";
 import OwnerSections from "@/components/admin/OwnerSections";
 import ClientLedger from "@/components/admin/ClientLedger";
+import RevenuePanel from "@/components/admin/RevenuePanel";
 import type { AdminAction, AdminData, AdminTab } from "@/components/admin/types";
 
 const EMPTY_DATA: AdminData = {
@@ -43,6 +45,7 @@ const TABS = [
   { id: "kol", label: "KOL", icon: Bot },
   { id: "referrals", label: "Referrals", icon: Link2 },
   { id: "clients", label: "Clients", icon: Users },
+  { id: "revenue", label: "Revenue", icon: Coins },
   { id: "payouts", label: "Payouts", icon: WalletCards },
   { id: "operations", label: "Operations", icon: ClipboardList },
   { id: "users", label: "Users", icon: Users },
@@ -302,6 +305,10 @@ export default function OwnerConsole() {
           // different pair of RPCs, and folding it into the twelve-request bulk load would
           // make every other tab wait for it.
           <ClientLedger fetchJson={fetchJson} refreshPerformance={refreshPerformance} />
+        ) : active === "revenue" ? (
+          // Same reason, plus one of its own: revenue carries the allocation-drift verdict,
+          // and a caller only wanting the client table should not have to fetch it.
+          <RevenuePanel fetchJson={fetchJson} feeAccount={(data.summary as any)?.feeAccount} />
         ) : loaded ? (
           <OwnerSections active={active} data={data} act={setPendingAction} />
         ) : (

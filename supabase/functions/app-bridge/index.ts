@@ -114,6 +114,10 @@ const operations: Record<string, string[]> = {
   // reported zero for every client.
   admin_client_ledger: ["p_secret", "p_actor_privy_user_id", "p_limit"],
   admin_business_summary: ["p_secret", "p_actor_privy_user_id"],
+  // Revenue is a separate operation from admin_business_summary rather than more fields on it,
+  // because it carries the allocation-drift verdict an operator must read before trusting any
+  // other figure -- and a caller that only wants the client table should not have to fetch it.
+  admin_revenue_summary: ["p_secret", "p_actor_privy_user_id"],
   admin_list_trade_executions: [
     "p_secret", "p_actor_privy_user_id", "p_status", "p_limit"
   ],

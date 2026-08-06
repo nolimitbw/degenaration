@@ -4,6 +4,7 @@ export type AdminTab =
   | "kol"
   | "referrals"
   | "clients"
+  | "revenue"
   | "payouts"
   | "operations"
   | "users"
