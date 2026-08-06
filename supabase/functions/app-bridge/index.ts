@@ -122,6 +122,19 @@ const operations: Record<string, string[]> = {
   // because it carries the allocation-drift verdict an operator must read before trusting any
   // other figure -- and a caller that only wants the client table should not have to fetch it.
   admin_revenue_summary: ["p_secret", "p_actor_privy_user_id"],
+  // Withdrawing platform revenue. A FOURTH money ledger, deliberately: reusing the creator
+  // payout ledger would report creator payouts as company withdrawals and double-count the
+  // allocation trade_executions already removes once.
+  admin_open_revenue_withdrawal: [
+    "p_secret", "p_actor_privy_user_id", "p_mint", "p_destination_address", "p_amount_base_units"
+  ],
+  admin_record_revenue_withdrawal_signature: [
+    "p_secret", "p_actor_privy_user_id", "p_id", "p_tx_signature"
+  ],
+  admin_settle_revenue_withdrawal: [
+    "p_secret", "p_actor_privy_user_id", "p_id", "p_outcome", "p_error"
+  ],
+  admin_list_revenue_withdrawals: ["p_secret", "p_actor_privy_user_id", "p_limit"],
   admin_list_trade_executions: [
     "p_secret", "p_actor_privy_user_id", "p_status", "p_limit"
   ],

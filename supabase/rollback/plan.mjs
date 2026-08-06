@@ -289,6 +289,20 @@ export const PACKAGE = [
       "worker had never started. Fully additive; writes nothing. Rolling it back makes RUN " +
       "fail closed, which is the correct direction.",
   },
+  {
+    n: 21,
+    apply: "degenaration-revenue-withdrawal.sql",
+    rollback: "21-revenue-withdrawal.sql",
+    reapply: [],
+    note:
+      "The revenue-withdrawal ledger — a FOURTH money table, deliberately. Reusing " +
+      "payout_requests would report creator payouts as company withdrawals and double-count " +
+      "the creator allocation trade_executions already removes once. Draws against " +
+      "retained_fee_lamports only, so it cannot reach client principal or the creator and " +
+      "referral shares. Fully additive: one table, five functions, one trigger; no existing " +
+      "object touched. Its rollback REFUSES if any withdrawal is recorded, because that table " +
+      "is the only evidence company money moved and under which signature.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
