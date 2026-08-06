@@ -139,14 +139,17 @@ function subscriberExecution(subscription) {
   // true — so this resolver keeps its existing contract: null means "nothing to say", and a bot
   // that changed nothing does not become a configured bot just by having a default.
   const simulationRequired = config.simulationRequired !== false;
-  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null && simulationRequired) {
+  const autoRetryCount = number(config.autoRetryCount);
+  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null
+    && simulationRequired && autoRetryCount === null) {
     return null;
   }
   return {
     priorityFeeMaxLamports,
     priorityFeeStrategy: typeof config.priorityFeeStrategy === "string" ? config.priorityFeeStrategy : "auto",
     quoteExpirationSeconds,
-    simulationRequired
+    simulationRequired,
+    autoRetryCount
   };
 }
 

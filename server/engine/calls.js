@@ -4,6 +4,34 @@
  * respecting each subscriber's size and daily cap. Non-custodial: subscribers' DELEGATED
  * keys sign via signAndSend. Analogous to copy.js but keyed on group calls, not wallets.
  */
+/**
+ * How many times an entry attempt may be rebuilt, and when it may not.
+ *
+ * `autoRetryCount` is a builder control that has been persisted and versioned since the builder
+ * shipped and read by nothing — the engine made exactly one attempt per call and gave up.
+ *
+ * THE INVARIANT THAT MATTERS MORE THAN THE COUNT. A retry is only ever safe BEFORE a signature
+ * exists. Once `signAndSend` has returned, the transaction may be on its way to the chain even
+ * if the call that followed it threw, and re-submitting would double-spend the reservation.
+ * `retryable` therefore takes the signature, not just the attempt number, and refuses outright
+ * once one exists — the bound is the second line of defence, not the first.
+ *
+ * Absent means one attempt, matching what the engine did before this had a reader. Clamped so a
+ * configuration cannot ask the worker to loop indefinitely against a failing route.
+ */
+const MAX_ENTRY_ATTEMPTS = 5;
+
+function entryAttempts(autoRetryCount) {
+  const configured = Math.floor(Number(autoRetryCount));
+  if (!Number.isFinite(configured) || configured <= 0) return 1;
+  return Math.min(1 + configured, MAX_ENTRY_ATTEMPTS);
+}
+
+function retryable({ signature, attempt, attempts }) {
+  if (signature) return false;
+  return attempt + 1 < attempts;
+}
+
 const { rugCheck } = require("./rugcheck");
 const { evaluateSafety } = require("./safety");
 const { buyToken, quoteExpired } = require("./jupiter");
@@ -95,6 +123,12 @@ function startCallWatcher(deps, pollMs = 8000) {
         // snapshot its safety filters came from, so a trade cannot be priced under one
         // configuration and filtered under another.
         const execution = subscriberExecution(s);
+        const attempts = entryAttempts(execution?.autoRetryCount);
+        let attempt = 0;
+        let lastError = null;
+        // Bounded rebuild. Each attempt takes a FRESH quote — retrying a stale one would submit
+        // a price the market has left — and the loop cannot run once a signature exists.
+        while (attempt < attempts && !sig) {
         try {
           const { tx, quotedAtMs } = await buyToken(
             c.mint, claim.size_sol, claim.user_pubkey, claim.slippage_bps || 300, execution
@@ -137,12 +171,25 @@ function startCallWatcher(deps, pollMs = 8000) {
           if (!submitted?.ok) throw new Error(submitted?.error || "could not persist call execution");
           onEvent({ type: "CALL_BUY_SUBMITTED", group: c.group_id, mint: c.mint, user: claim.user_pubkey, sig });
         } catch (e) {
+          lastError = e;
+          if (retryable({ signature: sig, attempt, attempts })) {
+            attempt += 1;
+            onEvent({ type: "ENTRY_RETRY", call: c.id, subscription: s.id, mint: c.mint, attempt, of: attempts, error: e.message });
+            continue;
+          }
           if (!sig) {
             try { await finishCallExecution(c.id, s.id, claim.claim_token, "failed", null, e.message); }
             catch (finishError) { onEvent({ type: "FINISH_ERROR", call: c.id, subscription: s.id, error: finishError.message }); }
           }
-          onEvent({ type: sig ? "PERSIST_ERROR" : "EXEC_ERROR", subscription: s.id, mint: c.mint, sig, error: e.message });
+          onEvent({
+            type: sig ? "PERSIST_ERROR" : "EXEC_ERROR",
+            subscription: s.id, mint: c.mint, sig, error: e.message,
+            attempts: attempt + 1
+          });
+          break;
         }
+        }
+        void lastError;
       }
       try {
         const completed = await completeCall(c.id);
@@ -161,4 +208,4 @@ function startCallWatcher(deps, pollMs = 8000) {
   tick();
 }
 
-module.exports = { pickNewCalls, startCallWatcher };
+module.exports = { pickNewCalls, startCallWatcher, entryAttempts, retryable, MAX_ENTRY_ATTEMPTS };

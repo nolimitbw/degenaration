@@ -2477,6 +2477,56 @@ console.log("price selection");
     assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
   });
 }
+// ─── bounded entry retry, and the one thing that must never be retried ────────────────────
+//
+// `autoRetryCount` is a builder control persisted and versioned since the builder shipped and
+// read by nothing: the engine made exactly one attempt per call and gave up. A transient quote
+// or RPC failure lost the call entirely.
+{
+  const { entryAttempts, retryable, MAX_ENTRY_ATTEMPTS } = require("../engine/calls");
+
+  test("absent means one attempt, matching what the engine did before", () => {
+    for (const value of [undefined, null, 0, -3, "x", NaN]) {
+      assert.strictEqual(entryAttempts(value), 1, `${String(value)} must not add attempts`);
+    }
+    assert.strictEqual(entryAttempts(1), 2, "one retry means two attempts");
+    assert.strictEqual(entryAttempts(2), 3);
+  });
+
+  test("the attempt count is clamped so a configuration cannot loop the worker", () => {
+    assert.strictEqual(entryAttempts(99), MAX_ENTRY_ATTEMPTS);
+    assert.strictEqual(entryAttempts(Number.MAX_SAFE_INTEGER), MAX_ENTRY_ATTEMPTS);
+    // Fractional input floors rather than producing a fractional loop bound.
+    assert.strictEqual(entryAttempts(2.9), 3);
+  });
+
+  test("a signature ends retrying, whatever the count says", () => {
+    // THE INVARIANT THAT MATTERS MORE THAN THE COUNT. Once signAndSend has returned, the
+    // transaction may already be on its way to the chain even if the call after it threw.
+    // Re-submitting would double-spend the reservation, so the signature — not the attempt
+    // number — is the first thing checked.
+    assert.strictEqual(retryable({ signature: "sig", attempt: 0, attempts: 5 }), false);
+    assert.strictEqual(retryable({ signature: "sig", attempt: 4, attempts: 5 }), false);
+    // Without one, the bound applies normally.
+    assert.strictEqual(retryable({ signature: null, attempt: 0, attempts: 3 }), true);
+    assert.strictEqual(retryable({ signature: null, attempt: 1, attempts: 3 }), true);
+    assert.strictEqual(retryable({ signature: null, attempt: 2, attempts: 3 }), false, "the last attempt is not retried");
+    assert.strictEqual(retryable({ signature: null, attempt: 0, attempts: 1 }), false, "one attempt means no retry");
+  });
+
+  test("the retry loop cannot run after a signature exists", () => {
+    // Asserted against the source because the loop condition is the guarantee: `!sig` in the
+    // while, and a `break` on the terminal path. A retry that re-entered after submission is
+    // the double-spend this whole control has to avoid.
+    const src = require("node:fs").readFileSync(`${__dirname}/../engine/calls.js`, "utf8");
+    const stripped = src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+    assert.match(stripped, /while \(attempt < attempts && !sig\)/,
+      "the loop must be gated on the absence of a signature, not only on the count");
+    assert.match(stripped, /retryable\(\{ signature: sig/,
+      "the retry decision must be handed the signature");
+  });
+}
+
 // ─── pre-submit simulation: the switch had no reader, and neither did the step ───────────
 //
 // `simulationRequired` was persisted, validated, versioned and reloaded since the builder
