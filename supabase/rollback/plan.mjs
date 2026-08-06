@@ -232,6 +232,17 @@ export const PACKAGE = [
       "MUST FOLLOW #5, which defines the body. Same arity (9), one nullable column, one partial " +
       "index. Rolling back discards reasons already recorded and cannot reconstruct them.",
   },
+  {
+    n: 16,
+    apply: "degenaration-freeze-after-stop.sql",
+    rollback: "16-freeze-after-stop.sql",
+    reapply: ["degenaration-subscription-channel-scope.sql"],
+    note:
+      "Enforces stopLoss.freezeAfterStop, which was unimplementable until #15 recorded WHY a " +
+      "position closed. Supersedes #13 in full and MUST FOLLOW IT and #15. Same arity " +
+      "(uuid, uuid), no DDL, no DML. Rolling back lets a bot re-enter a token that just stopped " +
+      "it out while its editor still shows the switch on.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

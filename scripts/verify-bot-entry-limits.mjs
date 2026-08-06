@@ -79,13 +79,16 @@ for (const file of [
   "degenaration-trade-intent-fanout.sql",
   "degenaration-subscriber-config-versioning.sql",
   "degenaration-bot-entry-limits.sql",
-  "degenaration-subscription-channel-scope.sql"
+  "degenaration-subscription-channel-scope.sql",
+  "degenaration-exit-reason.sql",
+  "degenaration-freeze-after-stop.sql"
 ]) {
   await db.exec(await sql(file));
 }
 // Every deployment is a rerun after a rollback, so reapplying must be a no-op.
 await db.exec(await sql("degenaration-bot-entry-limits.sql"));
 await db.exec(await sql("degenaration-subscription-channel-scope.sql"));
+await db.exec(await sql("degenaration-freeze-after-stop.sql"));
 results.rerunSafe = "PASS";
 
 const one = async (text, params = []) => (await db.query(text, params)).rows[0];
@@ -472,6 +475,66 @@ const skipped = (subId) => all(
   assert.equal((await claim(unattributed.id, scoped.id)).ok, true,
     "an unattributed call is not evidence the bot should be refused");
   results.channelScope = "PASS";
+}
+
+// ── 7f. a token that stopped you out is frozen, if you asked for that ───────────────────────
+//
+// "Freeze token after stop" has been in the builder since it shipped and enforced by nothing,
+// because the fact it needs did not exist: settlement cleared pending_exit_kind in the same
+// statement that closed the position, so "closed" and "stopped out" were the same row.
+{
+  const sub = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, cooldownSeconds: 900,
+    stopLoss: { enabled: true, stopBps: 4000, freezeAfterStop: true }
+  });
+
+  // A position on this mint that CLOSED because it stopped out.
+  await db.query(
+    `insert into public.positions
+       (user_pubkey, mint, entry_price_usd, amount_raw, entry_sig, status, group_id,
+        exit_reason, closed_at)
+     values ('PUBKEY', 'FROZEN', 1, 1000, 'sig-frozen', 'closed', $1::uuid, 'SL', now())`,
+    [GROUP]
+  );
+
+  const c = await call("FROZEN");
+  const refused = await claim(c.id, sub.id);
+  assert.equal(refused.ok, false);
+  assert.equal(refused.error, "token frozen after a stop loss");
+  // Reported separately from the ordinary cooldown: they are different settings with different
+  // fixes, and one message would send half the readers to the wrong control.
+  assert.notEqual(refused.error, "token cooldown active");
+
+  // A position that closed in PROFIT does not freeze anything.
+  const other = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, cooldownSeconds: 900,
+    stopLoss: { enabled: true, stopBps: 4000, freezeAfterStop: true }
+  });
+  await db.query(
+    `insert into public.positions
+       (user_pubkey, mint, entry_price_usd, amount_raw, entry_sig, status, group_id,
+        exit_reason, closed_at)
+     values ('PUBKEY', 'PROFIT', 1, 1000, 'sig-profit', 'closed', $1::uuid, 'TP2', now())`,
+    [GROUP]
+  );
+  const profitCall = await call("PROFIT");
+  assert.equal((await claim(profitCall.id, other.id)).ok, true,
+    "closing in profit must not freeze the token — only a stop does");
+
+  // Switched off, the same stop-out does not freeze.
+  const off = await subscription({
+    buyAmountLamports: SOL, maxOpenTrades: 50, cooldownSeconds: 900,
+    stopLoss: { enabled: true, stopBps: 4000, freezeAfterStop: false }
+  });
+  const c2 = await call("FROZEN");
+  assert.equal((await claim(c2.id, off.id)).ok, true, "switched off, the freeze must not apply");
+
+  // Past the window it thaws. The freeze is bounded by the same cooldown the user set, rather
+  // than a duration nobody chose.
+  await db.query("update public.positions set closed_at = now() - interval '20 minutes' where mint='FROZEN'");
+  const c3 = await call("FROZEN");
+  assert.equal((await claim(c3.id, sub.id)).ok, true, "past the cooldown the token thaws");
+  results.freezeAfterStop = "PASS";
 }
 
 // ── 8. absent is not zero ───────────────────────────────────────────────────────────────────
