@@ -1,12 +1,15 @@
 # Pending deployment package
 
-## PENDING — migration 22, dollar-cost averaging
+## APPLIED 2026-08-06 — migration 22, dollar-cost averaging
 
-**`supabase/degenaration-dca-placement.sql` — NOT YET APPLIED.**
+**`supabase/degenaration-dca-placement.sql` — APPLIED.** `worker_record_dca_fill` digest
+`ceed54c77e6dbff7d90b01904c82138f` **MATCH**, exactly 1 definition, `filled_dca_levels` present,
+anon and authenticated denied EXECUTE, `positions` still 0 rows, and `worker_open_position` /
+`worker_settle_position_exit` both still at exactly one arity — the additive shape held.
 
 Adds `public.positions.filled_dca_levels` and `public.worker_record_dca_fill`.
 
-**Must be applied BEFORE the worker build that reads it.** `server/engine/store.js` selects
+**It was applied BEFORE the worker build that reads it, which is the required order.** `server/engine/store.js` selects
 `filled_dca_levels`, and PostgREST answers an unknown column with **400** — the same shape as
 the funds incident. `npm run check:worker-schema-contract` is what makes that impossible to
 forget, and it fired on this file's first draft for a different column: `positions.opened_at`,
