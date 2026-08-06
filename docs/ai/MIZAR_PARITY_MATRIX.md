@@ -35,6 +35,42 @@ requirement. Source inspection alone is never PASS.
 | I2 | Losing PnL card | Open completed losing trade; share; render negative result and QR | Loss state uses sign/label, not color alone; same authorization | same | same | PARTIAL: the durable position-to-exit relationship exists (`app_private.position_exits`, `a428857`), so a completed trade renders average entry as basis/quantity and average exit as proceeds/quantity — division of recorded integers, no price feed, nothing inferred. **A unit defect was found and fixed here in 2026-08-05**: the closed-trade branch omitted `10^decimals`, so the same "AVERAGE ENTRY" label printed `2.0000 SOL` while a position was open and `2.0000e-9 SOL` once it closed. Both branches now call one `perUnitSol`, and a test asserts they agree at 0, 6 and 9 decimals. An unknown token scale omits the price rather than printing a mis-scaled one; an exit whose proceeds the worker never reported is still refused rather than guessed, with a reason distinct from "no exit at all". **Reclassified 2026-08-05 from E-6 to E-3.** With the owner's session the share control is *correctly disabled*: the account holds 0 positions and no reconciled snapshot, and the route refuses a period with no snapshot rather than rendering 0.00%. Proving this row needs one settled position — the worker (**E-3**) — not a session |
 | I3 | Portfolio PnL card | Select portfolio performance period; share result | Server derives period values; no arbitrary client metrics | same | reconciled equity/ledger | PARTIAL: real logo, and QR/link parity is now derived from one value and asserted (`https://${label} === url`) — a QR resolving anywhere other than the printed link is indistinguishable from a phishing card once the image leaves the product. A period with no reconciled snapshot is **refused with 409 rather than rendered as 0.00%**, which a viewer could not tell from a real break-even result; the denominator is average capital, not traded volume. **Reclassified 2026-08-05 from E-6 to E-3** — see the winning-card row |
 
+## Section 4 and 5 rebuild, 2026-08-06 — what changed under these rows
+
+Fifteen rows above end "authenticated save remains" or "browser proof pending". Those remainders
+are unchanged, but the SURFACE they describe is not: the builder was restructured this session
+and several rows now describe a component that no longer exists in that shape.
+
+| Row family | What it says | What is now deployed |
+|---|---|---|
+| Discord / KOL identity and budget | ten flat sections | **Buy amount, Take profit, Stop loss, Auto re-entry first**; the four exposure limits, entry trigger, DCA, security filters and routing behind one collapsed `Optional settings` group |
+| Discord / KOL confirmation and save | "Review and save draft", a permanently disabled activation button | **`RUN` and `Save and use later`.** RUN runs a server-side readiness transaction and renders exactly one precise reason — the first of fourteen ordered checks to fail |
+| KOL DCA | "implemented and persisted; browser proof pending" | **enforced.** `server/engine/dca.js` decides, `worker_record_dca_fill` writes, migration 22 applied. The four controls were already counted toward required capital and never placed |
+| Discord / KOL stop loss | "implemented; runtime execution evidence remains" | `freezeAfterStop`, `delaySeconds` and now **`emergencyExit`** are enforced. Emergency exit escalates slippage 2x per failed attempt from the third, capped at 15%, and never below what the user configured |
+
+### The three strings this matrix should no longer expect to find
+
+`Configuration passes client validation. Server and scanner checks still apply.` ·
+`Activation needs trading enabled` · `Activation needs the execution worker`
+
+All three were computed on the CLIENT from a frozen constant, so they said the same sentence to
+a user with no wallet, a user short of capital, and a user whose only blocker was the fee
+account. Verified absent from the deployed `/bots/discord/new` markup.
+
+### Section 6, the Discord chain — the row that was never written
+
+The directive asks for one proof from a registered approved channel through to a durable intent.
+`verify:discord-replay` stopped at `signal_deliveries` and `verify:pipeline-e2e` started one
+stage later at a hand-built row; the seam between them is the same shape that hid the fan-out
+defect for weeks. The replay now crosses it and asserts the mint survives — the intent must
+carry the mint the PARSER extracted and the same one the call journal recorded.
+
+It also drives the **drift case**, which is the one that matters: the listener's approved map is
+periodic, so after an admin removes a source the listener keeps forwarding for a while. That is
+the only moment the database gate is the last thing between a removed source and a real trade.
+Listener forwards, database refuses, audit row names the message and the reason, zero calls and
+zero intents.
+
 ## Cross-cutting reference behavior
 
 | Behavior | Status | Exact remainder |
