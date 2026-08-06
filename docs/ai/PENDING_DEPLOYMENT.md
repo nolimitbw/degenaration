@@ -492,3 +492,23 @@ Fully additive: one nullable column on `public.positions`, one new function
 on its first position load. `npm run check:worker-schema-contract` enforces this.
 
 Rollback: `supabase/rollback/17-stop-breach-state.sql`.
+
+### Migration 17 APPLIED 2026-08-06
+
+`md5(prosrc)` **MATCH**, column present, anon denied, service_role granted, row counts unchanged.
+Applied BEFORE the worker build that reads it, and the worker restarted with `errors: 0` and
+`lastError: null` — which is the check that matters, because PostgREST answers an unknown column
+with 400 and the failure would have been on every position load.
+
+### A gate that could not see the query it existed for
+
+`check:worker-schema-contract` matched only TEMPLATE LITERALS:
+
+```
+/sb(?:Get|Post|Patch|Delete)\(`([a-z_]+)\?([^`]*)`/g
+```
+
+`loadOpenPositions` is a double-quoted string, so the largest query in the worker — around 27
+columns of `public.positions` — was the one query the gate never checked, while it reported a
+clean run. It was checking **47 column reads across 6 queries**; it now checks **84 across 10**,
+and it proved itself by immediately failing on `stop_breached_at` the moment it could see it.
