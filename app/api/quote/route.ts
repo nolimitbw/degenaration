@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 import { getMintDecimals } from "@/lib/server/tokenMeta";
 import { configuredPlatformFeeBps } from "@/lib/fee-model";
+import { resolveFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -17,14 +18,24 @@ export async function GET(req: NextRequest) {
   const amount = validBaseUnits(p.get("amount"), inputMint === SOL_MINT);
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(p.get("slippageBps"));
-  const platformFeeBps = configuredPlatformFeeBps();
-  const applyFee = platformFeeBps > 0;
-
   try {
-    const [inputDecimals, outputDecimals] = await Promise.all([
+    // THE PREVIEW MUST USE THE SAME RESOLVER AS THE BUILD.
+    //
+    // This route reported `configuredPlatformFeeBps()`, which only tests that the environment
+    // variable is non-empty. /api/swap uses `resolveFeeAccount()`, which additionally checks the
+    // fee token account is initialised for THIS output mint and applies 0 when it is not. In
+    // production the configured value is a wallet whose associated token account does not
+    // exist, so the quote advertised 2.00% and the swap charged nothing.
+    //
+    // Quoting more than is charged is the safe direction, but the two halves disagreeing is the
+    // defect: a fee preview that is not the fee logic is not a preview of anything.
+    const [inputDecimals, outputDecimals, resolvedFee] = await Promise.all([
       getMintDecimals(inputMint),
-      getMintDecimals(outputMint)
+      getMintDecimals(outputMint),
+      resolveFeeAccount(outputMint)
     ]);
+    const platformFeeBps = resolvedFee.feeAccount ? configuredPlatformFeeBps() : 0;
+    const applyFee = platformFeeBps > 0;
     const url = new URL(`${JUP}/quote`);
     url.searchParams.set("inputMint", inputMint);
     url.searchParams.set("outputMint", outputMint);

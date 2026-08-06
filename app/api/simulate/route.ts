@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validAmount, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 import { getMintDecimals } from "@/lib/server/tokenMeta";
 import { configuredPlatformFeeBps, bpsOf, lamportsToSolString } from "@/lib/fee-model";
+import { resolveFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -16,13 +17,16 @@ export async function GET(req: NextRequest) {
   const amount = validAmount(p.get("amount"));
   if (amount == null) return NextResponse.json({ error: "invalid amount" }, { status: 400 });
   const slippageBps = validSlippageBps(p.get("slippageBps"));
-  const platformFeeBps = configuredPlatformFeeBps();
-  const applyFee = platformFeeBps > 0;
   try {
-    const [inputDecimals, outputDecimals] = await Promise.all([
+    // Same rule as /api/quote: the simulated fee must be the fee the build would apply, which
+    // needs the resolver rather than a non-empty environment variable.
+    const [inputDecimals, outputDecimals, resolvedFee] = await Promise.all([
       getMintDecimals(inputMint),
-      getMintDecimals(outputMint)
+      getMintDecimals(outputMint),
+      resolveFeeAccount(outputMint)
     ]);
+    const platformFeeBps = resolvedFee.feeAccount ? configuredPlatformFeeBps() : 0;
+    const applyFee = platformFeeBps > 0;
     const url = new URL(`${JUP}/quote`);
     url.searchParams.set("inputMint", inputMint); url.searchParams.set("outputMint", outputMint);
     url.searchParams.set("amount", String(amount)); url.searchParams.set("slippageBps", String(slippageBps));

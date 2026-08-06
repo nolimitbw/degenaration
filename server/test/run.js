@@ -2477,6 +2477,56 @@ console.log("price selection");
     assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
   });
 }
+// ─── the fee preview must be the fee logic ───────────────────────────────────────────────
+//
+// /api/quote and /api/simulate reported `configuredPlatformFeeBps()`, which only tests that the
+// environment variable is non-empty. /api/swap uses `resolveFeeAccount()`, which additionally
+// requires the fee token account to be initialised for that output mint and applies 0 when it
+// is not. In production the configured value is a WALLET whose associated token account does
+// not exist, so every quote advertised 2.00% and every swap charged nothing.
+//
+// Quoting more than is charged is the safe direction. The defect is the disagreement: a fee
+// preview that is not the fee logic is not a preview of anything.
+{
+  const fs = require("node:fs");
+  const repo = `${__dirname}/../..`;
+  const read = (p) => fs.readFileSync(`${repo}/${p}`, "utf8");
+  const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+
+  const QUOTING_ROUTES = ["app/api/quote/route.ts", "app/api/simulate/route.ts", "app/api/swap/route.ts"];
+
+  test("every route that reports or charges a platform fee resolves the fee ACCOUNT", () => {
+    for (const route of QUOTING_ROUTES) {
+      const src = strip(read(route));
+      assert.ok(
+        /resolveFeeAccount\(/.test(src),
+        `${route} reports a platform fee without resolving the fee account — it would advertise ` +
+          "a rate the swap does not charge"
+      );
+      // Either shape is fine — `resolvedFee.feeAccount ? …` or a destructured local — so long
+      // as the rate is conditional on the RESOLVED account rather than on the variable.
+      assert.ok(
+        /(resolvedFee\.feeAccount|feeAccount)\s*\?\s*configuredPlatformFeeBps\(\)\s*:\s*0/.test(src),
+        `${route} must gate the bps on the RESOLVED account, not on the environment variable`
+      );
+    }
+  });
+
+  test("no fee-reporting route gates on the environment variable alone", () => {
+    // configuredPlatformFeeBps() is still legitimately used — for the RATE, once an account has
+    // been resolved. What must not survive is deriving `applyFee` from it directly.
+    for (const route of QUOTING_ROUTES) {
+      const src = strip(read(route));
+      assert.ok(
+        !/const applyFee = configuredPlatformFeeBps\(\) > 0/.test(src),
+        `${route} derives applyFee from the environment variable`
+      );
+      const bare = /const platformFeeBps = configuredPlatformFeeBps\(\);/.test(src);
+      assert.ok(!bare, `${route} takes the rate without checking the account resolves`);
+    }
+  });
+}
+
 // ─── the signer boundary refuses, rather than signing whatever it is handed ──────────────
 //
 // engine/signer.js took a base64 string and a wallet id and signed. Nothing checked the
