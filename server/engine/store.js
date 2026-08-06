@@ -134,11 +134,19 @@ function subscriberExecution(subscription) {
   const limits = config.limits && typeof config.limits === "object" ? config.limits : {};
   const priorityFeeMaxLamports = limits.priorityFee === false ? null : number(config.priorityFeeMaxLamports);
   const quoteExpirationSeconds = number(config.quoteExpirationSeconds);
-  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null) return null;
+  // Absent reads as ON, matching the builder default and every other safety control here.
+  // The DEFAULT lives at the call site — guardWithSimulation treats an undefined `required` as
+  // true — so this resolver keeps its existing contract: null means "nothing to say", and a bot
+  // that changed nothing does not become a configured bot just by having a default.
+  const simulationRequired = config.simulationRequired !== false;
+  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null && simulationRequired) {
+    return null;
+  }
   return {
     priorityFeeMaxLamports,
     priorityFeeStrategy: typeof config.priorityFeeStrategy === "string" ? config.priorityFeeStrategy : "auto",
-    quoteExpirationSeconds
+    quoteExpirationSeconds,
+    simulationRequired
   };
 }
 

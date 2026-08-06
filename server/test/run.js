@@ -2477,6 +2477,43 @@ console.log("price selection");
     assert.strictEqual(jup.platformFeeLamports(BigInt(-5)), BigInt(0));
   });
 }
+// ─── pre-submit simulation: the switch had no reader, and neither did the step ───────────
+//
+// `simulationRequired` was persisted, validated, versioned and reloaded since the builder
+// shipped. The contract carried it as pending saying "simulation is applied by policy to every
+// submission" — which was generous: there was no simulation step in the engine at all.
+//
+// The network-driven properties live in scripts/verify-simulation-gate.mjs, because this runner
+// is synchronous by design and a promise returned here would have its assertions silently
+// skipped. Only the pure decisions are asserted below.
+{
+  const { describe } = require("../engine/simulate");
+
+  test("an error verdict is distinguished from an unreachable one", () => {
+    // The distinction is the whole point: an operator debugging a silent bot must be able to
+    // tell a bad route from a bad RPC without reading code.
+    assert.strictEqual(describe(null), null);
+    assert.strictEqual(describe(undefined), null);
+    assert.strictEqual(describe("InsufficientFundsForRent"), "InsufficientFundsForRent");
+    assert.match(describe({ InstructionError: [3, { Custom: 6001 }] }), /InstructionError/);
+  });
+
+  test("both engine paths simulate before they sign", () => {
+    // The ordering is the property. Simulating after signing proves nothing about a transaction
+    // the user has already authorised.
+    const fs = require("node:fs");
+    for (const file of ["calls.js", "monitor.js"]) {
+      const src = fs.readFileSync(`${__dirname}/../engine/${file}`, "utf8");
+      const stripped = src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/.*$/gm, " ");
+      const sim = stripped.indexOf("guardWithSimulation");
+      const sign = stripped.indexOf("signAndSend(");
+      assert.ok(sim > 0, `${file} must simulate before submitting`);
+      assert.ok(sign > 0, `fixture check: ${file} must still sign somewhere`);
+      assert.ok(sim < sign, `${file} simulates AFTER signing, which proves nothing`);
+    }
+  });
+}
+
 // ─── the fee preview must be the fee logic ───────────────────────────────────────────────
 //
 // /api/quote and /api/simulate reported `configuredPlatformFeeBps()`, which only tests that the
@@ -2995,7 +3032,9 @@ console.log("price selection");
       priorityFeeMaxLamports: 750000, priorityFeeStrategy: "fast", quoteExpirationSeconds: 12
     });
     assert.deepStrictEqual(policy, {
-      priorityFeeMaxLamports: 750000, priorityFeeStrategy: "fast", quoteExpirationSeconds: 12
+      priorityFeeMaxLamports: 750000, priorityFeeStrategy: "fast", quoteExpirationSeconds: 12,
+      // Carried alongside, because the exit simulates under the position's own configuration.
+      simulationRequired: true
     });
     assert.strictEqual(monitor.executionPolicy({}), null, "nothing configured means the platform default");
     assert.strictEqual(monitor.executionPolicy({ priorityFeeMaxLamports: 0 }), null,

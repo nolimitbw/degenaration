@@ -7,6 +7,7 @@
 const { rugCheck } = require("./rugcheck");
 const { evaluateSafety } = require("./safety");
 const { buyToken, quoteExpired } = require("./jupiter");
+const { guardWithSimulation } = require("./simulate");
 
 // Pure, testable: calls that are executable and not yet handled this run.
 // A call is executable if it has a mint + group and has not been executed.
@@ -104,6 +105,16 @@ function startCallWatcher(deps, pollMs = 8000) {
           // is a fill at a price the user never agreed to.
           if (quoteExpired({ quotedAtMs, nowMs: Date.now(), quoteExpirationSeconds: execution?.quoteExpirationSeconds })) {
             throw new Error("quote expired before submission");
+          }
+          // PRE-SUBMIT SIMULATION. A quote says a route exists at a price; a simulation runs the
+          // instructions against current cluster state and reports the error the real submission
+          // would hit — a missing token account, a transfer-fee extension the route ignored, a
+          // pool past the slippage bound. Nothing is signed or sent: sigVerify is false and the
+          // transaction is still unsigned here.
+          const simulation = await guardWithSimulation(tx, { required: execution?.simulationRequired });
+          if (!simulation.ok) {
+            onEvent({ type: "SIMULATION_REJECTED", call: c.id, subscription: s.id, mint: c.mint, reason: simulation.reason });
+            throw new Error(simulation.reason);
           }
           // Bound to the authorisation, not merely submitted. engine/signer-policy.js refuses a
           // transaction whose fee payer is not this wallet, that invokes a program outside the

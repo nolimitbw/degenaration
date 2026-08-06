@@ -23,6 +23,7 @@
  * high-supply tokens exceed 2^53 and float arithmetic would silently mis-size a sell.
  */
 const { sellToken, quoteExpired } = require("./jupiter");
+const { guardWithSimulation } = require("./simulate");
 
 const POLL_MS = 5_000;
 /**
@@ -175,11 +176,13 @@ function executionPolicy(entryConfig) {
   const limits = config.limits && typeof config.limits === "object" ? config.limits : {};
   const priorityFeeMaxLamports = limits.priorityFee === false ? null : number(config.priorityFeeMaxLamports);
   const quoteExpirationSeconds = number(config.quoteExpirationSeconds);
-  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null) return null;
+  const simulationRequired = config.simulationRequired !== false;
+  if (priorityFeeMaxLamports === null && quoteExpirationSeconds === null && simulationRequired) return null;
   return {
     priorityFeeMaxLamports,
     priorityFeeStrategy: typeof config.priorityFeeStrategy === "string" ? config.priorityFeeStrategy : "auto",
-    quoteExpirationSeconds
+    quoteExpirationSeconds,
+    simulationRequired
   };
 }
 
@@ -500,6 +503,13 @@ function startMonitor(deps, pollMs = POLL_MS) {
       })) {
         throw new Error("quote expired before submission");
       }
+      // Simulated before signing, same as the entry. An exit that fails on chain costs the
+      // priority fee and leaves the position open past its stop, which is the worst moment to
+      // discover a route problem.
+      const exitSimulation = await guardWithSimulation(tx, {
+        required: position.settings.execution?.simulationRequired
+      });
+      if (!exitSimulation.ok) throw new Error(exitSimulation.reason);
       sig = await signAndSend(tx, position.walletId, {
         walletAddress: position.userPubkey,
         // An exit SELLS a token; it moves no bare SOL beyond wrapped-SOL account rent, so the
