@@ -53,6 +53,13 @@ export type PortfolioSummary = {
   legacyTrades: Array<any>;
 };
 
+type TradeHistoryData = {
+  asOf: string;
+  solPriceUsd: number | null;
+  positions: Array<any>;
+  quotes: Record<string, { priceUsd: number | null; symbol: string | null; name: string | null; decimals: number | null }>;
+};
+
 export default function PortfolioDashboard() {
   const { authenticated, user, login, logout, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
@@ -61,6 +68,7 @@ export default function PortfolioDashboard() {
   const [period, setPeriod] = useState<Period>("30d");
   const [view, setView] = useState<View>("overview");
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [tradeHistory, setTradeHistory] = useState<TradeHistoryData | null>(null);
   const [walletPortfolio, setWalletPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -113,6 +121,20 @@ export default function PortfolioDashboard() {
   }, [authenticated, getAccessToken, period, walletAddress]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadTradeHistory = useCallback(() => {
+    if (!authenticated) { setTradeHistory(null); return; }
+    productFetch<TradeHistoryData>("/api/product/trades", { getAccessToken }, { signal: AbortSignal.timeout(15000) })
+      .then(setTradeHistory)
+      .catch((reason) => console.error("[portfolio] trade history refresh failed:", reason));
+  }, [authenticated, getAccessToken]);
+
+  useEffect(() => {
+    loadTradeHistory();
+    if (!authenticated) return;
+    const timer = window.setInterval(loadTradeHistory, 15_000);
+    return () => window.clearInterval(timer);
+  }, [authenticated, loadTradeHistory]);
 
   const openPositions = summary?.positions.filter((position) => ["opening", "open", "closing"].includes(position.status)) || [];
   const visiblePositions = botFilter ? (summary?.positions || []).filter((position) => position.botId === botFilter) : (summary?.positions || []);
@@ -289,7 +311,7 @@ export default function PortfolioDashboard() {
       )}
 
       {summary && view === "positions" && <PositionsTable positions={visiblePositions} onShare={(id) => setShare({ type: "position", id })} />}
-      {summary && view === "trades" && <TradesTable executions={visibleExecutions} legacy={botFilter ? [] : summary.legacyTrades} />}
+      {summary && view === "trades" && <TradeHistoryPanel data={tradeHistory} botFilter={botFilter} />}
       {summary && view === "movements" && <MovementsTable rows={summary.cashMovements} />}
 
       {depositOpen && <DepositModal wallet={walletAddress || ""} onClose={() => setDepositOpen(false)} />}
@@ -353,6 +375,166 @@ function PositionsTable({ positions, onShare }: { positions: any[]; onShare: (id
       )}
     </section>
   );
+}
+
+function TradeHistoryPanel({ data, botFilter }: { data: TradeHistoryData | null; botFilter: string }) {
+  const [tab, setTab] = useState<"ongoing" | "closed">("ongoing");
+  const [source, setSource] = useState("");
+  const [date, setDate] = useState<"all" | "7d" | "30d" | "90d">("all");
+  const [result, setResult] = useState<"all" | "win" | "loss">("all");
+  const [token, setToken] = useState("");
+
+  if (!data) return <section className="mt-5 rounded-md border border-edge bg-panel px-5 py-12 text-center text-xs text-dim">Loading reconciled trade history and fresh prices…</section>;
+
+  const now = Date.now();
+  const rows = data.positions.filter((row) => {
+    if (botFilter && row.botId !== botFilter) return false;
+    const isClosed = row.status === "closed";
+    if ((tab === "closed") !== isClosed) return false;
+    if (source && row.sourceName !== source) return false;
+    if (token) {
+      const quote = data.quotes[row.mint];
+      const haystack = `${quote?.symbol || ""} ${quote?.name || ""} ${row.mint}`.toLowerCase();
+      if (!haystack.includes(token.toLowerCase())) return false;
+    }
+    if (date !== "all") {
+      const days = date === "7d" ? 7 : date === "30d" ? 30 : 90;
+      const timestamp = new Date(row.closedAt || row.openedAt).getTime();
+      if (!Number.isFinite(timestamp) || timestamp < now - days * 86_400_000) return false;
+    }
+    if (tab === "closed" && result !== "all") {
+      const pnl = BigInt(row.realizedPnlLamports || "0");
+      if (result === "win" ? pnl <= BigInt(0) : pnl >= BigInt(0)) return false;
+    }
+    return true;
+  });
+  const sources = [...new Set(data.positions.map((row) => row.sourceName).filter(Boolean))].sort();
+  const closed = data.positions.filter((row) => row.status === "closed");
+  const measuredClosed = closed.filter((row) => row.proceedsLamports != null);
+  const realizedTotal = measuredClosed.reduce((sum, row) => sum + BigInt(row.realizedPnlLamports || "0"), BigInt(0));
+  const wins = measuredClosed.filter((row) => BigInt(row.realizedPnlLamports || "0") > BigInt(0)).length;
+  const proceedsTotal = measuredClosed.reduce((sum, row) => sum + BigInt(row.proceedsLamports || "0"), BigInt(0));
+
+  return (
+    <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
+      <header className="border-b border-edge px-5 py-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div><h2 className="text-sm font-semibold text-ink">Trades</h2><p className="mt-1 text-[11px] text-dim">Position journals refresh with fresh market prices every 15 seconds.</p></div>
+          <Segmented value={tab} onChange={setTab} label="Trade state" options={[{ value: "ongoing", label: "Ongoing trades" }, { value: "closed", label: "Closed trades" }]} />
+        </div>
+      </header>
+
+      {tab === "closed" && (
+        <>
+          <div className="grid gap-px border-b border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
+            <BalanceMetric label="Closed trades" value={String(closed.length)} detail={`${measuredClosed.length} fully measured`} />
+            <BalanceMetric label="Realized PnL" value={formatSol(realizedTotal.toString())} detail="From reconciled exits" tone={realizedTotal >= BigInt(0) ? "positive" : "negative"} />
+            <BalanceMetric label="Win rate" value={measuredClosed.length ? `${(wins / measuredClosed.length * 100).toFixed(1)}%` : "--"} detail={`${wins} profitable`} />
+            <BalanceMetric label="Exit proceeds" value={formatSol(proceedsTotal.toString())} detail="Measured settlement value" />
+          </div>
+          <ClosedPnlChart rows={measuredClosed} />
+        </>
+      )}
+
+      <div className="grid gap-3 border-b border-edge p-4 md:grid-cols-2 xl:grid-cols-4">
+        <label><span className="field-label">Token</span><input value={token} onChange={(event) => setToken(event.target.value)} className="field-control mt-1.5 px-3" placeholder="Symbol or mint" /></label>
+        <label><span className="field-label">Source</span><select value={source} onChange={(event) => setSource(event.target.value)} className="field-control mt-1.5 px-3"><option value="">All sources</option>{sources.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label><span className="field-label">Date</span><select value={date} onChange={(event) => setDate(event.target.value as typeof date)} className="field-control mt-1.5 px-3"><option value="all">All dates</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="90d">Last 90 days</option></select></label>
+        {tab === "closed" && <label><span className="field-label">Result</span><select value={result} onChange={(event) => setResult(event.target.value as typeof result)} className="field-control mt-1.5 px-3"><option value="all">All results</option><option value="win">Wins</option><option value="loss">Losses</option></select></label>}
+      </div>
+
+      {rows.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No {tab} match these filters.</p> : tab === "ongoing" ? (
+        <div className="divide-y divide-edge">{rows.map((row) => <OngoingTrade key={row.id} row={row} quote={data.quotes[row.mint]} solPriceUsd={data.solPriceUsd} />)}</div>
+      ) : (
+        <div className="divide-y divide-edge">{rows.map((row) => <ClosedTrade key={row.id} row={row} quote={data.quotes[row.mint]} />)}</div>
+      )}
+      <p className="border-t border-edge px-5 py-3 text-right font-mono text-[9px] text-dim">Prices as of {formatWhen(data.asOf)}</p>
+    </section>
+  );
+}
+
+function ClosedPnlChart({ rows }: { rows: any[] }) {
+  const ordered = [...rows].sort((a, b) => new Date(a.closedAt).getTime() - new Date(b.closedAt).getTime());
+  let cumulative = BigInt(0);
+  const values = ordered.map((row) => {
+    cumulative += BigInt(row.realizedPnlLamports || "0");
+    return Number(cumulative) / 1e9;
+  });
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = Math.max(max - min, 0.000001);
+  const points = values.map((value, index) => `${20 + (values.length <= 1 ? 0 : index / (values.length - 1) * 520)},${100 - (value - min) / span * 72}`).join(" ");
+  return (
+    <div className="border-b border-edge px-5 py-4">
+      <p className="field-label">Cumulative realized PnL</p>
+      {values.length ? <svg viewBox="0 0 560 120" className="mt-3 h-28 w-full" role="img" aria-label={`Cumulative realized PnL across ${values.length} measured closed trades`}><line x1="20" y1={100 - (0 - min) / span * 72} x2="540" y2={100 - (0 - min) / span * 72} stroke="rgb(var(--edge-rgb))" /><polyline points={points} fill="none" stroke="rgb(var(--gold-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></svg> : <p className="py-8 text-center text-xs text-dim">No fully measured closed trades yet. No synthetic curve is shown.</p>}
+    </div>
+  );
+}
+
+function positionMath(row: any, quote: TradeHistoryData["quotes"][string], solPriceUsd: number | null) {
+  const decimals = quote?.decimals;
+  const price = Number(quote?.priceUsd);
+  const entry = Number(row.averageEntryPriceUsd);
+  const quantity = decimals == null ? null : Number(row.quantityBaseUnits || 0) / 10 ** decimals;
+  const invested = Number(row.investedLamports || 0) / 1e9;
+  const proceeds = Number(row.proceedsLamports || 0) / 1e9;
+  const currentValue = quantity != null && price > 0 && solPriceUsd && solPriceUsd > 0 ? quantity * price / solPriceUsd : null;
+  const pnl = currentValue == null ? null : currentValue + proceeds - invested;
+  const multiple = currentValue == null || invested <= 0 ? null : (currentValue + proceeds) / invested;
+  const peak = Number(row.peakPriceUsd);
+  const highest = peak > 0 && entry > 0 ? peak / entry : null;
+  return { quantity, invested, price: price > 0 ? price : null, entry: entry > 0 ? entry : null, pnl, multiple, highest };
+}
+
+function SignatureLink({ signature, label }: { signature?: string; label: string }) {
+  return signature ? <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gold-400">{label}<ExternalLink size={11} /></a> : <span className="text-dim">--</span>;
+}
+
+function OngoingTrade({ row, quote, solPriceUsd }: { row: any; quote: TradeHistoryData["quotes"][string]; solPriceUsd: number | null }) {
+  const math = positionMath(row, quote, solPriceUsd);
+  const tp = row.entryConfig?.takeProfit?.enabled === false ? "Off" : row.entryConfig?.takeProfit?.levels?.[0]?.targetBps != null ? `+${(Number(row.entryConfig.takeProfit.levels[0].targetBps) / 100).toFixed(2)}%` : "--";
+  const sl = row.entryConfig?.stopLoss?.enabled === false ? "Off" : row.entryConfig?.stopLoss?.stopBps != null ? `-${(Number(row.entryConfig.stopLoss.stopBps) / 100).toFixed(2)}%` : "--";
+  const tone = math.pnl == null ? "text-dim" : math.pnl >= 0 ? "text-up" : "text-down";
+  return (
+    <article className="p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-ink">{quote?.symbol || "Unknown token"}</p><p className="mt-1 font-mono text-[9px] text-dim">{row.mint}</p><p className="mt-1 text-[10px] text-dim">{row.sourceKind === "discord" ? "Discord" : "KOL"} · {row.sourceName}</p></div><StatusPill status={row.status} /></div>
+      <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+        <TradeMetric label="Entry time" value={formatWhen(row.openedAt)} /><TradeMetric label="Average entry" value={math.entry == null ? "--" : `$${math.entry.toPrecision(6)}`} /><TradeMetric label="Current price" value={math.price == null ? "--" : `$${math.price.toPrecision(6)}`} /><TradeMetric label="Invested" value={`${math.invested.toFixed(4)} SOL`} /><TradeMetric label="Token quantity" value={math.quantity == null ? "--" : math.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })} /><TradeMetric label="TP / SL" value={`${tp} / ${sl}`} />
+        <TradeMetric label="Current PnL" value={math.pnl == null ? "--" : `${math.pnl >= 0 ? "+" : ""}${math.pnl.toFixed(4)} SOL`} tone={tone} /><TradeMetric label="PnL percent" value={math.multiple == null ? "--" : `${((math.multiple - 1) * 100).toFixed(2)}%`} tone={tone} /><TradeMetric label="Current multiple" value={math.multiple == null ? "--" : `${math.multiple.toFixed(2)}x`} tone={tone} /><TradeMetric label="Highest PnL" value={math.highest == null ? "--" : `${math.highest >= 1 ? "+" : ""}${((math.highest - 1) * 100).toFixed(2)}%`} /><TradeMetric label="Entry transaction" valueNode={<SignatureLink signature={row.entrySignatures?.[0]} label="Solscan" />} /><TradeMetric label="Exit action" value="Managed by bot rules" />
+      </dl>
+    </article>
+  );
+}
+
+function closeReason(value: string | null) {
+  const labels: Record<string, string> = { "take-profit": "TP", "stop-loss": "SL", "emergency-exit": "Safety", manual: "Manual" };
+  return labels[value || ""] || (value ? "Source rule" : "Other");
+}
+
+function ClosedTrade({ row, quote }: { row: any; quote: TradeHistoryData["quotes"][string] }) {
+  const invested = Number(row.investedLamports || 0) / 1e9;
+  const proceeds = row.proceedsLamports == null ? null : Number(row.proceedsLamports) / 1e9;
+  const pnl = Number(row.realizedPnlLamports || 0) / 1e9;
+  const multiple = proceeds == null || invested <= 0 ? null : proceeds / invested;
+  const durationMs = new Date(row.closedAt).getTime() - new Date(row.openedAt).getTime();
+  const duration = Number.isFinite(durationMs) && durationMs >= 0 ? `${Math.floor(durationMs / 3_600_000)}h ${Math.floor(durationMs % 3_600_000 / 60_000)}m` : "--";
+  const tone = pnl >= 0 ? "text-up" : "text-down";
+  return (
+    <article className="p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-ink">{quote?.symbol || "Unknown token"}</p><p className="mt-1 font-mono text-[9px] text-dim">{row.mint}</p><p className="mt-1 text-[10px] text-dim">{row.sourceName}</p></div><span className={`font-mono text-sm font-semibold ${tone}`}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(4)} SOL</span></div>
+      <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+        <TradeMetric label="Average entry" value={row.averageEntryPriceUsd ? `$${Number(row.averageEntryPriceUsd).toPrecision(6)}` : "--"} /><TradeMetric label="Average exit" value={row.averageExitPriceUsd ? `$${Number(row.averageExitPriceUsd).toPrecision(6)}` : "--"} /><TradeMetric label="Invested" value={`${invested.toFixed(4)} SOL`} /><TradeMetric label="Proceeds" value={proceeds == null ? "Unmeasured" : `${proceeds.toFixed(4)} SOL`} />
+        <TradeMetric label="Realized PnL" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(4)} SOL`} tone={tone} /><TradeMetric label="PnL percent" value={multiple == null ? "--" : `${((multiple - 1) * 100).toFixed(2)}%`} tone={tone} /><TradeMetric label="Return multiple" value={multiple == null ? "--" : `${multiple.toFixed(2)}x`} tone={tone} /><TradeMetric label="Close reason" value={closeReason(row.closeReason)} />
+        <TradeMetric label="Opened / closed" value={`${formatWhen(row.openedAt)} / ${formatWhen(row.closedAt)}`} /><TradeMetric label="Duration" value={duration} /><TradeMetric label="Entry transaction" valueNode={<SignatureLink signature={row.entrySignatures?.[0]} label="Solscan" />} /><TradeMetric label="Exit transaction" valueNode={<SignatureLink signature={row.exitSignatures?.at(-1)} label="Solscan" />} />
+        <TradeMetric label="Platform fee" value={formatSol(row.platformFeeLamports)} /><TradeMetric label="Creator commission" value={formatSol(row.creatorFeeLamports)} /><TradeMetric label="Referral allocation" value={formatSol(row.referralFeeLamports)} />
+      </dl>
+    </article>
+  );
+}
+
+function TradeMetric({ label, value, valueNode, tone = "text-ink" }: { label: string; value?: string; valueNode?: React.ReactNode; tone?: string }) {
+  return <div className="bg-panel p-3"><dt className="field-label">{label}</dt><dd className={`mt-1.5 break-words font-mono text-[10px] leading-4 ${tone}`}>{valueNode || value || "--"}</dd></div>;
 }
 
 function TradesTable({ executions, legacy }: { executions: any[]; legacy: any[] }) {

@@ -58,6 +58,7 @@ const operations: Record<string, string[]> = {
     "p_secret", "p_privy_user_id", "p_bot_id", "p_source_group_id", "p_channel_id",
     "p_buy_lamports", "p_daily_cap_lamports"
   ],
+  app_user_trade_history: ["p_secret", "p_privy_user_id", "p_limit"],
   app_public_list_discord_marketplace: ["p_secret", "p_period", "p_sort", "p_limit"],
   app_public_discord_journal_stats: ["p_secret", "p_period"],
   app_public_list_kol_marketplace: ["p_secret", "p_period", "p_sort", "p_limit"],

@@ -367,6 +367,15 @@ export const PACKAGE = [
       "registered channel scope, duplicate active bots and the current UTC daily entry budget. " +
       "It writes no balances, subscriptions, profiles or journals.",
   },
+  {
+    n: 28,
+    apply: "degenaration-user-trade-history.sql",
+    rollback: "28-user-trade-history.sql",
+    reapply: [],
+    note:
+      "Adds one owner-scoped read model over immutable positions, lots, executions and exit " +
+      "journals. It does not infer missing proceeds or mutate historical trade data.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

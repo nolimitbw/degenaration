@@ -238,7 +238,7 @@ export default function BotManagerPage() {
                             <>
                               <Link href={editHref} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Edit ${bot.name}`} title="Edit"><Edit3 size={14} /></Link>
                               <Link href={`/bots/activity/${bot.id}`} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Inspect ${bot.name} signals and executions`} title="Signals and executions"><Activity size={14} /></Link>
-                              <Link href={`/portfolio?bot=${bot.id}&view=positions`} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`View ${bot.name} positions`} title="Positions"><Eye size={14} /></Link>
+                              <Link href={`/portfolio?bot=${bot.id}&view=trades`} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`View ${bot.name} trades`} title="Ongoing and closed trades"><Eye size={14} /></Link>
                               {bot.status === "active" ? (
                                 <button type="button" onClick={() => saveBot(bot, "paused")} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-gold-400" aria-label={`Pause ${bot.name}`} title="Pause entries"><Pause size={14} /></button>
                               ) : bot.status !== "archived" && (
