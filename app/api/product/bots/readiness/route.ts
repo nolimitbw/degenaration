@@ -52,14 +52,39 @@ export async function POST(req: NextRequest) {
     requiredLamports = undefined;
   }
 
-  const [state, liveness] = await Promise.all([
+  const sourceGroupId = typeof (raw as any)?.sourceGroupId === "string" ? (raw as any).sourceGroupId : null;
+  const botId = typeof (raw as any)?.id === "string" ? (raw as any).id : null;
+  const [state, liveness, runFacts] = await Promise.all([
     callPrivyRpc<{ spendableLamports?: string }>("app_user_withdrawable_state", {
       p_privy_user_id: user.privyUserId
     }),
     callPrivyRpc<{ live?: boolean; reason?: string | null; executionMode?: string | null }>(
       "app_worker_liveness",
       {}
-    )
+    ),
+    value?.kind === "discord" && configurationValid
+      ? callPrivyRpc<{
+          sourceApproved?: boolean;
+          channelRegistered?: boolean;
+          duplicateActiveBot?: boolean;
+          dailyBudgetAvailable?: boolean;
+        }>("app_user_bot_run_facts", {
+          p_privy_user_id: user.privyUserId,
+          p_bot_id: botId,
+          p_source_group_id: sourceGroupId,
+          p_channel_id: config.channelId || null,
+          p_buy_lamports: config.buyAmountLamports,
+          p_daily_cap_lamports: config.dailyLossLimitLamports
+        })
+      : Promise.resolve({
+          ok: true as const,
+          data: {} as {
+            sourceApproved?: boolean;
+            channelRegistered?: boolean;
+            duplicateActiveBot?: boolean;
+            dailyBudgetAvailable?: boolean;
+          }
+        })
   ]);
 
   const fee = await feeAccountReadiness();
@@ -72,14 +97,17 @@ export async function POST(req: NextRequest) {
     // The builder only offers delegation as a precondition of having a wallet at all; the
     // authoritative refusal is the worker's, which cannot sign for an undelegated wallet.
     walletDelegated: walletOwned,
-    // Undefined rather than true when unknown: `sourceApproved !== false` passes on undefined
-    // for a KOL bot, which genuinely has no Discord source, and the claim re-checks the
-    // registered channel on every call regardless.
-    sourceApproved: value?.kind === "discord"
-      ? Boolean((raw as Record<string, unknown> | null)?.sourceId)
-      : undefined,
-    channelRegistered: undefined,
-    duplicateActiveBot: undefined,
+    botKind: value?.kind,
+    // Discord facts come from one service-only database snapshot. Unknown is deliberately
+    // preserved so the pure readiness table fails closed; KOL marks them not applicable.
+    sourceApproved: value?.kind === "discord" && runFacts.ok ? runFacts.data?.sourceApproved : undefined,
+    channelRegistered: value?.kind === "discord" && runFacts.ok ? runFacts.data?.channelRegistered : undefined,
+    duplicateActiveBot: value?.kind === "discord"
+      ? (runFacts.ok ? runFacts.data?.duplicateActiveBot : undefined)
+      : false,
+    dailyBudgetAvailable: value?.kind === "discord" && runFacts.ok
+      ? runFacts.data?.dailyBudgetAvailable
+      : true,
     requiredLamports,
     availableLamports: state.ok ? state.data?.spendableLamports : undefined,
     killSwitch: config.killSwitch === true,

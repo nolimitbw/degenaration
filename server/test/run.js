@@ -3541,9 +3541,11 @@ console.log("price selection");
     configurationValid: true,
     walletOwned: true,
     walletDelegated: true,
+    botKind: "discord",
     sourceApproved: true,
     channelRegistered: true,
     duplicateActiveBot: false,
+    dailyBudgetAvailable: true,
     requiredLamports: "500000000",
     availableLamports: "2000000000",
     killSwitch: false,
@@ -3598,7 +3600,7 @@ console.log("price selection");
   test("an unknown fact fails closed", () => {
     // undefined is not true. Activating on a fact we could not establish is the shape of every
     // defect this project has spent its time removing.
-    for (const field of ["workerLive", "signerConfigured", "feeAccountReady", "mainnetReleased"]) {
+    for (const field of ["sourceApproved", "channelRegistered", "duplicateActiveBot", "dailyBudgetAvailable", "workerLive", "signerConfigured", "feeAccountReady", "mainnetReleased"]) {
       const facts = { ...READY };
       delete facts[field];
       assert.strictEqual(evaluateReadiness(facts).ready, false, `${field} unknown must not pass`);
@@ -3621,8 +3623,9 @@ console.log("price selection");
   });
 
   test("a KOL bot is not blocked for having no Discord source", () => {
-    const facts = { ...READY };
+    const facts = { ...READY, botKind: "kol" };
     delete facts.sourceApproved;
+    delete facts.channelRegistered;
     assert.strictEqual(evaluateReadiness(facts).ready, true);
   });
 

@@ -357,6 +357,16 @@ export const PACKAGE = [
       "events, verified source ownership and fail-closed Discord creator allocation. The " +
       "rollback removes only this flow and leaves prior ownership history untouched.",
   },
+  {
+    n: 27,
+    apply: "degenaration-bot-run-readiness.sql",
+    rollback: "27-bot-run-readiness.sql",
+    reapply: [],
+    note:
+      "Adds one read-only, service-only RUN preflight for live Discord source approval, " +
+      "registered channel scope, duplicate active bots and the current UTC daily entry budget. " +
+      "It writes no balances, subscriptions, profiles or journals.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

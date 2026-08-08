@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Sign in with the Discord account that created this link" }, { status: 403 });
   }
   const state = issueDiscordLinkState(sessionId, user.privyUserId);
-  if (!state) return NextResponse.json({ error: "link signing is not configured" }, { status: 503 });
+  if (!state) return NextResponse.json({ error: "Account linking is temporarily unavailable." }, { status: 503 });
   const response = NextResponse.json({ ...session.data, state: state.token });
   response.cookies.set(DISCORD_LINK_STATE_COOKIE, state.token, {
     httpOnly: true,

@@ -166,10 +166,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   // supabase/degenaration-auto-reentry.sql, and distinct from firstCallOnly — that one is
   // about a repeat CALL, this one about a fresh entry after a POSITION has closed.
   const [autoReentry, setAutoReentry] = useState(false);
-  const [tpLevels, setTpLevels] = useState<TpLevel[]>([
-    { targetBps: 10000, sellBps: 5000, trailingBps: 0, enabled: true },
-    { targetBps: 40000, sellBps: 2500, trailingBps: 0, enabled: true }
-  ]);
+  const [tpLevels, setTpLevels] = useState<TpLevel[]>(kind === "discord"
+    ? [{ targetBps: 10000, sellBps: 10000, trailingBps: 0, enabled: true }]
+    : [
+        { targetBps: 10000, sellBps: 5000, trailingBps: 0, enabled: true },
+        { targetBps: 40000, sellBps: 2500, trailingBps: 0, enabled: true }
+      ]);
   // Master switches. These are not decoration: an off take-profit persists zero levels and an
   // off stop loss persists stopBps 0, and server/engine/monitor.js already treats both as "no
   // such exit" — it filters levels through isProfitTarget and gates the stop on
@@ -238,6 +240,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [confirmReviewed, setConfirmReviewed] = useState(false);
   const [checking, setChecking] = useState(false);
   const [readiness, setReadiness] = useState<{ ready: boolean; reason: string | null; blocking: string | null } | null>(null);
+  const [walletAvailableLamports, setWalletAvailableLamports] = useState<string | null>(null);
 
   useEffect(() => {
     if (!securityOpen && !confirmStatus) return;
@@ -288,6 +291,19 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   }, [kind]);
 
   useEffect(() => { loadSources(); }, [loadSources]);
+
+  useEffect(() => {
+    if (!authenticated || !walletAddress) {
+      setWalletAvailableLamports(null);
+      return;
+    }
+    productFetch<{ spendableLamports?: string }>(
+      `/api/product/portfolio/withdraw?wallet=${encodeURIComponent(walletAddress)}`,
+      { getAccessToken }
+    )
+      .then((state) => setWalletAvailableLamports(state.spendableLamports || null))
+      .catch(() => setWalletAvailableLamports(null));
+  }, [authenticated, getAccessToken, walletAddress]);
 
   useEffect(() => {
     if (!botId || !authenticated) return;
@@ -384,7 +400,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   }, [authenticated, botId, getAccessToken, toast]);
 
   const source = sources.find((item) => item.id === sourceId);
-  const tpAllocationBps = tpLevels.reduce((total, level) => total + level.sellBps, 0);
+  const tpAllocationBps = takeProfitEnabled
+    ? tpLevels.filter((level) => level.enabled).reduce((total, level) => total + level.sellBps, 0)
+    : 0;
   const capitalPlan = plannedCapital({
     buyAmountSol,
     maxOpenTrades,
@@ -419,7 +437,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (limits.maximumCapital && maximumCapitalSol < requiredCapital) {
       return `Maximum capital must cover at least ${lamportsToSol(capitalPlan.plannedLamports)} SOL.`;
     }
-    if (dailyLossSol <= 0 || dailyLossSol > maximumCapitalSol) return "Daily loss limit must be positive and no larger than maximum capital.";
+    if (dailyLossSol <= 0 || dailyLossSol < buyAmountSol) return "Max funds per day must cover at least one trade.";
     // The per-token limit is measured against what ONE POSITION plans to commit, not against
     // the bare entry. A limit that covers the entry but not the entry plus its DCA legs leaves
     // every position half-built: the entry claims, then the first leg that crosses the limit is
@@ -428,10 +446,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (limits.perTokenExposure && limits.maximumCapital && perTokenSol > maximumCapitalSol) {
       return "Per-token exposure must remain inside maximum capital.";
     }
-    if (tpAllocationBps > 10000) return "Take-profit sell allocations cannot exceed 100%.";
-    if (tpLevels.some((level) => level.targetBps <= 0 || level.sellBps <= 0)) return "Take-profit targets and allocations must be positive.";
-    if (tpLevels.some((level, index) => index > 0 && level.targetBps <= tpLevels[index - 1].targetBps)) return "Take-profit targets must increase from one level to the next.";
-    if (stopBps <= 0 || stopBps > 10000) return "Stop loss must be between 0.01% and 100%.";
+    const enabledTpLevels = tpLevels.filter((level) => level.enabled);
+    if (takeProfitEnabled && tpAllocationBps > 10000) return "Take-profit sell allocations cannot exceed 100%.";
+    if (takeProfitEnabled && (enabledTpLevels.length === 0 || enabledTpLevels.some((level) => level.targetBps <= 0 || level.sellBps <= 0))) return "Take-profit targets and allocations must be positive.";
+    if (takeProfitEnabled && enabledTpLevels.some((level, index) => index > 0 && level.targetBps <= enabledTpLevels[index - 1].targetBps)) return "Take-profit targets must increase from one level to the next.";
+    if (stopLossEnabled && (stopBps <= 0 || stopBps > 10000)) return "Stop loss must be between 0.01% and 100%.";
     if (kind === "kol" && dcaEnabled) {
       if (dcaLevels.length < 1 || dcaLevels.some((level) => level.dropBps <= 0 || level.buyAmountSol <= 0)) return "DCA levels need a positive drop and buy amount.";
       if (dcaLevels.some((level, index) => index > 0 && level.dropBps <= dcaLevels[index - 1].dropBps)) return "DCA drops must increase from one level to the next.";
@@ -444,7 +463,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (invalidRange) return `${invalidRange.label} minimum cannot exceed its maximum.`;
     if (slippageBps < 1 || slippageBps > 2000) return "Slippage must be between 0.01% and 20%.";
     return null;
-  }, [buyAmountSol, capitalPlan, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, exposureError, filters, kind, limits, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, tpAllocationBps, tpLevels]);
+  }, [buyAmountSol, capitalPlan, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, exposureError, filters, kind, limits, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, stopLossEnabled, takeProfitEnabled, tpAllocationBps, tpLevels]);
 
   function updateTp(index: number, patch: Partial<TpLevel>) {
     setTpLevels((current) => current.map((level, levelIndex) => levelIndex === index ? { ...level, ...patch } : level));
@@ -525,7 +544,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       limits: {
         maxOpenTrades: limits.maxOpenTrades,
         maximumCapital: limits.maximumCapital,
-        dailyLoss: limits.dailyLoss,
+        dailyLoss: kind === "discord" ? true : limits.dailyLoss,
         perTokenExposure: limits.perTokenExposure,
         cooldown: limits.cooldown,
         priorityFee: limits.priorityFee
@@ -835,11 +854,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
             defaultOpen
           >
-            <div className="grid gap-3 sm:grid-cols-3">
+            {kind === "kol" && <div className="grid gap-3 sm:grid-cols-3">
               <Toggle label="Automatic entries" detail="Open new positions from this source's calls." checked={autoEntry} onChange={setAutoEntry} compact disabled={killSwitch} />
               <Toggle label="Automatic exits" detail="Run take profit, stop loss and trailing without you." checked={autoExit} onChange={setAutoExit} compact disabled={killSwitch} />
               <Toggle label="Emergency stop" detail="Refuse every new entry. Open positions still exit." checked={killSwitch} onChange={setKillSwitch} compact danger />
-            </div>
+            </div>}
             {killSwitch && (
               <p role="status" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-ink">
                 Emergency stop is on. This bot will not open a new position, and its open positions keep exiting.
@@ -848,13 +867,27 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             {/* Buy amount is the one funding control section 4 keeps on the first screen. The
                 four exposure limits move into the collapsed group below it — they are real and
                 enforced, but a beginner does not have to answer them to start. */}
-            <NumberField label="Buy amount" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
+            <NumberField label={kind === "discord" ? "Margin amount per trade" : "Buy amount"} value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
             <div className="flex flex-wrap gap-2">
               {[0.1, 0.5, 1, 5].map((amount) => (
                 <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-11 sm:min-h-9 rounded-md border px-3 font-mono text-xs ${buyAmountSol === amount ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
               ))}
             </div>
-            <details className="group rounded-md border border-edge bg-void">
+            {kind === "discord" && (
+              <>
+                <NumberField label="Max funds per day" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
+                <p className="text-[11px] leading-5 text-dim">Once this budget is used, new entries wait for the next UTC reset. Exits continue.</p>
+                <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
+                  <SourceStat label="Wallet available" value={walletAvailableLamports == null ? "Unavailable" : `${lamportsToSol(BigInt(walletAvailableLamports))} SOL`} />
+                  <SourceStat label="Estimated max exposure" value={`${lamportsToSol(
+                    limits.maximumCapital && capitalPlan.plannedLamports > BigInt(Math.round(maximumCapitalSol * 1e9))
+                      ? BigInt(Math.round(maximumCapitalSol * 1e9))
+                      : capitalPlan.plannedLamports
+                  )} SOL`} />
+                </div>
+              </>
+            )}
+            {kind === "kol" && <details className="group rounded-md border border-edge bg-void">
               <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
                 <span>
                   <span className="block text-xs font-medium text-ink">Exposure limits</span>
@@ -876,11 +909,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   <NumberField label="Per-token exposure" hideLabel value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} />
                 </LimitField>
               </div>
-            </details>
+            </details>}
             {/* The working, not just the total. A figure with no derivation is unfalsifiable: a
                 user who thought 5.50 was wrong had nothing to check it against, and the
                 "maximum exposure" row beside it said 0.50 for the same configuration. */}
-            <div className="rounded-md border border-edge bg-void px-4 py-3">
+            {kind === "kol" && <div className="rounded-md border border-edge bg-void px-4 py-3">
               <p className="field-label">Minimum planned capital</p>
               <div className="mt-2 space-y-0.5 font-mono text-xs text-dim">
                 {explain(capitalPlan).map((line, index) => (
@@ -892,7 +925,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 Keep about {lamportsToSol(capitalPlan.reserveLamports)} SOL on top for network fees and rent;
                 that reserve is not trading capital.
               </p>
-            </div>
+            </div>}
           </FormSection>
 
 
@@ -915,7 +948,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               checked={takeProfitEnabled}
               onChange={setTakeProfitEnabled}
             />
-            <div className={`divide-y divide-edge rounded-md border border-edge ${takeProfitEnabled ? "" : "opacity-45"}`}>
+            {kind === "discord" && takeProfitEnabled && (
+              <NumberField label="Target profit" value={(tpLevels[0]?.targetBps || 10000) / 100} onChange={(value) => updateTp(0, { targetBps: Math.round(value * 100), sellBps: 10000, enabled: true })} unit="%" step={1} min={0.01} max={1000} />
+            )}
+            {kind === "kol" && <div className={`divide-y divide-edge rounded-md border border-edge ${takeProfitEnabled ? "" : "opacity-45"}`}>
               {tpLevels.map((level, index) => (
                 <div key={index} className="grid gap-3 p-3 sm:grid-cols-[92px_repeat(3,minmax(0,1fr))_36px] sm:items-end">
                   <button
@@ -939,11 +975,11 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   <button type="button" onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={tpLevels.length === 1} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30" aria-label={`Remove TP level ${index + 1}`}><X size={14} /></button>
                 </div>
               ))}
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            </div>}
+            {kind === "kol" && <div className="flex flex-wrap items-center justify-between gap-3">
               <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0, enabled: true }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
               <Toggle label="Trailing take profit" detail="Apply the per-level trailing distance after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} compact disabled={!takeProfitEnabled} />
-            </div>
+            </div>}
             {tpAllocationBps > 10000 && <InlineError>Sell allocation exceeds 100%.</InlineError>}
           </FormSection>
           <FormSection
@@ -967,21 +1003,23 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 With stop loss off nothing closes a losing position automatically. Exits still run for take-profit levels you leave on.
               </InlineError>
             )}
-            <div className={`grid gap-4 md:grid-cols-2 xl:grid-cols-4 ${stopLossEnabled ? "" : "opacity-45"}`}>
+            {stopLossEnabled && kind === "discord" && <NumberField label="Loss limit" value={stopBps / 100} onChange={(value) => setStopBps(Math.round(value * 100))} unit="%" step={0.5} min={0.01} max={100} />}
+            {kind === "kol" && <div className={`grid gap-4 md:grid-cols-2 xl:grid-cols-4 ${stopLossEnabled ? "" : "opacity-45"}`}>
               <NumberField label="Stop loss" value={stopBps / 100} onChange={(value) => setStopBps(Math.round(value * 100))} unit="%" step={0.5} min={0.01} max={100} disabled={!stopLossEnabled} />
               <NumberField label="Trigger debounce" value={stopDelaySeconds} onChange={(value) => setStopDelaySeconds(Math.round(value))} unit="sec" step={1} min={0} max={300} disabled={!stopLossEnabled} />
               <Toggle label="Trailing stop" detail="Move the stop upward with price." checked={trailingStop} onChange={setTrailingStop} disabled={!stopLossEnabled} />
               <Toggle label="Dynamic stop" detail="Use supported volatility evidence." checked={dynamicStop} onChange={setDynamicStop} disabled={!stopLossEnabled} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            </div>}
+            {kind === "kol" && <div className="grid gap-3 md:grid-cols-2">
               <Toggle label="Freeze token after stop" detail="Block re-entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
               <Toggle label="Emergency exit" detail="If a sell keeps failing, widen slippage step by step up to 15% so the position can close." checked={emergencyExit} onChange={setEmergencyExit} />
-            </div>
+            </div>}
+            {autoReentry && kind === "discord" && <p className="text-[11px] leading-5 text-dim">A fresh call may open the token again after its previous position closes.</p>}
             {/* Directly below stop loss, per section 4. Not the same control as First call
                 only: that one refuses a repeat call while a position is open, this one refuses
                 a fresh entry once the position has closed. */}
             <Toggle
-              label="Auto re-entry"
+              label="Re-entry"
               detail="Allow a new position in a token this bot has already closed. Off finishes with the token."
               checked={autoReentry}
               onChange={setAutoReentry}
@@ -991,10 +1029,36 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               collapsed because a beginner should not have to answer sixty questions to place
               their first trade, not because any of it is decorative. */}
           <SectionGroup
-            title="Optional settings"
-            description="Entry triggers, staged buys, safety filters, routing and retries."
-            count={kind === "kol" ? "4 sections" : "2 sections"}
+            title={kind === "discord" ? "Advanced settings" : "Optional settings"}
+            description={kind === "discord" ? "Exposure limits, exit details, safety filters, routing and retries." : "Entry triggers, staged buys, safety filters, routing and retries."}
+            count={kind === "kol" ? "4 sections" : "4 sections"}
           >
+          {kind === "discord" && (
+            <FormSection title="Automation and exposure" description="Controls preserved for existing bots." summary={`${maximumCapitalSol.toFixed(2)} SOL cap · ${maxOpenTrades} open`}>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Toggle label="Automatic entries" detail="Open new positions from this source's calls." checked={autoEntry} onChange={setAutoEntry} compact disabled={killSwitch} />
+                <Toggle label="Automatic exits" detail="Run enabled exits without another signature." checked={autoExit} onChange={setAutoExit} compact disabled={killSwitch} />
+                <Toggle label="Emergency stop" detail="Refuse new entries while open positions keep exiting." checked={killSwitch} onChange={setKillSwitch} compact danger />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <LimitField label="Maximum capital" on={limits.maximumCapital} onToggle={(on) => setLimit("maximumCapital", on)}><NumberField label="Maximum capital" hideLabel value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} /></LimitField>
+                <LimitField label="Maximum open trades" on={limits.maxOpenTrades} onToggle={(on) => setLimit("maxOpenTrades", on)}><NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} /></LimitField>
+                <LimitField label="Per-token exposure" on={limits.perTokenExposure} onToggle={(on) => setLimit("perTokenExposure", on)}><NumberField label="Per-token exposure" hideLabel value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} /></LimitField>
+              </div>
+            </FormSection>
+          )}
+          {kind === "discord" && (
+            <FormSection title="Exit details" description="Optional staged profit-taking and stop behavior." summary="Advanced exit controls">
+              <div className="grid gap-3 md:grid-cols-2">
+                <Toggle label="Trailing take profit" detail="Trail enabled profit targets after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} disabled={!takeProfitEnabled} />
+                <NumberField label="Stop debounce" value={stopDelaySeconds} onChange={(value) => setStopDelaySeconds(Math.round(value))} unit="sec" step={1} min={0} max={300} disabled={!stopLossEnabled} />
+                <Toggle label="Trailing stop" detail="Move the stop upward with price." checked={trailingStop} onChange={setTrailingStop} disabled={!stopLossEnabled} />
+                <Toggle label="Dynamic stop" detail="Use supported volatility evidence." checked={dynamicStop} onChange={setDynamicStop} disabled={!stopLossEnabled} />
+                <Toggle label="Freeze after stop" detail="Block another entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
+                <Toggle label="Emergency exit" detail="Widen bounded slippage if an exit keeps failing." checked={emergencyExit} onChange={setEmergencyExit} />
+              </div>
+            </FormSection>
+          )}
           {kind === "kol" && (
             <FormSection
               title="Entry trigger"
@@ -1158,11 +1222,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <SummaryRow label="Source" value={kind === "discord" ? source?.name || "Not selected" : preset} />
             <SummaryRow label="Network" value={AUTOMATED_MAINNET_RELEASE.label} />
             <SummaryRow label="Wallet" value={walletAddress ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}` : "Not connected"} />
-            <SummaryRow label="Buy amount" value={`${buyAmountSol.toFixed(3)} SOL`} />
+            <SummaryRow label={kind === "discord" ? "Margin per trade" : "Buy amount"} value={`${buyAmountSol.toFixed(3)} SOL`} />
+            {kind === "discord" && <SummaryRow label="Max funds per day" value={`${dailyLossSol.toFixed(3)} SOL`} />}
             <SummaryRow label="Maximum capital" value={`${maximumCapitalSol.toFixed(3)} SOL`} />
             <SummaryRow label="Open trades" value={String(maxOpenTrades)} />
-            <SummaryRow label="TP allocation" value={`${(tpAllocationBps / 100).toFixed(0)}%`} />
-            <SummaryRow label="Stop loss" value={`-${(stopBps / 100).toFixed(2)}%`} />
+            <SummaryRow label="Take profit" value={takeProfitEnabled ? `+${((tpLevels[0]?.targetBps || 0) / 100).toFixed(2)}%` : "Off"} />
+            <SummaryRow label="Stop loss" value={stopLossEnabled ? `-${(stopBps / 100).toFixed(2)}%` : "Off"} />
+            {kind === "discord" && <SummaryRow label="Re-entry" value={autoReentry ? "On" : "Off"} />}
             <SummaryRow label="Slippage" value={`${(slippageBps / 100).toFixed(2)}%`} />
             <SummaryRow
               label="Maximum exposure"
@@ -1336,7 +1402,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   title: "Buy settings",
                   items: [
                     ["Entry", `${buyAmountSol} SOL · ${entryMode} · ${maxOpenTrades} maximum trades`],
-                    ["Capital", `${maximumCapitalSol} SOL maximum · ${dailyLossSol} SOL daily loss limit · ${perTokenSol} SOL per token`],
+                    ["Capital", `${maximumCapitalSol} SOL maximum · ${dailyLossSol} SOL max funds per day · ${perTokenSol} SOL per token`],
                     ...(kind === "kol" ? [
                       ["Trigger", `-${priceDropBps / 100}% from ${referenceMode === "recent-ath" ? "recent ATH" : "moving average"} over ${lookbackMinutes} minutes`],
                       ["DCA", dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(3)} SOL per trade` : "Off"]
@@ -1346,8 +1412,9 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 {
                   title: "Sell settings",
                   items: [
-                    ["Take profit", tpLevels.map((level) => `+${level.targetBps / 100}% / sell ${level.sellBps / 100}%${trailingTakeProfit ? ` / trail ${level.trailingBps / 100}%` : ""}`).join(" · ")],
-                    ["Stop loss", `-${stopBps / 100}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}${freezeAfterStop ? " · freeze after stop" : ""}`]
+                    ["Take profit", takeProfitEnabled ? tpLevels.filter((level) => level.enabled).map((level) => `+${level.targetBps / 100}% / sell ${level.sellBps / 100}%${trailingTakeProfit ? ` / trail ${level.trailingBps / 100}%` : ""}`).join(" · ") : "Off"],
+                    ["Stop loss", stopLossEnabled ? `-${stopBps / 100}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}${freezeAfterStop ? " · freeze after stop" : ""}` : "Off"],
+                    ...(kind === "discord" ? [["Re-entry", autoReentry ? "On" : "Off"]] : [])
                   ]
                 },
                 {
