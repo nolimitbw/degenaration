@@ -90,6 +90,10 @@ export type DiscordSource = {
   eligibleCalls: number;
   acceptedCalls?: number;
   rejectedCalls?: number;
+  totalCalls?: number;
+  duplicateSignals?: number;
+  retractedCalls?: number;
+  activeMonitoring?: number;
   executedCalls?: number;
   measuredCalls: number;
   // Peak-multiple ladder, lowest first. Exclusive: a measured call is in exactly one.
@@ -103,6 +107,18 @@ export type DiscordSource = {
   plus50: number;
   twoX: number;
   fiveX: number;
+  down50Hits?: number;
+  plus50Hits?: number;
+  twoXHits?: number;
+  fiveXHits?: number;
+  down50Rate?: number | null;
+  plus50Rate?: number | null;
+  twoXHitRate?: number | null;
+  fiveXHitRate?: number | null;
+  medianCurrentReturnBps?: number | null;
+  medianPeakReturnBps?: number | null;
+  averagePeakReturnBps?: number | null;
+  performanceProvider?: string | null;
   // PEAK multiples: the best each call ever traded. Every figure on this line is best-case
   // by construction, which is why the current-return pair below exists and why no surface
   // may label either family simply "return".

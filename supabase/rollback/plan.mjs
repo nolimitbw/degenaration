@@ -337,6 +337,16 @@ export const PACKAGE = [
       "raw_signals and rejected parsed_signals; it cannot create a canonical call, delivery, " +
       "or trade intent. Fully additive and replay-idempotent.",
   },
+  {
+    n: 25,
+    apply: "degenaration-call-performance-journal.sql",
+    rollback: "25-call-performance-journal.sql",
+    reapply: [],
+    note:
+      "Adds the live market-observation writer, monotonic milestone journal, call tracking " +
+      "state and source journal statistics. It backfills only the immutable call-time price; " +
+      "no historical peak or milestone is inferred. The rollback removes only these additions.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

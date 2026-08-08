@@ -106,6 +106,23 @@ const STUBS = `
     status text not null,
     evaluation jsonb not null default '{}'::jsonb
   );
+  -- The call-performance journal writes the product ledger's existing token and market
+  -- snapshot tables. They predate this deployment package and are not in the compact schema
+  -- capture, so the rollback fixture supplies the columns migration 25 resolves.
+  create table if not exists app_private.scanner_tokens (
+    mint text primary key, symbol text, first_seen_at timestamptz not null default now(),
+    last_seen_at timestamptz not null default now(), validation_status text,
+    validation_reason text, metadata jsonb not null default '{}'::jsonb
+  );
+  create table if not exists app_private.market_snapshots (
+    id uuid primary key default gen_random_uuid(),
+    mint text not null references app_private.scanner_tokens(mint),
+    provider text not null, observed_at timestamptz not null,
+    price_usd numeric, market_cap_usd numeric, liquidity_usd numeric,
+    payload jsonb not null default '{}'::jsonb,
+    freshness_status text not null default 'fresh',
+    unique (mint, provider, observed_at)
+  );
   -- production-schema.mjs captures CONSTRAINTS but not standalone partial UNIQUE INDEXES, so
   -- this one does not come through renderTables. bot_ingest_discord_signal_v2 infers its
   -- ON CONFLICT against it, and without the index that statement raises 42P10.

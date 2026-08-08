@@ -55,6 +55,7 @@ const operations: Record<string, string[]> = {
   app_user_get_bot: ["p_secret", "p_privy_user_id", "p_bot_id"],
   app_user_get_bot_activity: ["p_secret", "p_privy_user_id", "p_bot_id", "p_limit"],
   app_public_list_discord_marketplace: ["p_secret", "p_period", "p_sort", "p_limit"],
+  app_public_discord_journal_stats: ["p_secret", "p_period"],
   app_public_list_kol_marketplace: ["p_secret", "p_period", "p_sort", "p_limit"],
   app_user_upsert_kol_subscription: [
     "p_secret", "p_privy_user_id", "p_strategy_id", "p_payload"

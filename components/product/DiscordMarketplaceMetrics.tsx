@@ -30,9 +30,13 @@ export function DiscordPerformanceGrid({ source }: { source: DiscordSource }) {
 export function DiscordCallCounts({ source }: { source: DiscordSource }) {
   return (
     <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-4">
+      <CountState label="Total signals" value={source.totalCalls} />
       <CountState label="Accepted" value={source.acceptedCalls ?? source.eligibleCalls} />
       <CountState label="Rejected" value={source.rejectedCalls} />
-      <CountState label="Executed" value={source.executedCalls} />
+      <CountState label="Retracted" value={source.retractedCalls} />
+      <CountState label="Monitoring" value={source.activeMonitoring} />
+      <CountState label="Measured" value={source.measuredCalls} />
+      <CountState label="Copied trades" value={source.copiedExecutions} />
       {/* Call performance and copied-trade performance are deliberately reported apart.
           This is the second: what subscribers actually confirmed on chain through this
           source, in integer lamports from the ledger. Zero here is a fact, not a gap. */}

@@ -246,6 +246,6 @@ if (COPY_TRADING_READY) {
 // This scanner measures source accuracy independently of whether anyone copied a call.
 startPerformanceScanner({
   loadPerformanceCalls: store.loadPerformanceCalls,
-  updateCallPerformance: store.updateCallPerformance,
+  recordCallMarketScan: store.recordCallMarketScan,
   onEvent: log("performance")
 });

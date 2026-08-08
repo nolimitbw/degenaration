@@ -245,9 +245,17 @@ const settleExecution = (execution, status, error) => execution.source === "copy
 // Track calls for 30 days so every source's public score comes from the same live data.
 const loadPerformanceCalls = () => {
   const since = encodeURIComponent(new Date(Date.now() - 30 * 86_400_000).toISOString());
-  return sbGet(`calls?called_at=gte.${since}&select=id,mint,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd&order=called_at.desc&limit=1000`);
+  return sbGet(`calls?called_at=gte.${since}&deleted_at=is.null&parse_status=eq.accepted&select=id,mint&order=called_at.desc&limit=1000`);
 };
-const updateCallPerformance = (id, update) => sbPatch(`calls?id=eq.${id}`, update);
+const recordCallMarketScan = (id, quote) => sbRpc("worker_record_call_market_scan", {
+  p_call_id: id,
+  p_provider: quote?.provider || "dexscreener",
+  p_observed_at: quote?.observedAt || new Date().toISOString(),
+  p_price_usd: quote?.priceUsd ?? null,
+  p_market_cap_usd: quote?.marketCap ?? null,
+  p_liquidity_usd: quote?.liquidityUsd ?? null,
+  p_freshness: quote?.freshness || "unavailable"
+});
 
 // ---- positions (TP/SL exit path) ----
 //
@@ -344,4 +352,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { workerHeartbeat, recordDcaFill, subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, recordStopBreach, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };
+module.exports = { workerHeartbeat, recordDcaFill, subscriberSafety, subscriberExecution, loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, recordCallMarketScan, loadOpenPositions, openPosition, claimPositionExit, recordPositionExitSig, settlePositionExit, recordPositionPeak, recordStopBreach, submitCallExecution, loadSubmittedExecutions, settleCallExecution, claimCopyExecution, submitCopyExecution, settleCopyExecution, settleExecution };
