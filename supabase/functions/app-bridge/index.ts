@@ -62,6 +62,13 @@ const operations: Record<string, string[]> = {
   ],
   app_user_list_kol_subscriptions: ["p_secret", "p_privy_user_id"],
   app_user_affiliate_summary: ["p_secret", "p_privy_user_id", "p_scope"],
+  app_user_get_discord_link_session: ["p_secret", "p_privy_user_id", "p_session_id"],
+  app_user_complete_discord_owner_link: [
+    "p_secret", "p_privy_user_id", "p_session_id",
+    "p_verified_discord_user_id", "p_verified_discord_username"
+  ],
+  app_user_discord_ownership_summary: ["p_secret", "p_privy_user_id"],
+  app_user_revoke_discord_owner_link: ["p_secret", "p_privy_user_id", "p_reason"],
   app_public_resolve_referral: [
     "p_secret", "p_code", "p_visitor_hash", "p_idempotency_key"
   ],
@@ -147,6 +154,11 @@ const operations: Record<string, string[]> = {
   ],
   admin_source_action: [
     "p_secret", "p_actor_privy_user_id", "p_source_group_id", "p_action", "p_reason"
+  ],
+  admin_list_discord_ownership: ["p_secret", "p_actor_privy_user_id", "p_limit"],
+  admin_resolve_discord_ownership: [
+    "p_secret", "p_actor_privy_user_id", "p_source_group_id", "p_action",
+    "p_target_privy_user_id", "p_discord_user_id", "p_reason"
   ],
   admin_list_referrals_v2: [
     "p_secret", "p_actor_privy_user_id", "p_query", "p_limit"

@@ -36,6 +36,7 @@ const EMPTY_DATA: AdminData = {
   scanner: {},
   flags: [],
   events: [],
+  discordOwnership: { sources: [], sessions: [], events: [] },
   botConfig: {}
 };
 
@@ -54,6 +55,7 @@ const TABS = [
 ] as const;
 
 function mergeResponse(data: AdminData, path: string, payload: any): AdminData {
+  if (path.includes("/sources/ownership")) return { ...data, discordOwnership: { sources: payload?.sources || [], sessions: payload?.sessions || [], events: payload?.events || [] } };
   if (path.includes("/summary")) return { ...data, summary: payload?.summary || {} };
   if (path.includes("/product")) return { ...data, product: payload || {} };
   if (path.includes("/applications")) return { ...data, applications: payload?.applications || [] };
@@ -158,6 +160,7 @@ export default function OwnerConsole() {
     "/api/admin/product",
     "/api/admin/applications",
     "/api/admin/channels",
+    "/api/admin/sources/ownership",
     "/api/admin/kol-strategies",
     "/api/admin/referrals",
     "/api/admin/payouts",

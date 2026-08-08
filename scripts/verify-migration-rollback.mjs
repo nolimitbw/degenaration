@@ -56,6 +56,61 @@ const read = (p) => readFile(`${repo}/${p}`, "utf8");
  * captured production schema instead.
  */
 const STUBS = `
+  -- Product identity and ownership tables predate migration 26. They are private and not
+  -- part of the compact public production-schema capture, so the rollback fixture provides
+  -- the columns the secure Discord owner-link migration resolves.
+  create table if not exists app_private.app_users (
+    privy_user_id text primary key,
+    status text not null default 'active'
+  );
+  create table if not exists app_private.auth_identities (
+    id uuid primary key default gen_random_uuid(),
+    privy_user_id text not null references app_private.app_users(privy_user_id),
+    provider text not null,
+    provider_subject text not null,
+    normalized_email text,
+    email_verified boolean not null default false,
+    linked_at timestamptz not null default now(),
+    last_verified_at timestamptz not null default now(),
+    revoked_at timestamptz,
+    unique (provider, provider_subject)
+  );
+  create table if not exists app_private.source_ownership_history (
+    id uuid primary key default gen_random_uuid(),
+    source_group_id uuid not null references public.approved_groups(id),
+    owner_privy_user_id text not null references app_private.app_users(privy_user_id),
+    verified_identity_id uuid references app_private.auth_identities(id),
+    creator_fee_bps integer not null default 70,
+    valid_from timestamptz not null default now(),
+    valid_to timestamptz,
+    reason text
+  );
+  create unique index if not exists source_ownership_current_unique
+    on app_private.source_ownership_history(source_group_id) where valid_to is null;
+  create table if not exists app_private.commission_ledger_entries (
+    id uuid primary key default gen_random_uuid(), account_owner_privy_user_id text,
+    account_type text, source_type text, source_id text, amount_lamports bigint,
+    available_at timestamptz not null default now()
+  );
+  create table if not exists app_private.payout_requests (
+    id uuid primary key default gen_random_uuid(), owner_privy_user_id text,
+    gross_lamports bigint, net_lamports bigint, status text,
+    requested_at timestamptz not null default now(), processed_at timestamptz,
+    tx_signature text
+  );
+  create table if not exists app_private.admin_audit_log (
+    id uuid primary key default gen_random_uuid(), actor_privy_user_id text,
+    action text, target_type text, target_id text, reason text,
+    previous_state jsonb, next_state jsonb
+  );
+  create function app_private.bot_secret_ok(t text) returns boolean
+    language sql stable as $x$ select true $x$;
+  create function app_private.ensure_app_user(t text) returns void
+    language plpgsql as $x$ begin
+      insert into app_private.app_users(privy_user_id) values(t) on conflict do nothing;
+    end $x$;
+  create function app_private.require_app_admin(t text) returns void
+    language plpgsql as $x$ begin null; end $x$;
   create table if not exists app_private.bot_profiles (
     id uuid primary key default gen_random_uuid(),
     owner_privy_user_id text,

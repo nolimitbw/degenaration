@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { callAppBridge } from "@/lib/server/app-bridge";
 import { ownsPrivyWallet, solanaWalletFromPayload } from "@/lib/server/privy-wallet";
+import { linkedAccounts } from "@/lib/server/privy-wallet";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
@@ -81,6 +82,44 @@ export async function requirePrivySolanaWallet(req: NextRequest, privyUserId: st
     return {
       ok: false as const,
       response: NextResponse.json({ error: "no verified Solana wallet on this account" }, { status: 403 })
+    };
+  }
+}
+
+/**
+ * A Discord identity taken only from Privy's signed identity token.
+ *
+ * Access tokens establish the DegenAration user but omit linked-account claims. Owner
+ * linking therefore requires the identity token as a second signed proof and checks that
+ * both tokens belong to the same Privy subject.
+ */
+export async function requirePrivyDiscordIdentity(req: NextRequest, privyUserId: string) {
+  const token = req.headers.get("privy-id-token")?.trim();
+  const keys = keySet();
+  const id = appId();
+  if (!token || !keys || !id) {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "verified Discord identity required" }, { status: 428 })
+    };
+  }
+  try {
+    const { payload } = await jwtVerify(token, keys, { issuer: "privy.io", audience: id });
+    if (String(payload.sub || "") !== privyUserId) throw new Error("identity subject mismatch");
+    const account = linkedAccounts(payload).find((item: any) => item?.type === "discord_oauth");
+    const subject = String(account?.subject || "").trim();
+    if (!/^\d{17,20}$/.test(subject)) throw new Error("Discord identity missing");
+    return {
+      ok: true as const,
+      identity: {
+        subject,
+        username: String(account?.username || "").trim().slice(0, 100) || null
+      }
+    };
+  } catch {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ error: "verified Discord identity required" }, { status: 428 })
     };
   }
 }

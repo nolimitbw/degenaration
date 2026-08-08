@@ -10,6 +10,7 @@ const REGISTER_URL = process.env.BOT_REGISTER_URL || (SITE_URL ? `${SITE_URL}/ap
 const APPROVED_URL = process.env.BOT_APPROVED_CHANNELS_URL || (SITE_URL ? `${SITE_URL}/api/bot/approved-channels` : "");
 const STATUS_URL = process.env.BOT_GUILD_STATUS_URL || (SITE_URL ? `${SITE_URL}/api/bot/guild-status` : "");
 const PROFILE_URL = process.env.BOT_SYNC_PROFILE_URL || (SITE_URL ? `${SITE_URL}/api/bot/sync-source-profile` : "");
+const OWNER_LINK_URL = process.env.BOT_OWNER_LINK_URL || (SITE_URL ? `${SITE_URL}/api/bot/create-owner-link` : "");
 
 function H(extra) {
   return { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json", ...extra };
@@ -128,4 +129,21 @@ async function syncSourceProfile(guild, { botPresent = true } = {}) {
   return response.json().catch(() => ({}));
 }
 
-module.exports = { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile };
+async function createOwnerLink({ guildId, discordUserId, discordUsername }) {
+  if (!OWNER_LINK_URL || !BOT_SECRET) throw new Error("owner link bridge not configured");
+  const response = await fetch(OWNER_LINK_URL, {
+    method: "POST",
+    headers: { "x-bot-secret": BOT_SECRET, "content-type": "application/json" },
+    body: JSON.stringify({
+      guild_id: guildId,
+      discord_user_id: discordUserId,
+      discord_username: discordUsername,
+      manage_guild_verified: true
+    })
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.ok === false) throw new Error(data?.error || `owner link creation failed (${response.status})`);
+  return data;
+}
+
+module.exports = { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink };

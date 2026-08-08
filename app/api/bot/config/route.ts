@@ -68,7 +68,7 @@ export async function GET() {
     scopes: BOT_SCOPES.split(" "),
     slashCommandConfigured: BOT_SCOPES.split(" ").includes("applications.commands"),
     registrationCommand: "/register",
-    commands: ["/register", "/alpha", "/degen status", "/degen profile", "/degen referral", "/degen callers", "/degen channel-add", "/onboard", "/help"],
+    commands: ["/register", "/connect discord", "/alpha", "/degen status", "/degen profile", "/degen referral", "/degen callers", "/onboard", "/help"],
     registrationBridgeConfigured: configured,
     botBuild: process.env.BOT_BUILD || EXPECTED_BOT_BUILD,
     live: status

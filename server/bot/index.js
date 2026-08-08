@@ -13,7 +13,7 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits, Partials, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
 const { parseCall, parseMessage } = require("./parser");
-const { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile } = require("./store");
+const { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink } = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
 const { createMessageHandlers, IngestedMessages } = require("./handlers");
 const {
@@ -130,7 +130,12 @@ const HELP_COMMAND = new SlashCommandBuilder()
   .setName("help")
   .setDescription("Show Degenaration bot commands.");
 
-const COMMANDS = [REGISTER_COMMAND, ALPHA_COMMAND, DEGEN_COMMAND, TEST_CALL_COMMAND, ONBOARD_COMMAND, HELP_COMMAND];
+const CONNECT_COMMAND = new SlashCommandBuilder()
+  .setName("connect")
+  .setDescription("Securely connect a server owner to Degenaration.")
+  .addSubcommand((command) => command.setName("discord").setDescription("Link this server to your signed-in Degenaration account."));
+
+const COMMANDS = [REGISTER_COMMAND, ALPHA_COMMAND, DEGEN_COMMAND, TEST_CALL_COMMAND, ONBOARD_COMMAND, HELP_COMMAND, CONNECT_COMMAND];
 
 // Approved channels, refreshed from the DB so newly-approved servers work with no redeploy.
 let approved = {};
@@ -407,7 +412,27 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.commandName === "help") {
-    await reply("/register - submit this channel as a call source\n/alpha token - record an explicit call\n/test-call token - check parsing without trading\n/degen status - approval state\n/degen profile - public performance\n/degen referral - assigned server link\n/degen callers - recorded caller activity\n/onboard - setup steps");
+    await reply("/register - submit this channel as a call source\n/connect discord - securely link server ownership\n/alpha token - record an explicit call\n/test-call token - check parsing without trading\n/degen status - approval state\n/degen profile - public performance\n/degen referral - assigned server link\n/degen callers - recorded caller activity\n/onboard - setup steps");
+    return;
+  }
+
+  if (interaction.commandName === "connect") {
+    if (interaction.options.getSubcommand() !== "discord") return;
+    if (!canManageGuild(interaction.member, interaction.memberPermissions)) {
+      await reply("Manage Server permission is required to link this source.");
+      return;
+    }
+    try {
+      const link = await createOwnerLink({
+        guildId: interaction.guildId,
+        discordUserId: interaction.user.id,
+        discordUsername: interaction.user.username
+      });
+      await reply(`Open this private link within 10 minutes: ${SITE_URL}/connect/discord/${link.sessionId}\nSign in and verify the same Discord account. The link itself cannot claim the source.`);
+    } catch (e) {
+      console.error("[bot] owner link creation failed:", e.message);
+      await reply("A secure owner link could not be created right now. Try again shortly.");
+    }
     return;
   }
 

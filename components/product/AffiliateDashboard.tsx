@@ -60,6 +60,22 @@ type AffiliateSummary = {
   slugChangedAt: string | null;
   slugCooldownUntil: string | null;
   referralRewardPolicyEnabled: boolean;
+  discordOwnership?: {
+    connectedDiscord: { id: string; discordUserId: string; discordUsername: string | null; linkedAt: string; lastVerifiedAt: string } | null;
+    sources: Array<{
+      sourceGroupId: string;
+      sourceName: string;
+      publicSlug: string | null;
+      verificationStatus: string;
+      ownedSince: string;
+      commissionRateBps: number;
+      eligibleCalls: number;
+      confirmedEligibleVolumeLamports: number | string;
+      confirmedEarningsLamports: number | string;
+      pendingEarningsLamports: number | string;
+    }>;
+    payouts: Array<any>;
+  };
 };
 
 export default function AffiliateDashboard({ initialScope = "discord" }: { initialScope?: Scope }) {
@@ -76,7 +92,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [botConfig, setBotConfig] = useState<any>(null);
 
-  const discordLinked = Boolean((user as any)?.discord || (user as any)?.linkedAccounts?.some((account: any) => account?.type === "discord_oauth"));
+  const discordProviderLinked = Boolean((user as any)?.discord || (user as any)?.linkedAccounts?.some((account: any) => account?.type === "discord_oauth"));
 
   const load = useCallback(() => {
     if (!authenticated) {
@@ -251,10 +267,12 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
 
           {scope === "discord" ? (
             <DiscordAffiliate
-              linked={discordLinked}
+              linked={Boolean(summary.discordOwnership?.connectedDiscord)}
+              providerLinked={discordProviderLinked}
               onLink={() => linkDiscord()}
               botConfig={botConfig}
               bots={filteredBots}
+              ownership={summary.discordOwnership}
             />
           ) : (
             <KolAffiliate bots={filteredBots} summary={summary} />
@@ -603,7 +621,14 @@ function ChartMetric({ label, value }: { label: string; value: string }) {
   return <div className="bg-panel p-4"><p className="field-label">{label}</p><p className="mt-2 font-mono text-sm text-ink">{value}</p></div>;
 }
 
-function DiscordAffiliate({ linked, onLink, botConfig, bots }: { linked: boolean; onLink: () => void; botConfig: any; bots: ProductBot[] }) {
+function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, ownership }: {
+  linked: boolean;
+  providerLinked: boolean;
+  onLink: () => void;
+  botConfig: any;
+  bots: ProductBot[];
+  ownership?: AffiliateSummary["discordOwnership"];
+}) {
   const liveReady = Boolean(
     botConfig?.live?.online &&
     botConfig?.live?.commandsRegistered &&
@@ -613,11 +638,11 @@ function DiscordAffiliate({ linked, onLink, botConfig, bots }: { linked: boolean
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-        <div><h2 className="text-sm font-semibold text-ink">Discord creator setup</h2><p className="mt-1 text-[11px] text-dim">Connect ownership, install the official bot, register a channel, then submit for review.</p></div>
+        <div><h2 className="text-sm font-semibold text-ink">Discord creator setup</h2><p className="mt-1 text-[11px] text-dim">{ownership?.connectedDiscord ? `Connected Discord: ${ownership.connectedDiscord.discordUsername ? `@${ownership.connectedDiscord.discordUsername}` : ownership.connectedDiscord.discordUserId}` : "Connect ownership, install the official bot, register a channel, then submit for review."}</p></div>
         <StatusPill status={linked ? "Discord connected" : "Discord not connected"} />
       </header>
       <div className="grid gap-px bg-edge lg:grid-cols-4">
-        <CreatorStep number="01" title="Connect Discord" detail="Use Privy OAuth to link the account that owns or manages the server." done={linked} action={!linked ? <button type="button" onClick={onLink} className="text-xs font-semibold text-gold-400">Connect Discord</button> : null} />
+        <CreatorStep number="01" title="Connect Discord" detail={linked ? "Discord identity and source ownership are verified." : providerLinked ? "Run /connect discord in the server to verify Manage Server ownership." : "Link Discord, then run /connect discord in the server."} done={linked} action={!providerLinked ? <button type="button" onClick={onLink} className="text-xs font-semibold text-gold-400">Connect Discord</button> : !linked ? <span className="font-mono text-xs text-ink">/connect discord</span> : null} />
         <CreatorStep number="02" title="Install bot" detail="The guild install grants only the channel permissions needed for source tracking and /register." done={false} action={<a href={botConfig?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-gold-400">Add bot <ArrowUpRight size={13} /></a>} />
         <CreatorStep number="03" title="Register channel" detail="Run /register in the call channel. The bot checks your Manage Server role and its own channel access." done={false} action={<span className="font-mono text-xs text-ink">/register</span>} />
         <CreatorStep number="04" title="Submit application" detail="Add server details, invite URL, call format, and owner agreement for admin review." done={bots.length > 0} action={<Link href="/apply" className="text-xs font-semibold text-gold-400">Open application</Link>} />
@@ -629,6 +654,25 @@ function DiscordAffiliate({ linked, onLink, botConfig, bots }: { linked: boolean
         <ChartMetric label="Setup status" value={liveReady ? "Ready" : "Check status"} />
       </div>
       {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 font-mono text-[9px] text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
+      {ownership?.sources?.length ? (
+        <div className="border-t border-edge">
+          <header className="px-5 py-4"><h3 className="text-sm font-semibold text-ink">Owned sources</h3><p className="mt-1 text-[11px] text-dim">Only confirmed reconciled executions contribute volume and earnings.</p></header>
+          <div className="divide-y divide-edge">
+            {ownership.sources.map((source) => (
+              <div key={source.sourceGroupId} className="px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-ink">{source.sourceName}</p><p className="mt-1 font-mono text-[9px] text-dim">Connected {formatWhen(source.ownedSince)}</p></div><StatusPill status={source.verificationStatus} /></div>
+                <div className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-5">
+                  <ChartMetric label="Commission rate" value={formatPercentBps(source.commissionRateBps)} />
+                  <ChartMetric label="Eligible calls" value={String(source.eligibleCalls)} />
+                  <ChartMetric label="Confirmed volume" value={formatSol(source.confirmedEligibleVolumeLamports)} />
+                  <ChartMetric label="Confirmed earnings" value={formatSol(source.confirmedEarningsLamports)} />
+                  <ChartMetric label="Pending earnings" value={formatSol(source.pendingEarningsLamports)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : linked ? <p className="border-t border-edge px-5 py-6 text-center text-xs text-dim">Discord is connected. No eligible source is owned by this account yet.</p> : null}
     </section>
   );
 }

@@ -347,6 +347,16 @@ export const PACKAGE = [
       "state and source journal statistics. It backfills only the immutable call-time price; " +
       "no historical peak or milestone is inferred. The rollback removes only these additions.",
   },
+  {
+    n: 26,
+    apply: "degenaration-discord-owner-linking.sql",
+    rollback: "26-discord-owner-linking.sql",
+    reapply: [],
+    note:
+      "Adds short-lived single-use Discord owner-link sessions, immutable ownership audit " +
+      "events, verified source ownership and fail-closed Discord creator allocation. The " +
+      "rollback removes only this flow and leaves prior ownership history untouched.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

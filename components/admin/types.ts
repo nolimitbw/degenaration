@@ -208,6 +208,20 @@ export type AdminData = {
   scanner: ScannerHealth;
   flags: SystemFlag[];
   events: AuditEvent[];
+  discordOwnership: {
+    sources: Array<{
+      sourceGroupId: string;
+      sourceName: string;
+      discordGuildId: string;
+      ownerPrivyUserId: string | null;
+      discordUserId: string | null;
+      commissionRateBps: number;
+      verificationStatus: string;
+      validFrom: string | null;
+    }>;
+    sessions: Array<Record<string, any>>;
+    events: Array<Record<string, any>>;
+  };
   botConfig: {
     clientId?: string;
     slashCommandConfigured?: boolean;

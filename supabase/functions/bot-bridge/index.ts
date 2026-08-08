@@ -47,6 +47,13 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
       "p_avatar_url", "p_banner_url", "p_description", "p_owner_display_name",
       "p_bot_present", "p_sync_error"
     ]
+  },
+  create_owner_link: {
+    rpc: "bot_create_discord_owner_link",
+    params: [
+      "p_secret", "p_guild_id", "p_discord_user_id", "p_discord_username",
+      "p_manage_guild_verified"
+    ]
   }
 };
 

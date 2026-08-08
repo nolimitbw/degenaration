@@ -281,6 +281,42 @@ function Discord({ data, act }: { data: AdminData; act: (action: AdminAction) =>
           tone: data.botConfig.live?.online ? "text-up" : "text-down"
         }
       ]} />
+      <section className="overflow-hidden rounded-md border border-edge bg-panel">
+        <header className="border-b border-edge px-4 py-4">
+          <h2 className="text-sm font-semibold text-ink">Verified source ownership</h2>
+          <p className="mt-1 text-[11px] text-dim">Discord identity, current owner, commission rate, and immutable link history.</p>
+        </header>
+        {data.discordOwnership.sources.length === 0 ? (
+          <p className="px-4 py-8 text-center text-xs text-dim">No Discord source ownership records yet.</p>
+        ) : (
+          <div className="divide-y divide-edge">
+            {data.discordOwnership.sources.map((source) => (
+              <div key={source.sourceGroupId} className="grid gap-4 px-4 py-4 lg:grid-cols-[1fr_1fr_auto] lg:items-center">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2"><p className="truncate text-xs font-semibold text-ink">{source.sourceName}</p><StatusPill status={source.ownerPrivyUserId ? "verified owner" : "unclaimed"} /></div>
+                  <p className="mt-1 truncate font-mono text-[9px] text-dim">Guild {source.discordGuildId} · Discord {source.discordUserId || "not linked"}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-[10px] text-ink">{source.ownerPrivyUserId || "No account owner"}</p>
+                  <p className="mt-1 font-mono text-[9px] text-dim">{(source.commissionRateBps / 100).toFixed(2)}% · {source.validFrom ? `linked ${formatDate(source.validFrom)}` : "no current ownership period"}</p>
+                </div>
+                {source.ownerPrivyUserId && <ActionButton tone="negative" onClick={() => act({
+                  title: "Revoke Discord source ownership",
+                  description: `Remove the current owner from ${source.sourceName}. Earned balances remain immutable; only future creator allocation stops.`,
+                  endpoint: "/api/admin/sources/ownership",
+                  body: { sourceGroupId: source.sourceGroupId, action: "revoke" },
+                  destructive: true,
+                  reasonRequired: true
+                })}>Revoke owner</ActionButton>}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="grid gap-px border-t border-edge bg-edge sm:grid-cols-2">
+          <div className="bg-panel p-4"><p className="field-label">Link sessions</p><p className="mt-2 font-mono text-sm text-ink">{data.discordOwnership.sessions.length}</p></div>
+          <div className="bg-panel p-4"><p className="field-label">Ownership events</p><p className="mt-2 font-mono text-sm text-ink">{data.discordOwnership.events.length}</p></div>
+        </div>
+      </section>
       <div className="rounded-md border border-edge bg-panel px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
