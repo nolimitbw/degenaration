@@ -129,6 +129,7 @@ assert.equal(stats.down50Hits, 1);
 assert.equal(stats.plus50Hits, 1);
 assert.equal(stats.twoXHits, 1);
 assert.equal(stats.fiveXHits, 1);
+assert.equal(stats.milestoneHistoryComplete, true);
 assert.equal(stats.medianCurrentReturnBps, 2000);
 assert.equal(stats.medianPeakReturnBps, 40000);
 

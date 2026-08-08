@@ -111,6 +111,7 @@ export type DiscordSource = {
   plus50Hits?: number;
   twoXHits?: number;
   fiveXHits?: number;
+  milestoneHistoryComplete?: boolean;
   down50Rate?: number | null;
   plus50Rate?: number | null;
   twoXHitRate?: number | null;

@@ -22,6 +22,24 @@ set minimum_price_usd = coalesce(minimum_price_usd, called_price_usd),
     )
 where parse_status = 'accepted';
 
+-- A pre-journal last_scanned_at proves a legacy scanner ran, but it cannot prove when any
+-- milestone was first hit. Once the first immutable observation exists, that is the honest
+-- start of milestone coverage for a call that predates this journal.
+with first_scans as (
+  select c.id, min(ms.observed_at) as observed_at
+  from public.calls c
+  join app_private.market_snapshots ms
+    on ms.mint=c.mint and ms.payload->>'source'='discord-call-performance'
+  group by c.id
+)
+update public.calls c
+set tracking_started_at = first_scan.observed_at
+from first_scans first_scan
+where first_scan.observed_at is not null
+  and first_scan.id=c.id
+  and c.called_at < first_scan.observed_at - interval '10 minutes'
+  and c.tracking_started_at is distinct from first_scan.observed_at;
+
 create table if not exists app_private.call_performance_milestones (
   id uuid primary key default gen_random_uuid(),
   call_id uuid not null references public.calls(id) on delete restrict,
@@ -218,6 +236,8 @@ begin
       percentile_cont(0.5) within group (order by c.maximum_return_bps)
         filter (where c.performance_status='measured') as median_peak_bps,
       avg(c.maximum_return_bps) filter (where c.performance_status='measured') as average_peak_bps,
+      bool_and(c.tracking_started_at <= c.called_at + interval '10 minutes')
+        filter (where c.performance_status='measured') as milestone_coverage_complete,
       max(c.last_scanned_at) as freshness_at,
       (array_agg(c.performance_provider order by c.last_scanned_at desc nulls last))[1] as provider
     from public.calls c where c.called_at >= v_since group by c.group_id
@@ -240,14 +260,15 @@ begin
     'retractedCalls', coalesce(cs.retracted, 0),
     'activeMonitoring', coalesce(cs.active_monitoring, 0),
     'measuredCalls', coalesce(cs.measured, 0),
-    'down50Hits', coalesce(ms.down_50_hits, 0),
-    'plus50Hits', coalesce(ms.plus_50_hits, 0),
-    'twoXHits', coalesce(ms.two_x_hits, 0),
-    'fiveXHits', coalesce(ms.five_x_hits, 0),
-    'down50Rate', round(100.0 * ms.down_50_hits / nullif(cs.measured, 0), 2),
-    'plus50Rate', round(100.0 * ms.plus_50_hits / nullif(cs.measured, 0), 2),
-    'twoXHitRate', round(100.0 * ms.two_x_hits / nullif(cs.measured, 0), 2),
-    'fiveXHitRate', round(100.0 * ms.five_x_hits / nullif(cs.measured, 0), 2),
+    'milestoneHistoryComplete', coalesce(cs.milestone_coverage_complete, false),
+    'down50Hits', case when cs.milestone_coverage_complete then coalesce(ms.down_50_hits, 0) end,
+    'plus50Hits', case when cs.milestone_coverage_complete then coalesce(ms.plus_50_hits, 0) end,
+    'twoXHits', case when cs.milestone_coverage_complete then coalesce(ms.two_x_hits, 0) end,
+    'fiveXHits', case when cs.milestone_coverage_complete then coalesce(ms.five_x_hits, 0) end,
+    'down50Rate', case when cs.milestone_coverage_complete then round(100.0 * coalesce(ms.down_50_hits,0) / nullif(cs.measured, 0), 2) end,
+    'plus50Rate', case when cs.milestone_coverage_complete then round(100.0 * coalesce(ms.plus_50_hits,0) / nullif(cs.measured, 0), 2) end,
+    'twoXHitRate', case when cs.milestone_coverage_complete then round(100.0 * coalesce(ms.two_x_hits,0) / nullif(cs.measured, 0), 2) end,
+    'fiveXHitRate', case when cs.milestone_coverage_complete then round(100.0 * coalesce(ms.five_x_hits,0) / nullif(cs.measured, 0), 2) end,
     'medianCurrentReturnBps', round(cs.median_current_bps)::bigint,
     'medianPeakReturnBps', round(cs.median_peak_bps)::bigint,
     'averagePeakReturnBps', round(cs.average_peak_bps)::bigint,

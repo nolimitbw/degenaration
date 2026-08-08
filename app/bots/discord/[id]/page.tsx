@@ -117,19 +117,15 @@ export default function DiscordSourceDetailsPage() {
             </section>
 
             <section className="rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Result distribution</h2><p className="mt-1 text-[11px] text-dim">Best level each eligible call reached, plus how many are underwater by half right now.</p></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Call milestones</h2><p className="mt-1 text-[11px] text-dim">First-hit levels from observed prices, plus how many calls are down by half now.</p></header>
+              {!source.milestoneHistoryComplete && <p className="border-b border-edge bg-void px-5 py-3 text-[11px] text-dim">Insufficient historical data. Milestones begin with the immutable price journal.</p>}
               <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-5">
-                {/* "Down 50%+" read `down50`, which counts peak_x < 0.5 — calls that never
-                    recovered half the entry, not calls that are down half. A call that opened
-                    flat and fell 78% reported 0, understating the downside a subscriber copies.
-                    It now reads the current-drawdown count. The other four stay peak-based:
-                    "reached 2x" is a milestone, and they partition the population. */}
                 {[
                   ["Down 50%+ now", source.currentlyDown50 ?? 0, "text-down"],
-                  ["Below +50%", source.under50, "text-dim"],
-                  ["Reached +50%", source.plus50, "text-gold-400"],
-                  ["Reached 2x", source.twoX, "text-up"],
-                  ["Reached 5x+", source.fiveX, "text-up"]
+                  ["Hit -50%", source.milestoneHistoryComplete ? source.down50Hits ?? 0 : "--", "text-down"],
+                  ["Hit +50%", source.milestoneHistoryComplete ? source.plus50Hits ?? 0 : "--", "text-gold-400"],
+                  ["Hit 2x", source.milestoneHistoryComplete ? source.twoXHits ?? 0 : "--", "text-up"],
+                  ["Hit 5x", source.milestoneHistoryComplete ? source.fiveXHits ?? 0 : "--", "text-up"]
                 ].map(([label, value, tone]) => <div key={label as string} className="bg-void p-5"><p className={`font-mono text-2xl font-semibold ${tone}`}>{value}</p><p className="mt-2 text-xs text-dim">{label}</p></div>)}
               </div>
               {(source.bestCall || source.worstCall) && (
