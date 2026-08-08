@@ -29,7 +29,7 @@ const OUT = args.out || "docs/ai/evidence/browser";
 
 /** The four widths the parity matrix requires. */
 const VIEWPORTS = [
-  { name: "mobile", width: 390, height: 844, mobile: true },
+  { name: "mobile", width: 375, height: 812, mobile: true },
   { name: "tablet-768", width: 768, height: 1024, mobile: false },
   { name: "tablet", width: 1024, height: 768, mobile: false },
   { name: "desktop", width: 1440, height: 1000, mobile: false }
@@ -73,7 +73,16 @@ const PRIVATE_PLAN = [
   { id: "admin", path: "/admin", note: "Admin console — owner only" }
 ];
 
-const PLANS = { public: PUBLIC_PLAN, private: PRIVATE_PLAN };
+/** Secure ownership surface in its signed-out, non-authorizing state. */
+const OWNER_LINK_PLAN = [
+  {
+    id: "discord-owner-link",
+    path: "/connect/discord/aaaaaaaa-0000-4000-8000-000000000001",
+    note: "Public session id alone cannot claim a source; sign-in and matching Discord proof are required"
+  }
+];
+
+const PLANS = { public: PUBLIC_PLAN, private: PRIVATE_PLAN, "owner-link": OWNER_LINK_PLAN };
 
 /**
  * Assertions that hold on every page, from the parity matrix and the launch spec:
@@ -154,6 +163,12 @@ async function main() {
           try { await page.waitFor(SESSION_READY, { timeoutMs: 30000 }); }
           catch { throw new Error("no Privy session restored in 30s — this would have captured " +
             "the signed-out view and filed it as authenticated evidence"); }
+        }
+        if (PLAN === "owner-link") {
+          // The first cold Privy bootstrap can outlive the generic settle delay on mobile.
+          // Wait for the actual non-authorizing signed-out state so a transient skeleton is
+          // never filed as ownership-flow evidence.
+          await page.waitFor("document.body.innerText.includes('Sign in to DegenAration')", { timeoutMs: 30000 });
         }
         // Let the client-rendered surface settle after the resize before measuring. Data-backed
         // panels fetch after the session resolves, so this runs AFTER the wait above.
