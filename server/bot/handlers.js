@@ -22,12 +22,10 @@
 const INGESTED_LIMIT = 5000;
 
 /**
- * Message IDs this process successfully ingested.
- *
- * Bounded: a long-running bot in an active server would otherwise grow this without limit.
- * Losing the oldest entries only means an old deletion is not journaled, which is the safe
- * direction — the alternative is opening a raw signal and a rejected parse for every
- * deleted message in the channel, burying the retractions that matter under moderation.
+ * Message IDs this process successfully ingested. Kept only for local diagnostics now that
+ * approved-channel deletes are always forwarded: a process-memory gate cannot preserve a
+ * retraction across a restart. The database makes an unknown delete rejected evidence and
+ * never a call, so durability no longer depends on this bounded cache.
  */
 class IngestedMessages {
   constructor(limit = INGESTED_LIMIT) {
@@ -105,6 +103,7 @@ function createMessageHandlers({
   parseMessage,
   ingestEvent,
   approvedChannel,
+  acknowledge = async () => {},
   selfId = () => null,
   log = () => {},
   noteFreshness = () => {},
@@ -197,11 +196,29 @@ function createMessageHandlers({
   async function handleDetectedCall({ msg, group, parsed, eventType, eventVersion, editedAt }) {
     if (parsed?.rejected) {
       counters.refusedAmbiguous += 1;
+      const rejectionReason = "ambiguous_mint";
       log("call.rejected", {
         channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
-        reason: parsed.rejected, candidates: parsed.candidates, eventType
+        reason: rejectionReason, parserReason: parsed.rejected, candidates: parsed.candidates, eventType
       });
-      return null;
+      try {
+        return await ingestEvent({
+          guildId: msg.guild?.id || null,
+          channelId: msg.channel.id,
+          channelName: msg.channel.name,
+          messageId: msg.id,
+          caller: callerName(msg),
+          group,
+          call: null,
+          rejectionReason,
+          eventType,
+          eventVersion,
+          editedAt
+        });
+      } catch (e) {
+        onError("rejection ingest", e);
+        return null;
+      }
     }
     if (!parsed?.mint) {
       // NOT a silent return. This branch is reached by every ordinary message in an approved
@@ -236,7 +253,7 @@ function createMessageHandlers({
       mint: parsed.mint, confidence: parsed.confidence, eventType
     });
     try {
-      return await ingestEvent({
+      const outcome = await ingestEvent({
         guildId: msg.guild?.id || null,
         channelId: msg.channel.id,
         channelName: msg.channel.name,
@@ -248,6 +265,15 @@ function createMessageHandlers({
         eventVersion,
         editedAt
       });
+      if (outcome?.accepted === true && outcome?.duplicate !== true && eventType !== "delete"
+          && group.scannerAcknowledgmentsEnabled !== false) {
+        try {
+          await acknowledge({ msg, group, call: parsed, eventType, eventVersion, outcome });
+        } catch (error) {
+          onError("acknowledgment", error);
+        }
+      }
+      return outcome;
     } catch (e) {
       onError("ingest", e);
       return null;
@@ -255,6 +281,12 @@ function createMessageHandlers({
   }
 
   async function onMessageCreate(msg) {
+    if (msg?.partial && typeof msg.fetch === "function") {
+      msg = await msg.fetch().catch((error) => {
+        onError("message create fetch", error);
+        return null;
+      });
+    }
     if (!msg?.guild) return;
     counters.messagesReceived += 1;
     // A message with no content, no embeds and no attachments is the shape a process gets when
@@ -335,15 +367,15 @@ function createMessageHandlers({
   }
 
   /**
-   * A deleted call is retracted, not forgotten.
-   *
-   * Forwarded only for a message this process actually ingested. A blanket forward would
-   * open a raw signal and a rejected parse for every deleted message in the channel, which
-   * buries the retractions that matter among ordinary moderation.
+ * A deleted call is retracted, not forgotten.
+ *
+ * Every deletion in an approved channel is forwarded. The former process-memory gate lost
+ * retractions whenever the listener restarted between create and delete. The journal records
+ * a non-call deletion as rejected evidence and destroys nothing; that small diagnostic cost is
+ * preferable to publishing a deleted call forever.
    */
   async function onMessageDelete(message) {
     try {
-      if (!ingested.has(message?.id)) return;
       const group = resolveChannel(message);
       if (!group) return;
       ingested.forget(message.id);

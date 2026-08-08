@@ -40,7 +40,12 @@ async function loadApprovedChannels() {
   const data = await r.json();
   const map = {};
   for (const c of data?.channels || []) {
-    map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name, guildId: c.guild_id };
+    map[c.channel_id] = {
+      groupId: c.group_id,
+      groupName: c.guild_name,
+      guildId: c.guild_id,
+      scannerAcknowledgmentsEnabled: c.scanner_acknowledgments_enabled !== false
+    };
   }
   return map;
 }

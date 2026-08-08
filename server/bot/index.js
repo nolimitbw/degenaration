@@ -16,6 +16,11 @@ const { parseCall, parseMessage } = require("./parser");
 const { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile } = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
 const { createMessageHandlers, IngestedMessages } = require("./handlers");
+const {
+  scannerAcknowledgmentsEnabled,
+  isFreshAcceptedIngest,
+  buildScannerAcknowledgment
+} = require("./acknowledgment");
 
 const INGEST_URL = process.env.INGEST_URL;              // e.g. https://degenaration.vercel.app/api/ingest-call
 const BOT_SECRET = process.env.BOT_SHARED_SECRET;
@@ -23,6 +28,7 @@ const REFRESH_MS = Number(process.env.CHANNELS_REFRESH_MS || 30000);
 const RELAY_CHANNEL_ID = process.env.RELAY_CHANNEL_ID || "";
 const BOT_BUILD = process.env.BOT_BUILD || "source-tools-v2";
 const SITE_URL = (process.env.SITE_URL || "https://degenaration.vercel.app").replace(/\/+$/, "");
+const SCANNER_ACKNOWLEDGMENTS = process.env.SCANNER_ACKNOWLEDGMENTS;
 
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
 // Declared with the other configuration rather than beside its setInterval: the ready handler
@@ -212,22 +218,23 @@ async function postIngest(payload) {
  * journaled here, because "detected but never recorded" is the failure this whole path
  * exists to make visible.
  */
-async function ingestEvent({ guildId, channelId, channelName, messageId, caller, group, call, eventType = "create", eventVersion, editedAt }) {
+async function ingestEvent({ guildId, channelId, channelName, messageId, caller, group, call, rejectionReason, eventType = "create", eventVersion, editedAt }) {
   if (!INGEST_URL || !BOT_SECRET) throw new Error("INGEST_URL / BOT_SHARED_SECRET not set");
-  const payload = buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, eventType, eventVersion, editedAt });
+  const payload = buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, rejectionReason, eventType, eventVersion, editedAt });
 
   for (let attempt = 0; attempt < INGEST_ATTEMPTS; attempt += 1) {
     const result = await postIngest(payload);
     if (result.ok) {
-      const accepted = result.body?.accepted !== false;
+      const accepted = result.body?.accepted === true;
+      const freshAccepted = isFreshAcceptedIngest(result.body, eventType);
       log("ingest.delivered", {
         channelId, messageId, eventType, mint: payload.mint,
         accepted, outcome: result.body?.status || (result.body?.duplicate ? "duplicate" : "accepted"),
         reason: result.body?.reason || null, attempt: attempt + 1
       });
       noteFreshness(channelId, accepted ? "lastAccepted" : "lastRejected");
-      if (accepted && eventType !== "delete") ingestedMessages.remember(messageId);
-      if (accepted && eventType === "create") await relayCall({ caller, channelName, group, call });
+      if (freshAccepted) ingestedMessages.remember(messageId);
+      if (freshAccepted && eventType === "create") await relayCall({ caller, channelName, group, call });
       return result.body;
     }
 
@@ -452,6 +459,22 @@ const listener = createMessageHandlers({
   log,
   noteFreshness,
   ingested: ingestedMessages,
+  acknowledge: async ({ msg, group, call, outcome }) => {
+    if (!scannerAcknowledgmentsEnabled(
+      SCANNER_ACKNOWLEDGMENTS,
+      group.scannerAcknowledgmentsEnabled
+    )) return;
+    if (typeof msg.reply !== "function") throw new Error("source message cannot be replied to");
+    await msg.reply(buildScannerAcknowledgment({
+      mint: outcome?.mint || call.mint,
+      symbol: outcome?.symbol || null
+    }));
+    log("call.acknowledged", {
+      channelId: msg.channel.id,
+      messageId: msg.id,
+      mint: outcome?.mint || call.mint
+    });
+  },
   onLegacyRegister: (msg) => registerCallChannel({
     guild: msg.guild,
     channel: msg.channel,

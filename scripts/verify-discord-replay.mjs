@@ -57,7 +57,7 @@ const results = {};
 
 // ─── database ────────────────────────────────────────────────────────────────────────────
 const read = (f) => readFile(`${repo}/supabase/${f}`, "utf8");
-const [ingestSql, fanoutSql, fanoutFixSql, editFixSql, authSql, profilesSql] = await Promise.all([
+const [ingestSql, fanoutSql, fanoutFixSql, editFixSql, authSql, profilesSql, rejectedSql] = await Promise.all([
   read("degenaration-discord-signal-ingestion.sql"),
   read("degenaration-signal-fanout.sql"),
   read("degenaration-signal-fanout-source-ref.sql"),
@@ -65,7 +65,8 @@ const [ingestSql, fanoutSql, fanoutFixSql, editFixSql, authSql, profilesSql] = a
   read("degenaration-registered-channel-authorization.sql"),
   // #12 rebuilds bot_approved_call_channels, which this file defines. Applying it first keeps
   // the chain in the order production applies it.
-  read("degenaration-discord-public-profiles.sql")
+  read("degenaration-discord-public-profiles.sql"),
+  read("degenaration-discord-rejected-signals.sql")
 ]);
 
 const T = ["public.approved_groups", "public.call_channels", "public.calls", "app_private.bot_config_versions"];
@@ -112,6 +113,7 @@ async function freshDb({ withFanoutFix = true, withEditFix = true, withAuthFix =
   await db.exec(ingestSql);
   if (withEditFix) await db.exec(editFixSql);
   if (withAuthFix) await db.exec(authSql);
+  if (withAuthFix) await db.exec(rejectedSql);
   await db.exec(fanoutSql);
   if (withFanoutFix) await db.exec(fanoutFixSql);
 
@@ -134,6 +136,7 @@ async function freshDb({ withFanoutFix = true, withEditFix = true, withAuthFix =
 function makeListener({ db, approvedChannels, onPayload }) {
   const delivered = [];
   const logged = [];
+  const acknowledged = [];
   const ingested = new IngestedMessages();
   // The create path discards ingestEvent's return value, so the last outcome is captured here.
   const state = { lastOutcome: null };
@@ -143,6 +146,7 @@ function makeListener({ db, approvedChannels, onPayload }) {
     selfId: () => ids.selfApplication,
     log: (event, fields) => logged.push({ event, ...fields }),
     noteFreshness: () => {},
+    acknowledge: async (entry) => acknowledged.push(entry),
     ingested,
     onError: (scope, error) => { throw new Error(`${scope}: ${error.message}`); },
     // The one seam. index.js posts this to /api/ingest-call; here the same payload goes
@@ -152,11 +156,13 @@ function makeListener({ db, approvedChannels, onPayload }) {
       delivered.push(payload);
       const outcome = await onPayload(payload);
       state.lastOutcome = outcome;
-      if (outcome?.accepted !== false && args.eventType !== "delete") ingested.remember(args.messageId);
+      if (outcome?.accepted === true && outcome?.duplicate !== true && args.eventType !== "delete") {
+        ingested.remember(args.messageId);
+      }
       return outcome;
     }
   });
-  return { handlers, delivered, logged, ingested, db, get lastOutcome() { return state.lastOutcome; } };
+  return { handlers, delivered, logged, acknowledged, ingested, db, get lastOutcome() { return state.lastOutcome; } };
 }
 
 /** The route's half: validate, price, call the RPC. No network — the price response is stored. */
@@ -167,6 +173,20 @@ async function routeIngest(db, payload) {
     ? selectPricePair(fixture.dexscreener, normalized.mint)
     : selectPricePair({ pairs: [] }, normalized.mint);
   const p = buildIngestRpcParams({ normalized, price, secret: "bot-secret" });
+  if (p.operation === "ingest_rejection") {
+    const { rows } = await db.query(
+      `select public.bot_record_discord_rejection(
+         p_secret => $1::text, p_guild_id => $2::text, p_channel_id => $3::text,
+         p_channel_name => $4::text, p_message_id => $5::text, p_caller => $6::text,
+         p_event_type => $7::text, p_event_version => $8::text,
+         p_rejection_reason => $9::text, p_parser_version => $10::text,
+         p_content_hash => $11::text) as r`,
+      [p.p_secret, p.p_guild_id, p.p_channel_id, p.p_channel_name, p.p_message_id,
+       p.p_caller, p.p_event_type, p.p_event_version, p.p_rejection_reason,
+       p.p_parser_version, p.p_content_hash]
+    );
+    return { ...rows[0].r, normalized, price };
+  }
   // Named arguments, exactly as PostgREST calls it. Positional would silently keep passing if
   // the signature gained an argument in the middle, which is how a guild ends up in a channel
   // parameter.
@@ -227,10 +247,53 @@ for (const event of fixture.events) {
   if (event.expect.rejected) {
     const refusal = listener.logged.find((l) => l.event === "call.rejected" && l.messageId === message.id);
     assert.ok(refusal, `${event.name}: a refusal must be reported, not dropped silently`);
-    assert.equal(refusal.reason, event.expect.rejected);
+    assert.equal(refusal.reason, "ambiguous_mint");
+    assert.equal(refusal.parserReason, event.expect.rejected);
   }
 }
 results.listenerGate = "PASS";
+
+const ambiguous = outcomes.get("twoBareAddresses");
+assert.equal(ambiguous.outcome.accepted, false);
+assert.equal(ambiguous.outcome.reason, "ambiguous_mint");
+assert.equal(ambiguous.outcome.duplicate, false);
+const ambiguousMessage = fixture.events.find((event) => event.name === "twoBareAddresses").message;
+const ambiguousRows = await db.query(`
+  select ps.status, ps.rejection_reason,
+         exists(select 1 from public.calls c where c.raw_event_id=rs.id) as made_call,
+         exists(select 1 from app_private.signal_deliveries d where d.parsed_signal_id=ps.id) as made_delivery
+  from app_private.raw_signals rs
+  join app_private.parsed_signals ps on ps.raw_signal_id=rs.id
+  where rs.external_event_id=$1::text`, [`${ambiguousMessage.id}:original`]);
+assert.deepEqual(ambiguousRows.rows[0], {
+  status: "rejected", rejection_reason: "ambiguous_mint", made_call: false, made_delivery: false
+});
+const ambiguousReplay = await routeIngest(db, ambiguous.payload);
+assert.equal(ambiguousReplay.duplicate, true, "replayed ambiguity reuses immutable evidence");
+results.ambiguousMintJournaled = "PASS";
+
+assert.ok(listener.acknowledged.length > 0, "fresh accepted calls receive scanner acknowledgments");
+assert.ok(listener.acknowledged.every((entry) => entry.outcome?.accepted === true && entry.outcome?.duplicate !== true),
+  "only a fresh committed call can be acknowledged");
+results.freshAcceptedAcknowledged = "PASS";
+
+// Discord may surface a partial object when the message was not cached. The create path must
+// hydrate it before applying the guild/channel and parser gates; treating the partial as an
+// empty message loses the call with the same symptom as a missing MessageContent intent.
+{
+  const hydrated = {
+    id: "1600000000000000801",
+    content: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    guild: { id: ids.guild },
+    channel: { id: ids.approvedChannel, name: "alpha-calls" },
+    author: { id: "1400000000000000080", bot: true, username: "Partial Feed" }
+  };
+  const partial = { partial: true, fetch: async () => hydrated };
+  const before = listener.delivered.length;
+  await listener.handlers.onMessageCreate(partial);
+  assert.equal(listener.delivered.length, before + 1, "a MESSAGE_CREATE partial is fetched and ingested");
+  results.partialCreateHydrated = "PASS";
+}
 
 // ---- a message that is not a call must still be visible ----
 //
@@ -557,8 +620,15 @@ const retracted = (await db.query(
   "select parse_status, deleted_at from public.calls where message_id = $1::text", ["1600000000000000001"])).rows[0];
 assert.equal(retracted.parse_status, "rejected", "the deleted message's call is retracted");
 assert.ok(retracted.deleted_at, "with the time it stopped being current");
-assert.equal((await db.query("select count(*)::integer c from public.calls")).rows[0].c, 4,
+assert.equal((await db.query("select count(*)::integer c from public.calls")).rows[0].c, 5,
   "no call row was destroyed by the delete — history is preserved, not erased");
+const nonCallDelete = (await db.query(
+  `select ps.status, ps.rejection_reason
+   from app_private.parsed_signals ps
+   join app_private.raw_signals rs on rs.id = ps.raw_signal_id
+   where rs.external_event_id = $1::text`, ["1600000000000000404:deleted"])).rows[0];
+assert.equal(nonCallDelete.status, "rejected", "an unknown deletion is diagnostic evidence, never a call");
+assert.equal(nonCallDelete.rejection_reason, "source message deleted");
 results.deleteRetractsPreservesHistory = "PASS";
 
 // ---- replay safety: the same events again change nothing ----
@@ -583,6 +653,9 @@ const countsAfter = (await db.query(
 assert.deepEqual(countsAfter, countsBefore,
   "replaying every stored event creates no second journal row, call or delivery — this is what " +
   "makes it safe for two listeners to watch the same channel while one is retired");
+assert.equal(replayListener.acknowledged.length, 0,
+  "reconnect/replay receives duplicate journal outcomes and cannot acknowledge twice");
+results.replayAcknowledgmentDeduped = "PASS";
 results.replaySafe = "PASS";
 
 await db.close();

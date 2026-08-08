@@ -18,6 +18,8 @@ export interface NormalizedIngest {
   messageId: string | null;
   caller: string | null;
   confidence: string | null;
+  candidateType: "mint" | "dexscreener_address";
+  rejectionReason: "ambiguous_mint" | null;
   mint: string | null;
   eventType: "create" | "edit" | "delete";
   eventVersion: string;
@@ -34,6 +36,7 @@ export interface CallPrice {
 }
 
 export declare const EVENT_TYPES: Set<string>;
+export declare const REJECTION_REASONS: Set<string>;
 export declare const CONFIDENCE_BPS: Record<string, number>;
 export declare const DEFAULT_CONFIDENCE_BPS: number;
 export declare const PARSER_VERSION: string;
@@ -51,6 +54,8 @@ export declare function contentHashFor(input: {
 }): string;
 export declare function normalizeIngestRequest(body: unknown): NormalizedIngest | IngestRefusal;
 export declare function selectPricePair(payload: unknown, mint: string): CallPrice;
+export declare function resolveDexScreenerPair(payload: unknown, pairAddress: string): string | null;
+export declare function withResolvedMint(normalized: NormalizedIngest, mint: string): NormalizedIngest;
 export declare function buildIngestRpcParams(input: {
   normalized: NormalizedIngest;
   price: CallPrice | null;

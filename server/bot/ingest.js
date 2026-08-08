@@ -55,7 +55,7 @@ function nextBackoffMs(attempt) {
  * create and again as an edit without either overwriting the other. The route rejects an
  * empty one for edits and deletes, so it is built here rather than defaulted there.
  */
-function buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, eventType = "create", eventVersion, editedAt }) {
+function buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, rejectionReason, eventType = "create", eventVersion, editedAt }) {
   const version = eventVersion || (eventType === "create" ? "original" : null);
   if (!version) throw new Error(`event version required for ${eventType}`);
   return {
@@ -69,6 +69,8 @@ function buildIngestPayload({ guildId, channelId, channelName, messageId, caller
     caller: caller || null,
     mint: call?.mint || null,
     confidence: call?.confidence || null,
+    candidateType: call?.candidateType || null,
+    rejectionReason: rejectionReason || null,
     eventType,
     eventVersion: String(version).slice(0, 64),
     editedAt: editedAt || null

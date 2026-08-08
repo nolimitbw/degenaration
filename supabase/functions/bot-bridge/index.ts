@@ -28,6 +28,14 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
       "p_confidence_bps", "p_content_hash"
     ]
   },
+  ingest_rejection: {
+    rpc: "bot_record_discord_rejection",
+    params: [
+      "p_secret", "p_guild_id", "p_channel_id", "p_channel_name", "p_message_id",
+      "p_caller", "p_event_type", "p_event_version", "p_rejection_reason",
+      "p_parser_version", "p_content_hash"
+    ]
+  },
   guild_status: {
     rpc: "bot_guild_status",
     params: ["p_secret", "p_guild_id"]

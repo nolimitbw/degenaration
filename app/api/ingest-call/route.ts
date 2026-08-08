@@ -6,6 +6,8 @@ import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import {
   normalizeIngestRequest,
   selectPricePair,
+  resolveDexScreenerPair,
+  withResolvedMint,
   buildIngestRpcParams
 } from "@/lib/discord-ingest";
 
@@ -79,15 +81,33 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "bad json" }, { status: 400 }); }
 
-  const normalized = normalizeIngestRequest(body);
-  if (!normalized.ok) {
-    return NextResponse.json({ error: normalized.error }, { status: normalized.status });
+  const initialNormalized = normalizeIngestRequest(body);
+  if (!initialNormalized.ok) {
+    return NextResponse.json({ error: initialNormalized.error }, { status: initialNormalized.status });
   }
+  let normalized = initialNormalized;
 
   if (normalized.mint) {
     const validation = await verifySolanaMint(normalized.mint);
     if (validation.unavailable) return NextResponse.json({ error: "mint validation temporarily unavailable" }, { status: 503 });
-    if (!validation.ok) return NextResponse.json({ error: "address is not a Solana token mint" }, { status: 422 });
+    if (!validation.ok && normalized.candidateType === "dexscreener_address") {
+      try {
+        const pairPayload = await fetchWithTimeout(
+          `https://api.dexscreener.com/latest/dex/pairs/solana/${normalized.mint}`,
+          { cache: "no-store" }
+        ).then((response) => response.json());
+        const resolved = resolveDexScreenerPair(pairPayload, normalized.mint);
+        if (!resolved) return NextResponse.json({ error: "DexScreener pair does not identify one token" }, { status: 422 });
+        const resolvedValidation = await verifySolanaMint(resolved);
+        if (resolvedValidation.unavailable) return NextResponse.json({ error: "mint validation temporarily unavailable" }, { status: 503 });
+        if (!resolvedValidation.ok) return NextResponse.json({ error: "resolved address is not a Solana token mint" }, { status: 422 });
+        normalized = withResolvedMint(normalized, resolved);
+      } catch {
+        return NextResponse.json({ error: "pair resolution temporarily unavailable" }, { status: 503 });
+      }
+    } else if (!validation.ok) {
+      return NextResponse.json({ error: "address is not a Solana token mint" }, { status: 422 });
+    }
   }
 
   // 1. Enrich with live price data before sending the normalized call to Supabase.

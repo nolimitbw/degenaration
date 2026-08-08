@@ -2197,6 +2197,12 @@ console.log("price selection");
 // the mint often appears only inside a button URL or an embed field.
 {
   const { parseMessage } = require("../bot/parser");
+  const {
+    scannerAcknowledgmentsEnabled,
+    isFreshAcceptedIngest,
+    shortenMint,
+    buildScannerAcknowledgment
+  } = require("../bot/acknowledgment");
   const MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
   console.log("automated call ingestion");
 
@@ -2273,6 +2279,33 @@ console.log("price selection");
       components: [{ components: [{ url: `https://dexscreener.com/solana/${MINT}` }] }]
     });
     assert.ok(r && r.mint === MINT, "the link names the token; the bare address does not");
+    assert.equal(r.candidateType, "dexscreener_address", "the server must validate mint-or-pool provenance");
+  });
+
+  test("scanner acknowledgments default on and honor global and source switches", () => {
+    assert.strictEqual(scannerAcknowledgmentsEnabled(undefined, undefined), true);
+    assert.strictEqual(scannerAcknowledgmentsEnabled("off", true), false);
+    assert.strictEqual(scannerAcknowledgmentsEnabled("0", true), false);
+    assert.strictEqual(scannerAcknowledgmentsEnabled("on", false), false);
+    assert.strictEqual(scannerAcknowledgmentsEnabled("on", true), true);
+  });
+
+  test("only a fresh accepted journal commit can trigger an acknowledgment", () => {
+    assert.strictEqual(isFreshAcceptedIngest({ accepted: true }, "create"), true);
+    assert.strictEqual(isFreshAcceptedIngest({ accepted: true }, "edit"), true);
+    assert.strictEqual(isFreshAcceptedIngest({ accepted: true, duplicate: true }, "create"), false);
+    assert.strictEqual(isFreshAcceptedIngest({ accepted: false }, "create"), false);
+    assert.strictEqual(isFreshAcceptedIngest({ accepted: true }, "delete"), false);
+  });
+
+  test("scanner acknowledgment is concise, safe, and carries no mention", () => {
+    assert.strictEqual(shortenMint(MINT), "DezXAZ…B263");
+    const body = buildScannerAcknowledgment({ mint: MINT, symbol: "BONK", timestamp: "2026-08-08T00:00:00.000Z" });
+    assert.deepStrictEqual(body.allowedMentions, { parse: [], repliedUser: false });
+    assert.strictEqual(body.embeds[0].title, "Call detected");
+    assert.match(body.embeds[0].description, /BONK/);
+    assert.match(body.embeds[0].description, /DezXAZ…B263/);
+    assert.strictEqual(body.embeds[0].fields[0].value, "Journaled");
   });
 }
 
@@ -2347,6 +2380,18 @@ console.log("price selection");
     assert.equal(del.mint, null);
   });
 
+  test("an ambiguous parser result becomes a rejection-only bridge operation", () => {
+    const rejected = req({ mint: null, rejectionReason: "ambiguous_mint" });
+    assert.equal(rejected.ok, true);
+    assert.equal(rejected.mint, null);
+    const p = di.buildIngestRpcParams({ normalized: rejected, price: null, secret: "s" });
+    assert.equal(p.operation, "ingest_rejection");
+    assert.equal(p.p_rejection_reason, "ambiguous_mint");
+    assert.equal(Object.hasOwn(p, "p_mint"), false, "the rejection writer cannot be given a mint");
+    assert.equal(req({ mint: null, rejectionReason: "pick_the_first_one" }).ok, false,
+      "the bot cannot invent a rejection reason outside the audited allowlist");
+  });
+
   test("an edit or delete without an event version is refused; a create defaults to original", () => {
     assert.equal(req({ eventType: "edit", eventVersion: null }).ok, false);
     assert.equal(req({ eventType: "delete", eventVersion: "  ", mint: null }).ok, false);
@@ -2403,6 +2448,34 @@ console.log("price selection");
     assert.equal(zero.calledPrice, null, "a zero price is missing data, not a price");
   });
 
+  test("a DexScreener pool resolves only when one side is a known quote token", () => {
+    const pairAddress = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1";
+    const resolved = di.resolveDexScreenerPair({ pairs: [{
+      chainId: "solana", pairAddress,
+      baseToken: { address: M },
+      quoteToken: { address: "So11111111111111111111111111111111111111112" }
+    }] }, pairAddress);
+    assert.equal(resolved, M);
+    assert.equal(di.resolveDexScreenerPair({ pairs: [{
+      chainId: "solana", pairAddress,
+      baseToken: { address: M }, quoteToken: { address: M2 }
+    }] }, pairAddress), null, "an unfamiliar pair is ambiguous and must not be guessed");
+    assert.equal(di.resolveDexScreenerPair({ pairs: [{
+      chainId: "solana", pairAddress: M2,
+      baseToken: { address: M },
+      quoteToken: { address: "So11111111111111111111111111111111111111112" }
+    }] }, pairAddress), null, "the response must describe the requested pool");
+  });
+
+  test("resolving a pool rebuilds the immutable content hash around the verified mint", () => {
+    const candidate = req({ candidateType: "dexscreener_address" });
+    const before = candidate.contentHash;
+    const resolved = di.withResolvedMint(candidate, M2);
+    assert.equal(resolved.mint, M2);
+    assert.equal(resolved.candidateType, "mint");
+    assert.notEqual(resolved.contentHash, before);
+  });
+
   test("the bridge body carries the parse evidence and hash the RPC validates", () => {
     const n = req({});
     const p = di.buildIngestRpcParams({ normalized: n, price: di.selectPricePair({ pairs: [] }, M), secret: "s" });
@@ -2421,7 +2494,7 @@ console.log("price selection");
     const set = new IngestedMessages(3);
     for (const id of ["a", "b", "c", "d"]) set.remember(id);
     assert.equal(set.size, 3, "an active server must not grow this without limit");
-    assert.equal(set.has("a"), false, "the oldest is dropped, so an old deletion is simply not journalled");
+    assert.equal(set.has("a"), false, "the diagnostic cache is bounded; delete journaling no longer depends on it");
     assert.equal(set.has("d"), true);
     set.forget("d");
     assert.equal(set.has("d"), false, "a forwarded delete does not stay remembered");

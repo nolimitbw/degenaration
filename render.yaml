@@ -83,6 +83,9 @@ services:
       # Optional. Approved-channel refresh interval; defaults in code when unset.
       - key: CHANNELS_REFRESH_MS
         sync: false
+      # Optional global scanner acknowledgment switch. Defaults on; set to off to disable.
+      - key: SCANNER_ACKNOWLEDGMENTS
+        sync: false
       # Optional relay/notification targets.
       - key: RELAY_CHANNEL_ID
         sync: false

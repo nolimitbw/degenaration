@@ -317,6 +317,26 @@ export const PACKAGE = [
       "the worker build that reads it — store.js selects filled_dca_levels and PostgREST " +
       "answers an unknown column with 400.",
   },
+  {
+    n: 23,
+    apply: "degenaration-discord-scanner-acknowledgments.sql",
+    rollback: "23-discord-scanner-acknowledgments.sql",
+    reapply: [],
+    note:
+      "Adds the default-on per-source scanner acknowledgment switch and exposes it through " +
+      "the listener's approved-channel map. The rollback restores the prior map body before " +
+      "dropping the column, so an incident rollback never leaves the listener RPC broken.",
+  },
+  {
+    n: 24,
+    apply: "degenaration-discord-rejected-signals.sql",
+    rollback: "24-discord-rejected-signals.sql",
+    reapply: [],
+    note:
+      "Adds a separate authorized journal writer for parser rejections. It can write only " +
+      "raw_signals and rejected parsed_signals; it cannot create a canonical call, delivery, " +
+      "or trade intent. Fully additive and replay-idempotent.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

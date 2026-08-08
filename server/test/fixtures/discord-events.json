@@ -106,7 +106,7 @@
     {
       "name": "twoBareAddresses",
       "why": "A wallet flex next to a mint. With no link to say which is the token, refusing is the only safe answer — buying the wrong one of two addresses is unrecoverable.",
-      "expect": { "ingested": false, "rejected": "ambiguous-addresses" },
+      "expect": { "ingested": true, "rejected": "ambiguous-addresses" },
       "message": {
         "id": "1600000000000000005",
         "content": "dev 5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1 holding EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
@@ -200,9 +200,9 @@
       }
     },
     {
-      "name": "ignoreNeverIngested",
-      "why": "A blanket forward would open a raw signal and a rejected parse for every deleted message in the channel, burying the retractions that matter under ordinary moderation.",
-      "expect": { "ingested": false, "reason": "never became a call" },
+      "name": "preserveDeletionAfterRestart",
+      "why": "The listener may restart between create and delete. Forwarding every approved-channel deletion lets the durable journal decide whether a call existed instead of losing retractions to process memory.",
+      "expect": { "ingested": true, "reason": "durable journal decides" },
       "message": {
         "id": "1600000000000000404",
         "guild": { "id": "1520209045544374342" },
