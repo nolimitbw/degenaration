@@ -848,7 +848,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           )}
 
           <FormSection
-            title="Buy amount"
+            title={kind === "discord" ? "Margin amount per trade" : "Buy amount"}
             pending={pendingFor("funding")}
             description="How much this bot spends per entry."
             summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
