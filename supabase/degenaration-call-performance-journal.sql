@@ -227,6 +227,7 @@ begin
     from parsed group by group_id
   ), call_stats as (
     select c.group_id,
+      count(*)::integer accepted,
       count(*) filter (where c.deleted_at is not null)::integer retracted,
       count(*) filter (where c.parse_status='accepted' and c.deleted_at is null
         and c.called_at >= now() - interval '30 days')::integer active_monitoring,
@@ -253,8 +254,11 @@ begin
   )
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', g.id,
-    'totalCalls', coalesce(ps.total, 0),
-    'acceptedCalls', coalesce(ps.accepted, 0),
+    -- Canonical calls are the accepted record of fact, including legacy calls that predate
+    -- raw_signals. Parsed rows supply rejection diagnostics; counting accepted parses again
+    -- would double-count every modern canonical call.
+    'totalCalls', coalesce(cs.accepted, 0) + coalesce(ps.rejected, 0) + coalesce(ps.duplicates, 0),
+    'acceptedCalls', coalesce(cs.accepted, 0),
     'rejectedCalls', coalesce(ps.rejected, 0),
     'duplicateSignals', coalesce(ps.duplicates, 0),
     'retractedCalls', coalesce(cs.retracted, 0),
