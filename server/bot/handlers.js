@@ -266,6 +266,7 @@ function createMessageHandlers({
         editedAt
       });
       if (outcome?.accepted === true && outcome?.duplicate !== true && eventType !== "delete"
+          && !String(eventVersion || "").startsWith("history:")
           && group.scannerAcknowledgmentsEnabled !== false) {
         try {
           await acknowledge({ msg, group, call: parsed, eventType, eventVersion, outcome });
@@ -322,6 +323,37 @@ function createMessageHandlers({
 
     const parsed = await parseWithContext(msg);
     return handleDetectedCall({ msg, group, parsed, eventType: "create", eventVersion: "original" });
+  }
+
+  /**
+   * Journal a message fetched from Discord history without producing a public reply.
+   * The timestamp is carried in the immutable event version so the database can preserve
+   * when the source actually posted the call rather than when this repair discovered it.
+   */
+  async function onHistoricalMessage(msg) {
+    if (msg?.partial && typeof msg.fetch === "function") {
+      msg = await msg.fetch().catch((error) => {
+        onError("historical message fetch", error);
+        return null;
+      });
+    }
+    if (!msg?.guild) return null;
+    if (msg.author?.id && msg.author.id === selfId()) return null;
+    const group = resolveChannel(msg);
+    if (!group) return null;
+    const timestamp = Number(msg.createdTimestamp);
+    if (!Number.isFinite(timestamp)) {
+      onError("historical message", new Error("message has no creation timestamp"));
+      return null;
+    }
+    const parsed = await parseWithContext(msg);
+    return handleDetectedCall({
+      msg,
+      group,
+      parsed,
+      eventType: "create",
+      eventVersion: `history:${new Date(timestamp).toISOString()}`
+    });
   }
 
   /**
@@ -398,7 +430,7 @@ function createMessageHandlers({
   }
 
   return {
-    onMessageCreate, onMessageUpdate, onMessageDelete, parseWithContext, handleDetectedCall,
+    onMessageCreate, onHistoricalMessage, onMessageUpdate, onMessageDelete, parseWithContext, handleDetectedCall,
     /** What this process has seen but not watched. Answers "is the approved map correct?" */
     diagnostics: () => ({
       ...counters,

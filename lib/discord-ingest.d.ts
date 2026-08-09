@@ -13,6 +13,7 @@ export interface IngestRefusal {
 
 export interface NormalizedIngest {
   ok: true;
+  guildId: string | null;
   channelId: string;
   channelName: string | null;
   messageId: string | null;
@@ -23,6 +24,7 @@ export interface NormalizedIngest {
   mint: string | null;
   eventType: "create" | "edit" | "delete";
   eventVersion: string;
+  historicalBackfill: boolean;
   editedAt: string | null;
   confidenceBps: number;
   contentHash: string;

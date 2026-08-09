@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
   //    Best-effort: a call with no resolvable pair is still journaled, with a null price
   //    rather than a fabricated one.
   let price = null;
-  if (normalized.mint) try {
+  if (normalized.mint && !normalized.historicalBackfill) try {
     const payload = await fetchWithTimeout(
       `https://api.dexscreener.com/latest/dex/tokens/${normalized.mint}`,
       { cache: "no-store" }

@@ -13,7 +13,8 @@ function buildRuntimeHealth({ build, ready, guilds, approvedChannels, runtime })
       source_bridge: {
         approvedChannels,
         approvedRefresh: { ...runtime.approvedRefresh },
-        registration: { ...runtime.registration }
+        registration: { ...runtime.registration },
+        historyBackfill: { ...runtime.historyBackfill }
       }
     }
   };

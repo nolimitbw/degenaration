@@ -385,6 +385,16 @@ export const PACKAGE = [
       "Adds a service-only global readiness snapshot over audited system flags, worker lease " +
       "metadata and stale confirmed executions. It changes no execution authority.",
   },
+  {
+    n: 30,
+    apply: "degenaration-discord-history-backfill.sql",
+    rollback: "30-discord-history-backfill.sql",
+    reapply: [],
+    note:
+      "Adds a durable per-channel Discord history cursor. Historical calls preserve their " +
+      "source timestamp and deliberately have no fabricated call-time price; historical " +
+      "parses cannot fan out into deliveries or trades. The listener resumes after every page.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

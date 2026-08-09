@@ -146,4 +146,34 @@ async function createOwnerLink({ guildId, discordUserId, discordUsername }) {
   return data;
 }
 
-module.exports = { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink };
+async function rpc(name, body) {
+  if (!SB || !KEY || !BOT_SECRET) throw new Error("history backfill store not configured");
+  const response = await fetch(`${SB}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: H(),
+    body: JSON.stringify({ p_secret: BOT_SECRET, ...body })
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.message || `${name} failed (${response.status})`);
+  return data;
+}
+
+async function getHistoryBackfillState(channelId) {
+  return rpc("bot_discord_backfill_state", { p_channel_id: channelId });
+}
+
+async function saveHistoryBackfillState(channelId, state) {
+  return rpc("bot_update_discord_backfill_state", {
+    p_channel_id: channelId,
+    p_newest_message_id: state.newestMessageId || null,
+    p_oldest_message_id: state.oldestMessageId || null,
+    p_completed: Boolean(state.completed),
+    p_messages_scanned: Number(state.messagesScanned || 0),
+    p_last_error: state.lastError || null
+  });
+}
+
+module.exports = {
+  loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink,
+  getHistoryBackfillState, saveHistoryBackfillState
+};

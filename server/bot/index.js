@@ -14,10 +14,14 @@ require("dotenv").config();
 const http = require("http");
 const { Client, GatewayIntentBits, Partials, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
 const { parseCall, parseMessage } = require("./parser");
-const { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink } = require("./store");
+const {
+  loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink,
+  getHistoryBackfillState, saveHistoryBackfillState
+} = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
 const { createMessageHandlers, IngestedMessages } = require("./handlers");
 const { buildRuntimeHealth } = require("./runtime-health");
+const { backfillApprovedChannels } = require("./history-backfill");
 const {
   scannerAcknowledgmentsEnabled,
   isFreshAcceptedIngest,
@@ -33,6 +37,8 @@ const SITE_URL = (process.env.SITE_URL || "https://degenaration.vercel.app").rep
 const SCANNER_ACKNOWLEDGMENTS = process.env.SCANNER_ACKNOWLEDGMENTS;
 const HEALTH_PORT = Number(process.env.BOT_HEALTH_PORT || process.env.PORT || 10001);
 const HEALTH_HOST = process.env.HEALTH_HOST || "0.0.0.0";
+const HISTORY_BACKFILL_ENABLED = process.env.HISTORY_BACKFILL_ENABLED !== "off";
+const HISTORY_BACKFILL_MAX_MESSAGES = Math.max(100, Number(process.env.HISTORY_BACKFILL_MAX_MESSAGES || 50000));
 
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
 // Declared with the other configuration rather than beside its setInterval: the ready handler
@@ -146,7 +152,15 @@ let approved = {};
 const runtimeHealth = {
   approvedRefresh: { lastSuccessAt: null, lastError: null },
   commands: { lastSuccessAt: null, lastError: null },
-  registration: { attempts: 0, succeeded: 0, failed: 0, lastSuccessAt: null, lastFailureAt: null }
+  registration: { attempts: 0, succeeded: 0, failed: 0, lastSuccessAt: null, lastFailureAt: null },
+  historyBackfill: {
+    enabled: HISTORY_BACKFILL_ENABLED,
+    running: false,
+    completedChannels: 0,
+    messagesScanned: 0,
+    lastSuccessAt: null,
+    lastError: null
+  }
 };
 async function refresh() {
   try {
@@ -158,6 +172,33 @@ async function refresh() {
     runtimeHealth.approvedRefresh.lastError = String(e.message).slice(0, 160);
     console.error("[bot] channel refresh failed:", e.message);
   }
+}
+
+let backfillPromise = null;
+function startHistoryBackfill() {
+  if (!HISTORY_BACKFILL_ENABLED || backfillPromise) return backfillPromise;
+  runtimeHealth.historyBackfill.running = true;
+  runtimeHealth.historyBackfill.lastError = null;
+  backfillPromise = backfillApprovedChannels({
+    client,
+    approvedChannels: approved,
+    getState: getHistoryBackfillState,
+    saveState: saveHistoryBackfillState,
+    ingestMessage: (message) => listener.onHistoricalMessage(message),
+    maxMessagesPerChannel: HISTORY_BACKFILL_MAX_MESSAGES,
+    log
+  }).then((summary) => {
+    runtimeHealth.historyBackfill.completedChannels = summary.completedChannels;
+    runtimeHealth.historyBackfill.messagesScanned += summary.messagesScanned;
+    runtimeHealth.historyBackfill.lastSuccessAt = new Date().toISOString();
+  }).catch((error) => {
+    runtimeHealth.historyBackfill.lastError = String(error?.message || error).slice(0, 160);
+    log("history.backfill.failed", { error: runtimeHealth.historyBackfill.lastError });
+  }).finally(() => {
+    runtimeHealth.historyBackfill.running = false;
+    backfillPromise = null;
+  });
+  return backfillPromise;
 }
 
 /**
@@ -255,7 +296,9 @@ async function ingestEvent({ guildId, channelId, channelName, messageId, caller,
       });
       noteFreshness(channelId, accepted ? "lastAccepted" : "lastRejected");
       if (freshAccepted) ingestedMessages.remember(messageId);
-      if (freshAccepted && eventType === "create") await relayCall({ caller, channelName, group, call });
+      if (freshAccepted && eventType === "create" && !String(eventVersion || "").startsWith("history:")) {
+        await relayCall({ caller, channelName, group, call });
+      }
       return result.body;
     }
 
@@ -355,6 +398,7 @@ client.once("ready", async () => {
   await Promise.allSettled(client.guilds.cache.map((guild) => syncRegisterCommand(guild)));
   await refresh();
   console.log(`[bot] watching ${Object.keys(approved).length} approved channel(s)`);
+  startHistoryBackfill();
   setInterval(refresh, REFRESH_MS);
   // The one duty the legacy degencalls service still performed that this listener did not.
   // Until it does, retiring that service freezes every marketplace avatar, name and member
