@@ -3,7 +3,7 @@ import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
 import { validateBotPayload } from "@/lib/server/bot-validation";
 import { feeAccountReadiness } from "@/lib/server/fee-account";
-import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
+import { automationReadiness } from "@/lib/server/automation-readiness";
 import { plannedCapital } from "@/lib/planned-capital";
 // Plain CommonJS modules so the same table is testable in the synchronous server runner.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         })
   ]);
 
-  const fee = await feeAccountReadiness();
+  const [fee, release] = await Promise.all([feeAccountReadiness(), automationReadiness()]);
 
   const verdict = evaluateReadiness({
     authenticated: true,
@@ -115,9 +115,9 @@ export async function POST(req: NextRequest) {
     // Fail closed on an unreadable liveness answer: `live` stays undefined and the check fails.
     workerLive: liveness.ok ? liveness.data?.live === true : undefined,
     workerReason: liveness.ok ? liveness.data?.reason ?? null : "the execution service stopped reporting",
-    signerConfigured: liveness.ok ? liveness.data?.live === true : undefined,
+    signerConfigured: release.checks.find((check) => check.id === "signer")?.ok === true,
     feeAccountReady: fee.ready === true,
-    mainnetReleased: AUTOMATED_MAINNET_RELEASE.enabled
+    mainnetReleased: release.active
   });
 
   return NextResponse.json(verdict, { headers: { "Cache-Control": "no-store, max-age=0" } });

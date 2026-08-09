@@ -687,10 +687,6 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       toast(validationError, "err");
       return;
     }
-    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
-      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
-      return;
-    }
     if (status === "active" && (!walletAddress || !walletId)) {
       toast("Connect a verified Solana execution wallet first.", "err");
       return;

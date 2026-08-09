@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { distributedRateLimit } from "@/lib/server/distributed-rate-limit";
 import { BASE58_RE, UUID_RE, boundedInteger, exactLamports, isObject, rpcResponse } from "@/lib/server/product";
 import { callPrivyRpc, requirePrivyUser, requirePrivyWallet } from "@/lib/server/privy";
-import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
+import { automationReadiness } from "@/lib/server/automation-readiness";
 
 export async function GET(req: NextRequest) {
   const limited = await distributedRateLimit(req, { limit: 90, windowSeconds: 60 });
@@ -56,11 +56,14 @@ export async function POST(req: NextRequest) {
   if (status === "active" && body.confirmed !== true) {
     return NextResponse.json({ error: "activation confirmation required" }, { status: 400 });
   }
-  if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
+  if (status === "active") {
+    const readiness = await automationReadiness();
+    if (!readiness.active) {
     return NextResponse.json(
-      { error: AUTOMATED_MAINNET_RELEASE.reason, code: "AUTOMATION_RELEASE_LOCKED" },
+      { error: readiness.reason, code: "AUTOMATION_RELEASE_LOCKED" },
       { status: 503, headers: { "Retry-After": "3600" } }
     );
+    }
   }
   return rpcResponse(await callPrivyRpc("app_user_upsert_kol_subscription", {
     p_privy_user_id: user.privyUserId,

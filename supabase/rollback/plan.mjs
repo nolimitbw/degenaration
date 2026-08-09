@@ -376,6 +376,15 @@ export const PACKAGE = [
       "Adds one owner-scoped read model over immutable positions, lots, executions and exit " +
       "journals. It does not infer missing proceeds or mutate historical trade data.",
   },
+  {
+    n: 29,
+    apply: "degenaration-automation-runtime-readiness.sql",
+    rollback: "29-automation-runtime-readiness.sql",
+    reapply: [],
+    note:
+      "Adds a service-only global readiness snapshot over audited system flags, worker lease " +
+      "metadata and stale confirmed executions. It changes no execution authority.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

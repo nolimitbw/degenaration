@@ -138,10 +138,6 @@ export default function KolStrategyDetailsPage() {
       return;
     }
     if (!strategy) return;
-    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
-      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
-      return;
-    }
     if (status === "active" && invalid) {
       toast(invalid, "err");
       return;

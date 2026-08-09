@@ -28,7 +28,6 @@ import {
 } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
 import { formatSol, productFetch, type BotKind, type ProductBot } from "@/lib/product-api";
-import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -87,10 +86,6 @@ export default function BotManagerPage() {
   }), [bots]);
 
   async function saveBot(bot: ProductBot, status: ProductBot["status"], duplicate = false) {
-    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
-      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
-      return false;
-    }
     setBusy(bot.id);
     try {
       await productFetch("/api/product/bots", { getAccessToken, identityToken }, {
@@ -163,9 +158,6 @@ export default function BotManagerPage() {
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>
-      <p className="mt-3 rounded-md border border-gold-400/30 bg-gold-400/5 px-4 py-3 text-xs leading-5 text-dim">
-        Drafts remain editable on {AUTOMATED_MAINNET_RELEASE.label}. {AUTOMATED_MAINNET_RELEASE.reason}
-      </p>
 
       <div className="mt-5">
         {bots == null && !loadError && <div className="grid min-h-64 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-gold-400" /></div>}
@@ -247,7 +239,7 @@ export default function BotManagerPage() {
                                   disabled
                                   className="grid h-9 w-9 cursor-not-allowed place-items-center rounded-md border border-edge text-dim opacity-40"
                                   aria-label={`Activation unavailable for ${bot.name}`}
-                                  title={AUTOMATED_MAINNET_RELEASE.reason}
+                                  title="Activation runs the live worker, signer, scanner, fee and reconciliation checks."
                                 >
                                   <Play size={14} />
                                 </button>

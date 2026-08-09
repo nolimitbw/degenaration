@@ -18,7 +18,6 @@ import Logo from "@/components/Logo";
 import ReferralCaptureCompletion from "@/components/ReferralCaptureCompletion";
 import WalletRegistration from "@/components/WalletRegistration";
 import { useIsAdmin } from "@/lib/admin";
-import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 
 const WalletButton = dynamic(() => import("@/components/WalletButton"), {
   ssr: false,
@@ -42,6 +41,7 @@ function isActivePath(path: string, href: string) {
 
 function Notifications() {
   const [open, setOpen] = useState(false);
+  const [automation, setAutomation] = useState<{ status: string; reason: string; live: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const close = (event: MouseEvent) => {
@@ -49,6 +49,12 @@ function Notifications() {
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
+  }, []);
+  useEffect(() => {
+    fetch("/api/platform/config", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((value) => value?.automation && setAutomation(value.automation))
+      .catch(() => setAutomation(null));
   }, []);
 
   return (
@@ -72,8 +78,9 @@ function Notifications() {
             <li className="flex gap-2"><span className="text-up">Available</span> Manual swaps you confirm in your own wallet</li>
             <li className="flex gap-2"><span className="text-up">Available</span> Withdrawals and affiliate payouts</li>
             <li className="flex gap-2"><span className="text-up">Available</span> Building, editing, pausing and versioning bots</li>
-            <li className="flex gap-2"><span className="text-gold-400">Pending</span> Bots placing trades on their own</li>
+            <li className="flex gap-2"><span className={automation?.live ? "text-up" : "text-gold-400"}>{automation?.status || "Checking"}</span> Bots placing trades on their own</li>
           </ul>
+          {automation?.reason && <p className="mt-2 text-[11px] leading-5 text-dim">{automation.reason}</p>}
           <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-gold-400 hover:text-info">
             Review bot status
           </Link>

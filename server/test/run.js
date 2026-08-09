@@ -1395,6 +1395,16 @@ test("maps only the declared Solana networks", () => {
     const crippled = { ...store, loadOpenPositions: undefined };
     assert.deepStrictEqual(missingExitPath(crippled), ["loadOpenPositions"]);
   });
+
+  test("worker health reports every automation release capability", () => {
+    const source = require("fs").readFileSync(workerPath, "utf8");
+    for (const capability of [
+      "durableIntents", "quote", "simulation", "submission", "confirmation",
+      "positionCapture", "takeProfitStopLoss", "dailyRisk", "reconciliation"
+    ]) {
+      assert.match(source, new RegExp(`${capability}:`), `${capability} must be reported by /health`);
+    }
+  });
 }
 
 // --- confirmation classifier (submission is not settlement) ---

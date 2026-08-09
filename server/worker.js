@@ -126,6 +126,17 @@ http.createServer((req, res) => {
     copyTradingEnabled: COPY_TRADING_READY,
     network: NET,
     feeEnabled: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
+    capabilities: {
+      durableIntents: typeof store.claimCallExecution === "function",
+      quote: typeof getPrice === "function",
+      simulation: true,
+      submission: SIGNING_READY && typeof signAndSend === "function",
+      confirmation: typeof confirmSignature === "function",
+      positionCapture: typeof store.openPosition === "function",
+      takeProfitStopLoss: missing.length === 0,
+      dailyRisk: typeof store.claimCallExecution === "function",
+      reconciliation: typeof store.settleExecution === "function" && typeof store.settlePositionExit === "function"
+    },
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
     ...state
   }));
