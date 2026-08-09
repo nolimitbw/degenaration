@@ -72,7 +72,7 @@ export async function automationReadiness() {
     ...REQUIRED_CAPABILITIES.map((id) => ({ id, ok: capabilities[id] === true, reason: `The deployed worker has not reported its ${id} capability.` })),
     { id: "exits", ok: facts.automatedExitsEnabled === true, reason: "Automated take-profit and stop-loss exits are disabled by the release gate." },
     { id: "fee", ok: fee.ready === true && worker?.feeEnabled === true, reason: "The platform fee account is not ready on both the app and worker." },
-    { id: "reconciliation", ok: Number(facts.reconciliationWarnings ?? -1) === 0, reason: "Confirmed executions are awaiting reconciliation." }
+    { id: "reconciliationState", ok: Number(facts.reconciliationWarnings ?? -1) === 0, reason: "Confirmed executions are awaiting reconciliation." }
   ];
   const failed = checks.find((check) => !check.ok) || null;
   return {

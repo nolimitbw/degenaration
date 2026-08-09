@@ -11,11 +11,13 @@
  * The bot reads messages ONLY in APPROVED channels (loaded from the DB, refreshed live).
  */
 require("dotenv").config();
+const http = require("http");
 const { Client, GatewayIntentBits, Partials, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
 const { parseCall, parseMessage } = require("./parser");
 const { loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink } = require("./store");
 const { classifyDeliveryFailure, nextBackoffMs, buildIngestPayload, DeadLetterQueue } = require("./ingest");
 const { createMessageHandlers, IngestedMessages } = require("./handlers");
+const { buildRuntimeHealth } = require("./runtime-health");
 const {
   scannerAcknowledgmentsEnabled,
   isFreshAcceptedIngest,
@@ -29,6 +31,8 @@ const RELAY_CHANNEL_ID = process.env.RELAY_CHANNEL_ID || "";
 const BOT_BUILD = process.env.BOT_BUILD || "source-tools-v2";
 const SITE_URL = (process.env.SITE_URL || "https://degenaration.vercel.app").replace(/\/+$/, "");
 const SCANNER_ACKNOWLEDGMENTS = process.env.SCANNER_ACKNOWLEDGMENTS;
+const HEALTH_PORT = Number(process.env.BOT_HEALTH_PORT || process.env.PORT || 10001);
+const HEALTH_HOST = process.env.HEALTH_HOST || "0.0.0.0";
 
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
 // Declared with the other configuration rather than beside its setInterval: the ready handler
@@ -139,9 +143,21 @@ const COMMANDS = [REGISTER_COMMAND, ALPHA_COMMAND, DEGEN_COMMAND, TEST_CALL_COMM
 
 // Approved channels, refreshed from the DB so newly-approved servers work with no redeploy.
 let approved = {};
+const runtimeHealth = {
+  approvedRefresh: { lastSuccessAt: null, lastError: null },
+  commands: { lastSuccessAt: null, lastError: null },
+  registration: { attempts: 0, succeeded: 0, failed: 0, lastSuccessAt: null, lastFailureAt: null }
+};
 async function refresh() {
-  try { approved = await loadApprovedChannels(); }
-  catch (e) { console.error("[bot] channel refresh failed:", e.message); }
+  try {
+    approved = await loadApprovedChannels();
+    runtimeHealth.approvedRefresh.lastSuccessAt = new Date().toISOString();
+    runtimeHealth.approvedRefresh.lastError = null;
+  }
+  catch (e) {
+    runtimeHealth.approvedRefresh.lastError = String(e.message).slice(0, 160);
+    console.error("[bot] channel refresh failed:", e.message);
+  }
 }
 
 /**
@@ -279,6 +295,7 @@ async function registerCallChannel({ guild, channel, member, permissions, user, 
     await reply("Only a server manager can register a call channel.");
     return;
   }
+  runtimeHealth.registration.attempts += 1;
   try {
     await registerChannel({
       guildId: guild.id,
@@ -288,8 +305,12 @@ async function registerCallChannel({ guild, channel, member, permissions, user, 
       channelName: channel.name,
       registeredBy: user.username
     });
+    runtimeHealth.registration.succeeded += 1;
+    runtimeHealth.registration.lastSuccessAt = new Date().toISOString();
     await reply("Channel submitted. It will start copying calls once Degenaration approves it.");
   } catch (e) {
+    runtimeHealth.registration.failed += 1;
+    runtimeHealth.registration.lastFailureAt = new Date().toISOString();
     console.error("[bot] register failed:", e.message);
     await reply("Could not register right now — try again shortly.");
   }
@@ -298,8 +319,11 @@ async function registerCallChannel({ guild, channel, member, permissions, user, 
 async function syncRegisterCommand(guild) {
   try {
     await guild.commands.set(COMMANDS.map((command) => command.toJSON()));
+    runtimeHealth.commands.lastSuccessAt = new Date().toISOString();
+    runtimeHealth.commands.lastError = null;
     console.log(`[bot] ${COMMANDS.length} slash commands ready in ${guild.name}`);
   } catch (e) {
+    runtimeHealth.commands.lastError = String(e.message).slice(0, 160);
     console.error(`[bot] slash command sync failed for ${guild.name}:`, e.message);
   }
 }
@@ -544,5 +568,28 @@ client.on("shardReconnecting", (shardId) => log("gateway.reconnecting", { shardI
 client.on("shardResume", (shardId, replayed) => log("gateway.resume", { shardId, replayed }));
 client.on("shardError", (error, shardId) => console.error(`[bot] shard ${shardId} error:`, error?.message));
 client.on("error", (error) => console.error("[bot] client error:", error?.message));
+
+// A public, secret-free health document lets the replacement host prove that the Gateway
+// listener, command publication and approved-channel refresh are all current. Process-up alone
+// is not scanner health: a bot can keep running after its Discord session or source map failed.
+http.createServer((req, res) => {
+  if (req.url !== "/" && !req.url?.startsWith("/health")) {
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "not found" }));
+    return;
+  }
+  const health = buildRuntimeHealth({
+    build: BOT_BUILD,
+    ready: client.isReady(),
+    guilds: client.guilds.cache.size,
+    approvedChannels: Object.keys(approved).length,
+    runtime: runtimeHealth
+  });
+  res.writeHead(health.httpStatus, {
+    "content-type": "application/json",
+    "cache-control": "no-store"
+  });
+  res.end(JSON.stringify(health.body));
+}).listen(HEALTH_PORT, HEALTH_HOST, () => console.log(`[bot] health listening on ${HEALTH_HOST}:${HEALTH_PORT}`));
 
 client.login(process.env.DISCORD_BOT_TOKEN);

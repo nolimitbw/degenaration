@@ -1,6 +1,7 @@
 // Minimal zero-dependency test runner for the Degenaration server logic.
 const assert = require("assert");
 const { parseCall } = require("../bot/parser");
+const { buildRuntimeHealth } = require("../bot/runtime-health");
 
 let pass = 0, fail = 0;
 function test(name, fn) {
@@ -23,6 +24,24 @@ function test(name, fn) {
 }
 
 console.log("parser");
+test("Discord runtime health requires Gateway readiness and a successful channel refresh", () => {
+  const runtime = {
+    approvedRefresh: { lastSuccessAt: "2026-08-09T00:00:00.000Z", lastError: null },
+    commands: { lastSuccessAt: "2026-08-09T00:00:00.000Z", lastError: null },
+    registration: { attempts: 0, succeeded: 0, failed: 0, lastSuccessAt: null, lastFailureAt: null }
+  };
+  const live = buildRuntimeHealth({ build: "fd095f8", ready: true, guilds: 2, approvedChannels: 3, runtime });
+  assert.strictEqual(live.httpStatus, 200);
+  assert.strictEqual(live.body.status, "ok");
+  assert.strictEqual(live.body.source_bridge.approvedChannels, 3);
+
+  const stale = buildRuntimeHealth({
+    build: "fd095f8", ready: true, guilds: 2, approvedChannels: 0,
+    runtime: { ...runtime, approvedRefresh: { lastSuccessAt: null, lastError: "unavailable" } }
+  });
+  assert.strictEqual(stale.httpStatus, 503);
+  assert.strictEqual(stale.body.status, "degraded");
+});
 test("extracts mint from pump.fun link", () => {
   const r = parseCall("APE pump.fun/coin/6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP now");
   assert.strictEqual(r.mint, "6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP");

@@ -27,6 +27,7 @@ const SIGNING_READY = process.env.DELEGATED_SIGNING === "on";
 const COPY_TRADING_READY = SIGNING_READY && process.env.COPY_TRADING === "on";
 const NET = String(process.env.WORKER_NET || "").trim().toLowerCase();
 const PORT = Number(process.env.PORT || 10000);
+const HEALTH_HOST = process.env.HEALTH_HOST || "0.0.0.0";
 const startedAt = Date.now();
 const state = { events: 0, errors: 0, lastEventAt: null, lastError: null };
 
@@ -121,6 +122,7 @@ http.createServer((req, res) => {
   res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
   res.end(JSON.stringify({
     status: "ok",
+    build: process.env.APP_BUILD_SHA || null,
     mode: SIGNING_READY ? "live" : "watch-only",
     signingEnabled: SIGNING_READY,
     copyTradingEnabled: COPY_TRADING_READY,
@@ -140,7 +142,7 @@ http.createServer((req, res) => {
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
     ...state
   }));
-}).listen(PORT, "0.0.0.0", () => console.log(`[worker] health listening on :${PORT}`));
+}).listen(PORT, HEALTH_HOST, () => console.log(`[worker] health listening on ${HEALTH_HOST}:${PORT}`));
 
 /**
  * Report liveness into the database the trades are recorded in.
@@ -175,6 +177,7 @@ async function beat() {
       signingEnabled: SIGNING_READY,
       copyTradingEnabled: COPY_TRADING_READY,
       feeConfigured: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
+      build: process.env.APP_BUILD_SHA || null,
       uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
       events: state.events,
       errors: state.errors
