@@ -6,19 +6,16 @@ rejects it with evidence, or marks it blocked.
 
 ## Status
 
-**Codex review unavailable due to usage limit** (resets 2026-08-05). Recorded per
-spec §26A. Implementation proceeds without waiting; Codex availability must never block
-implementation.
-
-When Codex returns, review the committed checkpoints on
-`claude/degenaration-launch-remediation` in read-only mode or from a separate worktree
-(`codex/degenaration-review`). Do not start a competing implementation and do not
-overwrite uncommitted work.
+**Final implementation audit completed 2026-08-09** on
+`codex/final-degenaration-2026-08-08`. The complete release suite passed, the deployed app
+SHA matched the audited commit, Supabase advisors were reviewed, and production correctly
+remained Pending. External OCI and funded-mainnet gates are recorded in
+`docs/coordination/OPEN_BLOCKERS.md`.
 
 ## Findings
 
-_None recorded yet._
-
 | ID | Severity | File:line | Finding | Status |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| C-1 | Moderate | `package-lock.json` | Production audit initially contained a high transitive nanoid advisory and fixable Hono advisories | RESOLVED — safe lockfile refresh removed all high findings; 12 moderate transitive wallet/Solana advisories remain because npm's proposed fixes are breaking downgrades |
+| C-2 | Warning | Supabase Auth project setting | Leaked-password protection is disabled | EXTERNAL — enable in Auth dashboard if password auth is retained |
+| C-3 | Info | `app_private.*` | Advisor reports RLS enabled with no policy | ACCEPTED — these private tables intentionally expose no direct client policy; access is through revoked, secret-checked RPC boundaries |

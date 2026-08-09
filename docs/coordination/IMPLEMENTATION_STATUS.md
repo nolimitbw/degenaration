@@ -1,5 +1,33 @@
 # Implementation status — launch remediation
 
+## Codex final implementation checkpoint — 2026-08-09
+
+Branch: `codex/final-degenaration-2026-08-08`
+
+| Milestone | Status | Production evidence |
+|---|---|---|
+| Phase 0 — repository skills and release controls | PASS | `a388028`; repository-owned Discord, financial, performance, UI, and release-audit skills |
+| 1–2 — Discord ingestion, immutable call journal, acknowledgments | PASS | `e576e78`; parser/replay/registered-channel/acknowledgment gates pass |
+| 3 — call performance journal and marketplace truth | PASS | `b70b228`, `c944985`, `04dc45a`; real current/peak/milestone data, no fabricated zeroes |
+| 4 — ownership linking and creator identity | PASS | `9578a17`, `f28f046`; one-time owner link and verified attribution evidence |
+| 5 — simple bot creation lifecycle | PASS | `04dcdeb`, `16a8fb0`; migration applied, `app-bridge` deployed, Vercel verified |
+| 6 — trade journal, PnL, execution controls | PASS (internally solvable scope) | `a414ee5`; migration applied, bridge deployed, 357 tests and journal gates pass |
+| 7 — live-readiness truth gate | PASS | `fd095f8`; production reports `Pending` while worker/mainnet gates are unavailable |
+| 8 — sustainable host package | BLOCKED on external OCI account | `a8bb2e1`; systemd/Caddy/atomic deploy/health package complete. No OCI account, VM, or DNS is configured; Railway was therefore not retired |
+| 9 — adaptive trading workspace UI | PASS | `632b767`; deployed as Vercel `dpl_DrCnzHsJa6fHHcqKexXAzytxZWS5`; exact SHA verified; 44 responsive captures pass at 390/768/1024/1440 |
+| 10 — production acceptance | PASS with external gates preserved | Full `npm run check` exit 0; 357 tests; 29 migrations apply/rollback/reapply; production build; browser overflow/spinner/tap-target checks; secret-pattern scan clean; dependency audit reduced from 1 high + 15 moderate to 0 high + 12 moderate |
+
+Production application SHA was verified through `/api/build`. Automation is intentionally
+`Pending`: mainnet policy is off, no eligible execution worker heartbeat/health is present,
+and the funded canary has not been authorized. This is the required honest state, not a
+release defect.
+
+Supabase advisors after migration 29: 0 error-level security findings and 0 error-level
+performance findings. The security warning is the project-level leaked-password-protection
+setting; INFO notices for `app_private` tables with RLS and no policies describe the intended
+deny-all client posture. Performance notices are one warning plus unused-index/init-plan
+advice and are not a correctness gate.
+
 Statuses: `NOT STARTED` · `IN PROGRESS` · `PASS` · `PARTIAL` · `FAIL` · `BLOCKED`
 Evidence must be a commit, test result, screenshot path, or database assertion.
 A row backed only by source inspection is not PASS.

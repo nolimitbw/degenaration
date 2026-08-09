@@ -1,5 +1,21 @@
 # Open blockers
 
+## Current external gates — 2026-08-09
+
+The internally solvable implementation is complete. These gates cannot be truthfully closed
+from the repository and must not be bypassed:
+
+| ID | External gate | Required owner action |
+|---|---|---|
+| X-1 | OCI runtime deployment | Provide or configure an OCI account, Always Free VM, SSH target, and runtime DNS. Deploy `deploy/oci`, verify both health endpoints, then and only then retire Railway |
+| X-2 | Mainnet fee readiness | Create/verify the required owner-controlled fee token account(s); production correctly refuses to claim 200 bps readiness until app and worker agree |
+| X-3 | Funded owner canary | Supply the exact owner-controlled wallet and approve the completed canary package. Approval must be explicit before any signed or broadcast transaction |
+| X-4 | Live worker activation | Configure the OCI runtime credentials and delegated signer after X-1, then prove worker lease, health capabilities, reconciliation, and exit preservation |
+| X-5 | Supabase password protection | Enable leaked-password protection in the Supabase Auth dashboard if password authentication is retained ([advisor remediation](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)) |
+
+No funded mainnet transaction was signed or broadcast. Railway remains in place because the
+replacement host is not yet deployable; removing it first would create an outage.
+
 Only genuine external blockers belong here: missing credentials, unavailable provider
 access, or irreversible business decisions. Everything else is implementation work.
 
