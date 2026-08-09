@@ -54,6 +54,17 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
       "p_secret", "p_guild_id", "p_discord_user_id", "p_discord_username",
       "p_manage_guild_verified"
     ]
+  },
+  backfill_state: {
+    rpc: "bot_discord_backfill_state",
+    params: ["p_secret", "p_channel_id"]
+  },
+  update_backfill_state: {
+    rpc: "bot_update_discord_backfill_state",
+    params: [
+      "p_secret", "p_channel_id", "p_newest_message_id", "p_oldest_message_id",
+      "p_completed", "p_messages_scanned", "p_last_error"
+    ]
   }
 };
 
