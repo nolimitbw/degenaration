@@ -251,6 +251,126 @@ input[type="number"]::-webkit-outer-spin-button {
   color: #17110c;
 }
 
+/* Theme preference is resolved before paint by app/layout.tsx. Components continue to use
+   the same semantic and legacy Tailwind aliases, so light and dark are one UI rather than two
+   diverging component trees. */
+html[data-theme="light"] {
+  --void: #f5f6f4;
+  --void-rgb: 245 246 244;
+  --panel: #ffffff;
+  --panel-rgb: 255 255 255;
+  --edge: #d9dcd7;
+  --edge-rgb: 217 220 215;
+  --gold-hex: #895a2f;
+  --gold-rgb: 137 90 47;
+  --brand: #895a2f;
+  --brand-rgb: 137 90 47;
+  --hotpink: #b44848;
+  --hotpink-rgb: 180 72 72;
+  --cyber: #8a6540;
+  --cyber-rgb: 138 101 64;
+  --up: #237650;
+  --up-rgb: 35 118 80;
+  --dim: #686d66;
+  --dim-rgb: 104 109 102;
+  --ink: #171a17;
+  --ink-rgb: 23 26 23;
+  --ember: #171a17;
+  --ember-rgb: 23 26 23;
+  --haze: #434843;
+  --haze-rgb: 67 72 67;
+  --canvas: #f5f6f4;
+  --canvas-elevated: #eef0ed;
+  --surface-1: #ffffff;
+  --surface-2: #f8f9f7;
+  --surface-3: #eff1ee;
+  --surface-hover: #e8ebe7;
+  --border-subtle: rgba(23, 26, 23, 0.08);
+  --border-default: rgba(23, 26, 23, 0.14);
+  --border-strong: rgba(137, 90, 47, 0.36);
+  --gold-100: #4d2f17;
+  --gold-200: #68401f;
+  --gold-300: #79502a;
+  --gold-400: #895a2f;
+  --gold-500: #704723;
+  --gold-600: #573619;
+  --gold-300-rgb: 121 80 42;
+  --gold-400-rgb: 137 90 47;
+  --gold-500-rgb: 112 71 35;
+  --success-rgb: 35 118 80;
+  --danger-rgb: 180 72 72;
+  --warning-rgb: 137 90 47;
+  --info-rgb: 79 99 111;
+  --text-primary: #171a17;
+  --text-secondary: #434843;
+  --text-muted: #686d66;
+  --text-disabled: #92968f;
+  --success: #237650;
+  --success-muted: rgba(35, 118, 80, 0.10);
+  --danger: #b44848;
+  --danger-muted: rgba(180, 72, 72, 0.10);
+  --warning: #895a2f;
+  --info: #4f636f;
+  --shadow-panel: 0 14px 36px rgba(33, 38, 33, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(137, 90, 47, 0.14);
+  color-scheme: light;
+}
+
+html[data-theme="light"] .app-shell {
+  --void: #f5f6f4;
+  --void-rgb: 245 246 244;
+  --panel: #ffffff;
+  --panel-rgb: 255 255 255;
+  --edge: #d9dcd7;
+  --edge-rgb: 217 220 215;
+  --gold-hex: #895a2f;
+  --gold-rgb: 137 90 47;
+  --brand: #895a2f;
+  --brand-rgb: 137 90 47;
+  --hotpink: #b44848;
+  --hotpink-rgb: 180 72 72;
+  --cyber: #8a6540;
+  --cyber-rgb: 138 101 64;
+  --up: #237650;
+  --up-rgb: 35 118 80;
+  --dim: #686d66;
+  --dim-rgb: 104 109 102;
+  --ink: #171a17;
+  --ink-rgb: 23 26 23;
+  --gold-300-rgb: 121 80 42;
+  --gold-400-rgb: 137 90 47;
+  --gold-500-rgb: 112 71 35;
+  --success-rgb: 35 118 80;
+  --danger-rgb: 180 72 72;
+  --warning-rgb: 137 90 47;
+  --info-rgb: 79 99 111;
+  color-scheme: light;
+  background-image: linear-gradient(rgba(23,26,23,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(23,26,23,.018) 1px, transparent 1px);
+}
+
+html[data-theme="light"] .degen-backdrop svg,
+html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
+
+.app-sidebar {
+  background: rgb(var(--panel-rgb) / 0.98);
+  box-shadow: 18px 0 48px -42px rgba(0, 0, 0, 0.65);
+}
+
+.app-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 1px;
+  background: linear-gradient(180deg, transparent 4%, rgb(var(--gold-rgb) / 0.42) 18%, rgb(var(--edge-rgb)) 55%, transparent 96%);
+}
+
+/* The truthful automation notice is 60px at desktop sizes. When it is present in flow, keep
+   the sticky rail inside the remaining viewport; when dismissed, the selector disappears and
+   Tailwind's h-screen applies again. */
+@media (min-width: 1024px) {
+  .release-banner ~ .app-shell .app-sidebar { height: calc(100vh - 60px); }
+}
+
 :where(a, button, input, select, textarea):focus-visible {
   outline: 2px solid rgb(var(--gold-rgb));
   outline-offset: 2px;

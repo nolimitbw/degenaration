@@ -273,7 +273,7 @@ const SURFACES = [
   // divider — so a regression that flattens the two groups back into one list fails here rather
   // than passing because the page still renders something.
   { route: "/bots/discord/new", name: "discord-builder",
-    ready: "document.body.innerText.includes('Buy amount') && document.body.innerText.includes('Optional settings')" },
+    ready: "document.body.innerText.includes('Margin amount per trade') && document.body.innerText.includes('Advanced settings')" },
   { route: "/bots/kol/new", name: "kol-builder",
     ready: "document.body.innerText.includes('Buy amount') && document.body.innerText.includes('Optional settings')" },
   // The public source profile. Its "Latest calls" table gained call price, market cap and
@@ -367,7 +367,7 @@ for (const surface of SURFACES) {
       if (!shows("Where those calls are now")) {
         failures.push("the source detail page is missing the current-return row");
       }
-      for (const needle of ["Priced now", "Median now", "Average now", "Down 50%+", "Reached 5x+", "Best call"]) {
+      for (const needle of ["Priced now", "Median now", "Average now", "Down 50%+", "Hit 5x", "Best call"]) {
         if (!shows(needle)) failures.push(`source detail is missing "${needle}"`);
       }
     }

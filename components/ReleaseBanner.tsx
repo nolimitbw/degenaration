@@ -35,7 +35,7 @@ export default function ReleaseBanner() {
 
   if (dismissed || !notice) return null;
   return (
-    <div className="relative z-[80] flex items-center justify-center gap-2 border-b border-gold-400/20 bg-[#191613] px-4 py-2 text-center font-mono text-[11px] text-[#c9aa88]">
+    <div className="release-banner relative z-[80] flex items-center justify-center gap-2 border-b border-gold-400/20 bg-[#191613] px-4 py-2 text-center font-mono text-[11px] text-[#c9aa88]">
       <span className="relative flex h-2 w-2">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-400 opacity-50" />
         <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-400" />

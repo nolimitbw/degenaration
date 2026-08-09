@@ -11,10 +11,10 @@
  */
 export default function DegenBackdrop() {
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-canvas">
+    <div aria-hidden="true" className="degen-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-canvas">
       {/* Warm illumination near the top-left and the primary content column. */}
       <div
-        className="absolute inset-0"
+        className="backdrop-vignette absolute inset-0"
         style={{
           background:
             "radial-gradient(900px 600px at 12% 0%, rgba(194,148,99,0.055), transparent 70%)," +
