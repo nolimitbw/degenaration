@@ -59,14 +59,14 @@ async function verifySolanaMint(mint: string) {
  * network calls (mint validation, price fetch, bridge POST) and nothing else.
  */
 export async function POST(req: NextRequest) {
-  const limited = rateLimit(req, { limit: 120, windowMs: 60_000 });
+  const limited = rateLimit(req, { limit: 600, windowMs: 60_000 });
   if (limited) return limited;
 
   if (!isBotRequest(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const distributed = await distributedRateLimit(req, {
-    limit: 120,
+    limit: 600,
     windowSeconds: 60,
     scope: "discord:ingest-signal",
     subject: "discord-bot",

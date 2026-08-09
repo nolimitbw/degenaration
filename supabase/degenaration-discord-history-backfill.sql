@@ -30,10 +30,10 @@ begin
     raise exception 'invalid Discord channel' using errcode = '22023';
   end if;
   if not exists (
-    select 1 from public.call_channels c
-    join public.approved_groups g on g.id = c.group_id
-    where c.channel_id = p_channel_id and c.status = 'approved'
-      and c.removed_at is null and g.status = 'approved'
+    select 1
+    from public.call_channels c
+    cross join lateral app_private.authorized_call_channel(c.channel_id, c.guild_id) a
+    where c.channel_id = p_channel_id and a.refusal is null
   ) then
     raise exception 'channel not approved' using errcode = '42501';
   end if;

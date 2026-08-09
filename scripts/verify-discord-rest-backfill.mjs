@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { scanDiscordHistoryPage } = require("../lib/server/discord-rest-backfill");
+const { INGEST_CONCURRENCY, scanDiscordHistoryPage } = require("../lib/server/discord-rest-backfill");
+
+assert.equal(INGEST_CONCURRENCY, 5, "history ingestion must stay bounded");
 
 const channel = { channel_id: "1495930481018142801", channel_name: "calls", guild_id: "1495795490657275914" };
 const mint = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";

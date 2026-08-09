@@ -96,7 +96,13 @@ Deno.serve(async (request) => {
 
   if (error) {
     const denied = error.code === "42501";
-    return json({ error: denied ? "unauthorized" : "bridge operation failed" }, denied ? 401 : 502);
+    return json(denied
+      ? { error: "unauthorized" }
+      : {
+          error: "bridge operation failed",
+          code: error.code,
+          detail: String(error.message || "unknown database error").slice(0, 240)
+        }, denied ? 401 : 502);
   }
   return json(data);
 });
