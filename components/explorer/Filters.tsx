@@ -12,13 +12,13 @@ export default function Filters({ cat, setCat, sort, setSort, view, setView, q, 
     <div className="mt-4 flex flex-wrap items-center gap-3">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name / ticker / address"
         className="w-full max-w-xs rounded-md border border-edge bg-void px-3 py-1.5 font-mono text-xs outline-none focus:border-gold-400 sm:w-56" />
-      <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-[11px]">
+      <div className="flex gap-1 rounded-md border border-edge p-1 text-[12px]">
         {CATS.map(([c, l]) => <button key={c} onClick={() => setCat(c)} className={`rounded px-3 py-1.5 font-bold transition ${cat===c?"bg-info/20 text-info":"text-dim hover:text-ink"}`}>{l}</button>)}
       </div>
-      <div className="flex gap-1 rounded-md border border-edge p-1 font-mono text-[11px]">
+      <div className="flex gap-1 rounded-md border border-edge p-1 text-[12px]">
         {SORTS.map(([s, l]) => <button key={s} onClick={() => setSort(s)} className={`rounded px-3 py-1.5 font-bold transition ${sort===s?"bg-gold-400 text-white":"text-dim hover:text-ink"}`}>{l}</button>)}
       </div>
-      <div className="ml-auto flex gap-1 rounded-md border border-edge p-0.5 font-mono text-[11px]">
+      <div className="ml-auto flex gap-1 rounded-md border border-edge p-0.5 text-[12px]">
         <button onClick={() => setView("table")} className={`rounded px-2 py-1 ${view==="table"?"bg-gold-400/20 text-gold-400":"text-dim"}`}>Table</button>
         <button onClick={() => setView("cards")} className={`rounded px-2 py-1 ${view==="cards"?"bg-gold-400/20 text-gold-400":"text-dim"}`}>Cards</button>
       </div>

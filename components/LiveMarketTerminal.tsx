@@ -47,7 +47,7 @@ type Risk = {
 };
 
 function compact(value: number | null | undefined, currency = false) {
-  if (!Number.isFinite(value)) return "--";
+  if (!Number.isFinite(value)) return "—";
   const formatted = new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 2
@@ -56,14 +56,14 @@ function compact(value: number | null | undefined, currency = false) {
 }
 
 function price(value: number | null | undefined) {
-  if (!Number.isFinite(value)) return "--";
+  if (!Number.isFinite(value)) return "—";
   const digits = Number(value) < 0.001 ? 8 : Number(value) < 1 ? 5 : 2;
   return `$${Number(value).toLocaleString("en-US", { maximumFractionDigits: digits })}`;
 }
 
 function units(raw: string | undefined, decimals: number | undefined) {
   const value = Number(raw);
-  if (!Number.isFinite(value)) return "--";
+  if (!Number.isFinite(value)) return "—";
   return (value / 10 ** (decimals ?? 6)).toLocaleString("en-US", {
     maximumFractionDigits: 2
   });
@@ -162,11 +162,11 @@ export default function LiveMarketTerminal() {
     <div className="terminal-preview overflow-hidden border border-edge bg-panel shadow-[0_28px_80px_-54px_rgba(0,0,0,.95)]">
       <header className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-edge px-4 py-2">
         <div className="flex items-center gap-4">
-          <span className="font-mono text-[10px] text-gold-400">LIVE MARKET WORKSPACE</span>
-          <span className="font-mono text-[10px] text-dim">BONK / SOL</span>
+          <span className="text-[12px] text-gold-400">LIVE MARKET WORKSPACE</span>
+          <span className="text-[12px] text-dim">BONK / SOL</span>
         </div>
         <div className="flex items-center gap-3">
-          {error && <span className="hidden font-mono text-[9px] text-down sm:inline">FEED DELAYED</span>}
+          {error && <span className="hidden text-[12px] text-down sm:inline">FEED DELAYED</span>}
           <button
             type="button"
             onClick={() => loadMarket()}
@@ -177,7 +177,7 @@ export default function LiveMarketTerminal() {
           >
             <RefreshCw aria-hidden="true" size={13} className={loading ? "animate-spin" : ""} />
           </button>
-          <span className="flex items-center gap-1.5 font-mono text-[9px] text-up">
+          <span className="flex items-center gap-1.5 text-[12px] text-up">
             <span className="h-1.5 w-1.5 bg-up" />
             LIVE DATA
           </span>
@@ -197,13 +197,13 @@ export default function LiveMarketTerminal() {
               <p className="text-base font-semibold text-ink">
                 {market?.symbol ?? "BONK"} <span className="font-normal text-dim">{market?.name ?? "Bonk"}</span>
               </p>
-              <p className="mt-2 font-mono text-2xl font-semibold tabular-nums text-ink">
+              <p className="mt-2 ui-figure text-2xl font-semibold tabular-nums text-ink">
                 {loading && !market ? "Loading live price" : price(market?.priceUsd)}
               </p>
             </div>
-            <div className="text-right font-mono text-[11px]">
+            <div className="text-right text-[12px]">
               <p className={change >= 0 ? "text-up" : "text-down"}>
-                {Number.isFinite(change) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "--"}
+                {Number.isFinite(change) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "—"}
               </p>
               <p className="mt-2 text-dim">24H CHANGE</p>
             </div>
@@ -216,7 +216,7 @@ export default function LiveMarketTerminal() {
               ["FDV", compact(market?.fdv, true)]
             ].map(([label, value]) => (
               <div key={label} className="bg-panel px-4 py-3.5 sm:px-5">
-                <p className="font-mono text-[9px] text-dim">{label}</p>
+                <p className="text-[12px] text-dim">{label}</p>
                 <p className="mt-1.5 font-mono text-sm text-ink">{value}</p>
               </div>
             ))}
@@ -226,7 +226,7 @@ export default function LiveMarketTerminal() {
             {tab === "chart" && (
               <>
                 <div className="flex items-center justify-between border-b border-edge px-4 py-2">
-                  <p className="font-mono text-[9px] text-dim">
+                  <p className="text-[12px] text-dim">
                     GECKOTERMINAL · {market?.dex?.toUpperCase() ?? "SOLANA"}
                   </p>
                   <div className="flex gap-1">
@@ -252,7 +252,7 @@ export default function LiveMarketTerminal() {
 
             {tab === "holders" && (
               <div className="overflow-x-auto p-4">
-                <table className="w-full min-w-[480px] text-left font-mono text-[10px]">
+                <table className="w-full min-w-[480px] text-left text-[12px]">
                   <thead className="text-dim">
                     <tr><th className="pb-3">RANK</th><th className="pb-3">ACCOUNT</th><th className="pb-3 text-right">AMOUNT</th><th className="pb-3 text-right">SUPPLY</th></tr>
                   </thead>
@@ -262,7 +262,7 @@ export default function LiveMarketTerminal() {
                         <td className="py-3 text-dim">{String(holder.rank).padStart(2, "0")}</td>
                         <td className="py-3 text-ink">{holder.address.slice(0, 6)}...{holder.address.slice(-5)}</td>
                         <td className="py-3 text-right text-ink">{compact(holder.amount)}</td>
-                        <td className="py-3 text-right text-gold-400">{holder.pct == null ? "--" : `${holder.pct.toFixed(2)}%`}</td>
+                        <td className="py-3 text-right text-gold-400">{holder.pct == null ? "—" : `${holder.pct.toFixed(2)}%`}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -280,12 +280,12 @@ export default function LiveMarketTerminal() {
                   ["FREEZE AUTHORITY", risk?.freezeAuthorityRevoked == null ? "UNVERIFIED" : risk.freezeAuthorityRevoked ? "REVOKED" : "ACTIVE", risk?.freezeAuthorityRevoked]
                 ].map(([label, value, good]) => (
                   <div key={String(label)} className="min-h-[104px] bg-panel p-5">
-                    <p className="font-mono text-[9px] text-dim">{label}</p>
+                    <p className="text-[12px] text-dim">{label}</p>
                     <p className={`mt-3 font-mono text-sm ${good ? "text-up" : "text-down"}`}>{String(value)}</p>
                   </div>
                 ))}
                 <div className="bg-panel p-5 sm:col-span-2">
-                  <p className="font-mono text-[9px] text-dim">REVIEW NOTES</p>
+                  <p className="text-[12px] text-dim">REVIEW NOTES</p>
                   <p className="mt-3 text-xs leading-6 text-ink">
                     {risk?.reasons?.length
                       ? risk.reasons.slice(0, 3).join(" · ")
@@ -298,7 +298,7 @@ export default function LiveMarketTerminal() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 border-t border-edge text-center font-mono text-[9px] text-dim">
+          <div className="grid grid-cols-3 border-t border-edge text-center text-[12px] text-dim">
             {(["chart", "holders", "risk"] as Tab[]).map((value) => (
               <button
                 key={value}
@@ -317,10 +317,10 @@ export default function LiveMarketTerminal() {
         <aside className="p-5">
           <div className="flex items-center justify-between gap-3 border-b border-edge pb-4">
             <div>
-              <p className="font-mono text-[9px] uppercase text-gold-400">KOL bot preview</p>
+              <p className="ui-label text-gold-400">KOL bot preview</p>
               <h2 className="mt-2 text-sm font-semibold text-ink">Volatility entry</h2>
             </div>
-            <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] text-dim">MAINNET DATA</span>
+            <span className="rounded-sm border border-edge bg-void px-2 py-1 text-[12px] text-dim">MAINNET DATA</span>
           </div>
 
           <label className="mt-5 block">
@@ -335,7 +335,7 @@ export default function LiveMarketTerminal() {
                 ariaLabel="Buy allocation"
                 className="min-w-0 flex-1 bg-transparent font-mono text-sm text-ink outline-none"
               />
-              <span className="font-mono text-[9px] text-dim">SOL</span>
+              <span className="text-[12px] text-dim">SOL</span>
             </span>
           </label>
           <div className="mt-2 grid grid-cols-4 gap-1">
@@ -366,7 +366,7 @@ export default function LiveMarketTerminal() {
                   ariaLabel="Price drop trigger"
                   className="min-w-0 flex-1 bg-transparent font-mono text-sm text-ink outline-none"
                 />
-                <span className="font-mono text-[9px] text-dim">%</span>
+                <span className="text-[12px] text-dim">%</span>
               </span>
             </label>
             <label className="block">
@@ -381,19 +381,19 @@ export default function LiveMarketTerminal() {
                   ariaLabel="Capital ceiling"
                   className="min-w-0 flex-1 bg-transparent font-mono text-sm text-ink outline-none"
                 />
-                <span className="font-mono text-[9px] text-dim">SOL</span>
+                <span className="text-[12px] text-dim">SOL</span>
               </span>
             </label>
           </div>
 
-          <dl className="mt-5 space-y-3 border-y border-edge py-4 font-mono text-[9px]">
+          <dl className="mt-5 space-y-3 border-y border-edge py-4 text-[12px]">
             <div className="flex justify-between gap-4">
               <dt className="text-dim">ROUTE ESTIMATE</dt>
               <dd className="truncate text-right text-ink">{receive}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-dim">PRICE IMPACT</dt>
-              <dd className="text-ink">{quote?.priceImpactPct ? `${Number(quote.priceImpactPct).toFixed(3)}%` : "--"}</dd>
+              <dd className="text-ink">{quote?.priceImpactPct ? `${Number(quote.priceImpactPct).toFixed(3)}%` : "—"}</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-dim">ROUTE</dt>

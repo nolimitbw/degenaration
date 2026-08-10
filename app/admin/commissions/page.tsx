@@ -120,30 +120,30 @@ export default function Commissions() {
         >
           Refresh
         </button>
-        <span className={`font-mono text-[11px] ${loaded ? "text-gold-400" : "text-dim"}`}>
+        <span className={`text-[12px] ${loaded ? "text-gold-400" : "text-dim"}`}>
           {loaded ? "owner data loaded" : "loading owner data"}
         </span>
-        <span className="rounded border border-gold-400/40 bg-gold-400/10 px-2 py-1 font-mono text-[10px] text-gold-400">
+        <span className="rounded border border-gold-400/40 bg-gold-400/10 px-2 py-1 text-[12px] text-gold-400">
           {COMMISSIONS_UI_VERSION}
         </span>
-        {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
+        {lastSync && <span className="text-[12px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">Total commissions earned</p>
           <p className="mt-2 font-mono text-2xl font-bold text-gold-400">{totals.totalSol.toFixed(3)} SOL</p>
-          <p className="mt-1 font-mono text-[11px] text-dim">{totals.count} trades</p>
+          <p className="mt-1 text-[12px] text-dim">{totals.count} trades</p>
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">Fee wallet balance</p>
           <p className="mt-2 font-mono text-2xl font-bold">{!balanceLoaded ? "Loading" : balance != null ? balance.toFixed(3) : "—"} SOL</p>
-          <p className="mt-1 truncate font-mono text-[11px] text-dim">{feeWallet || "not configured"}</p>
+          <p className="mt-1 truncate text-[12px] text-dim">{feeWallet || "not configured"}</p>
         </div>
         <div className="gradient-border rounded-lg border border-edge p-5">
           <p className="text-xs uppercase text-dim">Fee status</p>
           <p className="mt-2 font-mono text-2xl font-bold">{fee.platformFeeBps ? `${(fee.platformFeeBps / 100).toFixed(1)}%` : "Off"}</p>
-          <p className="mt-1 font-mono text-[11px] text-dim">{fee.feeWalletConfigured ? "wallet configured" : "no fee wallet set"}</p>
+          <p className="mt-1 text-[12px] text-dim">{fee.feeWalletConfigured ? "wallet configured" : "no fee wallet set"}</p>
         </div>
       </div>
 
@@ -162,22 +162,22 @@ export default function Commissions() {
         <h2 className="font-bold">Withdraw commissions</h2>
         <p className="mt-1 text-xs text-dim">Sign with the fee wallet in Phantom. Funds move directly on-chain — the platform never holds keys.</p>
         <label className="mt-4 block">
-          <span className="font-mono text-[11px] uppercase text-dim">Destination address</span>
+          <span className="ui-label">Destination address</span>
           <input value={dest} onChange={(e) => setDest(e.target.value)} placeholder="Your Solana address"
             className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-gold-400" />
-          {dest && !validDest && <span className="mt-1 block font-mono text-[10px] text-danger">Paste a valid Solana address.</span>}
+          {dest && !validDest && <span className="mt-1 block ui-code text-[12px] text-danger">Paste a valid Solana address.</span>}
         </label>
         <label className="mt-3 block">
-          <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL)</span>
+          <span className="ui-label">Amount (SOL)</span>
           <NumericTextInput value={amount} onChange={setAmount} decimals={2} className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 font-mono text-sm outline-none focus:border-gold-400" />
-          {amount > 0 && !validAmount && <span className="mt-1 block font-mono text-[10px] text-danger">{!balanceLoaded ? "Wait for the fee wallet balance first." : "Use an amount below the fee wallet balance and at most 10,000 SOL."}</span>}
+          {amount > 0 && !validAmount && <span className="mt-1 block text-[12px] text-danger">{!balanceLoaded ? "Wait for the fee wallet balance first." : "Use an amount below the fee wallet balance and at most 10,000 SOL."}</span>}
         </label>
         <button onClick={withdraw} disabled={!canWithdraw}
           className="mt-5 w-full rounded-md bg-gold-400 py-3 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">
           {busy ? "Signing…" : !fee.feeWalletConfigured ? "Fee wallet not configured" : !fee.withdrawalsConfigured ? "Withdrawals disabled" : !balanceLoaded ? "Loading fee wallet" : "Withdraw to my wallet"}
         </button>
-        {status && <p className="mt-3 break-all font-mono text-[11px] text-dim">{status}</p>}
-        {waitingForOwnerToken && <p className="mt-3 font-mono text-[11px] text-dim">Owner session verification is still finishing.</p>}
+        {status && <p className="mt-3 break-all text-[12px] text-dim">{status}</p>}
+        {waitingForOwnerToken && <p className="mt-3 text-[12px] text-dim">Owner session verification is still finishing.</p>}
       </div>
     </AppShell>
     </AdminGuard>

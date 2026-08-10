@@ -98,7 +98,7 @@ export default async function SourceProfile({ params }: Props) {
             <Stat label="Average peak" value={metric(source.metrics.avgPeakX, 2)} detail={`Median ${metric(source.metrics.medianPeakX, 2)}`} />
             <Stat label="Best call" value={metric(source.metrics.bestPeakX, 2)} detail="Peak from recorded entry" accent />
           </div>
-          <p className="mt-2 flex items-start gap-2 font-mono text-[10px] leading-5 text-dim">
+          <p className="mt-2 flex items-start gap-2 text-[12px] leading-5 text-dim">
             <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-info" />
             Metrics are calculated from calls recorded after approval. Unmeasured calls stay visible and never count as wins.
           </p>
@@ -110,7 +110,7 @@ export default async function SourceProfile({ params }: Props) {
             <div className="mt-3 overflow-x-auto rounded-md border border-edge">
               {source.recentCalls.length ? (
                 <table className="w-full min-w-[980px] text-left">
-                  <thead className="bg-panel font-mono text-[10px] uppercase text-dim">
+                  <thead className="ui-label bg-panel">
                     <tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Caller</th><th className="px-4 py-3">Called</th><th className="px-4 py-3">Call price</th><th className="px-4 py-3">Market cap</th><th className="px-4 py-3">Liquidity</th><th className="px-4 py-3">Current</th><th className="px-4 py-3">Peak</th><th className="px-4 py-3">Report</th></tr>
                   </thead>
                   <tbody>
@@ -138,17 +138,17 @@ export default async function SourceProfile({ params }: Props) {
                 </table>
               ) : (
                 <div className="grid min-h-48 place-items-center bg-panel/30 px-5 text-center">
-                  <div><p className="text-sm font-semibold text-ink">No calls recorded yet</p><p className="mt-1 max-w-sm font-mono text-[11px] leading-5 text-dim">This approved source starts with a clean record. Calls appear here only after the bot observes them in an approved channel.</p></div>
+                  <div><p className="text-sm font-semibold text-ink">No calls recorded yet</p><p className="mt-1 max-w-sm text-[12px] leading-5 text-dim">This approved source starts with a clean record. Calls appear here only after the bot observes them in an approved channel.</p></div>
                 </div>
               )}
             </div>
           </div>
 
           <aside className="h-fit rounded-md border border-edge bg-panel p-5">
-            <p className="font-mono text-[10px] uppercase text-dim">Profile freshness</p>
+            <p className="ui-label">Profile freshness</p>
             <p className="mt-2 text-xs text-ink">{source.profileSyncedAt ? new Date(source.profileSyncedAt).toLocaleString() : "Awaiting first Discord metadata sync"}</p>
             <div className="my-4 border-t border-edge" />
-            <p className="font-mono text-[10px] uppercase text-dim">Server referral</p>
+            <p className="ui-label">Server referral</p>
             <p className="mt-2 break-all font-mono text-sm text-ink">/r/{source.referralCode}</p>
             <p className="mt-2 text-xs leading-5 text-dim">A stable public link assigned to this Discord server. It opens this profile without requiring a wallet.</p>
             <div className="mt-4"><CopyReferralLink path={`/r/${source.referralCode}`} /></div>
@@ -162,9 +162,9 @@ export default async function SourceProfile({ params }: Props) {
 function Stat({ label, value, detail, accent = false }: { label: string; value: string; detail: string; accent?: boolean }) {
   return (
     <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0">
-      <p className="font-mono text-[10px] uppercase text-dim">{label}</p>
+      <p className="ui-label">{label}</p>
       <p className={`mt-2 text-2xl font-bold ${accent ? "text-gold-400" : "text-ink"}`}>{value}</p>
-      <p className="mt-1 font-mono text-[10px] text-dim">{detail}</p>
+      <p className="mt-1 text-[12px] text-dim">{detail}</p>
     </div>
   );
 }

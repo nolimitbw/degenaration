@@ -42,7 +42,7 @@ export default function AutoTrade() {
     <div className="gradient-border rounded-lg border border-edge p-5">
       <div className="flex items-center justify-between">
         <h2 className="font-bold">Delegated automation access</h2>
-        <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${delegated ? "bg-gold-400/20 text-gold-400" : "bg-edge text-dim"}`}>{delegated ? "GRANTED" : "OFF"}</span>
+        <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${delegated ? "bg-gold-400/20 text-gold-400" : "bg-edge text-dim"}`}>{delegated ? "GRANTED" : "OFF"}</span>
       </div>
       <p className="mt-1 text-xs text-dim">Lets your bots trade while you are offline. You can revoke it at any time.</p>
 
@@ -60,7 +60,7 @@ export default function AutoTrade() {
         </div>
       </details>
 
-      <p className={`mt-3 font-mono text-[10px] ${automation.live ? "text-up" : "text-dim"}`}>{automationLabel(automation)}</p>
+      <p className={`mt-3 text-[12px] ${automation.live ? "text-up" : "text-dim"}`}>{automationLabel(automation)}</p>
       {delegated ? (
         <button onClick={disable} disabled={busy} className="mt-4 w-full rounded-md border border-danger/50 py-2.5 text-sm font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50">{busy ? "…" : "Revoke delegated access"}</button>
       ) : (

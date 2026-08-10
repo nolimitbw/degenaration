@@ -74,13 +74,13 @@ export default function SwapPanel() {
     <div className="rounded-lg border border-edge bg-panel p-5">
       <div className="flex items-center gap-2">
         <h2 className="font-bold">Live swap</h2>
-        <span className="rounded-full border border-danger/50 px-2 py-0.5 font-mono text-[11px] text-danger">mainnet</span>
+        <span className="rounded-full border border-danger/50 px-2 py-0.5 text-[12px] text-danger">mainnet</span>
       </div>
       <p className="mt-1 text-xs text-dim">
         Real Jupiter swap, signed and sent by your own wallet. Non-custodial end to end.
       </p>
       <label className="mt-4 block">
-        <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL) → BONK</span>
+        <span className="ui-label">Amount (SOL) → BONK</span>
         <NumericTextInput value={amount} onChange={setAmount} decimals={2} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400" />
       </label>
       <button onClick={run} disabled={busy || amount <= 0}
@@ -88,11 +88,11 @@ export default function SwapPanel() {
         {status === "quoting" ? "Building swap…" : status === "signing" ? "Sign in your wallet…" : authenticated ? "Swap & sign" : "Connect wallet"}
       </button>
       {status === "done" && (
-        <p className="mt-3 break-all font-mono text-[11px] text-gold-400">
+        <p className="mt-3 break-all text-[12px] text-gold-400">
           <Check size={14} className="inline" aria-hidden="true" /> Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
         </p>
       )}
-      {status === "error" && <p className="mt-3 font-mono text-[11px] text-danger">{err}</p>}
+      {status === "error" && <p className="mt-3 text-[12px] text-danger">{err}</p>}
     </div>
   );
 }

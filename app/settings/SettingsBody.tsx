@@ -51,17 +51,17 @@ export default function SettingsBody() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><h1 className="text-2xl font-bold">Account settings</h1><p className="mt-1 text-sm text-dim">Privy identity, linked accounts, and wallet access state.</p></div>
-        <span className="rounded-md border border-edge bg-void px-3 py-2 font-mono text-[10px] uppercase text-dim">Privy session active</span>
+        <span className="ui-label rounded-md border border-edge bg-void px-3 py-2">Privy session active</span>
       </div>
 
       <div className="mt-6 grid max-w-5xl gap-5 lg:grid-cols-2">
         <section className="rounded-lg border border-edge bg-panel p-5">
           <div className="flex items-center gap-2"><ShieldCheck size={17} className="text-gold-400" /><h2 className="font-bold">Identity</h2></div>
           <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
-            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Email</dt><dd className="mt-1 truncate text-sm">{email ?? "Not linked"}</dd></div>
-            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Joined</dt><dd className="mt-1 text-sm">{joined ?? "Unavailable"}</dd></div>
-            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Privy user</dt><dd className="mt-1 truncate font-mono text-xs">{user?.id ?? "Unavailable"}</dd></div>
-            <div className="bg-void p-3"><dt className="font-mono text-[9px] uppercase text-dim">Linked accounts</dt><dd className="mt-1 text-sm">{linked.length}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Email</dt><dd className="mt-1 truncate text-sm">{email ?? "Not linked"}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Joined</dt><dd className="mt-1 text-sm">{joined ?? "Unavailable"}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Privy user</dt><dd className="mt-1 truncate font-mono text-xs">{user?.id ?? "Unavailable"}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Linked accounts</dt><dd className="mt-1 text-sm">{linked.length}</dd></div>
           </dl>
         </section>
 
@@ -74,7 +74,7 @@ export default function SettingsBody() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <button onClick={copyWallet} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
                 <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><ExternalLink size={14} /> Solscan</a>
-                <span className={`inline-flex min-h-11 sm:min-h-10 items-center rounded-md border px-3 font-mono text-[10px] uppercase ${delegated ? "border-gold-400/40 text-gold-400" : "border-edge text-dim"}`}>Delegation {delegated ? "granted" : "off"}</span>
+                <span className={`ui-label inline-flex min-h-11 sm:min-h-10 items-center rounded-md border px-3 ${delegated ?"border-gold-400/40 text-gold-400" : "border-edge text-dim"}`}>Delegation {delegated ? "granted" : "off"}</span>
               </div>
             </div>
           ) : <p className="mt-4 rounded-md border border-edge bg-void p-4 text-sm text-dim">No Solana wallet is linked to this Privy account.</p>}

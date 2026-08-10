@@ -181,7 +181,7 @@ export default function KolStrategyDetailsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / KOL / Strategy"
+        
         title={strategy?.name || "KOL strategy"}
         description="Review net-of-fee history and configure your own bounded capital controls before copying."
         actions={<Link href="/bots/kol" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>}
@@ -199,18 +199,18 @@ export default function KolStrategyDetailsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold text-ink">{strategy.name}</h2><StatusPill status={strategy.insufficientHistory ? "tracking" : "reviewed"} /></div>
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-dim">{strategy.description || "No public strategy description was provided."}</p>
-                  <p className="mt-2 font-mono text-[9px] uppercase text-dim">
+                  <p className="ui-label mt-2">
                     {strategy.creatorName || "Verified creator"} · Strategy version {strategy.version || 1}
                   </p>
                 </div>
-                <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] uppercase text-dim">{strategy.riskTier} risk</span>
+                <span className="ui-label rounded-sm border border-edge bg-void px-2 py-1">{strategy.riskTier} risk</span>
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Strategy performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "3m", label: "3M" }]} /></div>
               <div className="grid grid-cols-2 divide-x divide-y divide-edge py-4 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
-                <Metric label="Net PnL" value={strategy.insufficientHistory ? "--" : formatSol(strategy.netPnlLamports)} tone={Number(strategy.netPnlLamports || 0) >= 0 ? "positive" : "negative"} />
-                <Metric label="Realized PnL" value={strategy.insufficientHistory ? "--" : formatSol(strategy.realizedPnlLamports)} />
-                <Metric label="Win rate" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.winRateBps)} />
-                <Metric label="Max drawdown" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.maxDrawdownBps)} />
+                <Metric label="Net PnL" value={strategy.insufficientHistory ? "—" : formatSol(strategy.netPnlLamports)} tone={Number(strategy.netPnlLamports || 0) >= 0 ? "positive" : "negative"} />
+                <Metric label="Realized PnL" value={strategy.insufficientHistory ? "—" : formatSol(strategy.realizedPnlLamports)} />
+                <Metric label="Win rate" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.winRateBps)} />
+                <Metric label="Max drawdown" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.maxDrawdownBps)} />
                 <Metric label="Followers" value={strategy.followers} />
                 <Metric label="Creator fee" value={formatPercentBps(strategy.creatorFeeBps)} />
               </div>
@@ -224,7 +224,7 @@ export default function KolStrategyDetailsPage() {
                 <div className="bg-void p-5"><p className="field-label">Network fees</p><p className="mt-2 font-mono text-xl text-ink">{formatSol(strategy.networkFeesLamports)}</p></div>
                 <div className="bg-void p-5"><p className="field-label">Open trades</p><p className="mt-2 font-mono text-xl text-ink">{strategy.openTrades}</p></div>
               </div>
-              <div className="flex flex-wrap justify-between gap-3 border-t border-edge px-5 py-4 font-mono text-[9px] text-dim"><span>Active since {formatWhen(strategy.activeSince)}</span><span>Updated {formatWhen(strategy.updatedAt)}</span></div>
+              <div className="flex flex-wrap justify-between gap-3 border-t border-edge px-5 py-4 text-[12px] text-dim"><span>Active since {formatWhen(strategy.activeSince)}</span><span>Updated {formatWhen(strategy.updatedAt)}</span></div>
             </section>
 
             <StrategyConfiguration strategy={strategy} />
@@ -244,7 +244,7 @@ export default function KolStrategyDetailsPage() {
 
           <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
             <header className="border-b border-edge p-5">
-              <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[9px] uppercase text-gold-400">Subscriber setup</p><h2 className="mt-2 text-base font-semibold text-ink">Your copy controls</h2></div>{subscription && <StatusPill status={subscription.status} />}</div>
+              <div className="flex items-center justify-between gap-3"><div><p className="ui-label text-gold-400">Subscriber setup</p><h2 className="mt-2 text-base font-semibold text-ink">Your copy controls</h2></div>{subscription && <StatusPill status={subscription.status} />}</div>
             </header>
             <div className="space-y-4 p-5">
               <div className="rounded-md border border-edge bg-void p-3">
@@ -328,7 +328,7 @@ function StrategyConfiguration({ strategy }: { strategy: KolStrategy }) {
           ["Lookback", `${Number(trigger.lookbackMinutes || 0)} minutes`],
           ["Entry", formatSol(config.buyAmountLamports)],
           ["Capital ceiling", formatSol(config.maximumCapitalLamports)],
-          ["Maximum positions", String(config.maxOpenTrades || "--")],
+          ["Maximum positions", String(config.maxOpenTrades || "—")],
           ["DCA", dcaText],
           ["Risk checks", `${enabledRanges + enabledFlags} enabled · fail closed`]
         ].map(([label, value]) => (
@@ -360,7 +360,7 @@ function CopyField({ label, value, onChange, suffix, step }: { label: string; va
       <span className="field-label">{label}</span>
       <span className="field-control mt-1.5 flex items-center px-3">
         <NumericTextInput value={value} onChange={onChange} decimals={4} min={0} className="min-w-0 flex-1 bg-transparent font-mono text-xs outline-none" />
-        <span className="font-mono text-[9px] text-dim">{suffix}</span>
+        <span className="text-[12px] text-dim">{suffix}</span>
       </span>
     </label>
   );

@@ -11,7 +11,7 @@ export default function Hero() {
       <div>
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="flex flex-col justify-between gap-7 pb-9 lg:flex-row lg:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 border border-edge bg-panel px-3 py-2 font-mono text-[10px] uppercase text-dim">
+            <div className="ui-label inline-flex items-center gap-2 border border-edge bg-panel px-3 py-2">
               <span className="h-1.5 w-1.5 bg-up" />
               Solana automation workspace
             </div>

@@ -66,31 +66,42 @@ function Notifications() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim transition hover:border-gold-400/60 hover:text-ink"
-        aria-label="Notifications"
+        className="relative grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-[color:var(--rule)] hover:text-ink sm:h-9 sm:w-9"
+        aria-label="Status"
         aria-expanded={open}
       >
-        <Bell aria-hidden="true" size={17} />
-        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-gold-400" />
+        <Bell aria-hidden="true" size={17} strokeWidth={1.7} />
+        <span className="absolute right-2.5 top-2.5 h-[5px] w-[5px] rounded-full bg-gold-400" />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-80 rounded-md border border-edge bg-panel p-4 shadow-2xl">
+        <div className="absolute right-0 top-12 z-50 w-[19rem] rounded-lg border border-[color:var(--rule-strong)] bg-panel p-4 shadow-[var(--shadow-panel)]">
           {/* Per capability, not one global verdict. Naming a working feature beside a real
               restriction is what made the old wording harmful. */}
-          <p className="text-sm font-semibold text-ink">What this workspace can do</p>
-          <ul className="mt-2 space-y-1.5 text-xs leading-5 text-dim">
-            <li className="flex gap-2"><span className="text-up">Available</span> Manual swaps you confirm in your own wallet</li>
-            <li className="flex gap-2"><span className="text-up">Available</span> Withdrawals and affiliate payouts</li>
-            <li className="flex gap-2"><span className="text-up">Available</span> Building, editing, pausing and versioning bots</li>
-            <li className="flex gap-2"><span className={automation?.live ? "text-up" : "text-gold-400"}>{automation?.status || "Checking"}</span> Bots placing trades on their own</li>
+          <p className="text-[14px] font-medium text-ink">What you can do right now</p>
+          <ul className="mt-3 space-y-2 text-[13px] leading-5 text-dim">
+            <Capability ready>Swap from your own wallet</Capability>
+            <Capability ready>Withdraw funds and take payouts</Capability>
+            <Capability ready>Build, edit and pause bots</Capability>
+            <Capability ready={Boolean(automation?.live)}>Let bots trade on their own</Capability>
           </ul>
-          {automation?.reason && <p className="mt-2 text-[11px] leading-5 text-dim">{automation.reason}</p>}
-          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-xs font-semibold text-gold-400 hover:text-info">
-            Review bot status
+          {automation?.reason && <p className="mt-3 text-[12px] leading-5 text-[color:var(--text-muted)]">{automation.reason}</p>}
+          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-[13px] font-medium text-gold-400">
+            Go to my bots
           </Link>
         </div>
       )}
     </div>
+  );
+}
+
+/** A capability line: a dot carries the state, so the row reads as prose rather than a table. */
+function Capability({ ready, children }: { ready: boolean; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2.5">
+      <span className={`mt-[7px] h-[5px] w-[5px] shrink-0 rounded-full ${ready ? "bg-up" : "bg-gold-400"}`} aria-hidden="true" />
+      <span className={ready ? "text-dim" : "text-ink"}>{children}</span>
+      <span className="sr-only">{ready ? " — available" : " — not available yet"}</span>
+    </li>
   );
 }
 
@@ -120,22 +131,22 @@ function ThemeMenu() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="grid h-11 w-11 place-items-center rounded-md border border-edge text-dim transition hover:border-gold-400/60 hover:text-ink sm:h-10 sm:w-10"
+        className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-[color:var(--rule)] hover:text-ink sm:h-9 sm:w-9"
         aria-label={`Theme: ${selected.label}`}
         aria-expanded={open}
       >
-        <SelectedIcon aria-hidden="true" size={17} />
+        <SelectedIcon aria-hidden="true" size={17} strokeWidth={1.7} />
       </button>
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-40 overflow-hidden rounded-md border border-edge bg-panel p-1.5 shadow-[var(--shadow-panel)]">
+        <div className="absolute right-0 top-12 z-50 w-40 overflow-hidden rounded-lg border border-[color:var(--rule-strong)] bg-panel p-1.5 shadow-[var(--shadow-panel)]">
           {THEMES.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               type="button"
               onClick={() => { setPreference(value); setOpen(false); }}
-              className={`flex min-h-10 w-full items-center gap-2.5 rounded px-3 text-left text-xs font-medium transition ${preference === value ? "bg-gold-400/10 text-ink" : "text-dim hover:bg-surface-hover hover:text-ink"}`}
+              className={`flex min-h-10 w-full items-center gap-2.5 rounded px-3 text-left text-[13px] transition ${preference === value ? "font-medium text-ink" : "text-dim hover:text-ink"}`}
             >
-              <Icon aria-hidden="true" size={15} className={preference === value ? "text-gold-400" : ""} />
+              <Icon aria-hidden="true" size={15} strokeWidth={1.7} className={preference === value ? "text-ink" : "text-[color:var(--text-muted)]"} />
               {label}
             </button>
           ))}
@@ -176,36 +187,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <ReferralCaptureCompletion />
       <WalletRegistration />
 
-      <aside className="app-sidebar sticky top-0 z-40 hidden h-screen w-60 shrink-0 flex-col lg:flex">
-        <div className="flex h-20 items-center border-b border-edge px-6">
+      {/* The rail carries three destinations and the account. It had also carried a
+          "Workspace" heading above a three-item list, and a bordered card restating
+          "Solana Mainnet" — a fact the header pill and the footer were each stating as
+          well. One screen said mainnet three times and said nothing else about it. */}
+      <aside className="app-sidebar sticky top-0 z-40 hidden h-screen w-[232px] shrink-0 flex-col lg:flex">
+        <div className="flex h-[72px] items-center px-6">
           <Link href="/bots" aria-label="DegenAration bots"><Logo /></Link>
         </div>
-        <div className="px-4 pb-2 pt-6 font-mono text-[9px] uppercase tracking-[0.16em] text-dim">Workspace</div>
-        <nav className="grid gap-1 px-3" aria-label="Primary navigation">
+        <nav className="grid gap-0.5 px-3 pt-4" aria-label="Primary navigation">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActivePath(path, href);
             return (
-              <Link key={href} href={href} className={`relative flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-medium transition ${active ? "bg-gold-400/10 text-ink" : "text-dim hover:bg-surface-hover hover:text-ink"}`}>
-                {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
-                <Icon aria-hidden="true" size={18} strokeWidth={1.8} className={active ? "text-gold-400" : ""} />
+              <Link key={href} href={href} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 text-[14px] transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+                {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                <Icon aria-hidden="true" size={17} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
                 {label}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-auto space-y-3 border-t border-edge p-4">
-          <div className="rounded-md border border-edge bg-void px-3 py-3">
-            <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.1em] text-dim">
-              <span>Network</span><span className="h-1.5 w-1.5 rounded-full bg-gold-400" />
-            </div>
-            <p className="mt-1.5 text-xs font-semibold text-ink">Solana Mainnet</p>
-          </div>
+        <div className="mt-auto space-y-1 p-3">
           {admin && (
-            <Link href="/admin" className={`flex min-h-11 items-center gap-3 rounded-md px-3 text-xs font-medium ${isActivePath(path, "/admin") ? "bg-gold-400/10 text-ink" : "text-dim hover:bg-surface-hover hover:text-ink"}`}>
-              <ShieldCheck aria-hidden="true" size={17} className={isActivePath(path, "/admin") ? "text-gold-400" : ""} /> Owner console
+            <Link href="/admin" className={`flex min-h-11 items-center gap-3 rounded-md px-3 text-[14px] ${isActivePath(path, "/admin") ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+              <ShieldCheck aria-hidden="true" size={17} strokeWidth={1.7} className={isActivePath(path, "/admin") ? "text-ink" : "text-[color:var(--text-muted)]"} /> Owner console
             </Link>
           )}
-          <div className="min-w-0 px-2"><WalletStatus /></div>
+          <div className="min-w-0 border-t border-[color:var(--rule)] px-3 pt-3"><WalletStatus /></div>
         </div>
       </aside>
 
@@ -221,31 +229,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           >
             <div className="flex items-center justify-between">
               <Logo />
-              <button type="button" onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim" aria-label="Close navigation">
+              <button type="button" onClick={() => setMobileOpen(false)} className="grid h-11 w-11 place-items-center rounded-md text-dim" aria-label="Close navigation">
                 <X aria-hidden="true" size={19} />
               </button>
             </div>
-            <nav className="mt-8 grid gap-1">
-              {NAV.map(({ href, label, icon: Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`flex min-h-12 items-center gap-3 rounded-md px-3 text-sm font-medium ${
-                    isActivePath(path, href) ? "bg-gold-400/10 text-ink" : "text-dim"
-                  }`}
-                >
-                  <Icon aria-hidden="true" size={18} className={isActivePath(path, href) ? "text-gold-400" : ""} />
-                  {label}
-                </Link>
-              ))}
+            <nav className="mt-8 grid gap-0.5">
+              {NAV.map(({ href, label, icon: Icon }) => {
+                const active = isActivePath(path, href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] ${active ? "font-medium text-ink" : "text-dim"}`}
+                  >
+                    <Icon aria-hidden="true" size={18} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
+                    {label}
+                  </Link>
+                );
+              })}
               {admin && (
-                <Link href="/admin" className="mt-4 flex min-h-12 items-center gap-3 border-t border-edge px-3 pt-4 text-sm font-medium text-dim">
-                  <ShieldCheck aria-hidden="true" size={18} />
+                <Link href="/admin" className="mt-4 flex min-h-12 items-center gap-3 border-t border-[color:var(--rule)] px-3 pt-4 text-[15px] text-dim">
+                  <ShieldCheck aria-hidden="true" size={18} strokeWidth={1.7} className="text-[color:var(--text-muted)]" />
                   Owner console
                 </Link>
               )}
             </nav>
-            <div className="absolute inset-x-5 bottom-5 border-t border-edge pt-4">
+            <div className="absolute inset-x-5 bottom-5 border-t border-[color:var(--rule)] pt-4">
               <WalletStatus />
             </div>
           </aside>
@@ -253,23 +262,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-edge bg-void/95 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 w-full max-w-[1680px] items-center gap-2 px-4 sm:gap-3 lg:h-20 lg:px-7">
-            <button type="button" onClick={() => setMobileOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md border border-edge text-dim lg:hidden" aria-label="Open navigation">
+        {/* The desktop bar carried an eyebrow reading "DegenAration desk" over the section
+            name — both restating the rail two inches to the left. What belongs here is the
+            account, so that is all it holds. */}
+        <header className="sticky top-0 z-30 border-b border-[color:var(--rule)] bg-void/90 backdrop-blur-xl">
+          <div className="mx-auto flex h-16 w-full max-w-[1560px] items-center gap-2 px-4 sm:gap-3 lg:h-[72px] lg:px-8">
+            <button type="button" onClick={() => setMobileOpen(true)} className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-dim transition hover:text-ink lg:hidden" aria-label="Open navigation">
               <Menu aria-hidden="true" size={19} />
             </button>
             <Link href="/bots" className="flex min-h-11 min-w-11 shrink-0 items-center justify-center lg:hidden" aria-label="DegenAration bots">
               <Logo compact className="sm:hidden" />
               <Logo className="hidden sm:inline-flex" />
             </Link>
-            <div className="hidden min-w-0 lg:block">
-              <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-dim">DegenAration desk</p>
-              <p className="mt-1 text-sm font-semibold text-ink">{section}</p>
-            </div>
-            <div className="ml-auto flex min-w-0 items-center gap-2">
-              <div className="hidden items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 font-mono text-[9px] uppercase tracking-[0.08em] text-dim md:flex">
-                <span className="h-1.5 w-1.5 rounded-full bg-gold-400" /> Solana <span className="text-ink">Mainnet</span>
-              </div>
+            {/* The section name is not repeated here. The rail marks it and the page's own
+                h1 states it; a third copy in the bar was the eyebrow again, one size down. */}
+            <span className="sr-only">{section}</span>
+            <div className="ml-auto flex min-w-0 items-center gap-1.5">
               <ThemeMenu />
               <Notifications />
               <WalletButton />
@@ -277,13 +285,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <motion.main ref={mainRef} id="main-content" tabIndex={-1} key={path} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2, ease: "easeOut" }} className="mx-auto w-full max-w-[1680px] flex-1 px-4 py-6 sm:px-5 lg:px-7 lg:py-7">
+        <motion.main ref={mainRef} id="main-content" tabIndex={-1} key={path} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: "easeOut" }} className="mx-auto w-full max-w-[1560px] flex-1 px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
           {children}
         </motion.main>
 
-        <footer className="border-t border-edge px-4 py-3 lg:px-7">
-          <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.08em] text-dim">
-            <span>DegenAration workspace</span><span>Solana Mainnet</span>
+        <footer className="px-4 pb-6 pt-2 lg:px-8">
+          <div className="mx-auto flex max-w-[1560px] items-center gap-2 border-t border-[color:var(--rule)] pt-4 text-[12px] text-[color:var(--text-muted)]">
+            <span className="h-[5px] w-[5px] rounded-full bg-up" aria-hidden="true" />
+            Solana mainnet
           </div>
         </footer>
       </div>

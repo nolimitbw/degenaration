@@ -36,7 +36,7 @@ export default function Home() {
         </section>
         <section className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
           <div>
-            <p className="font-mono text-[11px] uppercase text-gold-400">Automation with evidence</p>
+            <p className="ui-label text-gold-400">Automation with evidence</p>
             <h2 className="mt-4 max-w-lg text-3xl font-semibold leading-tight text-ink md:text-4xl">Every signal passes through the same risk and capital controls.</h2>
             <p className="mt-5 max-w-xl text-base leading-7 text-dim">Source performance, scanner evidence, immutable bot versions, route estimates, and portfolio history stay connected. Missing market evidence rejects entries instead of guessing.</p>
             <Link href="/bots" className="mt-8 inline-flex rounded-md bg-gold-400 px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Configure a bot</Link>
@@ -44,7 +44,7 @@ export default function Home() {
           <div className="border border-edge bg-panel p-6">
             <div className="flex items-center gap-3 border-b border-edge pb-4"><ShieldCheck className="text-up" size={20} /><div><p className="text-sm font-semibold">Bounded automation</p><p className="text-xs text-dim">Every bot runs inside the limits you set, and every action is recorded.</p></div></div>
             <div className="mt-5 grid gap-px bg-edge sm:grid-cols-3">
-              {[["Automation", "Not yet available"], ["Missing data", "Fail closed"], ["Network", "Solana Mainnet"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="font-mono text-[10px] uppercase text-dim">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
+              {[["Automation", "Not yet available"], ["Missing data", "Fail closed"], ["Network", "Solana Mainnet"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="ui-label">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
             </div>
           </div>
         </section>

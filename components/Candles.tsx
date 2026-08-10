@@ -36,7 +36,7 @@ export default function Candles({ data, className = "h-72 rounded-md border bord
   return (
     <div className={`relative overflow-hidden bg-void ${className}`}>
       {active && (
-        <div className="pointer-events-none absolute left-3 top-3 z-10 border border-edge bg-panel/95 px-3 py-2 font-mono text-[9px] text-dim shadow-lg">
+        <div className="pointer-events-none absolute left-3 top-3 z-10 border border-edge bg-panel/95 px-3 py-2 text-[12px] text-dim shadow-lg">
           <span className="text-ink">{new Date(active.t).toLocaleString()}</span>
           <span className="ml-3">O {priceLabel(active.o)}</span>
           <span className="ml-2 text-up">H {priceLabel(active.h)}</span>

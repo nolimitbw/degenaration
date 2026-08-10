@@ -122,7 +122,7 @@ export default function PositionDetailsPage() {
               <Detail label="Invested" value={formatSol(position.costLamports)} />
               <Detail label="Realized PnL" value={formatSol(position.realizedPnlLamports)} tone={Number(position.realizedPnlLamports) >= 0 ? "positive" : "negative"} />
               <Detail label="Recorded fees" value={formatSol(position.feesLamports)} />
-              <Detail label="Token quantity" value={position.quantityBaseUnits || "--"} />
+              <Detail label="Token quantity" value={position.quantityBaseUnits || "—"} />
               <Detail label="Opened" value={formatWhen(position.opened_at)} />
               <Detail label="Last update" value={formatWhen(position.updated_at)} />
               <Detail label="Closed" value={formatWhen(position.closed_at)} />
@@ -137,8 +137,8 @@ export default function PositionDetailsPage() {
             {executions.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No matching executions are available.</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[860px] text-left">
-                  <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Side</th><th className="px-4 py-3">Kind</th><th className="px-4 py-3">Notional</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Transaction</th></tr></thead>
-                  <tbody>{executions.map((row) => <tr key={row.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(row.created_at)}</td><td className={`px-4 py-4 font-mono uppercase ${row.side === "buy" ? "text-up" : "text-gold-400"}`}>{row.side}</td><td className="px-4 py-4 text-ink">{row.kind || "swap"}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.grossNotionalLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{SOLANA_SIGNATURE.test(row.txSignature || "") ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gold-400">Solscan <ExternalLink size={12} /></a> : <span className="text-dim">--</span>}</td></tr>)}</tbody>
+                  <thead className="ui-label bg-void"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Side</th><th className="px-4 py-3">Kind</th><th className="px-4 py-3">Notional</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Transaction</th></tr></thead>
+                  <tbody>{executions.map((row) => <tr key={row.id} className="border-t border-edge text-xs"><td className="px-4 py-4 text-[12px] text-dim">{formatWhen(row.created_at)}</td><td className={`ui-label px-4 py-4 ${row.side ==="buy" ? "text-up" : "text-gold-400"}`}>{row.side}</td><td className="px-4 py-4 text-ink">{row.kind || "swap"}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.grossNotionalLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{SOLANA_SIGNATURE.test(row.txSignature || "") ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gold-400">Solscan <ExternalLink size={12} /></a> : <span className="text-dim">--</span>}</td></tr>)}</tbody>
                 </table>
               </div>
             )}

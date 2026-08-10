@@ -28,7 +28,7 @@ export default function Groups() {
     <section id="groups" className="mx-auto max-w-6xl px-5 py-24">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase text-grape">Discord source directory</p>
+          <p className="ui-label text-xs text-grape">Discord source directory</p>
           <h2 className="mt-2 text-4xl font-bold md:text-5xl">
             Follow the <span className="text-grape">signal</span>, not the hype.
           </h2>

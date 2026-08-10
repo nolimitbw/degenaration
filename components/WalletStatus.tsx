@@ -8,27 +8,27 @@ export default function WalletStatus() {
 
   if (!ready) {
     return (
-      <span className="flex items-center gap-1.5 font-mono text-[11px] text-dim">
+      <span className="flex items-center gap-1.5 text-[12px] text-dim">
         <span className="h-1.5 w-1.5 rounded-full bg-dim/60" /> Checking
       </span>
     );
   }
   if (!authenticated) {
     return (
-      <button onClick={login} className="flex items-center gap-1.5 font-mono text-[11px] text-dim transition hover:text-gold-400">
+      <button onClick={login} className="flex items-center gap-1.5 text-[12px] text-dim transition hover:text-gold-400">
         <span className="h-1.5 w-1.5 rounded-full bg-dim/60" /> Connect
       </button>
     );
   }
   if (!address) {
     return (
-      <span className="flex items-center gap-1.5 font-mono text-[11px] text-danger">
+      <span className="flex items-center gap-1.5 text-[12px] text-danger">
         <span className="h-1.5 w-1.5 rounded-full bg-danger" /> Account only
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-1.5 font-mono text-[11px] text-gold-400">
+    <span className="flex items-center gap-1.5 text-[12px] text-gold-400">
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold-400" /> {address.slice(0, 4)}…{address.slice(-4)}
     </span>
   );

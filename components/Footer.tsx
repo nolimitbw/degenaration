@@ -17,7 +17,7 @@ export default function Footer() {
             <Link href="/onboarding" className="hover:text-starlight">Get started</Link>
           </div>
         </div>
-        <p className="mt-8 max-w-3xl font-mono text-[11px] leading-relaxed text-haze/70">
+        <p className="mt-8 max-w-3xl text-[12px] leading-relaxed text-haze/70">
           RISK DISCLOSURE: Memecoin trading is extremely high risk. You can lose your entire
           balance. Degenaration is self-directed trading software, not financial advice, and
           never holds custody of user funds. Past performance of any call group does not

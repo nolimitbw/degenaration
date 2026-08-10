@@ -119,7 +119,7 @@ export default function WalletButton() {
                 onClick={copyAddress}
                 className="mt-2 flex min-h-11 sm:min-h-11 sm:min-h-10 w-full items-center justify-between gap-3 rounded-md border border-edge bg-void px-3 text-left"
               >
-                <span className="truncate font-mono text-[11px] text-ink">{address}</span>
+                <span className="truncate ui-code text-[12px] text-ink">{address}</span>
                 <Copy aria-hidden="true" size={14} className="shrink-0 text-dim" />
               </button>
             </div>

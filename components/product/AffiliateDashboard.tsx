@@ -143,13 +143,13 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   if (!authenticated) {
     return (
       <>
-        <PageHeader title="Affiliate" description="Track creator and referral earnings." />
-        <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel p-8 text-center">
-          <div className="max-w-md">
-            <WalletCards className="mx-auto text-gold-400" size={26} />
-            <h2 className="mt-4 text-base font-semibold text-ink">Connect your account</h2>
-            <p className="mt-2 text-sm leading-6 text-dim">Commission ledgers, referral attribution, and payout requests are private account data.</p>
-            <button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Connect account</button>
+        <PageHeader title="Affiliate" description="What you have earned from your servers and referrals." />
+        <div className="max-w-sm border-t border-[color:var(--rule)] pt-8">
+          <div>
+            <WalletCards className="text-[color:var(--text-muted)]" size={20} />
+            <h2 className="mt-3 text-[17px] font-medium text-ink">Connect your wallet</h2>
+            <p className="mt-1.5 text-[13px] leading-5 text-dim">Your earnings, referrals and payouts are private to your account.</p>
+            <button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 text-[14px] font-medium text-[#17110c] transition hover:bg-gold-300">Connect wallet</button>
           </div>
         </div>
       </>
@@ -221,7 +221,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
               ["30-day earnings", formatSol(summary.earnings30dLamports), `${summary.followers} attributed followers`, "Rewards credited in the last 30 days, and the number of users whose trades were attributed to you."]
             ].map(([label, value, detail, hint]) => (
               <div key={label} className="bg-panel p-5">
-                <p className="flex items-center gap-1.5 font-mono text-[9px] uppercase text-dim">
+                <p className="ui-label flex items-center gap-1.5">
                   {label}
                   {/* Reference R1 puts an info affordance on every metric so the page needs
                       no explanatory prose (spec §6.1, §6.3). */}
@@ -249,11 +249,11 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
             </section>
 
             <aside className="overflow-hidden rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><p className="font-mono text-[9px] uppercase text-gold-400">Referral link</p><h2 className="mt-2 text-sm font-semibold text-ink">Stable creator URL</h2></header>
+              <header className="border-b border-edge px-5 py-4"><p className="ui-label text-gold-400">Referral link</p><h2 className="mt-2 text-sm font-semibold text-ink">Stable creator URL</h2></header>
               <div className="p-5">
                 <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
                   <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
+                  <span className="min-w-0 flex-1 truncate ui-code text-[12px] text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
                   <button type="button" onClick={copyReferral} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link"><Copy size={14} /></button>
                 </div>
                 <p className="mt-3 text-[11px] leading-5 text-dim">Attribution is stored server-side. This code does not contain your user ID, wallet, or email.</p>
@@ -449,7 +449,7 @@ function ReferralDashboard({
           ["Lifetime rewards", formatSol(summary.referralLifetimeLamports), "Excludes rejected or reversed"]
         ].map(([label, value, detail]) => (
           <div key={label} className="bg-panel p-4">
-            <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
+            <p className="ui-label">{label}</p>
             <p className="mt-2 font-mono text-lg font-semibold text-ink">{value}</p>
             <p className="mt-1 text-[10px] leading-4 text-dim">{detail}</p>
           </div>
@@ -469,7 +469,7 @@ function ReferralDashboard({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="overflow-hidden rounded-md border border-edge bg-panel">
           <header className="border-b border-edge px-5 py-4">
-            <p className="font-mono text-[9px] uppercase text-gold-400">Referral activity</p>
+            <p className="ui-label text-gold-400">Referral activity</p>
             <h2 className="mt-2 text-sm font-semibold text-ink">Immutable first-touch attribution</h2>
             <p className="mt-1 text-[11px] text-dim">A referred account is assigned once. Review and abuse states never earn rewards automatically.</p>
           </header>
@@ -492,7 +492,7 @@ function ReferralDashboard({
                   <StatusPill status={event.status} />
                   <div className="text-right">
                     <p className="font-mono text-xs text-ink">{formatSol(event.rewardLamports)}</p>
-                    <p className="mt-1 font-mono text-[9px] text-dim">{formatWhen(event.attributed_at)}</p>
+                    <p className="mt-1 text-[12px] text-dim">{formatWhen(event.attributed_at)}</p>
                   </div>
                 </div>
               ))}
@@ -502,13 +502,13 @@ function ReferralDashboard({
 
         <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel">
           <header className="border-b border-edge px-5 py-4">
-            <p className="font-mono text-[9px] uppercase text-gold-400">Referral URL</p>
+            <p className="ui-label text-gold-400">Referral URL</p>
             <h2 className="mt-2 text-sm font-semibold text-ink">Your public link</h2>
           </header>
           <div className="p-5">
             <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
               <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">/r/{summary.referralCode}</span>
+              <span className="min-w-0 flex-1 truncate ui-code text-[12px] text-ink">/r/{summary.referralCode}</span>
               <button type="button" onClick={copyLink} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link">
                 <Copy size={14} />
               </button>
@@ -568,7 +568,7 @@ function ReferralDashboard({
           <div className="w-full max-w-md rounded-md border border-edge bg-panel p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-[9px] uppercase text-gold-400">Confirm referral URL</p>
+                <p className="ui-label text-gold-400">Confirm referral URL</p>
                 <h2 id="referral-confirm-title" className="mt-2 text-base font-semibold text-ink">Change your public path?</h2>
               </div>
               <button type="button" onClick={() => setConfirmOpen(false)} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={15} /></button>
@@ -653,14 +653,14 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
         <ChartMetric label="Channel registry" value={botConfig?.live?.approvedChannelRefreshOk ? "Synced" : "Degraded"} />
         <ChartMetric label="Setup status" value={liveReady ? "Ready" : "Check status"} />
       </div>
-      {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 font-mono text-[9px] text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
+      {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 ui-code text-[12px] text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
       {ownership?.sources?.length ? (
         <div className="border-t border-edge">
           <header className="px-5 py-4"><h3 className="text-sm font-semibold text-ink">Owned sources</h3><p className="mt-1 text-[11px] text-dim">Only confirmed reconciled executions contribute volume and earnings.</p></header>
           <div className="divide-y divide-edge">
             {ownership.sources.map((source) => (
               <div key={source.sourceGroupId} className="px-5 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-ink">{source.sourceName}</p><p className="mt-1 font-mono text-[9px] text-dim">Connected {formatWhen(source.ownedSince)}</p></div><StatusPill status={source.verificationStatus} /></div>
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-ink">{source.sourceName}</p><p className="mt-1 text-[12px] text-dim">Connected {formatWhen(source.ownedSince)}</p></div><StatusPill status={source.verificationStatus} /></div>
                 <div className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-5">
                   <ChartMetric label="Commission rate" value={formatPercentBps(source.commissionRateBps)} />
                   <ChartMetric label="Eligible calls" value={String(source.eligibleCalls)} />
@@ -680,7 +680,7 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
 function CreatorStep({ number, title, detail, done, action }: { number: string; title: string; detail: string; done: boolean; action: React.ReactNode }) {
   return (
     <div className="min-h-44 bg-panel p-5">
-      <div className="flex items-center justify-between"><span className="font-mono text-[10px] text-gold-400">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
+      <div className="flex items-center justify-between"><span className="text-[12px] text-gold-400">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
       <h3 className="mt-5 text-sm font-semibold text-ink">{title}</h3>
       <p className="mt-2 min-h-12 text-[11px] leading-5 text-dim">{detail}</p>
       {/*
@@ -708,9 +708,9 @@ function KolAffiliate({ bots, summary }: { bots: ProductBot[]; summary: Affiliat
         <div className="divide-y divide-edge">
           {bots.map((bot) => (
             <div key={bot.id} className="grid items-center gap-4 px-5 py-4 md:grid-cols-[1fr_auto_auto_auto]">
-              <div className="min-w-0"><p className="truncate text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 truncate font-mono text-[9px] text-dim">{bot.strategySlug || "Private draft"} · v{bot.version}</p></div>
-              <span className="font-mono text-[10px] text-dim">{bot.followers || 0} followers</span>
-              <span className="font-mono text-[10px] text-ink">{formatSol(bot.volumeLamports)}</span>
+              <div className="min-w-0"><p className="truncate text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 truncate text-[12px] text-dim">{bot.strategySlug || "Private draft"} · v{bot.version}</p></div>
+              <span className="text-[12px] text-dim">{bot.followers || 0} followers</span>
+              <span className="text-[12px] text-ink">{formatSol(bot.volumeLamports)}</span>
               <StatusPill status={bot.moderationStatus || bot.status} />
             </div>
           ))}
@@ -727,7 +727,7 @@ function RecentEvents({ events }: { events: any[] }) {
       <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Recent earning events</h2></header>
       {events.length === 0 ? <p className="px-5 py-8 text-center text-xs text-dim">No creator commission events yet.</p> : (
         <div className="divide-y divide-edge">
-          {events.slice(0, 12).map((event) => <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><div><p className="text-xs font-semibold text-ink">{event.sourceType} commission</p><p className="mt-1 font-mono text-[9px] text-dim">{event.sourceId || "platform"} · {event.rateBps ? `${event.rateBps / 100}%` : "adjustment"}</p></div><span className={`font-mono text-xs ${Number(event.amountLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(event.amountLamports)}</span><span className="font-mono text-[9px] text-dim">{formatWhen(event.created_at)}</span></div>)}
+          {events.slice(0, 12).map((event) => <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><div><p className="text-xs font-semibold text-ink">{event.sourceType} commission</p><p className="mt-1 text-[12px] text-dim">{event.sourceId || "platform"} · {event.rateBps ? `${event.rateBps / 100}%` : "adjustment"}</p></div><span className={`font-mono text-xs ${Number(event.amountLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(event.amountLamports)}</span><span className="text-[12px] text-dim">{formatWhen(event.created_at)}</span></div>)}
         </div>
       )}
     </section>
@@ -742,8 +742,8 @@ function PayoutHistory({ summary, onRequest }: { summary: AffiliateSummary; onRe
         {summary.payouts.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No payout requests yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[780px] text-left">
-              <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Gross</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Net</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Status</th></tr></thead>
-              <tbody>{summary.payouts.map((payout) => <tr key={payout.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-dim">{formatWhen(payout.requested_at)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.grossLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(payout.processingFeeLamports)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.netLamports)}</td><td className="px-4 py-4 font-mono text-[9px] text-dim">{payout.destinationWallet.slice(0, 6)}...{payout.destinationWallet.slice(-5)}</td><td className="px-4 py-4"><StatusPill status={payout.status} /></td></tr>)}</tbody>
+              <thead className="ui-label bg-void"><tr><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Gross</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Net</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Status</th></tr></thead>
+              <tbody>{summary.payouts.map((payout) => <tr key={payout.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-dim">{formatWhen(payout.requested_at)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.grossLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(payout.processingFeeLamports)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.netLamports)}</td><td className="px-4 py-4 text-[12px] text-dim">{payout.destinationWallet.slice(0, 6)}...{payout.destinationWallet.slice(-5)}</td><td className="px-4 py-4"><StatusPill status={payout.status} /></td></tr>)}</tbody>
             </table>
           </div>
         )}
@@ -809,9 +809,9 @@ function PayoutModal({
   return (
     <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="payout-title" className="w-full max-w-lg rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 text-lg font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
+        <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="ui-label text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 text-lg font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
         <div className="space-y-4 p-5">
-          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={minimum} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="font-mono text-[10px] text-dim">SOL</span></span></label>
+          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={minimum} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="text-[12px] text-dim">SOL</span></span></label>
           <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono text-xs" /></label>
           <div className="divide-y divide-edge rounded-md border border-edge bg-void px-3">
             <div className="flex justify-between py-3 text-xs text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>

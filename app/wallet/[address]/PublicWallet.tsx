@@ -78,16 +78,16 @@ export default function PublicWallet({ address }: { address: string }) {
       <div className="mt-6 overflow-x-auto rounded-md border border-edge">
         {data.positions.length ? (
           <table className="w-full min-w-[760px] text-left">
-            <thead className="bg-panel font-mono text-[10px] uppercase text-dim"><tr><th className="px-4 py-3">Asset</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">24h</th><th className="px-4 py-3">Actions</th></tr></thead>
+            <thead className="ui-label bg-panel"><tr><th className="px-4 py-3">Asset</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">24h</th><th className="px-4 py-3">Actions</th></tr></thead>
             <tbody>
               {data.positions.map((position) => (
                 <tr key={position.mint} className="border-t border-edge text-sm">
-                  <td className="px-4 py-3"><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 font-mono text-[10px] text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-4)}</p></td>
+                  <td className="px-4 py-3"><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 ui-code text-[12px] text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-4)}</p></td>
                   <td className="px-4 py-3 font-mono text-xs text-dim">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
                   <td className="px-4 py-3 font-mono text-xs">{position.priceUsd == null ? "-" : usd(position.priceUsd)}</td>
                   <td className="px-4 py-3 font-mono text-xs font-bold">{usd(position.valueUsd || 0)}</td>
                   <td className={`px-4 py-3 font-mono text-xs font-bold ${(position.change24h || 0) >= 0 ? "text-up" : "text-danger"}`}>{position.change24h == null ? "-" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(1)}%`}</td>
-                  <td className="px-4 py-3"><div className="flex gap-3 font-mono text-[11px]"><Link href={`/risk/${position.mint}`} className="text-gold-400 hover:underline">Risk report</Link></div></td>
+                  <td className="px-4 py-3"><div className="flex gap-3 ui-code text-[12px]"><Link href={`/risk/${position.mint}`} className="text-gold-400 hover:underline">Risk report</Link></div></td>
                 </tr>
               ))}
             </tbody>
@@ -97,7 +97,7 @@ export default function PublicWallet({ address }: { address: string }) {
         )}
       </div>
 
-      <div className="mt-4 flex items-start gap-2 font-mono text-[10px] leading-5 text-dim">
+      <div className="mt-4 flex items-start gap-2 text-[12px] leading-5 text-dim">
         <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-info" />
         The 24h figure estimates price movement on the wallet&apos;s current balances. It is not realized trade P&L and does not account for transfers or intraday balance changes.
       </div>
@@ -107,7 +107,7 @@ export default function PublicWallet({ address }: { address: string }) {
 }
 
 function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: "up" | "down" }) {
-  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="font-mono text-[10px] uppercase text-dim">{label}</p><p className={`mt-2 text-xl font-bold ${tone === "up" ? "text-up" : tone === "down" ? "text-danger" : "text-ink"}`}>{value}</p><p className="mt-1 font-mono text-[10px] text-dim">{detail}</p></div>;
+  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="ui-label">{label}</p><p className={`mt-2 text-xl font-bold ${tone === "up" ? "text-up" : tone === "down" ? "text-danger" : "text-ink"}`}>{value}</p><p className="mt-1 text-[12px] text-dim">{detail}</p></div>;
 }
 
 function State({ error }: { error?: string }) {

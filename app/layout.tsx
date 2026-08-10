@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
@@ -7,8 +7,15 @@ import ReleaseBanner from "@/components/ReleaseBanner";
 import DegenBackdrop from "@/components/DegenBackdrop";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
-const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
+// Archivo carries the interface: a grotesque with tight apertures and a real weight range,
+// so hierarchy comes from weight and size rather than from decoration.
+//
+// Plex Mono is deliberately narrow in scope. Monospace here means one thing — a string the
+// machine produced and the user may need to compare character by character: a wallet address,
+// a signature, a mint, a version tag. It is not a label style. Applying it to every caption is
+// what made the old interface read as generated rather than designed.
+const display = Archivo({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-display" });
+const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://degenaration.vercel.app"),

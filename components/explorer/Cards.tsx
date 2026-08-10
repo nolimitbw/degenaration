@@ -17,10 +17,10 @@ export default function Cards({ rows, loading, onPick }: { rows: Tok[]; loading:
           className="group gradient-border cursor-pointer rounded-lg border border-edge p-4 transition hover:shadow-gold">
           <div className="flex items-center gap-3">
             {t.image ? <img src={t.image} alt="" className="h-10 w-10 rounded-full" /> : <div className="h-10 w-10 rounded-full bg-edge" />}
-            <div className="min-w-0 flex-1"><p className="truncate font-mono font-bold">{t.symbol}</p><p className="truncate font-mono text-[11px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p></div>
+            <div className="min-w-0 flex-1"><p className="truncate font-mono font-bold">{t.symbol}</p><p className="truncate text-[12px] text-dim">{t.name} · {fmtAge(t.ageMs)}</p></div>
             <span className="font-mono text-sm font-bold"><Chg v={t.change24h} /></span>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11px]"><div><p className="text-dim">MC</p><FlashValue value={t.marketCap}>{fmtNum(t.marketCap)}</FlashValue></div><div><p className="text-dim">Liq</p><FlashValue value={t.liquidityUsd}>{fmtNum(t.liquidityUsd)}</FlashValue></div><div><p className="text-dim">1h Vol</p><FlashValue value={t.vol1h}>{fmtNum(t.vol1h)}</FlashValue></div></div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]"><div><p className="text-dim">MC</p><FlashValue value={t.marketCap}>{fmtNum(t.marketCap)}</FlashValue></div><div><p className="text-dim">Liq</p><FlashValue value={t.liquidityUsd}>{fmtNum(t.liquidityUsd)}</FlashValue></div><div><p className="text-dim">1h Vol</p><FlashValue value={t.vol1h}>{fmtNum(t.vol1h)}</FlashValue></div></div>
           <Link href={`/terminal?mint=${t.address}`} onClick={(e) => e.stopPropagation()} className="mt-3 block w-full rounded-md bg-gold-400 py-2 text-center text-sm font-bold text-white shadow-gold transition hover:brightness-110">Trade →</Link>
         </div>
       ))}

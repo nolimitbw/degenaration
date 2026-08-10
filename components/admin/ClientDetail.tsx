@@ -69,7 +69,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
     <section className="rounded-lg border border-edge bg-panel">
       <header className="flex items-baseline justify-between gap-3 border-b border-edge px-4 py-3">
         <h3 className="text-xs font-semibold text-ink">{title}</h3>
-        {count != null && <span className="font-mono text-[10px] text-dim">{count}</span>}
+        {count != null && <span className="text-[12px] text-dim">{count}</span>}
       </header>
       {children}
     </section>
@@ -183,7 +183,7 @@ export default function ClientDetail({
                 <span className="font-semibold text-ink">{f.kind}</span>
                 <StatusPill status={f.state} />
                 <span className="text-dim">{f.detail || "No detail recorded"}</span>
-                <span className="ml-auto font-mono text-[10px] text-dim">{when(f.at)}</span>
+                <span className="ml-auto text-[12px] text-dim">{when(f.at)}</span>
               </div>
             ))}
           />
@@ -210,7 +210,7 @@ export default function ClientDetail({
               <div key={`${h.created_at}-${index}`} className="flex items-baseline justify-between gap-3 px-4 py-3 text-[11px]">
                 <span className="text-ink">{h.action}</span>
                 <span className="font-mono text-dim">{short(h.address)}</span>
-                <span className="font-mono text-[10px] text-dim">{when(h.created_at)}</span>
+                <span className="text-[12px] text-dim">{when(h.created_at)}</span>
               </div>
             ))}
           />
@@ -232,7 +232,7 @@ export default function ClientDetail({
                 {p.exitCount} exit{p.exitCount === 1 ? "" : "s"}
                 {p.unpricedExits > 0 && ` · ${p.unpricedExits} unpriced`}
               </span>
-              <span className="ml-auto font-mono text-[10px] text-dim">{when(p.opened_at)}</span>
+              <span className="ml-auto text-[12px] text-dim">{when(p.opened_at)}</span>
             </div>
           ))}
         />
@@ -258,7 +258,7 @@ export default function ClientDetail({
                   {short(e.txSignature)}
                 </a>
               )}
-              <span className="ml-auto font-mono text-[10px] text-dim">{when(e.created_at)}</span>
+              <span className="ml-auto text-[12px] text-dim">{when(e.created_at)}</span>
             </div>
           ))}
         />
@@ -272,7 +272,7 @@ export default function ClientDetail({
               <div key={w.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
                 <span className="font-mono text-ink">{sol(w.amountLamports)} SOL</span>
                 <StatusPill status={w.state} />
-                <span className="ml-auto font-mono text-[10px] text-dim">{when(w.created_at)}</span>
+                <span className="ml-auto text-[12px] text-dim">{when(w.created_at)}</span>
               </div>
             ))}
           />
@@ -286,7 +286,7 @@ export default function ClientDetail({
                 <span className="text-ink">{m.type}</span>
                 <StatusPill status={m.status} />
                 <span className="font-mono text-dim">{sol(m.amountLamports)} SOL</span>
-                <span className="ml-auto font-mono text-[10px] text-dim">{when(m.observed_at)}</span>
+                <span className="ml-auto text-[12px] text-dim">{when(m.observed_at)}</span>
               </div>
             ))}
           />
@@ -299,7 +299,7 @@ export default function ClientDetail({
               <div key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
                 <span className="text-ink">{c.accountType}</span>
                 <span className="font-mono text-dim">{sol(c.amountLamports, 4)} SOL</span>
-                <span className="ml-auto font-mono text-[10px] text-dim">{when(c.created_at)}</span>
+                <span className="ml-auto text-[12px] text-dim">{when(c.created_at)}</span>
               </div>
             ))}
           />
@@ -313,7 +313,7 @@ export default function ClientDetail({
                 <span className="text-ink">{b.name || "Untitled"}</span>
                 <span className="text-dim">{b.kind}</span>
                 <StatusPill status={b.status} />
-                <span className="ml-auto font-mono text-[10px] text-dim">{when(b.updated_at)}</span>
+                <span className="ml-auto text-[12px] text-dim">{when(b.updated_at)}</span>
               </div>
             ))}
           />
@@ -342,7 +342,7 @@ export default function ClientDetail({
               <span className="text-ink">{a.action}</span>
               <span className="font-mono text-dim">{short(a.actor, 10, 4)}</span>
               <span className="text-dim">{a.reason || ""}</span>
-              <span className="ml-auto font-mono text-[10px] text-dim">{when(a.created_at)}</span>
+              <span className="ml-auto text-[12px] text-dim">{when(a.created_at)}</span>
             </div>
           ))}
         />

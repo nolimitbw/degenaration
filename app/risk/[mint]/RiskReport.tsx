@@ -71,7 +71,7 @@ export default function RiskReport({ mint }: { mint: string }) {
           <div className="mt-3 rounded-md border border-edge bg-panel">
             {report.providerRisks.length ? report.providerRisks.slice(0, 8).map((risk, index) => (
               <div key={`${risk.name}-${index}`} className="border-b border-edge px-4 py-3 last:border-b-0">
-                <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{risk.name}</p><span className="font-mono text-[10px] uppercase text-dim">{risk.level}</span></div>
+                <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{risk.name}</p><span className="ui-label">{risk.level}</span></div>
                 {risk.description && <p className="mt-1 text-xs leading-5 text-dim">{risk.description}</p>}
               </div>
             )) : <p className="px-4 py-5 text-sm text-dim">No additional provider warnings were returned.</p>}
@@ -83,13 +83,13 @@ export default function RiskReport({ mint }: { mint: string }) {
         <Link href={`/terminal?mint=${mint}`} className="inline-flex min-h-11 items-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#031018]">Open terminal</Link>
         {report.pairUrl && <a href={report.pairUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold hover:border-gold-400/60">Open market <ExternalLink aria-hidden="true" size={15} /></a>}
       </div>
-      <p className="font-mono text-[10px] leading-5 text-dim">A passing report is not a guarantee of safety or future performance. Checks are live and can change between requests.</p>
+      <p className="text-[12px] leading-5 text-dim">A passing report is not a guarantee of safety or future performance. Checks are live and can change between requests.</p>
     </div>
   );
 }
 
 function Check({ label, value, pass }: { label: string; value: string; pass: boolean }) {
-  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="font-mono text-[10px] uppercase text-dim">{label}</p><p className={`mt-2 text-lg font-bold ${pass ? "text-up" : "text-danger"}`}>{value}</p></div>;
+  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="ui-label">{label}</p><p className={`mt-2 text-lg font-bold ${pass ? "text-up" : "text-danger"}`}>{value}</p></div>;
 }
 
 function State({ title, detail, tone }: { title: string; detail: string; tone: "warn" | "loading" }) {

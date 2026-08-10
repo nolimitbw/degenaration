@@ -335,16 +335,30 @@ for (const surface of SURFACES) {
       // The transformation itself. The old overview was two marketing panels describing the
       // products; this asserts the screen now SHOWS them — a totals row, the real sources by
       // name with their measured statistics, and the section headings that replaced the prose.
-      for (const needle of ["Approved sources", "Measured calls 7D", "Copied volume 7D",
+      for (const needle of ["Approved sources", "Calls measured", "Volume copied",
                             "Discord sources", "Your bots", "KOL strategies",
-                            "Hit rate", "Up now", "Median peak", "Median now"]) {
+                            "Hit rate", "Median"]) {
         if (!shows(needle)) failures.push(`bots overview is missing "${needle}"`);
       }
       if (!shows("Alpha Desk") || !shows("New Signals")) {
         failures.push("bots overview does not list the real sources by name");
       }
-      // The unmeasured source must not report a hit rate of 0.0%.
-      if (/0\.0%/.test(measured.text) && !shows("--")) {
+      // The peak/current pairing, asserted on the VALUES rather than on column headings.
+      //
+      // This block previously checked for the strings "Up now" and "Median now". That made the
+      // gate a test of four particular labels, so renaming a column read as removing the
+      // safeguard — which is exactly what happened when the columns were paired. What the gate
+      // actually protects is that a source's flattering peak figure never appears without the
+      // current one beside it: the measured fixture touched 72.2%/1.42x at peak and sits at
+      // 33.3%/0.71x now, and showing only the first is the defect migration 10 was written to
+      // fix. Numbers cannot be renamed, so this holds through any future relabelling.
+      for (const [value, what] of [["72.2%", "peak hit rate"], ["33.3%", "current up-now rate"],
+                                   ["1.42x", "median peak"], ["0.71x", "median now"]]) {
+        if (!shows(value)) failures.push(`bots overview does not render ${what} ${value}`);
+      }
+      // The unmeasured source must not report a hit rate of 0.0%. An absent value is an em
+      // dash; `--` was the old marker and reads as a rendering failure rather than an absence.
+      if (/0\.0%/.test(measured.text) && !shows("—")) {
         failures.push("an unmeasured source is showing 0.0% instead of a dash");
       }
     }

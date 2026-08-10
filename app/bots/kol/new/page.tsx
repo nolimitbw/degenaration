@@ -14,7 +14,7 @@ const TABS = [
 export default function NewKolBotPage() {
   return (
     <AppShell>
-      <PageHeader eyebrow="Bots / KOL / New" title="Build KOL strategy" description="Set the entry, exits, and budget. Fine-tune safeguards only when needed." />
+      <PageHeader title="New KOL strategy" description="Set what to buy, when to sell, and how much to risk." />
       <ProductTabs items={TABS} active="/bots/kol" />
       <div className="mt-6"><BotBuilder kind="kol" /></div>
     </AppShell>

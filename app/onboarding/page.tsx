@@ -57,7 +57,7 @@ export default function Onboarding() {
         </div>
 
         <div className="rounded-lg border border-edge bg-panel p-6">
-          <p className="font-mono text-[10px] uppercase text-gold-400">Step {step + 1} of {STEPS.length}</p>
+          <p className="ui-label text-gold-400">Step {step + 1} of {STEPS.length}</p>
           <h1 className="mt-1 text-xl font-bold">{STEPS[step]}</h1>
 
           {step === 0 && (

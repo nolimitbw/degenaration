@@ -50,8 +50,8 @@ function MetricStrip({ items }: { items: Array<{ label: string; value: React.Rea
     <div className="grid overflow-hidden rounded-md border border-edge bg-panel sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
         <div key={item.label} className="border-b border-edge p-4 sm:border-r xl:border-b-0 last:border-r-0">
-          <p className="font-mono text-[9px] uppercase text-dim">{item.label}</p>
-          <p className={`mt-2 font-mono text-xl font-semibold tabular-nums ${item.tone || "text-ink"}`}>{item.value}</p>
+          <p className="ui-label">{item.label}</p>
+          <p className={`mt-2 ui-figure text-xl font-semibold tabular-nums ${item.tone || "text-ink"}`}>{item.value}</p>
         </div>
       ))}
     </div>
@@ -62,7 +62,7 @@ function SectionTitle({ title, detail }: { title: string; detail?: string }) {
   return (
     <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
       <h2 className="text-sm font-semibold text-ink">{title}</h2>
-      {detail && <p className="font-mono text-[10px] text-dim">{detail}</p>}
+      {detail && <p className="text-[12px] text-dim">{detail}</p>}
     </div>
   );
 }
@@ -130,7 +130,7 @@ function Overview({ data }: { data: AdminData }) {
                 <div key={`${worker.key}-${worker.instanceId}`} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate font-mono text-xs text-ink">{worker.key}</p>
-                    <p className="mt-1 truncate font-mono text-[10px] text-dim">
+                    <p className="mt-1 truncate text-[12px] text-dim">
                       {worker.executionMode || "not reported"} · {formatDate(worker.heartbeatAt)}
                     </p>
                   </div>
@@ -154,7 +154,7 @@ function Overview({ data }: { data: AdminData }) {
                   <ShieldAlert size={17} className={enabled ? "text-down" : "text-up"} />
                   <StatusPill status={enabled ? "enabled" : "disabled"} />
                 </div>
-                <p className="mt-4 break-words font-mono text-[10px] text-dim">{key}</p>
+                <p className="mt-4 break-words text-[12px] text-dim">{key}</p>
               </div>
             );
           })}
@@ -173,7 +173,7 @@ function ApplicationRow({ app, act }: { app: Application; act: (action: AdminAct
           <p className="font-semibold text-ink">{app.server_name}</p>
           <StatusPill status={app.status} />
         </div>
-        <p className="mt-1 truncate font-mono text-[10px] text-dim">{app.owner_handle} · {app.member_count || "Unknown"} members</p>
+        <p className="mt-1 truncate text-[12px] text-dim">{app.owner_handle} · {app.member_count || "Unknown"} members</p>
       </div>
       <p className="line-clamp-2 text-xs leading-5 text-dim">{app.pitch || "No application note supplied."}</p>
       <div className="flex flex-wrap gap-2">
@@ -223,11 +223,11 @@ function ChannelRow({ channel, act }: { channel: Channel; act: (action: AdminAct
           <p className="truncate font-semibold text-ink">{name}</p>
           <StatusPill status={channel.status} />
         </div>
-        <p className="mt-1 truncate font-mono text-[10px] text-dim">
+        <p className="mt-1 truncate text-[12px] text-dim">
           {channel.channel_id} · {channel.guild_member_count ?? "Unknown"} members · by {channel.registered_by || "Unknown"}
         </p>
         {channel.group_id && (
-          <p className="mt-1 truncate font-mono text-[10px] text-dim">
+          <p className="mt-1 truncate text-[12px] text-dim">
             Profile {channel.integration_health || "pending"} · {channel.profile_synced_at ? `synced ${formatDate(channel.profile_synced_at)}` : "awaiting sync"}
           </p>
         )}
@@ -294,11 +294,11 @@ function Discord({ data, act }: { data: AdminData; act: (action: AdminAction) =>
               <div key={source.sourceGroupId} className="grid gap-4 px-4 py-4 lg:grid-cols-[1fr_1fr_auto] lg:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2"><p className="truncate text-xs font-semibold text-ink">{source.sourceName}</p><StatusPill status={source.ownerPrivyUserId ? "verified owner" : "unclaimed"} /></div>
-                  <p className="mt-1 truncate font-mono text-[9px] text-dim">Guild {source.discordGuildId} · Discord {source.discordUserId || "not linked"}</p>
+                  <p className="mt-1 truncate ui-code text-[12px] text-dim">Guild {source.discordGuildId} · Discord {source.discordUserId || "not linked"}</p>
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-mono text-[10px] text-ink">{source.ownerPrivyUserId || "No account owner"}</p>
-                  <p className="mt-1 font-mono text-[9px] text-dim">{(source.commissionRateBps / 100).toFixed(2)}% · {source.validFrom ? `linked ${formatDate(source.validFrom)}` : "no current ownership period"}</p>
+                  <p className="truncate text-[12px] text-ink">{source.ownerPrivyUserId || "No account owner"}</p>
+                  <p className="mt-1 text-[12px] text-dim">{(source.commissionRateBps / 100).toFixed(2)}% · {source.validFrom ? `linked ${formatDate(source.validFrom)}` : "no current ownership period"}</p>
                 </div>
                 {source.ownerPrivyUserId && <ActionButton tone="negative" onClick={() => act({
                   title: "Revoke Discord source ownership",
@@ -321,7 +321,7 @@ function Discord({ data, act }: { data: AdminData; act: (action: AdminAction) =>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-ink">Discord application {data.botConfig.clientId || "not reported"}</p>
-            <p className="mt-1 font-mono text-[10px] text-dim">
+            <p className="mt-1 text-[12px] text-dim">
               {data.botConfig.registrationCommand || "/register"} · {data.botConfig.live?.version || data.botConfig.botBuild || "build unknown"} · {data.botConfig.live?.guilds ?? "?"} guilds
             </p>
           </div>
@@ -401,11 +401,11 @@ function Kol({ data, act }: { data: AdminData; act: (action: AdminAction) => voi
                 </div>
                 <p className="mt-1 truncate text-xs text-dim">{strategy.description || "No public strategy description."}</p>
               </div>
-              <div className="font-mono text-[10px] text-dim">
+              <div className="text-[12px] text-dim">
                 <p>Risk: <span className="text-ink">{strategy.riskTier}</span></p>
                 <p className="mt-1">Version: <span className="text-ink">{strategy.version || 1}</span></p>
               </div>
-              <div className="font-mono text-[10px] text-dim">
+              <div className="text-[12px] text-dim">
                 <p>Fee: <span className="text-ink">{strategy.creatorFeeBps} bps</span></p>
                 <p className="mt-1">Updated: <span className="text-ink">{formatDate(strategy.updated_at)}</span></p>
               </div>
@@ -440,15 +440,15 @@ function ReferralRow({ referral }: { referral: ReferralAttribution }) {
         </div>
         <p className="mt-1 truncate text-xs text-dim">{referral.statusReason}</p>
       </div>
-      <div className="min-w-0 font-mono text-[10px] text-dim">
+      <div className="min-w-0 text-[12px] text-dim">
         <p className="truncate">From <span className="text-ink">{compact(referral.referrerPrivyUserId, 10, 6)}</span></p>
         <p className="mt-1 truncate">To <span className="text-ink">{compact(referral.referredPrivyUserId, 10, 6)}</span></p>
       </div>
-      <div className="font-mono text-[10px] text-dim">
+      <div className="text-[12px] text-dim">
         <p>Captured <span className="text-ink">{formatDate(referral.attributed_at)}</span></p>
         <p className="mt-1">Qualified <span className={referral.firstQualifyingAt ? "text-up" : "text-dim"}>{formatDate(referral.firstQualifyingAt || undefined)}</span></p>
       </div>
-      <div className="font-mono text-[10px] text-dim">
+      <div className="text-[12px] text-dim">
         <p>Reward <span className="float-right text-ink">{formatSol(referral.rewardLamports)}</span></p>
         <p className="mt-1">
           Flags
@@ -566,13 +566,13 @@ function Payouts({ data, act }: { data: AdminData; act: (action: AdminAction) =>
                     <p className="font-mono text-xs text-ink">{compact(payout.id, 8, 6)}</p>
                     <StatusPill status={payout.status} />
                   </div>
-                  <p className="mt-1 font-mono text-[10px] text-dim">{compact(payout.destinationWallet, 8, 6)}</p>
+                  <p className="mt-1 text-[12px] text-dim">{compact(payout.destinationWallet, 8, 6)}</p>
                 </div>
-                <div className="font-mono text-[10px] text-dim">
+                <div className="text-[12px] text-dim">
                   <p>Gross <span className="float-right text-ink">{formatSol(payout.grossLamports)}</span></p>
                   <p className="mt-1">Fee <span className="float-right text-gold-400">{formatSol(payout.processingFeeLamports)}</span></p>
                 </div>
-                <div className="font-mono text-[10px] text-dim">
+                <div className="text-[12px] text-dim">
                   <p>Net <span className="float-right text-up">{formatSol(payout.netLamports)}</span></p>
                   <p className="mt-1">Requested <span className="float-right text-ink">{formatDate(payout.requested_at)}</span></p>
                 </div>
@@ -609,12 +609,12 @@ function Operations({ data }: { data: AdminData }) {
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-md border border-edge bg-panel p-4">
             <Activity size={17} className="text-up" />
-            <p className="mt-4 font-mono text-[9px] uppercase text-dim">Latest market snapshot</p>
+            <p className="ui-label mt-4">Latest market snapshot</p>
             <p className="mt-2 text-sm text-ink">{formatDate(scanner.latestMarketSnapshotAt)}</p>
           </div>
           <div className="rounded-md border border-edge bg-panel p-4">
             <ShieldAlert size={17} className="text-gold-400" />
-            <p className="mt-4 font-mono text-[9px] uppercase text-dim">Latest risk snapshot</p>
+            <p className="ui-label mt-4">Latest risk snapshot</p>
             <p className="mt-2 text-sm text-ink">{formatDate(scanner.latestRiskSnapshotAt)}</p>
           </div>
         </div>
@@ -624,7 +624,7 @@ function Operations({ data }: { data: AdminData }) {
         {data.executions.length ? (
           <div className="overflow-x-auto rounded-md border border-edge bg-panel">
             <table className="w-full min-w-[920px] text-left">
-              <thead className="border-b border-edge bg-void/60 font-mono text-[9px] uppercase text-dim">
+              <thead className="ui-label border-b border-edge bg-void/60">
                 <tr><th className="px-4 py-3">Status</th><th>Side / mint</th><th>Mode</th><th>Notional</th><th>Fees</th><th>Created</th></tr>
               </thead>
               <tbody className="divide-y divide-edge text-xs">
@@ -635,7 +635,7 @@ function Operations({ data }: { data: AdminData }) {
                     <td className="font-mono text-dim">{execution.executionMode}</td>
                     <td className="font-mono text-ink">{formatSol(execution.grossNotionalLamports)}</td>
                     <td className="font-mono text-dim">{formatSol(Number(execution.platformFeeLamports || 0) + Number(execution.creatorFeeLamports || 0))}</td>
-                    <td className="pr-4 font-mono text-[10px] text-dim">{formatDate(execution.created_at)}</td>
+                    <td className="pr-4 text-[12px] text-dim">{formatDate(execution.created_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -662,7 +662,7 @@ function UserList({ data }: { data: AdminData }) {
                   <p className="truncate font-semibold text-ink">{user.displayName || compact(user.privyUserId, 10, 6)}</p>
                   <StatusPill status={user.status} />
                 </div>
-                <p className="mt-1 font-mono text-[10px] text-dim">{user.roles.join(", ") || "USER"}</p>
+                <p className="mt-1 text-[12px] text-dim">{user.roles.join(", ") || "USER"}</p>
               </div>
               <div className="min-w-0 text-xs text-dim">
                 {user.identities.map((identity) => (
@@ -672,7 +672,7 @@ function UserList({ data }: { data: AdminData }) {
                 ))}
                 {!user.identities.length && <p>No verified identity</p>}
               </div>
-              <div className="font-mono text-[10px] text-dim">
+              <div className="text-[12px] text-dim">
                 <p>{user.botCount} bots · {user.wallets.length} wallets</p>
                 <p className="mt-1">{formatDate(user.created_at)}</p>
               </div>
@@ -715,7 +715,7 @@ function FeeAccountPanel({ data }: { data: AdminData }) {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-4 py-3">
         <div>
           <p className="text-xs font-semibold text-ink">Platform fee account</p>
-          <p className="mt-0.5 font-mono text-[10px] text-dim">{compact(fee.owner, 8, 6)}</p>
+          <p className="mt-0.5 text-[12px] text-dim">{compact(fee.owner, 8, 6)}</p>
         </div>
         <StatusPill status={fee.ready ? "enabled" : "disabled"} />
       </header>
@@ -733,7 +733,7 @@ function FeeAccountPanel({ data }: { data: AdminData }) {
               <p className="text-xs font-medium text-ink">{mint.symbol}</p>
               <p className="mt-0.5 text-[10px] leading-4 text-dim">{mint.why}</p>
             </div>
-            <p className="min-w-0 break-all font-mono text-[10px] text-dim">
+            <p className="min-w-0 break-all text-[12px] text-dim">
               {mint.ready ? mint.feeAccount : mint.derivedAccount || "could not derive"}
             </p>
             <StatusPill status={mint.ready ? "enabled" : "disabled"} />
@@ -759,7 +759,7 @@ function System({ data, act }: { data: AdminData; act: (action: AdminAction) => 
                 <p className="break-words font-mono text-xs text-ink">{flag.flag_key}</p>
                 <p className="mt-1 text-xs leading-5 text-dim">{flag.description || "No description provided."}</p>
               </div>
-              <p className="font-mono text-[10px] text-dim">
+              <p className="text-[12px] text-dim">
                 Updated {formatDate(flag.updated_at)}{flag.updated_by ? ` by ${compact(flag.updated_by, 8, 5)}` : ""}
               </p>
               <div className="flex items-center gap-3">
@@ -802,15 +802,15 @@ function Audit({ data }: { data: AdminData }) {
             <div key={event.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[.8fr_1fr_.9fr]">
               <div>
                 <p className="font-mono text-xs text-ink">{event.action}</p>
-                <p className="mt-1 font-mono text-[10px] text-dim">{formatDate(event.created_at)}</p>
+                <p className="mt-1 text-[12px] text-dim">{formatDate(event.created_at)}</p>
               </div>
               <div>
                 <p className="text-xs text-ink">{event.targetType}</p>
-                <p className="mt-1 truncate font-mono text-[10px] text-dim">{event.targetId}</p>
+                <p className="mt-1 truncate text-[12px] text-dim">{event.targetId}</p>
               </div>
               <div>
                 <p className="line-clamp-2 text-xs text-dim">{event.reason || "No reason supplied for this historical event."}</p>
-                {event.correlationId && <p className="mt-1 truncate font-mono text-[9px] text-dim">Correlation {event.correlationId}</p>}
+                {event.correlationId && <p className="mt-1 truncate ui-code text-[12px] text-dim">Correlation {event.correlationId}</p>}
               </div>
             </div>
           ))}

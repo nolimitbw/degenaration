@@ -257,22 +257,22 @@ export default function ClientLedger({
               {clients.map((c) => (
                 <tr key={c.privyUserId} className="border-b border-edge/60 last:border-0">
                   <td className="px-4 py-3">
-                    <span className="font-mono text-[11px] text-ink">{shortId(c.privyUserId)}</span>
+                    <span className="text-[12px] text-ink">{shortId(c.privyUserId)}</span>
                     {c.status !== "active" && <StatusPill status={c.status} />}
                   </td>
                   <td className="px-4 py-3">
                     {c.walletAddress ? (
-                      <span className="font-mono text-[11px] text-dim" title={c.walletAddress}>
+                      <span className="text-[12px] text-dim" title={c.walletAddress}>
                         {shortAddr(c.walletAddress)}
                       </span>
                     ) : (
                       <span className="text-[11px] text-dim">Not registered</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{period(c.volumeTodayLamports)}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{period(c.volume7dLamports)}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{period(c.volume30dLamports)}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-ink">
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{period(c.volumeTodayLamports)}</td>
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{period(c.volume7dLamports)}</td>
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{period(c.volume30dLamports)}</td>
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-ink">
                     {sol(c.executedVolumeLamports)}
                     <span className="ml-1 text-[10px] text-dim">({c.executionCount})</span>
                     {attention(c) > 0 && (
@@ -284,12 +284,12 @@ export default function ClientLedger({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{sol(c.platformFeeLamports, 4)}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">{sol(c.committedLamports)}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{sol(c.platformFeeLamports, 4)}</td>
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{sol(c.committedLamports)}</td>
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">
                     {c.openPositions > 0 ? `${c.openPositions} · ${sol(c.openCostLamports)}` : "—"}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-dim">
+                  <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">
                     {sol(c.withdrawnLamports)}
                     {c.pendingWithdrawalLamports !== "0" && (
                       <span className="ml-1 text-[10px] text-warn">+{sol(c.pendingWithdrawalLamports)}</span>

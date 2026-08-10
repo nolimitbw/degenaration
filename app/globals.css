@@ -65,10 +65,20 @@
   --warning-rgb: 217 180 135;
   --info-rgb: 210 173 128;
 
-  --text-primary: #f3f0eb;
-  --text-secondary: #cbc6bd;
-  --text-muted: #9d9992;
-  --text-disabled: #6b6862;
+  /* Three text tones, not five.
+     The old scale ran primary/secondary/muted/disabled/dim — close enough together that
+     nothing on a screen read as more important than anything else, which is why every
+     surface felt flat regardless of its layout. Three tones with real distance between
+     them let weight do the work: say it, support it, or stand down. */
+  --text-primary: #f4f1ec;
+  --text-secondary: #a09a91;
+  --text-muted: #6f6a63;
+  --text-disabled: #4d4943;
+
+  /* Hairline rules replace panel borders as the default structural device. A ledger rules
+     its columns; it does not draw a box around every entry. */
+  --rule: rgba(240, 233, 222, 0.09);
+  --rule-strong: rgba(240, 233, 222, 0.16);
 
   --success: #55b987;
   --success-muted: rgba(85, 185, 135, 0.12);
@@ -161,15 +171,95 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Text roles.
+
+   The single strongest signal that this interface was generated rather than
+   designed was one habit repeated 94 times across 33 files: every caption,
+   field label, nav heading, table header, page eyebrow, status pill and footer
+   was set in 9px uppercase monospace with wide tracking. Real products spend
+   that treatment once, on the one thing it suits. Spending it everywhere makes
+   every label shout at the same volume, so none of them carry meaning.
+
+   Four roles, each with exactly one job:
+     .ui-label   naming a value          — sentence case, quiet, gets out of the way
+     .ui-figure  a number worth reading  — tabular, sized up, the reason for the screen
+     .ui-code    a machine string        — mono ONLY here: address, signature, mint, id
+     .ui-absent  a value we do not have  — an em dash, never a zero
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* The defaults sit inside :where() so they carry zero specificity. A caller that keeps an
+   explicit `text-gold-400` or `text-[13px]` beside `ui-label` is making a deliberate
+   exception, and the utility must still win — otherwise this class would silently repaint
+   every label it was applied to. */
+:where(.ui-label) {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+.ui-label {
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  font-family: var(--font-display), sans-serif;
+}
+
+.ui-figure {
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+/* Monospace means "compare this character by character". Nothing else earns it. */
+:where(.ui-code) {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.ui-code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* An unknown value is not zero and must never look like one. It is also not `--`, which
+   reads as a rendering failure rather than an honest absence.
+   Set smaller than the figure it stands in for: at full size an em dash in a grotesque is
+   nearly a rule, and a column of them looked like strikethrough. */
+.ui-absent {
+  color: var(--text-disabled);
+  font-size: 0.72em;
+  vertical-align: 0.12em;
+}
+
+/* The ledger rail: figures on the canvas, separated by rules, no card chrome.
+   Number first at reading size, its name underneath. */
+.rail {
+  display: grid;
+  /* Wrapped rows need real separation: at 4px the label of row one sat against the figure of
+     row two and the band read as one column of alternating sizes. */
+  gap: 22px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 16px 0 18px;
+}
+/* Vertical rules only once the band is a single row. Below that the grid wraps, and a
+   left border on every child but the first puts a rule down the middle of row two — a
+   divider that separates nothing. Wrapped rows are separated by space instead. */
+@media (min-width: 1280px) {
+  .rail { gap: 0; }
+  .rail > * { padding-left: 22px; padding-right: 22px; border-left: 1px solid var(--rule); }
+  .rail > *:first-child { padding-left: 0; border-left: 0; }
+  .rail > *:last-child { padding-right: 0; }
+}
+
 .field-label {
   display: block;
-  color: rgb(var(--dim-rgb));
-  font-family: var(--font-mono), monospace;
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.4;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
   letter-spacing: 0;
-  text-transform: uppercase;
 }
 
 .field-control {
@@ -356,12 +446,14 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   box-shadow: 18px 0 48px -42px rgba(0, 0, 0, 0.65);
 }
 
+/* A plain hairline. The gradient that faded gold into the edge colour was decoration on a
+   structural divider — it drew the eye to the boundary rather than to the content. */
 .app-sidebar::after {
   content: "";
   position: absolute;
   inset: 0 0 0 auto;
   width: 1px;
-  background: linear-gradient(180deg, transparent 4%, rgb(var(--gold-rgb) / 0.42) 18%, rgb(var(--edge-rgb)) 55%, transparent 96%);
+  background: var(--rule);
 }
 
 /* The truthful automation notice is 60px at desktop sizes. When it is present in flow, keep
@@ -386,19 +478,6 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 }
 
 .text-glow-gold { text-shadow: 0 0 18px rgb(var(--gold-rgb) / 0.45); }
-.text-glow-pink { text-shadow: 0 0 18px rgb(var(--hotpink-rgb) / 0.45); }
-
-.gradient-text {
-  background: linear-gradient(90deg, rgb(var(--ink-rgb)), rgb(var(--gold-rgb)), rgb(var(--cyber-rgb)), rgb(var(--ink-rgb)));
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: gradient-pan 6s linear infinite;
-}
-@keyframes gradient-pan {
-  to { background-position: 300% 0; }
-}
 
 .gradient-border {
   position: relative;
@@ -658,11 +737,6 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   100% { transform: scale(1.16) rotate(8deg); opacity: 1; }
 }
 
-/* Reserve the accent for intentional emphasis, not a looping visual effect. */
-.cosmic-text {
-  color: #ff7799;
-}
-
 /* Dark utility surfaces preserve contrast over the launch art. */
 .glass-cosmic {
   background: rgba(10, 11, 16, 0.82);
@@ -686,11 +760,6 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   box-shadow: 0 22px 50px -34px rgba(0,0,0,0.95);
 }
 
-/* glow helpers */
-.glow-grape   { box-shadow: 0 0 0 1px rgb(var(--grape-rgb) / 0.4), 0 12px 40px -12px rgb(var(--grape-rgb) / 0.6); }
-.glow-magenta { box-shadow: 0 0 0 1px rgba(255,85,119,0.4), 0 12px 40px -12px rgba(255,85,119,0.55); }
-.text-glow-grape { text-shadow: 0 0 24px rgb(var(--grape-rgb) / 0.55); }
-
 /* Primary and secondary actions remain legible at a glance. */
 .btn-cosmic {
   position: relative;
@@ -701,7 +770,9 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   box-shadow: 0 10px 28px -14px rgb(var(--grape-rgb) / 0.6), 0 1px 0 0 rgba(255,255,255,0.25) inset;
   transition: background 180ms ease, box-shadow 180ms ease;
 }
-.btn-cosmic:hover { background: #e51b4b; box-shadow: 0 14px 32px -14px rgb(var(--grape-rgb) / 0.7); }
+/* Was `#e51b4b`, a crimson left over from a retired palette. A primary action that changes
+   hue on hover reads as a different button; it brightens within the brand instead. */
+.btn-cosmic:hover { background: rgb(var(--gold-rgb) / 0.88); box-shadow: 0 14px 32px -14px rgb(var(--grape-rgb) / 0.7); }
 .btn-ghost {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -716,34 +787,29 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   outline-offset: 3px;
 }
 
-/* Stable two-tone wordmark. */
-.logo-de  { color: #ffffff; }
-.logo-gen { color: #ff2255; }
-
-.hero-kicker,
 .source-status {
-  border: 1px solid rgb(var(--grape-rgb) / 0.45);
-  background: rgb(var(--grape-rgb) / 0.08);
-  color: #ffb4c5;
-}
-.hero-proof { color: var(--haze); }
-.hero-proof div { display: flex; gap: 0.5rem; }
-.hero-proof dd { color: var(--ink); }
-.source-status {
+  border: 1px solid rgb(var(--gold-rgb) / 0.34);
+  background: rgb(var(--gold-rgb) / 0.07);
+  color: rgb(var(--gold-rgb));
   display: inline-flex;
-  padding: 0.2rem 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.6875rem;
 }
 .source-metrics {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.75rem 0;
-  font-family: var(--font-mono);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.85rem 0;
 }
-.source-metrics dt { color: var(--haze); font-size: 0.625rem; text-transform: uppercase; }
-.source-metrics dd { margin-top: 0.2rem; color: var(--ink); font-size: 0.875rem; font-weight: 700; }
+.source-metrics dt { color: var(--text-secondary); font-size: 0.75rem; }
+.source-metrics dd {
+  margin-top: 0.25rem;
+  color: var(--ink);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
 .source-empty {
   border: 1px dashed rgba(255, 255, 255, 0.22);
   background: rgba(10, 11, 16, 0.6);
@@ -755,7 +821,7 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   place-items: center;
   border: 1px solid rgb(var(--grape-rgb) / 0.45);
   background: rgb(var(--grape-rgb) / 0.08);
-  color: #ffb4c5;
+  color: rgb(var(--gold-rgb));
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 700;

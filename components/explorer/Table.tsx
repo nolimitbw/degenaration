@@ -10,7 +10,7 @@ export default function Table({ rows, loading, onPick }: { rows: Tok[]; loading:
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-edge">
       <table className="w-full min-w-[900px] text-left text-sm">
-        <thead className="bg-panel font-mono text-[11px] uppercase text-dim">
+        <thead className="ui-label bg-panel">
           <tr>{["Token","Price","Age","MCAP","Liquidity","5m Vol","1h Vol","1h","24h","Buys",""].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
         </thead>
         <tbody>
@@ -18,7 +18,7 @@ export default function Table({ rows, loading, onPick }: { rows: Tok[]; loading:
           {!loading && !rows.length && <tr className="border-t border-edge"><td colSpan={11} className="px-4 py-12 text-center text-sm text-dim">No tokens found</td></tr>}
           {!loading && rows.map((t) => (
             <tr key={t.address} className="border-t border-edge transition hover:bg-panel/40">
-              <td className="px-4 py-3"><div className="flex items-center gap-2">{t.image ? <img src={t.image} alt="" className="h-7 w-7 rounded-full" /> : <div className="h-7 w-7 rounded-full bg-edge" />}<div><p className="font-mono font-bold">{t.symbol}</p><p className="font-mono text-[10px] text-dim">{t.name?.slice(0,16)}</p></div></div></td>
+              <td className="px-4 py-3"><div className="flex items-center gap-2">{t.image ? <img src={t.image} alt="" className="h-7 w-7 rounded-full" /> : <div className="h-7 w-7 rounded-full bg-edge" />}<div><p className="font-mono font-bold">{t.symbol}</p><p className="text-[12px] text-dim">{t.name?.slice(0,16)}</p></div></div></td>
               <td className="px-4 py-3 font-mono"><FlashValue value={t.priceUsd}>{t.priceUsd != null ? `$${t.priceUsd}` : "—"}</FlashValue></td>
               <td className="px-4 py-3 font-mono text-dim">{fmtAge(t.ageMs)}</td>
               <td className="px-4 py-3 font-mono"><FlashValue value={t.marketCap}>{fmtNum(t.marketCap)}</FlashValue></td>

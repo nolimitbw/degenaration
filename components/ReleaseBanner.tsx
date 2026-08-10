@@ -35,15 +35,25 @@ export default function ReleaseBanner() {
 
   if (dismissed || !notice) return null;
   return (
-    <div className="release-banner relative z-[80] flex items-center justify-center gap-2 border-b border-gold-400/20 bg-[#191613] px-4 py-2 text-center font-mono text-[11px] text-[#c9aa88]">
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-400 opacity-50" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-400" />
-      </span>
-      <span><b>SOLANA MAINNET.</b> {notice}</span>
-      <button onClick={() => setDismissed(true)} aria-label="Dismiss" title="Dismiss" className="ml-1 grid min-h-11 min-w-11 place-items-center rounded-md opacity-70 transition hover:bg-gold-400/10 hover:opacity-100">
-        <X aria-hidden="true" size={16} />
-      </button>
+    /*
+     * Presentation, not content: the notice is about automation, and it opened with
+     * "SOLANA MAINNET." in bold caps beside a pulsing dot. The loudest element on the page
+     * was a word that is not the message, animated, above every screen. A restriction should
+     * be legible and calm — it is information, not an alarm.
+     */
+    <div className="release-banner relative z-[80] border-b border-[color:var(--rule)] bg-[#141210]">
+      <div className="mx-auto flex max-w-[1560px] items-center gap-2.5 px-4 py-2 lg:px-8">
+        <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-gold-400" aria-hidden="true" />
+        <p className="min-w-0 text-[12px] leading-5 text-[#b39c81]">{notice}</p>
+        <button
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss"
+          title="Dismiss"
+          className="ml-auto grid min-h-11 min-w-11 shrink-0 place-items-center rounded-md text-[#8b7c6a] opacity-70 transition hover:opacity-100"
+        >
+          <X aria-hidden="true" size={15} />
+        </button>
+      </div>
     </div>
   );
 }

@@ -7,49 +7,59 @@ import {
   type DiscordSourcePerformance
 } from "@/lib/product-api";
 
+/**
+ * The three metric bands on a source card.
+ *
+ * Every cell here used to be its own filled box on a 1px grid — eighteen boxes per card,
+ * inside a card, inside a page. And the captions were set at **8px**, well under any
+ * readable floor, so the card was simultaneously loud in structure and unreadable in detail.
+ *
+ * Now: hairlines between cells, one type size for names and one for figures.
+ */
+
 export function DiscordActivityGrid({ source }: { source: DiscordSource }) {
   return (
-    <div className="grid gap-px bg-edge sm:grid-cols-3">
-      <ActivityState label="Last processed call" value={activityTime(source.lastProcessedCallAt, "No processed calls yet")} />
-      <ActivityState label="Last successful execution" value={activityTime(source.lastSuccessfulExecutionAt, "No successful execution yet")} />
-      <ActivityState label="Data freshness" value={freshnessState(source)} />
+    <div className="grid gap-y-4 sm:grid-cols-3 sm:gap-y-0">
+      <ActivityState label="Last call seen" value={activityTime(source.lastProcessedCallAt, "None yet")} />
+      <ActivityState label="Last trade filled" value={activityTime(source.lastSuccessfulExecutionAt, "None yet")} />
+      <ActivityState label="Data updated" value={freshnessState(source)} />
     </div>
   );
 }
 
 export function DiscordPerformanceGrid({ source }: { source: DiscordSource }) {
   return (
-    <div className="grid gap-px bg-edge sm:grid-cols-3">
-      <PerformanceState label="1D performance" performance={source.performance1d} />
-      <PerformanceState label="7D performance" performance={source.performance7d} />
-      <PerformanceState label="30D performance" performance={source.performance30d} />
+    <div className="grid gap-y-4 sm:grid-cols-3 sm:gap-y-0">
+      <PerformanceState label="1 day" performance={source.performance1d} />
+      <PerformanceState label="7 days" performance={source.performance7d} />
+      <PerformanceState label="30 days" performance={source.performance30d} />
     </div>
   );
 }
 
 export function DiscordCallCounts({ source }: { source: DiscordSource }) {
   return (
-    <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-4">
-      <CountState label="Total signals" value={source.totalCalls} />
+    <div className="grid grid-cols-4 gap-y-4">
+      <CountState label="Signals" value={source.totalCalls} />
       <CountState label="Accepted" value={source.acceptedCalls ?? source.eligibleCalls} />
       <CountState label="Rejected" value={source.rejectedCalls} />
       <CountState label="Retracted" value={source.retractedCalls} />
-      <CountState label="Monitoring" value={source.activeMonitoring} />
+      <CountState label="Watching" value={source.activeMonitoring} />
       <CountState label="Measured" value={source.measuredCalls} />
-      <CountState label="Copied trades" value={source.copiedExecutions} />
+      <CountState label="Copied" value={source.copiedExecutions} />
       {/* Call performance and copied-trade performance are deliberately reported apart.
           This is the second: what subscribers actually confirmed on chain through this
           source, in integer lamports from the ledger. Zero here is a fact, not a gap. */}
-      <CountState label="Copied volume" value={source.copiedVolumeLamports == null ? undefined : formatSol(source.copiedVolumeLamports)} />
+      <CountState label="Volume" value={source.copiedVolumeLamports == null ? undefined : formatSol(source.copiedVolumeLamports)} />
     </div>
   );
 }
 
 function ActivityState({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-void px-4 py-3">
-      <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-dim">{label}</p>
-      <p className="mt-1.5 text-[11px] leading-5 text-ink">{value}</p>
+    <div className="min-w-0 sm:border-l sm:border-[color:var(--rule)] sm:px-4 sm:first:border-l-0 sm:first:pl-0">
+      <p className="ui-label">{label}</p>
+      <p className="mt-1 text-[13px] leading-5 text-ink">{value}</p>
     </div>
   );
 }
@@ -59,13 +69,13 @@ function PerformanceState({ label, performance }: { label: string; performance?:
   const amount = value == null ? null : Number(value);
   const tone = amount == null || amount === 0 ? "text-ink" : amount > 0 ? "text-up" : "text-down";
   return (
-    <div className="bg-void px-4 py-3">
-      <p className="font-mono text-[8px] uppercase tracking-[0.08em] text-dim">{label}</p>
-      <p className={`mt-1.5 font-mono text-sm font-semibold tabular-nums ${tone}`}>
+    <div className="min-w-0 sm:border-l sm:border-[color:var(--rule)] sm:px-4 sm:first:border-l-0 sm:first:pl-0">
+      <p className="ui-label">{label}</p>
+      <p className={`ui-figure mt-1 text-[17px] ${value == null ? "text-[color:var(--text-muted)]" : tone}`}>
         {value == null ? "Collecting data" : formatSol(value)}
       </p>
-      <p className="mt-1 font-mono text-[8px] text-dim">
-        {performance ? `${performance.sampleSize} reconciled trades · ${formatWhen(performance.asOf)}` : "Ledger history is still developing"}
+      <p className="mt-0.5 truncate text-[11px] text-[color:var(--text-muted)]">
+        {performance ? `${performance.sampleSize} trades · ${formatWhen(performance.asOf)}` : "Not enough history yet"}
       </p>
     </div>
   );
@@ -73,9 +83,11 @@ function PerformanceState({ label, performance }: { label: string; performance?:
 
 function CountState({ label, value }: { label: string; value?: number | string }) {
   return (
-    <div className="bg-void px-3 py-2.5 text-center">
-      <p className="font-mono text-sm font-semibold tabular-nums text-ink">{value == null ? "Collecting" : value}</p>
-      <p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p>
+    <div className="min-w-0 border-l border-[color:var(--rule)] px-3 first:border-l-0 first:pl-0 [&:nth-child(5)]:border-l-0 [&:nth-child(5)]:pl-0">
+      <p className={`ui-figure truncate text-[15px] ${value == null ? "ui-absent" : "text-ink"}`}>
+        {value == null ? "—" : value}
+      </p>
+      <p className="ui-label mt-0.5 truncate">{label}</p>
     </div>
   );
 }

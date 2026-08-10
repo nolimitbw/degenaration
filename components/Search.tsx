@@ -29,7 +29,7 @@ export default function Search() {
           {res.map((r) => (
             <button key={r.address} onClick={() => go(r.address)} className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-edge/40">
               {r.image ? <img src={r.image} alt="" className="h-6 w-6 rounded-full" /> : <div className="h-6 w-6 rounded-full bg-edge" />}
-              <div className="min-w-0"><p className="font-mono text-xs font-bold">{r.symbol}</p><p className="truncate font-mono text-[10px] text-dim">{r.name}</p></div>
+              <div className="min-w-0"><p className="font-mono text-xs font-bold">{r.symbol}</p><p className="truncate text-[12px] text-dim">{r.name}</p></div>
             </button>
           ))}
         </div>

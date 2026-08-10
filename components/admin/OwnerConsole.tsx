@@ -96,7 +96,7 @@ function ConfirmDialog({
       >
         <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
           <div>
-            <p className="font-mono text-[9px] uppercase text-gold-400">Privileged action</p>
+            <p className="ui-label text-gold-400">Privileged action</p>
             <h2 id="admin-action-title" className="mt-2 text-base font-semibold text-ink">{action.title}</h2>
           </div>
           <button type="button" onClick={onCancel} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label="Close confirmation">
@@ -267,7 +267,7 @@ export default function OwnerConsole() {
         }
       />
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-dim">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[12px] text-dim">
         <span>{email || "Owner identity"} · signed Google identity required</span>
         <span>{lastSync ? `Last synced ${lastSync.toLocaleTimeString()}` : identityToken ? "Waiting for owner data" : "Waiting for signed identity token"}</span>
       </div>
@@ -280,7 +280,7 @@ export default function OwnerConsole() {
       {errors.length > 0 && (
         <div className="mt-5 rounded-md border border-down/35 bg-down/5 px-4 py-3">
           <p className="text-xs font-semibold text-down">Some owner data could not be loaded</p>
-          {errors.map((error) => <p key={error} className="mt-1 font-mono text-[10px] text-down">{error}</p>)}
+          {errors.map((error) => <p key={error} className="mt-1 text-[12px] text-down">{error}</p>)}
         </div>
       )}
       {notice && <p className="mt-5 rounded-md border border-up/35 bg-up/5 px-4 py-3 text-xs text-up">{notice}</p>}

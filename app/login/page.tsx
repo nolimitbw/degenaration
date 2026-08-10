@@ -47,7 +47,7 @@ export default function Login() {
           <button onClick={continueToPrivy} disabled={!ready || redirecting} className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 font-bold text-[#17110c] shadow-gold transition hover:brightness-110 disabled:opacity-50">
             <LogIn size={17} /> {redirecting ? "Opening terminal" : "Continue to sign in"}
           </button>
-          <p className="mt-3 text-center font-mono text-[10px] text-dim">Google, email, and supported wallet options appear in the Privy dialog.</p>
+          <p className="mt-3 text-center text-[12px] text-dim">Google, email, and supported wallet options appear in the Privy dialog.</p>
           {msg && <p className="mt-4 text-center text-xs text-danger">{msg}</p>}
         </div>
       </div>

@@ -70,7 +70,7 @@ export default function DiscordOwnerLinkPage() {
       <div className="mx-auto max-w-2xl py-8 sm:py-14">
         <div className="rounded-md border border-edge bg-panel">
           <header className="border-b border-edge p-5 sm:p-7">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gold-400">Verified source ownership</p>
+            <p className="ui-label text-gold-400">Verified source ownership</p>
             <h1 className="mt-3 text-xl font-semibold text-ink">Connect Discord</h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-dim">Match the Discord manager who created this link to one signed-in DegenAration account.</p>
           </header>

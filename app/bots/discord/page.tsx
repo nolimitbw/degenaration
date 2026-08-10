@@ -81,19 +81,22 @@ export default function DiscordMarketplacePage() {
   return (
     <AppShell>
       <PageHeader
-        title="Discord Sources"
-        description="Approved call communities with measured on-chain performance."
+        title="Discord sources"
+        description="Communities whose calls we track on chain. Copy any of them."
+        /* Three buttons, two of them gold-weighted, and the reader had to choose between
+           them before reading the page. Only one is what most people came to do; the other
+           two are for server owners and now read as links. */
         actions={
           <>
-            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/40 px-4 text-sm font-semibold text-gold-400 transition hover:bg-gold-400/10">
-              <Bot aria-hidden="true" size={16} />
-              Add bot to server
+            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-11 items-center gap-2 px-1 text-[13px] text-dim transition hover:text-ink sm:min-h-10">
+              <Bot aria-hidden="true" size={15} />
+              Add our bot to a server
             </a>
-            <Link href="/affiliate?tab=discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60">
-              <Users aria-hidden="true" size={16} />
-              List a server
+            <Link href="/affiliate?tab=discord" className="inline-flex min-h-11 items-center gap-2 px-1 text-[13px] text-dim transition hover:text-ink sm:min-h-10">
+              <Users aria-hidden="true" size={15} />
+              List your server
             </Link>
-            <Link href="/bots/discord/new" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">
+            <Link href="/bots/discord/new" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 text-[14px] font-medium text-[#17110c] transition hover:bg-gold-300 sm:min-h-10">
               <Plus aria-hidden="true" size={16} />
               New Discord bot
             </Link>
@@ -160,8 +163,8 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
   const measured = source.measuredCalls >= minimumSampleSize;
   const joinUrl = safeDiscordInvite(source.joinUrl);
   return (
-    <article className="overflow-hidden rounded-md border border-edge bg-panel">
-      <header className="flex items-start gap-4 border-b border-edge p-5">
+    <article className="overflow-hidden rounded-lg border border-[color:var(--rule)] bg-panel">
+      <header className="flex items-start gap-4 border-b border-[color:var(--rule)] p-5">
         <DiscordSourceAvatar source={source} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -169,7 +172,7 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
             <StatusPill status={source.verificationStatus || "approved"} />
             <IntegrationHealthDot status={source.integrationHealth} />
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-dim">
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-dim">
             {source.members && <span>{source.members}</span>}
             <span>{source.activeFollowers} active followers</span>
           </p>
@@ -182,55 +185,57 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         )}
       </header>
 
-      <div className="border-b border-edge"><DiscordActivityGrid source={source} /></div>
-      <div className="border-b border-edge"><DiscordPerformanceGrid source={source} /></div>
+      {/* Bands separated by rules and spacing rather than by filled boxes on a 1px grid.
+          The card held eighteen bordered cells inside a bordered card inside a page. */}
+      <div className="border-b border-[color:var(--rule)] px-5 py-4"><DiscordActivityGrid source={source} /></div>
+      <div className="border-b border-[color:var(--rule)] px-5 py-4"><DiscordPerformanceGrid source={source} /></div>
 
       {/* Peak and current are shown side by side, always. Every return figure this card used
           to show was a peak multiple with nothing saying so, so a source whose calls had all
           round-tripped to zero read "Win rate 100% · Average return 2.00x". The pairing is
           the point: one number alone cannot be read honestly. */}
-      <div className="grid grid-cols-2 divide-x divide-y divide-edge border-b border-edge py-4 sm:grid-cols-4 sm:divide-y-0">
+      <div className="grid grid-cols-2 gap-y-4 border-b border-[color:var(--rule)] px-5 py-5 sm:grid-cols-4">
         <Metric
           label="Hit rate (peak)"
-          value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "--"}
+          value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "—"}
           tone={measured ? "positive" : "default"}
           hint="Share of measured calls that traded above entry at any point."
         />
         <Metric
           label="Up now"
-          value={measured && source.currentWinRate != null ? `${source.currentWinRate.toFixed(1)}%` : "--"}
+          value={measured && source.currentWinRate != null ? `${source.currentWinRate.toFixed(1)}%` : "—"}
           tone={measured && source.currentWinRate != null && source.currentWinRate >= 50 ? "positive" : "default"}
           hint="Share of those same calls trading above entry right now."
         />
         <Metric
           label="Median peak"
-          value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"}
+          value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "—"}
           hint="Best multiple the middle call reached. Not where it is now."
         />
         <Metric
           label="Median now"
-          value={measured && source.medianCurrentX != null ? `${source.medianCurrentX.toFixed(2)}x` : "--"}
+          value={measured && source.medianCurrentX != null ? `${source.medianCurrentX.toFixed(2)}x` : "—"}
           tone={measured && source.medianCurrentX != null && source.medianCurrentX < 1 ? "negative" : "default"}
           hint="Where the middle call is trading today, on the same set of calls."
         />
       </div>
 
       <div className="p-5">
-        <div className="overflow-hidden rounded-md border border-edge"><DiscordCallCounts source={source} /></div>
+        <DiscordCallCounts source={source} />
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-edge pt-4">
           <div className="min-w-0">
             {measured ? (
-              <p className="font-mono text-[10px] text-dim">{source.measuredCalls} measured calls in this period</p>
+              <p className="text-[12px] text-dim">{source.measuredCalls} measured calls in this period</p>
             ) : (
               <p
-                className="font-mono text-[10px] text-dim"
+                className="text-[12px] text-dim"
                 title="Performance appears after eligible calls receive enough market data."
               >
                 {source.approvedAt ? `Tracking started ${formatWhen(source.approvedAt)}` : "No eligible calls yet"}
               </p>
             )}
             <p
-              className="mt-1 font-mono text-[10px] text-dim"
+              className="mt-1 text-[12px] text-dim"
               title={`The creator receives ${formatPercentBps(source.creatorFeeBps)} of executed notional, paid out of the 2.00% platform fee. You are not charged extra.`}
             >
               {formatPercentBps(source.creatorFeeBps)} creator commission included in 2% fee

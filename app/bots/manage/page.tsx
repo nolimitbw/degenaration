@@ -118,7 +118,7 @@ export default function BotManagerPage() {
   if (!authenticated) {
     return (
       <AppShell>
-        <PageHeader eyebrow="Bots / Manager" title="My Bots" description="Manage Discord and KOL bot versions, lifecycle, and performance." />
+        <PageHeader title="My bots" description="Pause, edit, and see how each one is doing." />
         <ProductTabs items={TABS} active="/bots/manage" />
         <div className="mt-6">
           <EmptyState
@@ -135,7 +135,7 @@ export default function BotManagerPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / Manager"
+        
         title="My Bots"
         description="Pause entries immediately, create immutable configuration versions, and preserve financial history when archiving."
         actions={
@@ -149,7 +149,7 @@ export default function BotManagerPage() {
 
       <section className="mt-5 flex flex-wrap items-center gap-3 border-y border-edge bg-panel/45 px-4 py-3">
         <Segmented value={kind} onChange={setKind} label="Bot kind" options={[{ value: "discord", label: "Discord Bots" }, { value: "kol", label: "KOL Bots" }]} />
-        <div className="flex flex-wrap gap-4 font-mono text-[10px] text-dim">
+        <div className="flex flex-wrap gap-4 text-[12px] text-dim">
           <span><strong className="text-up">{counts.active}</strong> active</span>
           <span><strong className="text-gold-400">{counts.paused}</strong> paused</span>
           <span><strong className="text-ink">{counts.drafts}</strong> drafts</span>
@@ -179,7 +179,7 @@ export default function BotManagerPage() {
         {!!bots?.length && (
           <div className="overflow-x-auto rounded-md border border-edge">
             <table className="w-full min-w-[1280px] text-left">
-              <thead className="bg-panel font-mono text-[9px] uppercase tracking-[0.06em] text-dim">
+              <thead className="ui-label bg-panel">
                 <tr>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Bot</th>
@@ -202,26 +202,26 @@ export default function BotManagerPage() {
                       <td className="px-4 py-4"><StatusPill status={bot.status} /></td>
                       <td className="px-4 py-4">
                         <p className="max-w-48 truncate font-semibold text-ink">{bot.name}</p>
-                        <p className="mt-1 max-w-48 truncate font-mono text-[9px] text-dim">{bot.id}</p>
+                        <p className="mt-1 max-w-48 truncate text-[12px] text-dim">{bot.id}</p>
                       </td>
                       <td className="px-4 py-4">
                         <p className="max-w-48 truncate text-ink">{bot.kind === "discord" ? bot.sourceName || "Source unavailable" : bot.strategySlug || "Unpublished strategy"}</p>
-                        <p className="mt-1 font-mono text-[9px] uppercase text-dim">{bot.kind}{bot.moderationStatus ? ` · ${bot.moderationStatus}` : ""}</p>
+                        <p className="ui-label mt-1">{bot.kind}{bot.moderationStatus ? ` · ${bot.moderationStatus}` : ""}</p>
                       </td>
                       <td className="px-4 py-4 font-mono text-ink">v{bot.version || 1}</td>
-                      <td className="px-4 py-4 font-mono text-ink">{bot.openTrades || 0}<span className="text-dim">/{Number(bot.config?.maxOpenTrades) || "--"}</span></td>
+                      <td className="px-4 py-4 font-mono text-ink">{bot.openTrades || 0}<span className="text-dim">/{Number(bot.config?.maxOpenTrades) || "—"}</span></td>
                       <td className="px-4 py-4 font-mono text-ink">{bot.followers || 0}</td>
-                      <td className="px-4 py-4 font-mono text-dim">{bot.netPnlLamports == null ? "--" : `${(Number(bot.netPnlLamports) / 1e9).toFixed(3)} SOL`}</td>
-                      <td className="px-4 py-4 font-mono text-dim">{bot.volumeLamports == null ? "--" : formatSol(bot.volumeLamports)}</td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.netPnlLamports == null ? "—" : `${(Number(bot.netPnlLamports) / 1e9).toFixed(3)} SOL`}</td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.volumeLamports == null ? "—" : formatSol(bot.volumeLamports)}</td>
                       <td className="px-4 py-4 font-mono text-dim">
                         <div className="flex items-center gap-1.5">
-                          <p>{totalFees == null ? "--" : formatSol(totalFees)}</p>
+                          <p>{totalFees == null ? "—" : formatSol(totalFees)}</p>
                           <span tabIndex={0} aria-label={feeBreakdown(bot)} title={feeBreakdown(bot)} className="text-dim outline-none focus:text-gold-400"><CircleHelp aria-hidden="true" size={12} /></span>
                         </div>
-                        <p className="mt-1 text-[9px]">Gas {bot.networkFeesLamports == null ? "--" : formatSol(bot.networkFeesLamports)}</p>
+                        <p className="mt-1 text-[9px]">Gas {bot.networkFeesLamports == null ? "—" : formatSol(bot.networkFeesLamports)}</p>
                       </td>
-                      <td className="px-4 py-4 font-mono text-dim">{bot.config?.maximumCapitalLamports == null ? "--" : formatSol(bot.config.maximumCapitalLamports)}</td>
-                      <td className="px-4 py-4 font-mono text-[10px] text-dim">{new Date(bot.updated_at || bot.updatedAt || Date.now()).toLocaleDateString()}</td>
+                      <td className="px-4 py-4 font-mono text-dim">{bot.config?.maximumCapitalLamports == null ? "—" : formatSol(bot.config.maximumCapitalLamports)}</td>
+                      <td className="px-4 py-4 text-[12px] text-dim">{new Date(bot.updated_at || bot.updatedAt || Date.now()).toLocaleDateString()}</td>
                       <td className="px-4 py-4">
                         <div className="flex justify-end gap-1">
                           {isBusy ? (
@@ -267,7 +267,7 @@ export default function BotManagerPage() {
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && busy !== archiveTarget.id) setArchiveTarget(null); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="archive-bot-title" className="w-full max-w-lg overflow-hidden rounded-md border border-edge bg-panel shadow-2xl">
             <header className="flex items-center justify-between gap-4 border-b border-edge p-5">
-              <div><p className="font-mono text-[9px] uppercase text-gold-400">Bot lifecycle</p><h2 id="archive-bot-title" className="mt-2 text-lg font-semibold text-ink">Archive {archiveTarget.name}?</h2></div>
+              <div><p className="ui-label text-gold-400">Bot lifecycle</p><h2 id="archive-bot-title" className="mt-2 text-lg font-semibold text-ink">Archive {archiveTarget.name}?</h2></div>
               <button type="button" onClick={() => setArchiveTarget(null)} disabled={busy === archiveTarget.id} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim disabled:opacity-40" aria-label="Close archive confirmation"><X size={16} /></button>
             </header>
             <div className="space-y-4 p-5">

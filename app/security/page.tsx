@@ -44,10 +44,10 @@ export default function Security() {
 
       <h2 className="mt-10 text-lg font-bold">Audit roadmap</h2>
       <div className="mt-4 rounded-lg border border-info/40 bg-info/5 p-5 text-sm text-dim">
-        <p><span className="rounded-full border border-info/50 px-2 py-0.5 font-mono text-[11px] text-info">NOT AUDITED</span> An independent third-party review has not been completed. Manual swaps use <b className="text-danger">Solana Mainnet with real funds</b>. Bots do not place trades on their own yet.</p>
+        <p><span className="rounded-full border border-info/50 px-2 py-0.5 text-[12px] text-info">NOT AUDITED</span> An independent third-party review has not been completed. Manual swaps use <b className="text-danger">Solana Mainnet with real funds</b>. Bots do not place trades on their own yet.</p>
       </div>
 
-      <p className="mt-8 font-mono text-[11px] text-dim">Rate-limited APIs · input validation · no private keys stored · RLS-protected database.</p>
+      <p className="mt-8 text-[12px] text-dim">Rate-limited APIs · input validation · no private keys stored · RLS-protected database.</p>
     </main>
   );
 }

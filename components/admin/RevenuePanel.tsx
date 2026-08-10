@@ -50,7 +50,7 @@ function Figure({ label, value, hint, tone }: { label: string; value: string; hi
   const colour = tone === "up" ? "text-up" : tone === "down" ? "text-down" : "text-ink";
   return (
     <div className="rounded-md border border-edge bg-panel p-4">
-      <p className="font-mono text-[9px] uppercase tracking-wide text-dim">{label}</p>
+      <p className="ui-label">{label}</p>
       <p className={`mt-2 text-lg font-semibold tabular-nums ${colour}`}>{value}</p>
       {hint && <p className="mt-1 text-[11px] leading-4 text-dim">{hint}</p>}
     </div>
@@ -90,7 +90,7 @@ export default function RevenuePanel({
     return (
       <div className="rounded-md border border-down/35 bg-down/5 p-5">
         <p className="text-xs font-semibold text-down">Revenue could not be loaded</p>
-        <p className="mt-1 font-mono text-[10px] text-down">{error}</p>
+        <p className="mt-1 text-[12px] text-down">{error}</p>
         <button type="button" onClick={load} className="mt-3 min-h-11 rounded-md border border-edge px-3 text-xs font-semibold text-dim hover:text-ink">
           Try again
         </button>
@@ -163,7 +163,7 @@ export default function RevenuePanel({
       </div>
 
       <div className="rounded-md border border-edge bg-panel p-5">
-        <p className="font-mono text-[9px] uppercase tracking-wide text-gold-400">DegenAration retained</p>
+        <p className="ui-label text-gold-400">DegenAration retained</p>
         <p className="mt-2 text-2xl font-semibold tabular-nums text-ink">{formatSol(revenue.netRevenueLamports)}</p>
         <p className="mt-2 text-xs leading-5 text-dim">
           Platform fee minus the creator and referral allocations. Creator payouts are not subtracted here — that allocation was already removed once, and removing it twice would understate revenue by the same amount every time.
@@ -346,7 +346,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
             <button
               type="button"
               onClick={() => setAmountSol((Number(availableLamports) / 1e9).toFixed(9).replace(/0+$/, "").replace(/\.$/, ""))}
-              className="min-h-11 rounded-md border border-edge px-3 font-mono text-[11px] text-dim hover:text-ink"
+              className="min-h-11 rounded-md border border-edge px-3 text-[12px] text-dim hover:text-ink"
             >
               Max {formatSol(available)}
             </button>

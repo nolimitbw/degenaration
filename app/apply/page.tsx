@@ -68,19 +68,19 @@ export default function Apply() {
               Add bot
             </a>
           </div>
-          <div className="mt-4 grid gap-2 border-t border-gold-400/20 pt-4 font-mono text-[11px] text-dim sm:grid-cols-4">
+          <div className="mt-4 grid gap-2 border-t border-gold-400/20 pt-4 text-[12px] text-dim sm:grid-cols-4">
             <div><span className="text-ink">Invite</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
             <div><span className="text-ink">Permissions</span><br />view, send, history</div>
             <div><span className="text-ink">Slash command</span><br />{bot?.slashCommandConfigured ? `${bot.registrationCommand || "/register"} ready` : "missing scope"}</div>
             <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
           </div>
           {bot && !bot.slashCommandConfigured && (
-            <p className="mt-3 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-[11px] text-danger">
+            <p className="mt-3 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger">
               The invite is missing applications.commands, so Discord will not show /register. Use the Add bot button above.
             </p>
           )}
           {bot && !bot.registrationBridgeConfigured && (
-            <p className="mt-3 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-[11px] text-danger">
+            <p className="mt-3 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 text-[12px] text-danger">
               The website can open the invite, but the registration bridge needs BOT_SHARED_SECRET before /register can reach Degenaration.
             </p>
           )}
@@ -111,13 +111,13 @@ export default function Apply() {
               { k: "member_count", label: "Member count", ph: "12,000" }
             ] as const).map((f) => (
               <label key={f.k} className="block">
-                <span className="font-mono text-[11px] uppercase text-dim">{f.label}</span>
+                <span className="ui-label">{f.label}</span>
                 <input required placeholder={f.ph} value={form[f.k]} onChange={upd(f.k)}
                   className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 text-sm outline-none transition focus:border-gold-400" />
               </label>
             ))}
             <label className="block">
-              <span className="font-mono text-[11px] uppercase text-dim">Why should we list you? (track record, style, proof)</span>
+              <span className="ui-label">Why should we list you? (track record, style, proof)</span>
               <textarea rows={4} value={form.pitch} onChange={upd("pitch")}
                 className="mt-1 w-full rounded-md border border-edge bg-void px-4 py-3 text-sm outline-none transition focus:border-gold-400" />
             </label>
@@ -125,7 +125,7 @@ export default function Apply() {
             <button type="submit" disabled={busy} className="w-full rounded-md bg-gold-400 py-3 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">
               {busy ? "Submitting…" : "Submit application →"}
             </button>
-            <p className="text-center font-mono text-[11px] text-dim">Revenue share available for high-performing groups</p>
+            <p className="text-center text-[12px] text-dim">Revenue share available for high-performing groups</p>
           </form>
         )}
       </div>

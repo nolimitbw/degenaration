@@ -7,7 +7,7 @@ export default function Cta() {
     <section id="cta" className="border-y border-white/10 bg-black/25 py-24">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
         <div>
-          <p className="font-mono text-xs uppercase text-grape">Source intelligence, not blind copying</p>
+          <p className="ui-label text-xs text-grape">Source intelligence, not blind copying</p>
           <h2 className="mt-3 text-4xl font-bold md:text-6xl">
             See the record. Then set the <span className="text-grape">rules.</span>
           </h2>

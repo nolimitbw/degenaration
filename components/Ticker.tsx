@@ -14,7 +14,7 @@ export default function Ticker() {
     <div className="overflow-hidden border-b border-edge bg-panel/50">
       <div className="ticker-track flex w-max gap-6 py-2">
         {row.map((t, i) => (
-          <Link key={i} href={`/terminal?mint=${t.address}`} className="flex items-center gap-1.5 font-mono text-[11px] transition hover:text-ink">
+          <Link key={i} href={`/terminal?mint=${t.address}`} className="flex items-center gap-1.5 ui-code text-[12px] transition hover:text-ink">
             <span className="text-ink">{t.symbol}</span>
             <span className={(t.change24h || 0) >= 0 ? "text-up" : "text-danger"}>{(t.change24h || 0) >= 0 ? "+" : ""}{(t.change24h ?? 0).toFixed(0)}%</span>
           </Link>

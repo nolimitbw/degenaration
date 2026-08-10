@@ -169,9 +169,23 @@ export default function PortfolioDashboard() {
   if (!authenticated) {
     return (
       <>
-        <PageHeader title="Portfolio" description="Balances, positions, performance, and transactions." />
-        <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel p-8 text-center">
-          <div className="max-w-md"><PortfolioCurveIcon className="mx-auto text-gold-400" size={26} /><h2 className="mt-4 text-base font-semibold text-ink">Connect to view your portfolio</h2><p className="mt-2 text-sm leading-6 text-dim">Private performance and bot execution records are scoped to your verified Privy account.</p><button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Connect account</button></div>
+        <PageHeader title="Portfolio" description="Your balances, positions, performance and transactions." />
+        {/* Was a 288px-tall bordered box centred in an otherwise empty page, telling the user
+            their records were "scoped to your verified Privy account". An empty screen is an
+            invitation to act: say what they get and give them the control, in their words. */}
+        <div className="max-w-sm border-t border-[color:var(--rule)] pt-8">
+          <PortfolioCurveIcon className="text-[color:var(--text-muted)]" size={20} />
+          <h2 className="mt-3 text-[17px] font-medium text-ink">Connect your wallet</h2>
+          <p className="mt-1.5 text-[13px] leading-5 text-dim">
+            Your balances, open positions and trade history are private to your account.
+          </p>
+          <button
+            type="button"
+            onClick={login}
+            className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 text-[14px] font-medium text-[#17110c] transition hover:bg-gold-300"
+          >
+            Connect wallet
+          </button>
         </div>
       </>
     );
@@ -210,7 +224,7 @@ export default function PortfolioDashboard() {
       <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
         <div className="grid gap-px bg-edge lg:grid-cols-[1.35fr_repeat(4,1fr)]">
           <div className="bg-panel p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2"><p className="field-label">Total portfolio value</p><span className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase text-dim"><span className="h-1.5 w-1.5 rounded-full bg-up" /> Solana Mainnet</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><p className="field-label">Total portfolio value</p><span className="ui-label inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-up" /> Solana Mainnet</span></div>
             <p className="mt-3 font-mono text-3xl font-semibold text-ink">{totalSolEquivalent.toFixed(3)} <span className="text-base text-dim">SOL</span></p>
             <p className="mt-1 font-mono text-xs text-dim">{fmtUsd(totalUsd)}</p>
           </div>
@@ -219,7 +233,7 @@ export default function PortfolioDashboard() {
           <BalanceMetric label="Realized PnL" value={`${realized >= 0 ? "+" : ""}${realized.toFixed(3)} SOL`} detail={period.toUpperCase()} tone={realized >= 0 ? "positive" : "negative"} />
           <BalanceMetric
             label="Unrealized PnL"
-            value={unrealized.ok ? `${unrealized.lamports >= BigInt(0) ? "+" : ""}${lamportsToSol(unrealized.lamports.toString()).toFixed(3)} SOL` : "--"}
+            value={unrealized.ok ? `${unrealized.lamports >= BigInt(0) ? "+" : ""}${lamportsToSol(unrealized.lamports.toString()).toFixed(3)} SOL` : "—"}
             detail={
               unrealized.ok
                 ? (openPositions.length === 0 ? "No open positions" : "Open positions at live quotes")
@@ -291,20 +305,20 @@ export default function PortfolioDashboard() {
                 <StatRow label="Total swaps" value={String((summary.executions.length || 0) + (summary.legacyTrades.length || 0))} />
                 <StatRow label="Buys / sells" value={`${executionBuys} / ${executionSells}`} />
                 <StatRow label="Buy / sell volume" value={`${stats.buyVolumeSol.toFixed(3)} / ${stats.sellVolumeSol.toFixed(3)} SOL`} />
-                <StatRow label="Wins / losses" value={stats.wins == null ? "--" : `${stats.wins} / ${stats.losses}`} />
+                <StatRow label="Wins / losses" value={stats.wins == null ? "—" : `${stats.wins} / ${stats.losses}`} />
                 <StatRow label="Gas fees" value={`${stats.networkFeesSol.toFixed(4)} SOL`} />
                 <StatRow label="All fees" value={`${fees.toFixed(4)} SOL`} />
                 <StatRow label="Unique tokens" value={String(uniqueTokens)} />
                 <StatRow label="Win rate" value={formatPercentBps(summary.performance?.winRateBps)} />
                 <StatRow label="Maximum drawdown" value={formatPercentBps(summary.performance?.maxDrawdownBps)} />
                 <StatRow label="Last swap" value={formatWhen(lastExecution)} />
-                <StatRow label="Risk-flagged tokens" value={stats.riskFlaggedTokens == null ? "--" : String(stats.riskFlaggedTokens)} />
+                <StatRow label="Risk-flagged tokens" value={stats.riskFlaggedTokens == null ? "—" : String(stats.riskFlaggedTokens)} />
               </dl>
             </section>
           </div>
 
           <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
-            <header className="flex items-center justify-between border-b border-edge px-5 py-4"><div><h2 className="text-sm font-semibold text-ink">Wallet holdings</h2><p className="mt-1 text-[11px] text-dim">Current SPL balances priced from the most liquid available market pair.</p></div><span className="font-mono text-[9px] text-dim">{walletPortfolio?.count || 0} priced tokens</span></header>
+            <header className="flex items-center justify-between border-b border-edge px-5 py-4"><div><h2 className="text-sm font-semibold text-ink">Wallet holdings</h2><p className="mt-1 text-[11px] text-dim">Current SPL balances priced from the most liquid available market pair.</p></div><span className="text-[12px] text-dim">{walletPortfolio?.count || 0} priced tokens</span></header>
             <WalletHoldings portfolio={walletPortfolio} />
           </section>
         </>
@@ -350,7 +364,7 @@ function PortfolioPerformanceChart({ performance }: { performance: PortfolioSumm
 }
 
 function StatRow({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-start justify-between gap-4 py-3"><dt className="text-[11px] text-dim">{label}</dt><dd className="max-w-[58%] text-right font-mono text-[10px] leading-4 text-ink">{value}</dd></div>;
+  return <div className="flex items-start justify-between gap-4 py-3"><dt className="text-[11px] text-dim">{label}</dt><dd className="max-w-[58%] text-right text-[12px] leading-4 text-ink">{value}</dd></div>;
 }
 
 function WalletHoldings({ portfolio }: { portfolio: Portfolio | null }) {
@@ -359,8 +373,8 @@ function WalletHoldings({ portfolio }: { portfolio: Portfolio | null }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-left">
-        <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">24H</th><th className="px-4 py-3">Liquidity</th></tr></thead>
-        <tbody>{portfolio.positions.map((position) => <tr key={position.mint} className="border-t border-edge text-xs"><td className="px-4 py-4"><div className="flex items-center gap-3">{position.image ? <img src={position.image} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-edge font-mono text-[9px] text-gold-400">{(position.symbol || "?").slice(0, 2)}</span>}<div><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 font-mono text-[9px] text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-5)}</p></div></div></td><td className="px-4 py-4 font-mono text-ink">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td><td className="px-4 py-4 font-mono text-ink">{fmtUsd(position.priceUsd)}</td><td className="px-4 py-4 font-mono text-ink">{fmtUsd(position.valueUsd)}</td><td className={`px-4 py-4 font-mono ${(position.change24h || 0) >= 0 ? "text-up" : "text-down"}`}>{position.change24h == null ? "--" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(2)}%`}</td><td className="px-4 py-4 font-mono text-dim">{fmtUsd(position.liquidityUsd)}</td></tr>)}</tbody>
+        <thead className="ui-label bg-void"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">24H</th><th className="px-4 py-3">Liquidity</th></tr></thead>
+        <tbody>{portfolio.positions.map((position) => <tr key={position.mint} className="border-t border-edge text-xs"><td className="px-4 py-4"><div className="flex items-center gap-3">{position.image ? <img src={position.image} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-edge ui-code text-[12px] text-gold-400">{(position.symbol || "?").slice(0, 2)}</span>}<div><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 ui-code text-[12px] text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-5)}</p></div></div></td><td className="px-4 py-4 font-mono text-ink">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td><td className="px-4 py-4 font-mono text-ink">{fmtUsd(position.priceUsd)}</td><td className="px-4 py-4 font-mono text-ink">{fmtUsd(position.valueUsd)}</td><td className={`px-4 py-4 font-mono ${(position.change24h || 0) >= 0 ? "text-up" : "text-down"}`}>{position.change24h == null ? "—" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(2)}%`}</td><td className="px-4 py-4 font-mono text-dim">{fmtUsd(position.liquidityUsd)}</td></tr>)}</tbody>
       </table>
     </div>
   );
@@ -371,7 +385,7 @@ function PositionsTable({ positions, onShare }: { positions: any[]; onShare: (id
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Bot positions</h2><p className="mt-1 text-[11px] text-dim">Configuration and source attribution remain attached to the position snapshot.</p></header>
       {positions.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No bot positions yet.</p> : (
-        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Bot</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Invested</th><th className="px-4 py-3">Realized PnL</th><th className="px-4 py-3">Fees</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">Actions</th></tr></thead><tbody>{positions.map((position) => <tr key={position.id} className="border-t border-edge text-xs"><td className="px-4 py-4"><p className="font-mono text-ink">{position.mint.slice(0, 7)}...{position.mint.slice(-5)}</p></td><td className="px-4 py-4 text-ink">{position.botName || "Unassigned bot"}</td><td className="px-4 py-4"><StatusPill status={position.status} /></td><td className="px-4 py-4 font-mono text-ink">{formatSol(position.costLamports)}</td><td className={`px-4 py-4 font-mono ${Number(position.realizedPnlLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(position.realizedPnlLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(position.feesLamports)}</td><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(position.opened_at)}</td><td className="px-4 py-4"><div className="flex gap-2"><button type="button" onClick={() => onShare(position.id)} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><Share2 size={13} /> Share</button><Link href={`/portfolio/positions/${position.id}`} className="inline-flex min-h-11 sm:min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink">Details</Link></div></td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left"><thead className="ui-label bg-void"><tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Bot</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Invested</th><th className="px-4 py-3">Realized PnL</th><th className="px-4 py-3">Fees</th><th className="px-4 py-3">Opened</th><th className="px-4 py-3">Actions</th></tr></thead><tbody>{positions.map((position) => <tr key={position.id} className="border-t border-edge text-xs"><td className="px-4 py-4"><p className="font-mono text-ink">{position.mint.slice(0, 7)}...{position.mint.slice(-5)}</p></td><td className="px-4 py-4 text-ink">{position.botName || "Unassigned bot"}</td><td className="px-4 py-4"><StatusPill status={position.status} /></td><td className="px-4 py-4 font-mono text-ink">{formatSol(position.costLamports)}</td><td className={`px-4 py-4 font-mono ${Number(position.realizedPnlLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(position.realizedPnlLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(position.feesLamports)}</td><td className="px-4 py-4 ui-code text-[12px] text-dim">{formatWhen(position.opened_at)}</td><td className="px-4 py-4"><div className="flex gap-2"><button type="button" onClick={() => onShare(position.id)} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><Share2 size={13} /> Share</button><Link href={`/portfolio/positions/${position.id}`} className="inline-flex min-h-11 sm:min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink">Details</Link></div></td></tr>)}</tbody></table></div>
       )}
     </section>
   );
@@ -429,7 +443,7 @@ function TradeHistoryPanel({ data, botFilter }: { data: TradeHistoryData | null;
           <div className="grid gap-px border-b border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
             <BalanceMetric label="Closed trades" value={String(closed.length)} detail={`${measuredClosed.length} fully measured`} />
             <BalanceMetric label="Realized PnL" value={formatSol(realizedTotal.toString())} detail="From reconciled exits" tone={realizedTotal >= BigInt(0) ? "positive" : "negative"} />
-            <BalanceMetric label="Win rate" value={measuredClosed.length ? `${(wins / measuredClosed.length * 100).toFixed(1)}%` : "--"} detail={`${wins} profitable`} />
+            <BalanceMetric label="Win rate" value={measuredClosed.length ? `${(wins / measuredClosed.length * 100).toFixed(1)}%` : "—"} detail={`${wins} profitable`} />
             <BalanceMetric label="Exit proceeds" value={formatSol(proceedsTotal.toString())} detail="Measured settlement value" />
           </div>
           <ClosedPnlChart rows={measuredClosed} />
@@ -448,7 +462,7 @@ function TradeHistoryPanel({ data, botFilter }: { data: TradeHistoryData | null;
       ) : (
         <div className="divide-y divide-edge">{rows.map((row) => <ClosedTrade key={row.id} row={row} quote={data.quotes[row.mint]} />)}</div>
       )}
-      <p className="border-t border-edge px-5 py-3 text-right font-mono text-[9px] text-dim">Prices as of {formatWhen(data.asOf)}</p>
+      <p className="border-t border-edge px-5 py-3 text-right text-[12px] text-dim">Prices as of {formatWhen(data.asOf)}</p>
     </section>
   );
 }
@@ -493,15 +507,15 @@ function SignatureLink({ signature, label }: { signature?: string; label: string
 
 function OngoingTrade({ row, quote, solPriceUsd }: { row: any; quote: TradeHistoryData["quotes"][string]; solPriceUsd: number | null }) {
   const math = positionMath(row, quote, solPriceUsd);
-  const tp = row.entryConfig?.takeProfit?.enabled === false ? "Off" : row.entryConfig?.takeProfit?.levels?.[0]?.targetBps != null ? `+${(Number(row.entryConfig.takeProfit.levels[0].targetBps) / 100).toFixed(2)}%` : "--";
-  const sl = row.entryConfig?.stopLoss?.enabled === false ? "Off" : row.entryConfig?.stopLoss?.stopBps != null ? `-${(Number(row.entryConfig.stopLoss.stopBps) / 100).toFixed(2)}%` : "--";
+  const tp = row.entryConfig?.takeProfit?.enabled === false ? "Off" : row.entryConfig?.takeProfit?.levels?.[0]?.targetBps != null ? `+${(Number(row.entryConfig.takeProfit.levels[0].targetBps) / 100).toFixed(2)}%` : "—";
+  const sl = row.entryConfig?.stopLoss?.enabled === false ? "Off" : row.entryConfig?.stopLoss?.stopBps != null ? `-${(Number(row.entryConfig.stopLoss.stopBps) / 100).toFixed(2)}%` : "—";
   const tone = math.pnl == null ? "text-dim" : math.pnl >= 0 ? "text-up" : "text-down";
   return (
     <article className="p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-ink">{quote?.symbol || "Unknown token"}</p><p className="mt-1 font-mono text-[9px] text-dim">{row.mint}</p><p className="mt-1 text-[10px] text-dim">{row.sourceKind === "discord" ? "Discord" : "KOL"} · {row.sourceName}</p></div><StatusPill status={row.status} /></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-ink">{quote?.symbol || "Unknown token"}</p><p className="mt-1 ui-code text-[12px] text-dim">{row.mint}</p><p className="mt-1 text-[10px] text-dim">{row.sourceKind === "discord" ? "Discord" : "KOL"} · {row.sourceName}</p></div><StatusPill status={row.status} /></div>
       <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-        <TradeMetric label="Entry time" value={formatWhen(row.openedAt)} /><TradeMetric label="Average entry" value={math.entry == null ? "--" : `$${math.entry.toPrecision(6)}`} /><TradeMetric label="Current price" value={math.price == null ? "--" : `$${math.price.toPrecision(6)}`} /><TradeMetric label="Invested" value={`${math.invested.toFixed(4)} SOL`} /><TradeMetric label="Token quantity" value={math.quantity == null ? "--" : math.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })} /><TradeMetric label="TP / SL" value={`${tp} / ${sl}`} />
-        <TradeMetric label="Current PnL" value={math.pnl == null ? "--" : `${math.pnl >= 0 ? "+" : ""}${math.pnl.toFixed(4)} SOL`} tone={tone} /><TradeMetric label="PnL percent" value={math.multiple == null ? "--" : `${((math.multiple - 1) * 100).toFixed(2)}%`} tone={tone} /><TradeMetric label="Current multiple" value={math.multiple == null ? "--" : `${math.multiple.toFixed(2)}x`} tone={tone} /><TradeMetric label="Highest PnL" value={math.highest == null ? "--" : `${math.highest >= 1 ? "+" : ""}${((math.highest - 1) * 100).toFixed(2)}%`} /><TradeMetric label="Entry transaction" valueNode={<SignatureLink signature={row.entrySignatures?.[0]} label="Solscan" />} /><TradeMetric label="Exit action" value="Managed by bot rules" />
+        <TradeMetric label="Entry time" value={formatWhen(row.openedAt)} /><TradeMetric label="Average entry" value={math.entry == null ? "—" : `$${math.entry.toPrecision(6)}`} /><TradeMetric label="Current price" value={math.price == null ? "—" : `$${math.price.toPrecision(6)}`} /><TradeMetric label="Invested" value={`${math.invested.toFixed(4)} SOL`} /><TradeMetric label="Token quantity" value={math.quantity == null ? "—" : math.quantity.toLocaleString(undefined, { maximumFractionDigits: 6 })} /><TradeMetric label="TP / SL" value={`${tp} / ${sl}`} />
+        <TradeMetric label="Current PnL" value={math.pnl == null ? "—" : `${math.pnl >= 0 ? "+" : ""}${math.pnl.toFixed(4)} SOL`} tone={tone} /><TradeMetric label="PnL percent" value={math.multiple == null ? "—" : `${((math.multiple - 1) * 100).toFixed(2)}%`} tone={tone} /><TradeMetric label="Current multiple" value={math.multiple == null ? "—" : `${math.multiple.toFixed(2)}x`} tone={tone} /><TradeMetric label="Highest PnL" value={math.highest == null ? "—" : `${math.highest >= 1 ? "+" : ""}${((math.highest - 1) * 100).toFixed(2)}%`} /><TradeMetric label="Entry transaction" valueNode={<SignatureLink signature={row.entrySignatures?.[0]} label="Solscan" />} /><TradeMetric label="Exit action" value="Managed by bot rules" />
       </dl>
     </article>
   );
@@ -518,14 +532,14 @@ function ClosedTrade({ row, quote }: { row: any; quote: TradeHistoryData["quotes
   const pnl = Number(row.realizedPnlLamports || 0) / 1e9;
   const multiple = proceeds == null || invested <= 0 ? null : proceeds / invested;
   const durationMs = new Date(row.closedAt).getTime() - new Date(row.openedAt).getTime();
-  const duration = Number.isFinite(durationMs) && durationMs >= 0 ? `${Math.floor(durationMs / 3_600_000)}h ${Math.floor(durationMs % 3_600_000 / 60_000)}m` : "--";
+  const duration = Number.isFinite(durationMs) && durationMs >= 0 ? `${Math.floor(durationMs / 3_600_000)}h ${Math.floor(durationMs % 3_600_000 / 60_000)}m` : "—";
   const tone = pnl >= 0 ? "text-up" : "text-down";
   return (
     <article className="p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-ink">{quote?.symbol || "Unknown token"}</p><p className="mt-1 font-mono text-[9px] text-dim">{row.mint}</p><p className="mt-1 text-[10px] text-dim">{row.sourceName}</p></div><span className={`font-mono text-sm font-semibold ${tone}`}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(4)} SOL</span></div>
+      <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-ink">{quote?.symbol || "Unknown token"}</p><p className="mt-1 ui-code text-[12px] text-dim">{row.mint}</p><p className="mt-1 text-[10px] text-dim">{row.sourceName}</p></div><span className={`font-mono text-sm font-semibold ${tone}`}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(4)} SOL</span></div>
       <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-        <TradeMetric label="Average entry" value={row.averageEntryPriceUsd ? `$${Number(row.averageEntryPriceUsd).toPrecision(6)}` : "--"} /><TradeMetric label="Average exit" value={row.averageExitPriceUsd ? `$${Number(row.averageExitPriceUsd).toPrecision(6)}` : "--"} /><TradeMetric label="Invested" value={`${invested.toFixed(4)} SOL`} /><TradeMetric label="Proceeds" value={proceeds == null ? "Unmeasured" : `${proceeds.toFixed(4)} SOL`} />
-        <TradeMetric label="Realized PnL" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(4)} SOL`} tone={tone} /><TradeMetric label="PnL percent" value={multiple == null ? "--" : `${((multiple - 1) * 100).toFixed(2)}%`} tone={tone} /><TradeMetric label="Return multiple" value={multiple == null ? "--" : `${multiple.toFixed(2)}x`} tone={tone} /><TradeMetric label="Close reason" value={closeReason(row.closeReason)} />
+        <TradeMetric label="Average entry" value={row.averageEntryPriceUsd ? `$${Number(row.averageEntryPriceUsd).toPrecision(6)}` : "—"} /><TradeMetric label="Average exit" value={row.averageExitPriceUsd ? `$${Number(row.averageExitPriceUsd).toPrecision(6)}` : "—"} /><TradeMetric label="Invested" value={`${invested.toFixed(4)} SOL`} /><TradeMetric label="Proceeds" value={proceeds == null ? "Unmeasured" : `${proceeds.toFixed(4)} SOL`} />
+        <TradeMetric label="Realized PnL" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(4)} SOL`} tone={tone} /><TradeMetric label="PnL percent" value={multiple == null ? "—" : `${((multiple - 1) * 100).toFixed(2)}%`} tone={tone} /><TradeMetric label="Return multiple" value={multiple == null ? "—" : `${multiple.toFixed(2)}x`} tone={tone} /><TradeMetric label="Close reason" value={closeReason(row.closeReason)} />
         <TradeMetric label="Opened / closed" value={`${formatWhen(row.openedAt)} / ${formatWhen(row.closedAt)}`} /><TradeMetric label="Duration" value={duration} /><TradeMetric label="Entry transaction" valueNode={<SignatureLink signature={row.entrySignatures?.[0]} label="Solscan" />} /><TradeMetric label="Exit transaction" valueNode={<SignatureLink signature={row.exitSignatures?.at(-1)} label="Solscan" />} />
         <TradeMetric label="Platform fee" value={formatSol(row.platformFeeLamports)} /><TradeMetric label="Creator commission" value={formatSol(row.creatorFeeLamports)} /><TradeMetric label="Referral allocation" value={formatSol(row.referralFeeLamports)} />
       </dl>
@@ -534,7 +548,7 @@ function ClosedTrade({ row, quote }: { row: any; quote: TradeHistoryData["quotes
 }
 
 function TradeMetric({ label, value, valueNode, tone = "text-ink" }: { label: string; value?: string; valueNode?: React.ReactNode; tone?: string }) {
-  return <div className="bg-panel p-3"><dt className="field-label">{label}</dt><dd className={`mt-1.5 break-words font-mono text-[10px] leading-4 ${tone}`}>{valueNode || value || "--"}</dd></div>;
+  return <div className="bg-panel p-3"><dt className="field-label">{label}</dt><dd className={`mt-1.5 break-words text-[12px] leading-4 ${tone}`}>{valueNode || value || "—"}</dd></div>;
 }
 
 function TradesTable({ executions, legacy }: { executions: any[]; legacy: any[] }) {
@@ -543,7 +557,7 @@ function TradesTable({ executions, legacy }: { executions: any[]; legacy: any[] 
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Trade history</h2><p className="mt-1 text-[11px] text-dim">Confirmed, pending, failed, and legacy execution records remain visible.</p></header>
       {rows.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No trade records yet.</p> : (
-        <div className="overflow-x-auto"><table className="w-full min-w-[1120px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Token</th><th className="px-4 py-3">Side / kind</th><th className="px-4 py-3">Notional</th><th className="px-4 py-3">Network fee</th><th className="px-4 py-3">Platform fee</th><th className="px-4 py-3">Creator fee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Transaction</th></tr></thead><tbody>{rows.map((row) => <tr key={`${row.source}-${row.id}`} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(row.created_at)}</td><td className="px-4 py-4 font-mono text-ink">{row.mint.slice(0, 7)}...{row.mint.slice(-5)}</td><td className="px-4 py-4"><p className={`font-mono uppercase ${row.side === "buy" ? "text-up" : "text-gold-400"}`}>{row.side}</p><p className="mt-1 text-[9px] text-dim">{row.kind || "swap"}</p></td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.grossNotionalLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.networkFeeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.platformFeeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.creatorFeeLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{row.txSignature ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gold-400">Solscan <ExternalLink size={12} /></a> : <span className="text-dim">--</span>}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[1120px] text-left"><thead className="ui-label bg-void"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Token</th><th className="px-4 py-3">Side / kind</th><th className="px-4 py-3">Notional</th><th className="px-4 py-3">Network fee</th><th className="px-4 py-3">Platform fee</th><th className="px-4 py-3">Creator fee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Transaction</th></tr></thead><tbody>{rows.map((row) => <tr key={`${row.source}-${row.id}`} className="border-t border-edge text-xs"><td className="px-4 py-4 ui-code text-[12px] text-dim">{formatWhen(row.created_at)}</td><td className="px-4 py-4 font-mono text-ink">{row.mint.slice(0, 7)}...{row.mint.slice(-5)}</td><td className="px-4 py-4"><p className={`ui-label ${row.side ==="buy" ? "text-up" : "text-gold-400"}`}>{row.side}</p><p className="mt-1 text-[9px] text-dim">{row.kind || "swap"}</p></td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.grossNotionalLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.networkFeeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.platformFeeLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.creatorFeeLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{row.txSignature ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gold-400">Solscan <ExternalLink size={12} /></a> : <span className="text-dim">--</span>}</td></tr>)}</tbody></table></div>
       )}
     </section>
   );
@@ -554,7 +568,7 @@ function MovementsTable({ rows }: { rows: any[] }) {
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Deposit and withdrawal history</h2><p className="mt-1 text-[11px] text-dim">Detected wallet movements are reconciled against Solana transaction signatures.</p></header>
       {rows.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No reconciled wallet movements yet.</p> : (
-        <div className="overflow-x-auto"><table className="w-full min-w-[840px] text-left"><thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Signature</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-[9px] text-dim">{formatWhen(row.observed_at)}</td><td className="px-4 py-4 capitalize text-ink">{row.type}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.amountLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.networkFeeLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{row.txSignature ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="text-gold-400">View</a> : "--"}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[840px] text-left"><thead className="ui-label bg-void"><tr><th className="px-4 py-3">Time</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Signature</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-t border-edge text-xs"><td className="px-4 py-4 text-[12px] text-dim">{formatWhen(row.observed_at)}</td><td className="px-4 py-4 capitalize text-ink">{row.type}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(row.amountLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(row.networkFeeLamports)}</td><td className="px-4 py-4"><StatusPill status={row.status} /></td><td className="px-4 py-4">{row.txSignature ? <a href={`https://solscan.io/tx/${row.txSignature}`} target="_blank" rel="noreferrer" className="text-gold-400">View</a> : "—"}</td></tr>)}</tbody></table></div>
       )}
     </section>
   );
@@ -767,7 +781,7 @@ function PnlShareModal({ subject, period, getAccessToken, onClose }: { subject: 
   return (
     <div className="fixed inset-0 z-[110] grid place-items-center bg-black/80 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-md border border-edge bg-panel" onClick={(event) => event.stopPropagation()}>
-        <header className="flex items-center justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-gold-400">Authoritative PnL card</p><h2 className="mt-2 text-lg font-semibold text-ink">Share performance</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close share preview"><X size={15} /></button></header>
+        <header className="flex items-center justify-between border-b border-edge p-5"><div><p className="ui-label text-gold-400">Authoritative PnL card</p><h2 className="mt-2 text-lg font-semibold text-ink">Share performance</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close share preview"><X size={15} /></button></header>
         <div className="grid min-h-96 place-items-center bg-void p-5">{url ? <img src={url} alt="DegenAration PnL share card" className="max-h-[62vh] w-full rounded-md object-contain" /> : error ? <div className="max-w-md text-center"><ShieldAlert className="mx-auto text-gold-400" /><p className="mt-3 text-sm font-semibold text-ink">Card unavailable</p><p className="mt-2 text-xs leading-5 text-dim">{error}</p></div> : <Loader2 className="animate-spin text-gold-400" />}</div>
         <footer className="flex flex-wrap justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={download} disabled={!url} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink disabled:opacity-40"><Download size={14} /> Download PNG</button><button type="button" onClick={shareNative} disabled={!url} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-40"><Share2 size={14} /> Share</button></footer>
       </div>

@@ -836,7 +836,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 />
               </div>
               <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-3">
-                <SourceStat label="Measured calls" value={source ? String(source.measuredCalls) : "--"} />
+                <SourceStat label="Measured calls" value={source ? String(source.measuredCalls) : "—"} />
                 <SourceStat label="2x rate" value={source?.winRate == null ? "Collecting data" : `${source.winRate.toFixed(1)}%`} />
                 <SourceStat label="Creator share" value={formatPercentBps(creatorFeeBps)} />
               </div>
@@ -887,7 +887,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
                 <span>
                   <span className="block text-xs font-medium text-ink">Exposure limits</span>
-                  <span className="mt-0.5 block font-mono text-[9px] text-dim">{maximumCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
+                  <span className="mt-0.5 block text-[12px] text-dim">{maximumCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
                 </span>
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
@@ -961,7 +961,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   >
                     <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled && takeProfitEnabled ? "bg-up" : "bg-edge"}`} />
                     <span className="font-mono text-xs text-dim">TP {index + 1}</span>
-                    <span className={`font-mono text-[9px] uppercase ${level.enabled && takeProfitEnabled ? "text-up" : "text-dim"}`}>
+                    <span className={`ui-label ${level.enabled && takeProfitEnabled ?"text-up" : "text-dim"}`}>
                       {level.enabled ? "On" : "Off"}
                     </span>
                   </button>
@@ -1113,7 +1113,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                         >
                           <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled ? "bg-up" : "bg-edge"}`} />
                           <span className="font-mono text-xs text-dim">DCA {index + 1}</span>
-                          <span className={`font-mono text-[9px] uppercase ${level.enabled ? "text-up" : "text-dim"}`}>
+                          <span className={`ui-label ${level.enabled ?"text-up" : "text-dim"}`}>
                             {level.enabled ? "On" : "Off"}
                           </span>
                         </button>
@@ -1167,7 +1167,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 {preview.slice(0, 12).map((item, index) => (
                   <div key={`${item.address}-${index}`} className="flex items-center gap-3 px-4 py-3">
                     <span className={`grid h-7 w-7 place-items-center rounded-sm ${item.pass ? "bg-up/10 text-up" : "bg-down/10 text-down"}`}>{item.pass ? <Check size={14} /> : <X size={14} />}</span>
-                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-ink">{item.symbol}</p><p className="mt-0.5 truncate font-mono text-[9px] text-dim">{item.address}</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-ink">{item.symbol}</p><p className="mt-0.5 truncate ui-code text-[12px] text-dim">{item.address}</p></div>
                     <p className={`max-w-[42%] text-right text-[10px] ${item.pass ? "text-up" : "text-down"}`}>{item.reason}</p>
                   </div>
                 ))}
@@ -1208,12 +1208,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           </SectionGroup>
         </div>
 
-        <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
-          <header className="border-b border-edge px-5 py-4">
-            <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-gold-400">Configuration summary</p>
-            <h2 className="mt-2 truncate text-base font-semibold text-ink">{name || "Untitled bot"}</h2>
+        {/* "Configuration summary" sat in gold above the bot's own name. A panel of the bot's
+            settings does not need a label saying it is a panel of the bot's settings; the name
+            is the useful line, so it leads. */}
+        <aside className="h-fit overflow-hidden rounded-lg border border-[color:var(--rule)] bg-panel xl:sticky xl:top-24">
+          <header className="border-b border-[color:var(--rule)] px-5 py-4">
+            <h2 className="truncate text-[16px] font-medium text-ink">{name || "Untitled bot"}</h2>
+            <p className="ui-label mt-1">This is what will be saved</p>
           </header>
-          <dl className="divide-y divide-edge px-5">
+          <dl className="divide-y divide-[color:var(--rule)] px-5">
             <SummaryRow label="Product" value={kind === "discord" ? "Discord Bot" : "KOL Bot"} />
             <SummaryRow label="Source" value={kind === "discord" ? source?.name || "Not selected" : preset} />
             <SummaryRow label="Network" value={AUTOMATED_MAINNET_RELEASE.label} />
@@ -1256,7 +1259,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           <div className="border-t border-edge p-5">
             <p className="flex items-center justify-between gap-3">
               <span className="field-label">State</span>
-              <span className="font-mono text-[10px] uppercase tracking-wide text-gold-400">{stateLabel}</span>
+              <span className="ui-label text-gold-400">{stateLabel}</span>
             </p>
             {(validationError || readiness) && (
               <div
@@ -1311,7 +1314,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           >
             <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-edge bg-panel px-5 py-4">
               <div>
-                <p className="font-mono text-[9px] uppercase text-gold-400">Advanced safeguards</p>
+                <p className="ui-label text-gold-400">Advanced safeguards</p>
                 <h2 id="security-filter-title" className="mt-2 text-lg font-semibold text-ink">Security filters</h2>
                 <p className="mt-1 text-[11px] leading-5 text-dim">The final review shows enabled and disabled counts. Enabled checks reject missing or stale evidence.</p>
               </div>
@@ -1322,7 +1325,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <section>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div><h3 className="text-sm font-semibold text-ink">Core checks</h3><p className="mt-1 text-[11px] text-dim">Authority, metadata, liquidity, and transaction simulation evidence.</p></div>
-                  <span className="font-mono text-[9px] text-dim">{Object.values(flags).filter(Boolean).length}/{FLAG_FILTERS.length} on</span>
+                  <span className="text-[12px] text-dim">{Object.values(flags).filter(Boolean).length}/{FLAG_FILTERS.length} on</span>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   {FLAG_FILTERS.map(([key, label, sourceLabel]) => (
@@ -1340,21 +1343,21 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 >
                   <span>
                     <span className="block text-sm font-semibold text-ink">Range filters</span>
-                    <span className="mt-0.5 block font-mono text-[9px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length} enabled · optional min/max evidence</span>
+                    <span className="mt-0.5 block text-[12px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length} enabled · optional min/max evidence</span>
                   </span>
                   <ChevronDown aria-hidden="true" size={16} className={`shrink-0 text-dim transition ${advancedOpen ? "rotate-180" : ""}`} />
                 </button>
                 {advancedOpen && (
                   <div className="overflow-x-auto border-t border-edge">
                     <table className="w-full min-w-[780px] text-left">
-                      <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-3 py-2.5">Filter</th><th className="px-3 py-2.5">Data source</th><th className="px-3 py-2.5">Minimum</th><th className="px-3 py-2.5">Maximum</th><th className="px-3 py-2.5">Required</th></tr></thead>
+                      <thead className="ui-label bg-void"><tr><th className="px-3 py-2.5">Filter</th><th className="px-3 py-2.5">Data source</th><th className="px-3 py-2.5">Minimum</th><th className="px-3 py-2.5">Maximum</th><th className="px-3 py-2.5">Required</th></tr></thead>
                       <tbody>
                         {FILTERS.map((definition) => {
                           const value = filters[definition.key];
                           return (
                             <tr key={definition.key} className="border-t border-edge">
-                              <td className="px-3 py-3 text-xs font-medium text-ink">{definition.label}<span className="ml-1 font-mono text-[9px] text-dim">({definition.unit})</span></td>
-                              <td className="px-3 py-3 font-mono text-[9px] text-dim">{definition.source}</td>
+                              <td className="px-3 py-3 text-xs font-medium text-ink">{definition.label}<span className="ml-1 text-[12px] text-dim">({definition.unit})</span></td>
+                              <td className="px-3 py-3 text-[12px] text-dim">{definition.source}</td>
                               <td className="px-3 py-3"><CompactNumber ariaLabel={`${definition.label} minimum`} value={value.min} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, min: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
                               <td className="px-3 py-3"><CompactNumber ariaLabel={`${definition.label} maximum`} value={value.max} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, max: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
                               <td className="px-3 py-3"><button type="button" role="switch" aria-label={`Require ${definition.label}`} aria-checked={value.enabled} onClick={() => setFilters((current) => ({ ...current, [definition.key]: { ...value, enabled: !value.enabled } }))} className={`relative h-6 w-11 rounded-full transition ${value.enabled ? "bg-gold-400" : "bg-edge"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${value.enabled ? "left-6" : "left-1"}`} /></button></td>
@@ -1369,7 +1372,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
 
             <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-edge bg-panel px-5 py-4">
-              <p className="font-mono text-[9px] text-dim">{enabledSafetyCount} total checks enabled</p>
+              <p className="text-[12px] text-dim">{enabledSafetyCount} total checks enabled</p>
               <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Done</button>
             </footer>
           </div>
@@ -1380,7 +1383,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }}>
           <div role="dialog" aria-modal="true" aria-labelledby="confirm-bot-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
-              <div><p className="font-mono text-[9px] uppercase text-gold-400">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 text-lg font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
+              <div><p className="ui-label text-gold-400">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 text-lg font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
               <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
             </header>
             <div className="space-y-4 p-5">
@@ -1424,7 +1427,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 }
               ].map((group) => (
                 <section key={group.title}>
-                  <h3 className="mb-2 font-mono text-[9px] uppercase tracking-[0.1em] text-gold-400">{group.title}</h3>
+                  <h3 className="ui-label mb-2 text-gold-400">{group.title}</h3>
                   <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
                     {group.items.map(([label, value]) => (
                       <div key={label} className="bg-void p-3"><p className="field-label">{label}</p><p className="mt-1.5 break-words text-xs leading-5 text-ink">{value}</p></div>
@@ -1492,24 +1495,25 @@ function FormSection({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <details className="group bg-panel" open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="flex min-h-[68px] list-none items-center justify-between gap-4 px-5 py-3.5">
+      {/* The chevron was a bordered 32px box, which read as a button to press rather than an
+          indicator of state — and it sat beside a bordered card inside a bordered page. The
+          whole summary row is the click target; the chevron just points. */}
+      <summary className="flex min-h-[64px] list-none items-center justify-between gap-4 px-5 py-3.5">
         <span className="min-w-0">
-          <span className="block text-sm font-semibold text-ink">{title}</span>
-          <span className="mt-1 block text-[11px] leading-4 text-dim">{description}</span>
+          <span className="block text-[15px] font-medium text-ink">{title}</span>
+          <span className="mt-0.5 block text-[12px] leading-4 text-dim">{description}</span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
-          {summary && <span className="hidden max-w-56 truncate font-mono text-[9px] text-dim sm:block">{summary}</span>}
-          <span className="grid h-8 w-8 place-items-center rounded-md border border-edge text-dim transition group-open:border-gold-400/40 group-open:text-gold-400">
-            <ChevronDown aria-hidden="true" size={15} className="transition group-open:rotate-180" />
-          </span>
+          {summary && <span className="hidden max-w-56 truncate text-[12px] text-[color:var(--text-muted)] sm:block">{summary}</span>}
+          <ChevronDown aria-hidden="true" size={16} className="shrink-0 text-[color:var(--text-muted)] transition group-open:rotate-180" />
         </span>
       </summary>
-      <div className="space-y-4 border-t border-edge p-5">
+      <div className="space-y-4 border-t border-[color:var(--rule)] p-5 pt-4">
         {pending && (
-          <div className="rounded-md border border-edge bg-void px-3.5 py-3" title={pending.reasons.join("\n\n")}>
-            <p className="font-mono text-[9px] uppercase tracking-[0.08em] text-gold-400">Saved, not acting on trades yet</p>
-            <p className="mt-1.5 text-[11px] leading-5 text-dim">{pending.labels.join(" · ")}</p>
-          </div>
+          <p className="border-l-2 border-gold-400/50 pl-3 text-[12px] leading-5 text-dim" title={pending.reasons.join("\n\n")}>
+            <span className="font-medium text-gold-400">Saves, but will not trade yet.</span>{" "}
+            {pending.labels.join(" · ")}
+          </p>
         )}
         {children}
       </div>
@@ -1538,19 +1542,17 @@ function SectionGroup({ title, description, count, children }: {
 }) {
   return (
     <details className="group bg-void">
-      <summary className="flex min-h-[68px] list-none items-center justify-between gap-4 px-5 py-3.5">
+      <summary className="flex min-h-[64px] list-none items-center justify-between gap-4 px-5 py-3.5">
         <span className="min-w-0">
-          <span className="block text-sm font-semibold text-ink">{title}</span>
-          <span className="mt-1 block text-[11px] leading-4 text-dim">{description}</span>
+          <span className="block text-[15px] font-medium text-ink">{title}</span>
+          <span className="mt-0.5 block text-[12px] leading-4 text-dim">{description}</span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
-          <span className="hidden font-mono text-[9px] text-dim sm:block">{count}</span>
-          <span className="grid h-8 w-8 place-items-center rounded-md border border-edge text-dim transition group-open:border-gold-400/40 group-open:text-gold-400">
-            <ChevronDown aria-hidden="true" size={15} className="transition group-open:rotate-180" />
-          </span>
+          <span className="hidden text-[12px] text-[color:var(--text-muted)] sm:block">{count}</span>
+          <ChevronDown aria-hidden="true" size={16} className="shrink-0 text-[color:var(--text-muted)] transition group-open:rotate-180" />
         </span>
       </summary>
-      <div className="space-y-px border-t border-edge bg-edge">{children}</div>
+      <div className="space-y-px border-t border-[color:var(--rule)] bg-[color:var(--rule)]">{children}</div>
     </details>
   );
 }
@@ -1630,7 +1632,7 @@ function LimitField({
           className="flex min-h-11 min-w-11 items-center justify-end gap-1.5"
         >
           <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-up" : "bg-edge"}`} />
-          <span className={`font-mono text-[9px] uppercase ${on ? "text-up" : "text-dim"}`}>{on ? "On" : "Off"}</span>
+          <span className={`ui-label ${on ?"text-up" : "text-dim"}`}>{on ? "On" : "Off"}</span>
         </button>
       </div>
       <div className="mt-1.5">{children}</div>
@@ -1690,7 +1692,7 @@ function NumberField({
           ariaLabel={label}
           className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-xs text-ink outline-none"
         />
-        <span className="self-center pr-2 font-mono text-[9px] text-dim">{unit}</span>
+        <span className="self-center pr-2 text-[12px] text-dim">{unit}</span>
         <button type="button" disabled={disabled} onClick={() => update(value + step)} className="grid h-11 w-10 shrink-0 place-items-center border-l border-edge text-dim hover:text-ink disabled:pointer-events-none" aria-label={`Increase ${label}`}><Plus size={13} /></button>
       </span>
     </label>
@@ -1742,7 +1744,7 @@ function Toggle({ label, detail, checked, onChange, danger = false, compact = fa
         <span className="mt-0.5 block text-[10px] leading-4 text-dim">{detail}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2">
-        <span className={`font-mono text-[9px] uppercase tracking-[0.08em] ${checked ? danger ? "text-gold-400" : "text-up" : "text-dim"}`}>
+        <span className={`ui-label ${checked ? danger ?"text-gold-400" : "text-up" : "text-dim"}`}>
           {checked ? "On" : "Off"}
         </span>
         <span className={`relative h-6 w-11 rounded-full transition ${checked ? danger ? "bg-gold-400" : "bg-up" : "bg-edge"}`}>
@@ -1755,14 +1757,14 @@ function Toggle({ label, detail, checked, onChange, danger = false, compact = fa
 
 function SummaryRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3">
-      <dt className="flex items-center gap-1.5 text-[11px] text-dim">
+    <div className="flex items-baseline justify-between gap-4 py-2.5">
+      <dt className="flex items-center gap-1.5 text-[13px] text-dim">
         {label}
         {/* Progressive disclosure: detail lives behind an info affordance rather than
             as helper text under every row (spec 6.1, 6.3). */}
-        {hint && <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono text-[8px] leading-none text-dim">i</span>}
+        {hint && <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-[color:var(--rule-strong)] text-[9px] leading-none text-[color:var(--text-muted)]">i</span>}
       </dt>
-      <dd className="max-w-[58%] text-right font-mono text-[10px] leading-4 text-ink">{value}</dd>
+      <dd className="ui-figure max-w-[58%] text-right text-[13px] leading-5 text-ink">{value}</dd>
     </div>
   );
 }

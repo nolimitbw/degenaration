@@ -121,14 +121,14 @@ export default function AdminChannels() {
         >
           Refresh
         </button>
-        <span className={`font-mono text-[11px] ${loaded ? "text-gold-400" : "text-dim"}`}>
+        <span className={`text-[12px] ${loaded ? "text-gold-400" : "text-dim"}`}>
           {waitingForOwnerToken ? "verifying owner session" : loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
         </span>
-        <span className="rounded border border-gold-400/40 bg-gold-400/10 px-2 py-1 font-mono text-[10px] text-gold-400">
+        <span className="rounded border border-gold-400/40 bg-gold-400/10 px-2 py-1 text-[12px] text-gold-400">
           {ADMIN_CHANNELS_UI_VERSION}
         </span>
-        <span className="font-mono text-[10px] text-dim">{source ? source : "owner api pending"}</span>
-        {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
+        <span className="text-[12px] text-dim">{source ? source : "owner api pending"}</span>
+        {lastSync && <span className="text-[12px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
 
       {err && <p className="mt-4 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">{err}</p>}
@@ -142,7 +142,7 @@ export default function AdminChannels() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-3 rounded-lg border border-edge bg-panel p-4 font-mono text-[11px] text-dim md:grid-cols-4">
+      <div className="mt-5 grid gap-3 rounded-lg border border-edge bg-panel p-4 text-[12px] text-dim md:grid-cols-4">
         <div><span className="text-ink">Bot app</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
         <div><span className="text-ink">Command</span><br />{bot?.slashCommandConfigured ? `${bot.registrationCommand || "/register"} ready` : "missing slash scope"}</div>
         <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
@@ -156,15 +156,15 @@ export default function AdminChannels() {
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border border-edge bg-panel p-4">
-          <p className="font-mono text-[10px] uppercase text-dim">Pending approval</p>
+          <p className="ui-label">Pending approval</p>
           <p className="mt-2 font-mono text-2xl font-bold text-gold-400">{loaded ? expectedPending : "..."}</p>
         </div>
         <div className="rounded-lg border border-edge bg-panel p-4">
-          <p className="font-mono text-[10px] uppercase text-dim">Total registrations</p>
+          <p className="ui-label">Total registrations</p>
           <p className="mt-2 font-mono text-2xl font-bold text-ink">{loaded ? channels.length : "..."}</p>
         </div>
         <div className="rounded-lg border border-edge bg-panel p-4">
-          <p className="font-mono text-[10px] uppercase text-dim">Newest channel</p>
+          <p className="ui-label">Newest channel</p>
           <p className="mt-2 truncate font-mono text-sm font-bold text-ink">{newest ? `${newest.guild_name || "Discord server"} #${newest.channel_name || newest.channel_id}` : loaded ? "None" : "..."}</p>
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function AdminChannels() {
               If someone just ran /register, press Refresh. If this page does not show {ADMIN_CHANNELS_UI_VERSION},
               hard refresh the browser tab because it is still running an old admin bundle.
             </p>
-            <p className="mt-3 font-mono text-[11px] text-dim">
+            <p className="mt-3 text-[12px] text-dim">
               Bot command: {bot?.registrationCommand || "/register"} · bridge {bot?.registrationBridgeConfigured ? "online" : "not configured"} · source {source || "not loaded"}
             </p>
           </div>
@@ -195,7 +195,7 @@ export default function AdminChannels() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h3 className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></h3>
-                <p className="mt-0.5 font-mono text-[11px] text-dim">channel {c.channel_id} · {c.guild_member_count ?? "—"} members · registered by {c.registered_by ?? "—"}</p>
+                <p className="mt-0.5 text-[12px] text-dim">channel {c.channel_id} · {c.guild_member_count ?? "—"} members · registered by {c.registered_by ?? "—"}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => act(c.id, "approve")} disabled={busy === c.id}
@@ -205,7 +205,7 @@ export default function AdminChannels() {
               </div>
             </div>
             <label className="mt-4 block">
-              <span className="font-mono text-[10px] uppercase text-dim">Decision reason</span>
+              <span className="ui-label">Decision reason</span>
               <input
                 value={decisionReasons[c.id] || ""}
                 onChange={(event) => setDecisionReasons((current) => ({ ...current, [c.id]: event.target.value }))}
@@ -227,7 +227,7 @@ export default function AdminChannels() {
                 <div>
                   <span className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></span>
                   {c.group_id && (
-                    <p className="mt-1 font-mono text-[10px] text-dim">
+                    <p className="mt-1 text-[12px] text-dim">
                       Profile {c.integration_health || "pending"} · {c.profile_synced_at ? `synced ${new Date(c.profile_synced_at).toLocaleString()}` : "awaiting sync"} · marketplace {c.marketplace_visible === false ? "hidden" : "visible"}
                     </p>
                   )}

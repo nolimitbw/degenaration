@@ -46,7 +46,7 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
             <div className="mt-4 grid grid-cols-2 gap-2">
               {draft.map((v, i) => (
                 <label key={i} className="block">
-                  <span className="font-mono text-[10px] uppercase text-dim">Preset {i + 1}</span>
+                  <span className="ui-label">Preset {i + 1}</span>
                   <input
                     type="text" inputMode="decimal" autoComplete="off" value={v}
                     onChange={(e) => {

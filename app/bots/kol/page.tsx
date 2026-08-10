@@ -157,12 +157,12 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
           </div>
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-dim">{strategy.description || "No public description provided."}</p>
         </div>
-        <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] uppercase text-dim">{strategy.riskTier} risk</span>
+        <span className="ui-label rounded-sm border border-edge bg-void px-2 py-1">{strategy.riskTier} risk</span>
       </header>
       <div className="grid grid-cols-4 divide-x divide-edge border-b border-edge py-4">
-        <Metric label="Net PnL" value={strategy.insufficientHistory ? "--" : formatSol(strategy.netPnlLamports)} tone={net > 0 ? "positive" : net < 0 ? "negative" : "default"} />
-        <Metric label="Win rate" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.winRateBps)} />
-        <Metric label="Drawdown" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.maxDrawdownBps)} />
+        <Metric label="Net PnL" value={strategy.insufficientHistory ? "—" : formatSol(strategy.netPnlLamports)} tone={net > 0 ? "positive" : net < 0 ? "negative" : "default"} />
+        <Metric label="Win rate" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.winRateBps)} />
+        <Metric label="Drawdown" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.maxDrawdownBps)} />
         <Metric label="Followers" value={strategy.followers} detail={`${strategy.openTrades} open trades`} />
       </div>
       <div className="grid grid-cols-3 divide-x divide-edge border-b border-edge py-3">
@@ -174,7 +174,7 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
         <div className="flex items-center gap-4 text-xs text-dim">
           <span className="inline-flex items-center gap-1.5"><ShieldCheck size={14} className="text-up" /> Reviewed</span>
           <span className="inline-flex items-center gap-1.5"><Users size={14} /> {strategy.followers}</span>
-          <span className="font-mono text-[9px]">Updated {formatWhen(strategy.updatedAt)}</span>
+          <span className="text-[12px]">Updated {formatWhen(strategy.updatedAt)}</span>
         </div>
         <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c]">View and copy</Link>
       </footer>

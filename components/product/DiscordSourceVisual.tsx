@@ -72,7 +72,7 @@ export function IntegrationHealthDot({ status }: { status?: string | null }) {
         : state === "pending" ? "Connecting"
           : "Disconnected";
   return (
-    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] text-dim">
+    <span className="inline-flex items-center gap-1.5 text-[12px] text-dim">
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone}`} aria-hidden="true" />
       {label}
     </span>
