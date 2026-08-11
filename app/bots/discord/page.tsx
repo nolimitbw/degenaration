@@ -234,12 +234,30 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
                 {source.approvedAt ? `Tracking started ${formatWhen(source.approvedAt)}` : "No eligible calls yet"}
               </p>
             )}
-            <p
-              className="mt-1 t-label text-dim"
-              title={`The creator receives ${formatPercentBps(source.creatorFeeBps)} of executed notional, paid out of the 2.00% platform fee. You are not charged extra.`}
-            >
-              {formatPercentBps(source.creatorFeeBps)} creator commission included in 2% fee
-            </p>
+            {/* The commission is stated only when there is somebody who can receive it.
+                Both approved sources carry creator_fee_bps 70 and owner_privy_user_id NULL,
+                and settle_execution_into_ledger reads that null and sets the creator share to
+                ZERO — silently, with the whole platform fee retained. So the card was
+                advertising a payment to a server owner that the settlement path would never
+                make, which is the same defect as quoting a platform fee nobody is charged.
+                `creatorPayable` is the owner link resolving, not a display name: the name is
+                synced from Discord and is present whether or not anyone has claimed the
+                server. */}
+            {source.creatorPayable ? (
+              <p
+                className="mt-1 t-label text-dim"
+                title={`The server owner receives ${formatPercentBps(source.creatorFeeBps)} of executed notional, paid out of the 2.00% platform fee. You are not charged extra.`}
+              >
+                {formatPercentBps(source.creatorFeeBps)} goes to the server owner, out of the platform fee
+              </p>
+            ) : (
+              <p
+                className="mt-1 t-label text-[color:var(--text-muted)]"
+                title="Nobody has claimed this server yet, so no creator share is paid on its calls. It does not cost you more either way — the platform fee is the same."
+              >
+                No server owner claimed yet
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 gap-2">
             <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md border border-edge px-4 t-label font-semibold text-ink hover:border-gold-400/60">Details</Link>

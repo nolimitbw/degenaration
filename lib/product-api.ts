@@ -80,6 +80,17 @@ export type DiscordSource = {
   bannerUrl: string | null;
   description: string;
   ownerDisplayName: string | null;
+  /**
+   * Whether a verified account is actually linked to this source, i.e. `owner_privy_user_id`
+   * resolves — NOT whether a name is on screen. `ownerDisplayName` is synced from Discord and
+   * is present whether or not anyone has claimed the server, so it cannot answer this.
+   *
+   * It decides whether the creator commission is real. `settle_execution_into_ledger` reads a
+   * null owner and sets the creator share to zero, keeping the whole platform fee, without
+   * raising. Both approved sources are in exactly that state today, so the card must not
+   * advertise a 0.70% payment that settlement will never make.
+   */
+  creatorPayable: boolean;
   joinUrl: string | null;
   publicSlug: string | null;
   referralCode: string | null;
