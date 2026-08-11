@@ -68,8 +68,8 @@ function Section({ title, count, children }: { title: string; count?: number; ch
   return (
     <section className="rounded-lg border border-edge bg-panel">
       <header className="flex items-baseline justify-between gap-3 border-b border-edge px-4 py-3">
-        <h3 className="text-xs font-semibold text-ink">{title}</h3>
-        {count != null && <span className="text-[12px] text-dim">{count}</span>}
+        <h3 className="t-label font-semibold text-ink">{title}</h3>
+        {count != null && <span className="t-label text-dim">{count}</span>}
       </header>
       {children}
     </section>
@@ -78,7 +78,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
 
 function Rows({ rows, empty }: { rows: React.ReactNode[]; empty: string }) {
   if (rows.length === 0) {
-    return <p className="px-4 py-4 text-[11px] text-dim">{empty}</p>;
+    return <p className="px-4 py-4 t-label text-dim">{empty}</p>;
   }
   return <div className="divide-y divide-edge/60">{rows}</div>;
 }
@@ -114,7 +114,7 @@ export default function ClientDetail({
     <button
       type="button"
       onClick={onBack}
-      className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+      className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink"
     >
       <ArrowLeft size={13} /> All clients
     </button>
@@ -149,8 +149,8 @@ export default function ClientDetail({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-mono text-sm font-semibold text-ink">{data.client.privyUserId}</h2>
-          <p className="mt-1 text-[11px] text-dim">
+          <h2 className="font-mono t-body font-semibold text-ink">{data.client.privyUserId}</h2>
+          <p className="mt-1 t-label text-dim">
             Registered {when(data.client.createdAt)} · <StatusPill status={data.client.status} />
           </p>
         </div>
@@ -171,19 +171,19 @@ export default function ClientDetail({
         <Metric label="Commission balance" value={`${sol(data.balances.commissionBalanceLamports, 4)} SOL`} detail="As creator or referrer" />
       </div>
 
-      <p className="text-[10px] leading-4 text-dim">{data.volume.definition} · {data.balanceNote}</p>
+      <p className="t-label leading-4 text-dim">{data.volume.definition} · {data.balanceNote}</p>
 
       {data.failures.length > 0 && (
         <Section title="Failed operations" count={data.failures.length}>
           <Rows
             empty="Nothing has failed for this client."
             rows={data.failures.map((f) => (
-              <div key={`${f.kind}-${f.id}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
+              <div key={`${f.kind}-${f.id}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 t-label">
                 <AlertCircle size={12} className="text-down" />
                 <span className="font-semibold text-ink">{f.kind}</span>
                 <StatusPill status={f.state} />
                 <span className="text-dim">{f.detail || "No detail recorded"}</span>
-                <span className="ml-auto text-[12px] text-dim">{when(f.at)}</span>
+                <span className="ml-auto t-label text-dim">{when(f.at)}</span>
               </div>
             ))}
           />
@@ -195,7 +195,7 @@ export default function ClientDetail({
           <Rows
             empty="No wallet registered yet."
             rows={data.wallets.map((w) => (
-              <div key={w.address} className="flex items-baseline justify-between gap-3 px-4 py-3 text-[11px]">
+              <div key={w.address} className="flex items-baseline justify-between gap-3 px-4 py-3 t-label">
                 <span className="font-mono text-ink" title={w.address}>{short(w.address, 8, 6)}</span>
                 <span className="text-dim">{w.is_primary ? "Primary" : w.status}</span>
               </div>
@@ -207,10 +207,10 @@ export default function ClientDetail({
           <Rows
             empty="No wallet change has been recorded."
             rows={data.walletHistory.map((h, index) => (
-              <div key={`${h.created_at}-${index}`} className="flex items-baseline justify-between gap-3 px-4 py-3 text-[11px]">
+              <div key={`${h.created_at}-${index}`} className="flex items-baseline justify-between gap-3 px-4 py-3 t-label">
                 <span className="text-ink">{h.action}</span>
                 <span className="font-mono text-dim">{short(h.address)}</span>
-                <span className="text-[12px] text-dim">{when(h.created_at)}</span>
+                <span className="t-label text-dim">{when(h.created_at)}</span>
               </div>
             ))}
           />
@@ -221,7 +221,7 @@ export default function ClientDetail({
         <Rows
           empty="No position has been opened."
           rows={data.positions.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 text-[11px]">
+            <div key={p.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 t-label">
               <span className="font-mono text-ink">{short(p.mint, 6, 5)}</span>
               <StatusPill status={p.status} />
               <span className="text-dim">{sol(p.costLamports)} SOL cost</span>
@@ -232,7 +232,7 @@ export default function ClientDetail({
                 {p.exitCount} exit{p.exitCount === 1 ? "" : "s"}
                 {p.unpricedExits > 0 && ` · ${p.unpricedExits} unpriced`}
               </span>
-              <span className="ml-auto text-[12px] text-dim">{when(p.opened_at)}</span>
+              <span className="ml-auto t-label text-dim">{when(p.opened_at)}</span>
             </div>
           ))}
         />
@@ -242,7 +242,7 @@ export default function ClientDetail({
         <Rows
           empty="No execution has settled."
           rows={data.executions.map((e) => (
-            <div key={e.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 text-[11px]">
+            <div key={e.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3 t-label">
               <span className="text-ink">{e.side}</span>
               <span className="font-mono text-dim">{short(e.mint, 6, 5)}</span>
               <StatusPill status={e.status} />
@@ -258,7 +258,7 @@ export default function ClientDetail({
                   {short(e.txSignature)}
                 </a>
               )}
-              <span className="ml-auto text-[12px] text-dim">{when(e.created_at)}</span>
+              <span className="ml-auto t-label text-dim">{when(e.created_at)}</span>
             </div>
           ))}
         />
@@ -269,10 +269,10 @@ export default function ClientDetail({
           <Rows
             empty="No withdrawal has been requested."
             rows={data.withdrawals.map((w) => (
-              <div key={w.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
+              <div key={w.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 t-label">
                 <span className="font-mono text-ink">{sol(w.amountLamports)} SOL</span>
                 <StatusPill status={w.state} />
-                <span className="ml-auto text-[12px] text-dim">{when(w.created_at)}</span>
+                <span className="ml-auto t-label text-dim">{when(w.created_at)}</span>
               </div>
             ))}
           />
@@ -282,11 +282,11 @@ export default function ClientDetail({
           <Rows
             empty="No cash movement has been reconciled."
             rows={data.cashMovements.map((m) => (
-              <div key={m.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
+              <div key={m.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 t-label">
                 <span className="text-ink">{m.type}</span>
                 <StatusPill status={m.status} />
                 <span className="font-mono text-dim">{sol(m.amountLamports)} SOL</span>
-                <span className="ml-auto text-[12px] text-dim">{when(m.observed_at)}</span>
+                <span className="ml-auto t-label text-dim">{when(m.observed_at)}</span>
               </div>
             ))}
           />
@@ -296,10 +296,10 @@ export default function ClientDetail({
           <Rows
             empty="No commission has accrued."
             rows={data.commissions.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
+              <div key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 t-label">
                 <span className="text-ink">{c.accountType}</span>
                 <span className="font-mono text-dim">{sol(c.amountLamports, 4)} SOL</span>
-                <span className="ml-auto text-[12px] text-dim">{when(c.created_at)}</span>
+                <span className="ml-auto t-label text-dim">{when(c.created_at)}</span>
               </div>
             ))}
           />
@@ -309,11 +309,11 @@ export default function ClientDetail({
           <Rows
             empty="No bot has been created."
             rows={data.bots.map((b) => (
-              <div key={b.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
+              <div key={b.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 t-label">
                 <span className="text-ink">{b.name || "Untitled"}</span>
                 <span className="text-dim">{b.kind}</span>
                 <StatusPill status={b.status} />
-                <span className="ml-auto text-[12px] text-dim">{when(b.updated_at)}</span>
+                <span className="ml-auto t-label text-dim">{when(b.updated_at)}</span>
               </div>
             ))}
           />
@@ -321,7 +321,7 @@ export default function ClientDetail({
       </div>
 
       <Section title="Referral">
-        <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3 text-[11px]">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3 t-label">
           <span className="text-dim">
             Referred by <span className="font-mono text-ink">{data.referral.referredBy || "—"}</span>
           </span>
@@ -338,11 +338,11 @@ export default function ClientDetail({
         <Rows
           empty="No admin action has touched this client."
           rows={data.auditEvents.map((a, index) => (
-            <div key={`${a.created_at}-${index}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-[11px]">
+            <div key={`${a.created_at}-${index}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 t-label">
               <span className="text-ink">{a.action}</span>
               <span className="font-mono text-dim">{short(a.actor, 10, 4)}</span>
               <span className="text-dim">{a.reason || ""}</span>
-              <span className="ml-auto text-[12px] text-dim">{when(a.created_at)}</span>
+              <span className="ml-auto t-label text-dim">{when(a.created_at)}</span>
             </div>
           ))}
         />

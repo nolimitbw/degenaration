@@ -40,8 +40,8 @@ export default function SettingsBody() {
     return (
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <ShieldCheck size={28} className="mx-auto text-gold-400" />
-        <h1 className="mt-4 text-xl font-bold">Account settings</h1>
-        <p className="mt-2 text-sm text-dim">Sign in through Privy to review your account, wallet, and delegation state.</p>
+        <h1 className="mt-4 t-title font-bold">Account settings</h1>
+        <p className="mt-2 t-body text-dim">Sign in through Privy to review your account, wallet, and delegation state.</p>
         <button onClick={login} disabled={!ready} className="mt-6 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 font-bold text-[#17110c] disabled:opacity-50"><LogIn size={17} /> Sign in</button>
       </div>
     );
@@ -50,7 +50,7 @@ export default function SettingsBody() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-2xl font-bold">Account settings</h1><p className="mt-1 text-sm text-dim">Privy identity, linked accounts, and wallet access state.</p></div>
+        <div><h1 className="t-display font-bold">Account settings</h1><p className="mt-1 t-body text-dim">Privy identity, linked accounts, and wallet access state.</p></div>
         <span className="ui-label rounded-md border border-edge bg-void px-3 py-2">Privy session active</span>
       </div>
 
@@ -58,32 +58,32 @@ export default function SettingsBody() {
         <section className="rounded-lg border border-edge bg-panel p-5">
           <div className="flex items-center gap-2"><ShieldCheck size={17} className="text-gold-400" /><h2 className="font-bold">Identity</h2></div>
           <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
-            <div className="bg-void p-3"><dt className="ui-label">Email</dt><dd className="mt-1 truncate text-sm">{email ?? "Not linked"}</dd></div>
-            <div className="bg-void p-3"><dt className="ui-label">Joined</dt><dd className="mt-1 text-sm">{joined ?? "Unavailable"}</dd></div>
-            <div className="bg-void p-3"><dt className="ui-label">Privy user</dt><dd className="mt-1 truncate font-mono text-xs">{user?.id ?? "Unavailable"}</dd></div>
-            <div className="bg-void p-3"><dt className="ui-label">Linked accounts</dt><dd className="mt-1 text-sm">{linked.length}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Email</dt><dd className="mt-1 truncate t-body">{email ?? "Not linked"}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Joined</dt><dd className="mt-1 t-body">{joined ?? "Unavailable"}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Privy user</dt><dd className="mt-1 truncate font-mono t-label">{user?.id ?? "Unavailable"}</dd></div>
+            <div className="bg-void p-3"><dt className="ui-label">Linked accounts</dt><dd className="mt-1 t-body">{linked.length}</dd></div>
           </dl>
         </section>
 
         <section className="rounded-lg border border-edge bg-panel p-5">
           <div className="flex items-center gap-2"><WalletCards size={17} className="text-gold-400" /><h2 className="font-bold">Solana wallet</h2></div>
-          <p className="mt-1 text-xs text-dim">The key is secured by your wallet provider. Delegated access is managed separately in Wallet.</p>
+          <p className="mt-1 t-label text-dim">The key is secured by your wallet provider. Delegated access is managed separately in Wallet.</p>
           {wallet ? (
             <div className="mt-4">
-              <code className="block truncate rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-xs">{wallet}</code>
+              <code className="block truncate rounded-md border border-edge bg-void px-3 py-2.5 font-mono t-label">{wallet}</code>
               <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={copyWallet} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
-                <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-bold transition hover:border-gold-400"><ExternalLink size={14} /> Solscan</a>
+                <button onClick={copyWallet} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 t-label font-bold transition hover:border-gold-400"><Copy size={14} /> {copied ? "Copied" : "Copy"}</button>
+                <a href={`https://solscan.io/account/${wallet}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 t-label font-bold transition hover:border-gold-400"><ExternalLink size={14} /> Solscan</a>
                 <span className={`ui-label inline-flex min-h-11 sm:min-h-10 items-center rounded-md border px-3 ${delegated ?"border-gold-400/40 text-gold-400" : "border-edge text-dim"}`}>Delegation {delegated ? "granted" : "off"}</span>
               </div>
             </div>
-          ) : <p className="mt-4 rounded-md border border-edge bg-void p-4 text-sm text-dim">No Solana wallet is linked to this Privy account.</p>}
+          ) : <p className="mt-4 rounded-md border border-edge bg-void p-4 t-body text-dim">No Solana wallet is linked to this Privy account.</p>}
         </section>
 
         <section className="rounded-lg border border-edge bg-panel p-5 lg:col-span-2">
           <h2 className="font-bold">Session</h2>
-          <p className="mt-1 text-xs text-dim">Sign out of this browser. Revoke delegated wallet access separately from the Wallet screen before signing out when you no longer need unattended execution.</p>
-          <button onClick={signOut} disabled={busy} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-danger/50 px-4 text-sm font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50"><LogOut size={16} /> {busy ? "Signing out" : "Sign out"}</button>
+          <p className="mt-1 t-label text-dim">Sign out of this browser. Revoke delegated wallet access separately from the Wallet screen before signing out when you no longer need unattended execution.</p>
+          <button onClick={signOut} disabled={busy} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-danger/50 px-4 t-body font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50"><LogOut size={16} /> {busy ? "Signing out" : "Sign out"}</button>
         </section>
       </div>
     </>

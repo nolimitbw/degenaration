@@ -118,7 +118,7 @@ export function DecimalInput(props: BaseProps) {
         onFocus={field.onFocus}
         onChange={(event) => field.onChange(event.target.value)}
         onBlur={field.onBlur}
-        className={props.inputClassName ?? "min-w-0 flex-1 bg-transparent px-3 font-mono text-xs text-ink outline-none"}
+        className={props.inputClassName ?? "min-w-0 flex-1 bg-transparent px-3 font-mono t-label text-ink outline-none"}
       />
       {props.unit && <span className="ui-label shrink-0 pr-3">{props.unit}</span>}
     </span>
@@ -201,9 +201,9 @@ export function SteppedNumericField({
           onFocus={field.onFocus}
           onChange={(event) => field.onChange(event.target.value)}
           onBlur={field.onBlur}
-          className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-xs text-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono t-label text-ink outline-none"
         />
-        {props.unit && <span className="self-center pr-2 text-[12px] text-dim">{props.unit}</span>}
+        {props.unit && <span className="self-center pr-2 t-label text-dim">{props.unit}</span>}
         <button
           type="button"
           onClick={() => bump(step)}

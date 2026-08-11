@@ -36,10 +36,10 @@ export function PageHeader({
     <header className="flex flex-col gap-4 pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
       <div className="min-w-0">
         {eyebrow && <p className="ui-label mb-1.5 truncate">{eyebrow}</p>}
-        <h1 className="text-[26px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink lg:text-[34px]">
+        <h1 className="t-display font-semibold leading-[1.1] tracking-[-0.02em] text-ink lg:t-display">
           {title}
         </h1>
-        {description && <p className="mt-2 max-w-xl text-[15px] leading-6 text-dim">{description}</p>}
+        {description && <p className="mt-2 max-w-xl t-body leading-6 text-dim">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -59,13 +59,13 @@ export function ProductTabs({ items, active }: { items: Array<{ href: string; la
             key={item.href}
             href={item.href}
             aria-current={current ? "page" : undefined}
-            className={`relative flex min-h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap px-1 text-center text-[13px] transition sm:justify-start sm:px-0 sm:text-sm ${
+            className={`relative flex min-h-12 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap px-1 text-center t-meta transition sm:justify-start sm:px-0 sm:t-body ${
               current ? "font-medium text-ink" : "text-dim hover:text-ink"
             }`}
           >
             <span className="truncate">{item.label}</span>
             {item.count != null && (
-              <span className="ui-figure shrink-0 rounded-sm bg-[color:var(--rule)] px-1.5 py-px text-[11px] text-dim">{item.count}</span>
+              <span className="ui-figure shrink-0 rounded-sm bg-[color:var(--rule)] px-1.5 py-px t-label text-dim">{item.count}</span>
             )}
             {/* Ink, not gold. The tab you are on is a fact about where you are, not an action. */}
             {current && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-ink" />}
@@ -105,9 +105,9 @@ export function Metric({
     tone === "positive" ? "text-up" : tone === "negative" ? "text-down" : tone === "warning" ? "text-gold-400" : "text-ink";
   return (
     <div className="min-w-0" title={hint}>
-      <p className={`ui-figure truncate text-[22px] leading-none lg:text-[25px] ${toneClass}`}>{value}</p>
+      <p className={`ui-figure truncate t-title leading-none lg:t-figure-lg ${toneClass}`}>{value}</p>
       <p className="ui-label mt-2 truncate">{label}</p>
-      {detail && <p className="mt-1 truncate text-[11px] text-[color:var(--text-muted)]">{detail}</p>}
+      {detail && <p className="mt-1 truncate t-label text-[color:var(--text-muted)]">{detail}</p>}
     </div>
   );
 }
@@ -132,7 +132,7 @@ export function StatusPill({ status }: { status: string }) {
         : "text-dim";
   const label = status.replaceAll("-", " ");
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[12px] ${tone}`}>
+    <span className={`inline-flex items-center gap-1.5 t-label ${tone}`}>
       <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-current" />
       <span className="first-letter:uppercase">{label}</span>
     </span>
@@ -167,8 +167,8 @@ export function EmptyState({
     <div className={compact ? "px-1 py-8" : "px-1 py-14"}>
       <div className="max-w-sm">
         <Icon aria-hidden="true" size={18} className="text-[color:var(--text-muted)]" />
-        <h2 className="mt-3 text-[15px] font-medium text-ink">{title}</h2>
-        <p className="mt-1.5 text-[13px] leading-5 text-dim">{description}</p>
+        <h2 className="mt-3 t-body font-medium text-ink">{title}</h2>
+        <p className="mt-1.5 t-meta leading-5 text-dim">{description}</p>
         {action && <div className="mt-4">{action}</div>}
       </div>
     </div>
@@ -177,7 +177,7 @@ export function EmptyState({
 
 export function TextLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-ink transition hover:text-gold-400 sm:min-h-10">
+    <Link href={href} className="inline-flex min-h-11 items-center gap-1 t-meta font-medium text-ink transition hover:text-gold-400 sm:min-h-10">
       {children}
       <ChevronRight aria-hidden="true" size={14} className="text-[color:var(--text-muted)]" />
     </Link>
@@ -205,7 +205,7 @@ export function Segmented<T extends string>({
           aria-pressed={value === option.value}
           /* 44px at touch sizes. The period switches are the most-tapped control on the
              marketplace, and 36px put every one of them under the minimum. */
-          className={`min-h-11 min-w-12 rounded px-3 text-[13px] transition sm:min-h-7 ${
+          className={`min-h-11 min-w-12 rounded px-3 t-meta transition sm:min-h-7 ${
             value === option.value ? "bg-[color:var(--rule-strong)] font-medium text-ink" : "text-dim hover:text-ink"
           }`}
         >

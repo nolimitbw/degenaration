@@ -51,8 +51,8 @@ function Figure({ label, value, hint, tone }: { label: string; value: string; hi
   return (
     <div className="rounded-md border border-edge bg-panel p-4">
       <p className="ui-label">{label}</p>
-      <p className={`mt-2 text-lg font-semibold tabular-nums ${colour}`}>{value}</p>
-      {hint && <p className="mt-1 text-[11px] leading-4 text-dim">{hint}</p>}
+      <p className={`mt-2 t-title font-semibold tabular-nums ${colour}`}>{value}</p>
+      {hint && <p className="mt-1 t-label leading-4 text-dim">{hint}</p>}
     </div>
   );
 }
@@ -84,14 +84,14 @@ export default function RevenuePanel({
   useEffect(() => { load(); }, [load]);
 
   if (loading && !revenue) {
-    return <p className="rounded-md border border-edge bg-panel p-6 text-xs text-dim">Loading confirmed revenue…</p>;
+    return <p className="rounded-md border border-edge bg-panel p-6 t-label text-dim">Loading confirmed revenue…</p>;
   }
   if (error) {
     return (
       <div className="rounded-md border border-down/35 bg-down/5 p-5">
-        <p className="text-xs font-semibold text-down">Revenue could not be loaded</p>
-        <p className="mt-1 text-[12px] text-down">{error}</p>
-        <button type="button" onClick={load} className="mt-3 min-h-11 rounded-md border border-edge px-3 text-xs font-semibold text-dim hover:text-ink">
+        <p className="t-label font-semibold text-down">Revenue could not be loaded</p>
+        <p className="mt-1 t-label text-down">{error}</p>
+        <button type="button" onClick={load} className="mt-3 min-h-11 rounded-md border border-edge px-3 t-label font-semibold text-dim hover:text-ink">
           Try again
         </button>
       </div>
@@ -107,8 +107,8 @@ export default function RevenuePanel({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Platform revenue</h2>
-          <p className="mt-1 text-xs text-dim">
+          <h2 className="t-body font-semibold text-ink">Platform revenue</h2>
+          <p className="mt-1 t-label text-dim">
             Confirmed executions only. Fees are collected in the swap output mint; totals below are the ledger&apos;s own lamport figures and no exchange rate is applied.
           </p>
         </div>
@@ -116,7 +116,7 @@ export default function RevenuePanel({
           type="button"
           onClick={load}
           disabled={loading}
-          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim hover:text-ink disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-dim hover:text-ink disabled:opacity-50"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -127,10 +127,10 @@ export default function RevenuePanel({
           it is suspect and presenting them first would imply a confidence we do not have. */}
       {revenue.reconciled === false && (
         <div className="rounded-md border border-down/40 bg-down/5 p-4">
-          <p className="flex items-center gap-2 text-xs font-semibold text-down">
+          <p className="flex items-center gap-2 t-label font-semibold text-down">
             <AlertTriangle size={14} /> Reconciliation warning
           </p>
-          <p className="mt-2 text-xs leading-5 text-down">
+          <p className="mt-2 t-label leading-5 text-down">
             Creator, referral and retained allocations do not sum to the platform fee collected. Difference: {formatSol(drift)} ({drift} lamports).
             Do not treat the available figure as withdrawable until this is explained.
           </p>
@@ -138,7 +138,7 @@ export default function RevenuePanel({
       )}
 
       {!collecting && (
-        <p className="rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3 text-xs leading-5 text-gold-400">
+        <p className="rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3 t-label leading-5 text-gold-400">
           The fee token account is not ready, so confirmed swaps are currently charging 0 bps. Revenue below is what the ledger holds, not what the fee rate implies. See the System tab for the exact account to create.
         </p>
       )}
@@ -164,11 +164,11 @@ export default function RevenuePanel({
 
       <div className="rounded-md border border-edge bg-panel p-5">
         <p className="ui-label text-gold-400">DegenAration retained</p>
-        <p className="mt-2 text-2xl font-semibold tabular-nums text-ink">{formatSol(revenue.netRevenueLamports)}</p>
-        <p className="mt-2 text-xs leading-5 text-dim">
+        <p className="mt-2 t-display font-semibold tabular-nums text-ink">{formatSol(revenue.netRevenueLamports)}</p>
+        <p className="mt-2 t-label leading-5 text-dim">
           Platform fee minus the creator and referral allocations. Creator payouts are not subtracted here — that allocation was already removed once, and removing it twice would understate revenue by the same amount every time.
         </p>
-        <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3">
+        <dl className="mt-4 grid gap-3 t-label sm:grid-cols-3">
           <div>
             <dt className="text-dim">Available</dt>
             <dd className="mt-1 font-semibold tabular-nums text-ink">{formatSol(revenue.availableLamports)}</dd>
@@ -187,11 +187,11 @@ export default function RevenuePanel({
       </div>
 
       <div className="rounded-md border border-edge bg-panel p-5">
-        <p className="text-xs font-semibold text-ink">Creator payouts</p>
-        <p className="mt-1 text-xs leading-5 text-dim">
+        <p className="t-label font-semibold text-ink">Creator payouts</p>
+        <p className="mt-1 t-label leading-5 text-dim">
           The affiliate ledger, shown beside revenue so the two are visibly separate. This is money owed to creators and referrers, never DegenAration&apos;s.
         </p>
-        <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-3">
+        <dl className="mt-4 grid gap-3 t-label sm:grid-cols-3">
           <div>
             <dt className="text-dim">Paid and confirmed</dt>
             <dd className="mt-1 font-semibold tabular-nums text-ink">{formatSol(revenue.creatorPayoutsPaidLamports)}</dd>
@@ -290,8 +290,8 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
     <div className="rounded-md border border-edge bg-panel p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-xl">
-          <p className="text-xs font-semibold text-ink">Withdraw fees</p>
-          <p className="mt-1 text-xs leading-5 text-dim">
+          <p className="t-label font-semibold text-ink">Withdraw fees</p>
+          <p className="mt-1 t-label leading-5 text-dim">
             Moves DegenAration&apos;s retained share only. It cannot reach client principal, locked capital, creator rewards or referral rewards — the amount is bounded by the retained total, from which those allocations were already subtracted.
           </p>
         </div>
@@ -305,7 +305,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
                 : availableLamports === ZERO ? "No confirmed platform revenue to withdraw"
                 : undefined
             }
-            className="min-h-11 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400 disabled:opacity-50"
+            className="min-h-11 rounded-md border border-gold-400/50 px-4 t-label font-semibold text-gold-400 disabled:opacity-50"
           >
             Withdraw fees
           </button>
@@ -315,10 +315,10 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
       {/* Disabled for a REASON, stated. An operator who cannot press the button needs to know
           whether that is a bug, a permission, or simply an empty ledger. */}
       {!open && availableLamports === ZERO && (
-        <p className="mt-3 text-[11px] text-dim">Nothing to withdraw: no confirmed platform fee has been collected yet.</p>
+        <p className="mt-3 t-label text-dim">Nothing to withdraw: no confirmed platform fee has been collected yet.</p>
       )}
       {!open && !reconciled && availableLamports > ZERO && (
-        <p className="mt-3 text-[11px] text-down">Withdrawal is held while the allocations do not sum to the fee collected.</p>
+        <p className="mt-3 t-label text-down">Withdrawal is held while the allocations do not sum to the fee collected.</p>
       )}
 
       {open && !intent && (
@@ -329,7 +329,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
               value={destination}
               onChange={(event) => setDestination(event.target.value)}
               placeholder="Solana address"
-              className="field-control mt-1.5 px-3 font-mono text-xs"
+              className="field-control mt-1.5 px-3 font-mono t-label"
             />
           </label>
           <label className="block">
@@ -339,19 +339,19 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
               onChange={(event) => setAmountSol(event.target.value)}
               inputMode="decimal"
               placeholder="0.000"
-              className="field-control mt-1.5 px-3 font-mono text-xs"
+              className="field-control mt-1.5 px-3 font-mono t-label"
             />
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setAmountSol((Number(availableLamports) / 1e9).toFixed(9).replace(/0+$/, "").replace(/\.$/, ""))}
-              className="min-h-11 rounded-md border border-edge px-3 text-[12px] text-dim hover:text-ink"
+              className="min-h-11 rounded-md border border-edge px-3 t-label text-dim hover:text-ink"
             >
               Max {formatSol(available)}
             </button>
           </div>
-          <dl className="grid gap-2 rounded-md border border-edge bg-void p-3 text-[11px] sm:grid-cols-3">
+          <dl className="grid gap-2 rounded-md border border-edge bg-void p-3 t-label sm:grid-cols-3">
             <div><dt className="text-dim">Available</dt><dd className="mt-0.5 tabular-nums text-ink">{formatSol(available)}</dd></div>
             <div><dt className="text-dim">Network fee</dt><dd className="mt-0.5 text-dim">Paid by the signing wallet, not deducted here</dd></div>
             <div>
@@ -361,7 +361,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
               </dd>
             </div>
           </dl>
-          {error && <p role="alert" className="rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">{error}</p>}
+          {error && <p role="alert" className="rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label text-down">{error}</p>}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -375,11 +375,11 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
                 });
                 if (data?.id) setIntent({ id: data.id, state: data.state });
               }}
-              className="min-h-11 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50"
+              className="min-h-11 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] disabled:opacity-50"
             >
               {busy ? "Authorising…" : "Authorise withdrawal"}
             </button>
-            <button type="button" onClick={() => { setOpen(false); setError(null); }} className="min-h-11 rounded-md border border-edge px-4 text-xs font-semibold text-dim">
+            <button type="button" onClick={() => { setOpen(false); setError(null); }} className="min-h-11 rounded-md border border-edge px-4 t-label font-semibold text-dim">
               Cancel
             </button>
           </div>
@@ -388,7 +388,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
 
       {intent && (
         <div className="mt-4 space-y-3 border-t border-edge pt-4">
-          <p className="text-[11px] leading-5 text-dim">
+          <p className="t-label leading-5 text-dim">
             Withdrawal <span className="font-mono text-ink">{intent.id.slice(0, 8)}</span> is authorised and its amount is committed against the available balance. Sign and submit the transfer with the fee-account key, then record the signature here so it can be confirmed and reconciled.
           </p>
           <label className="block">
@@ -397,10 +397,10 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
               value={signature}
               onChange={(event) => setSignature(event.target.value)}
               placeholder="Signature from the submitted transfer"
-              className="field-control mt-1.5 px-3 font-mono text-xs"
+              className="field-control mt-1.5 px-3 font-mono t-label"
             />
           </label>
-          {error && <p role="alert" className="rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">{error}</p>}
+          {error && <p role="alert" className="rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label text-down">{error}</p>}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -413,7 +413,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
                 setIntent(null); setSignature(""); setOpen(false); setDestination(""); setAmountSol("");
                 onDone();
               }}
-              className="min-h-11 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50"
+              className="min-h-11 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] disabled:opacity-50"
             >
               {busy ? "Recording…" : "Record and confirm"}
             </button>
@@ -425,7 +425,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
                 setIntent(null); setSignature(""); setOpen(false);
                 onDone();
               }}
-              className="min-h-11 rounded-md border border-edge px-4 text-xs font-semibold text-dim disabled:opacity-50"
+              className="min-h-11 rounded-md border border-edge px-4 t-label font-semibold text-dim disabled:opacity-50"
             >
               Mark failed
             </button>
@@ -433,7 +433,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
           {/* Abandoning without settling would leave the amount committed for ever, so the
               second button exists and says what it does rather than being a Cancel that
               silently strands the balance. */}
-          <p className="text-[10px] leading-4 text-dim">
+          <p className="t-label leading-4 text-dim">
             Marking it failed releases the committed amount back to available. Do that only if the transfer was never submitted.
           </p>
         </div>

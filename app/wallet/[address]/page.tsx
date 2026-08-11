@@ -18,8 +18,8 @@ export default async function PublicWalletPage({ params }: Props) {
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl">
-        <div className="flex items-center gap-3"><WalletCards aria-hidden="true" className="text-gold-400" /><div><h1 className="text-2xl font-bold">Public wallet P&amp;L</h1><p className="mt-1 break-all ui-code text-[12px] text-dim">{address}</p></div></div>
-        <p className="mt-4 max-w-2xl text-sm leading-6 text-dim">A wallet-free view of current balances and estimated 24-hour price movement. No sign-in or wallet connection is required.</p>
+        <div className="flex items-center gap-3"><WalletCards aria-hidden="true" className="text-gold-400" /><div><h1 className="t-display font-bold">Public wallet P&amp;L</h1><p className="mt-1 break-all ui-code t-label text-dim">{address}</p></div></div>
+        <p className="mt-4 max-w-2xl t-body leading-6 text-dim">A wallet-free view of current balances and estimated 24-hour price movement. No sign-in or wallet connection is required.</p>
         <div className="mt-6"><PublicWallet address={address} /></div>
       </div>
     </AppShell>

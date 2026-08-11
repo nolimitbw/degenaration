@@ -42,8 +42,8 @@ export default function DiscordSourceDetailsPage() {
         description="Measured call history and approved channel coverage."
         actions={
           <>
-            <Link href="/bots/discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>
-            {source && <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]"><Bot size={15} /> Configure bot</Link>}
+            <Link href="/bots/discord" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-body font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>
+            {source && <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c]"><Bot size={15} /> Configure bot</Link>}
           </>
         }
       />
@@ -58,12 +58,12 @@ export default function DiscordSourceDetailsPage() {
               <header className="flex flex-wrap items-start gap-4 border-b border-edge p-5">
                 <DiscordSourceAvatar source={source} size="lg" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold text-ink">{source.name}</h2><StatusPill status={source.verificationStatus} /><StatusPill status={source.integrationHealth} /></div>
-                  <p className="mt-2 text-[12px] text-dim">{source.members || "Member count unavailable"} · {source.activeFollowers} active followers · {source.channels.length} approved channels</p>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-dim">{source.description}</p>
-                  {source.ownerDisplayName && <p className="mt-2 text-[12px] text-dim">Source owner: {source.ownerDisplayName}</p>}
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="t-title font-semibold text-ink">{source.name}</h2><StatusPill status={source.verificationStatus} /><StatusPill status={source.integrationHealth} /></div>
+                  <p className="mt-2 t-label text-dim">{source.members || "Member count unavailable"} · {source.activeFollowers} active followers · {source.channels.length} approved channels</p>
+                  <p className="mt-3 max-w-2xl t-body leading-6 text-dim">{source.description}</p>
+                  {source.ownerDisplayName && <p className="mt-2 t-label text-dim">Source owner: {source.ownerDisplayName}</p>}
                 </div>
-                {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
+                {joinUrl && <a href={joinUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink">Join server <ArrowUpRight size={14} /></a>}
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Source performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]} /></div>
               {/* Two families, kept visibly apart. Everything on the first row is a PEAK
@@ -106,19 +106,19 @@ export default function DiscordSourceDetailsPage() {
             </section>
 
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Source activity</h2><p className="mt-1 text-[11px] text-dim">Processing, execution, and scanner state from authoritative records.</p></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Source activity</h2><p className="mt-1 t-label text-dim">Processing, execution, and scanner state from authoritative records.</p></header>
               <DiscordActivityGrid source={source} />
               <div className="border-t border-edge"><DiscordCallCounts source={source} /></div>
             </section>
 
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Ledger performance</h2><p className="mt-1 text-[11px] text-dim">Net PnL appears only after reconciled execution history exists.</p></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Ledger performance</h2><p className="mt-1 t-label text-dim">Net PnL appears only after reconciled execution history exists.</p></header>
               <DiscordPerformanceGrid source={source} />
             </section>
 
             <section className="rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Call milestones</h2><p className="mt-1 text-[11px] text-dim">First-hit levels from observed prices, plus how many calls are down by half now.</p></header>
-              {!source.milestoneHistoryComplete && <p className="border-b border-edge bg-void px-5 py-3 text-[11px] text-dim">Insufficient historical data. Milestones begin with the immutable price journal.</p>}
+              <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Call milestones</h2><p className="mt-1 t-label text-dim">First-hit levels from observed prices, plus how many calls are down by half now.</p></header>
+              {!source.milestoneHistoryComplete && <p className="border-b border-edge bg-void px-5 py-3 t-label text-dim">Insufficient historical data. Milestones begin with the immutable price journal.</p>}
               <div className="grid grid-cols-2 gap-px bg-edge sm:grid-cols-5">
                 {[
                   ["Down 50%+ now", source.currentlyDown50 ?? 0, "text-down"],
@@ -126,20 +126,20 @@ export default function DiscordSourceDetailsPage() {
                   ["Hit +50%", source.milestoneHistoryComplete ? source.plus50Hits ?? 0 : "—", "text-gold-400"],
                   ["Hit 2x", source.milestoneHistoryComplete ? source.twoXHits ?? 0 : "—", "text-up"],
                   ["Hit 5x", source.milestoneHistoryComplete ? source.fiveXHits ?? 0 : "—", "text-up"]
-                ].map(([label, value, tone]) => <div key={label as string} className="bg-void p-5"><p className={`font-mono text-2xl font-semibold ${tone}`}>{value}</p><p className="mt-2 text-xs text-dim">{label}</p></div>)}
+                ].map(([label, value, tone]) => <div key={label as string} className="bg-void p-5"><p className={`font-mono t-display font-semibold ${tone}`}>{value}</p><p className="mt-2 t-label text-dim">{label}</p></div>)}
               </div>
               {(source.bestCall || source.worstCall) && (
                 <div className="grid grid-cols-1 gap-px border-t border-edge bg-edge sm:grid-cols-2">
                   {([["Best call", source.bestCall, "text-up"], ["Worst call", source.worstCall, "text-down"]] as const).map(([label, entry, tone]) => (
                     <div key={label} className="bg-void px-5 py-4">
-                      <p className="text-xs text-dim">{label}</p>
+                      <p className="t-label text-dim">{label}</p>
                       {entry ? (
                         <>
-                          <p className={`mt-1 font-mono text-lg font-semibold ${tone}`}>{Number(entry.peakX).toFixed(2)}x</p>
-                          <p className="mt-1 truncate ui-code text-[12px] text-dim">{entry.symbol || entry.mint || "Unnamed token"}</p>
+                          <p className={`mt-1 font-mono t-title font-semibold ${tone}`}>{Number(entry.peakX).toFixed(2)}x</p>
+                          <p className="mt-1 truncate ui-code t-label text-dim">{entry.symbol || entry.mint || "Unnamed token"}</p>
                         </>
                       ) : (
-                        <p className="mt-1 text-xs text-dim">No measured call yet</p>
+                        <p className="mt-1 t-label text-dim">No measured call yet</p>
                       )}
                     </div>
                   ))}
@@ -148,23 +148,23 @@ export default function DiscordSourceDetailsPage() {
             </section>
 
             <section className="rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Approved call channels</h2><p className="mt-1 text-[11px] text-dim">Only these channels can produce eligible signals.</p></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Approved call channels</h2><p className="mt-1 t-label text-dim">Only these channels can produce eligible signals.</p></header>
               <div className="divide-y divide-edge">
-                {source.channels.length === 0 && <p className="px-5 py-6 text-xs text-dim">No approved channel metadata is currently available.</p>}
-                {source.channels.map((channel) => <div key={channel.id} className="flex items-center gap-3 px-5 py-4"><BadgeCheck size={16} className="text-up" /><div><p className="text-xs font-semibold text-ink">#{channel.name || "approved-channel"}</p><p className="mt-1 text-[12px] text-dim">{channel.id}</p></div></div>)}
+                {source.channels.length === 0 && <p className="px-5 py-6 t-label text-dim">No approved channel metadata is currently available.</p>}
+                {source.channels.map((channel) => <div key={channel.id} className="flex items-center gap-3 px-5 py-4"><BadgeCheck size={16} className="text-up" /><div><p className="t-label font-semibold text-ink">#{channel.name || "approved-channel"}</p><p className="mt-1 t-label text-dim">{channel.id}</p></div></div>)}
               </div>
             </section>
           </div>
 
           <aside className="h-fit rounded-md border border-edge bg-panel xl:sticky xl:top-24">
-            <header className="border-b border-edge p-5"><p className="ui-label text-gold-400">Source integrity</p><h2 className="mt-2 text-base font-semibold text-ink">Execution eligibility</h2></header>
+            <header className="border-b border-edge p-5"><p className="ui-label text-gold-400">Source integrity</p><h2 className="mt-2 t-section font-semibold text-ink">Execution eligibility</h2></header>
             <div className="space-y-4 p-5">
-              <div className="flex gap-3"><BadgeCheck className="shrink-0 text-up" size={17} /><div><p className="text-xs font-semibold text-ink">Admin approved</p><p className="mt-1 text-[11px] leading-5 text-dim">Signals still pass parser, token, route, and user filter checks.</p></div></div>
-              <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Last signal</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.lastSignalAt)}</p></div></div>
-              <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="text-xs font-semibold text-ink">Profile synchronization</p><p className="mt-1 text-[11px] leading-5 text-dim">{formatWhen(source.profileSyncedAt)} · {source.integrationHealth}</p></div></div>
-              <div className="rounded-md border border-edge bg-void p-3"><p className="ui-label">Creator commission</p><p className="mt-2 text-xs text-ink">{formatPercentBps(source.creatorFeeBps)} included in the 2% platform fee</p></div>
-              <div className="rounded-md border border-edge bg-void p-3"><p className="ui-label">Minimum history</p><p className="mt-2 text-xs text-ink">{source.measuredCalls >= 5 ? "Measured sample is available." : `Tracking — ${source.measuredCalls} of 5 calls measured so far.`}</p></div>
-              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c]">Use this source</Link>
+              <div className="flex gap-3"><BadgeCheck className="shrink-0 text-up" size={17} /><div><p className="t-label font-semibold text-ink">Admin approved</p><p className="mt-1 t-label leading-5 text-dim">Signals still pass parser, token, route, and user filter checks.</p></div></div>
+              <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="t-label font-semibold text-ink">Last signal</p><p className="mt-1 t-label leading-5 text-dim">{formatWhen(source.lastSignalAt)}</p></div></div>
+              <div className="flex gap-3"><ScannerPulseIcon className="shrink-0 text-gold-400" size={17} /><div><p className="t-label font-semibold text-ink">Profile synchronization</p><p className="mt-1 t-label leading-5 text-dim">{formatWhen(source.profileSyncedAt)} · {source.integrationHealth}</p></div></div>
+              <div className="rounded-md border border-edge bg-void p-3"><p className="ui-label">Creator commission</p><p className="mt-2 t-label text-ink">{formatPercentBps(source.creatorFeeBps)} included in the 2% platform fee</p></div>
+              <div className="rounded-md border border-edge bg-void p-3"><p className="ui-label">Minimum history</p><p className="mt-2 t-label text-ink">{source.measuredCalls >= 5 ? "Measured sample is available." : `Tracking — ${source.measuredCalls} of 5 calls measured so far.`}</p></div>
+              <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c]">Use this source</Link>
             </div>
           </aside>
         </div>

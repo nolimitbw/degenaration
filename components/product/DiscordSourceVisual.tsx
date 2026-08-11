@@ -23,9 +23,9 @@ function initials(name: string) {
 }
 
 const SIZES = {
-  sm: "h-10 w-10 text-xs",
-  md: "h-14 w-14 text-sm",
-  lg: "h-16 w-16 text-base"
+  sm: "h-10 w-10 t-label",
+  md: "h-14 w-14 t-body",
+  lg: "h-16 w-16 t-section"
 } as const;
 
 export function DiscordSourceAvatar({ source, size = "md" }: { source: SourceVisual; size?: keyof typeof SIZES }) {
@@ -72,7 +72,7 @@ export function IntegrationHealthDot({ status }: { status?: string | null }) {
         : state === "pending" ? "Connecting"
           : "Disconnected";
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] text-dim">
+    <span className="inline-flex items-center gap-1.5 t-label text-dim">
       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone}`} aria-hidden="true" />
       {label}
     </span>

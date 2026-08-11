@@ -64,10 +64,10 @@ export default function WalletBody() {
   if (!authenticated || !address) {
     return (
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
-        <h1 className="text-xl font-bold">Connect your wallet</h1>
-        <p className="mt-2 text-sm text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
+        <h1 className="t-title font-bold">Connect your wallet</h1>
+        <p className="mt-2 t-body text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
         <button onClick={login} className="mt-6 w-full rounded-md bg-gold-400 py-3 font-bold text-[#17110c] shadow-gold transition hover:brightness-110">Connect wallet</button>
-        <p className="mt-3 text-[12px] text-dim">Wallet keys remain with your wallet provider. Delegated access is optional and revocable.</p>
+        <p className="mt-3 t-label text-dim">Wallet keys remain with your wallet provider. Delegated access is optional and revocable.</p>
       </div>
     );
   }
@@ -76,8 +76,8 @@ export default function WalletBody() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Wallet</h1>
-      <p className="mt-1 text-sm text-dim">Fund your automation wallet and manage spending limits.</p>
+      <h1 className="t-display font-bold">Wallet</h1>
+      <p className="mt-1 t-body text-dim">Fund your automation wallet and manage spending limits.</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -87,11 +87,11 @@ export default function WalletBody() {
             <div className="w-full">
               <p className="ui-label">Your deposit address</p>
               <div className="mt-1 flex items-center gap-2">
-                <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">{address}</code>
-                <button onClick={copy} className="rounded-md bg-gold-400 px-3 py-2 text-xs font-bold text-white">{copied ? <Check size={14} aria-label="Copied" /> : "Copy"}</button>
+                <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono t-label">{address}</code>
+                <button onClick={copy} className="rounded-md bg-gold-400 px-3 py-2 t-label font-bold text-white">{copied ? <Check size={14} aria-label="Copied" /> : "Copy"}</button>
               </div>
             </div>
-            <p className="w-full rounded-md border border-danger/40 bg-danger/5 px-3 py-2 text-center text-[12px] text-danger">Send only mainnet SOL. Transfers are irreversible.</p>
+            <p className="w-full rounded-md border border-danger/40 bg-danger/5 px-3 py-2 text-center t-label text-danger">Send only mainnet SOL. Transfers are irreversible.</p>
           </div>
         </div>
 
@@ -99,19 +99,19 @@ export default function WalletBody() {
           <div className="gradient-border rounded-lg border border-edge p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase text-dim">Balance</p>
-                <p className="mt-1 font-mono text-3xl font-bold">{balanceLoading ? "…" : balance != null ? balance.toFixed(3) : "—"} <span className="text-base text-dim">SOL</span></p>
-                <p className="mt-1 font-mono text-xs text-dim">{balanceError ? balanceError : "mainnet"}</p>
+                <p className="t-label uppercase text-dim">Balance</p>
+                <p className="mt-1 font-mono t-display font-bold">{balanceLoading ? "…" : balance != null ? balance.toFixed(3) : "—"} <span className="t-section text-dim">SOL</span></p>
+                <p className="mt-1 font-mono t-label text-dim">{balanceError ? balanceError : "mainnet"}</p>
               </div>
               <button onClick={loadBalance} disabled={balanceLoading}
-                className="rounded-md border border-edge px-3 py-1.5 text-[12px] font-bold text-dim transition hover:border-gold-400 hover:text-gold-400 disabled:opacity-50">
+                className="rounded-md border border-edge px-3 py-1.5 t-label font-bold text-dim transition hover:border-gold-400 hover:text-gold-400 disabled:opacity-50">
                 {balanceLoading ? "Checking" : "Refresh"}
               </button>
             </div>
           </div>
           <div className="gradient-border rounded-lg border border-edge p-5">
             <h2 className="font-bold">Automation limits</h2>
-            <p className="mt-1 text-xs text-dim">These caps apply to every automated trade.</p>
+            <p className="mt-1 t-label text-dim">These caps apply to every automated trade.</p>
             <label className="mt-4 block">
               <span className="ui-label flex justify-between"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
               <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-gold-400" />

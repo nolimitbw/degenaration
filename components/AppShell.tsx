@@ -30,7 +30,7 @@ const WalletButton = dynamic(() => import("@/components/WalletButton"), {
 
 const WalletStatus = dynamic(() => import("@/components/WalletStatus"), {
   ssr: false,
-  loading: () => <span className="text-xs text-dim">Checking wallet</span>
+  loading: () => <span className="t-label text-dim">Checking wallet</span>
 });
 
 const NAV = [
@@ -77,15 +77,15 @@ function Notifications() {
         <div className="absolute right-0 top-12 z-50 w-[19rem] rounded-lg border border-[color:var(--rule-strong)] bg-panel p-4 shadow-[var(--shadow-panel)]">
           {/* Per capability, not one global verdict. Naming a working feature beside a real
               restriction is what made the old wording harmful. */}
-          <p className="text-[14px] font-medium text-ink">What you can do right now</p>
-          <ul className="mt-3 space-y-2 text-[13px] leading-5 text-dim">
+          <p className="t-body font-medium text-ink">What you can do right now</p>
+          <ul className="mt-3 space-y-2 t-meta leading-5 text-dim">
             <Capability ready>Swap from your own wallet</Capability>
             <Capability ready>Withdraw funds and take payouts</Capability>
             <Capability ready>Build, edit and pause bots</Capability>
             <Capability ready={Boolean(automation?.live)}>Let bots trade on their own</Capability>
           </ul>
-          {automation?.reason && <p className="mt-3 text-[12px] leading-5 text-[color:var(--text-muted)]">{automation.reason}</p>}
-          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex text-[13px] font-medium text-gold-400">
+          {automation?.reason && <p className="mt-3 t-label leading-5 text-[color:var(--text-muted)]">{automation.reason}</p>}
+          <Link href="/bots/manage" onClick={() => setOpen(false)} className="mt-3 inline-flex t-meta font-medium text-gold-400">
             Go to my bots
           </Link>
         </div>
@@ -144,7 +144,7 @@ function ThemeMenu() {
               key={value}
               type="button"
               onClick={() => { setPreference(value); setOpen(false); }}
-              className={`flex min-h-10 w-full items-center gap-2.5 rounded px-3 text-left text-[13px] transition ${preference === value ? "font-medium text-ink" : "text-dim hover:text-ink"}`}
+              className={`flex min-h-10 w-full items-center gap-2.5 rounded px-3 text-left t-meta transition ${preference === value ? "font-medium text-ink" : "text-dim hover:text-ink"}`}
             >
               <Icon aria-hidden="true" size={15} strokeWidth={1.7} className={preference === value ? "text-ink" : "text-[color:var(--text-muted)]"} />
               {label}
@@ -199,7 +199,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActivePath(path, href);
             return (
-              <Link key={href} href={href} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 text-[14px] transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+              <Link key={href} href={href} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
                 {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
                 <Icon aria-hidden="true" size={17} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
                 {label}
@@ -209,7 +209,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="mt-auto space-y-1 p-3">
           {admin && (
-            <Link href="/admin" className={`flex min-h-11 items-center gap-3 rounded-md px-3 text-[14px] ${isActivePath(path, "/admin") ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+            <Link href="/admin" className={`flex min-h-11 items-center gap-3 rounded-md px-3 t-body ${isActivePath(path, "/admin") ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
               <ShieldCheck aria-hidden="true" size={17} strokeWidth={1.7} className={isActivePath(path, "/admin") ? "text-ink" : "text-[color:var(--text-muted)]"} /> Owner console
             </Link>
           )}
@@ -240,7 +240,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={href}
                     href={href}
-                    className={`flex min-h-12 items-center gap-3 rounded-md px-3 text-[15px] ${active ? "font-medium text-ink" : "text-dim"}`}
+                    className={`flex min-h-12 items-center gap-3 rounded-md px-3 t-body ${active ? "font-medium text-ink" : "text-dim"}`}
                   >
                     <Icon aria-hidden="true" size={18} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
                     {label}
@@ -248,7 +248,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 );
               })}
               {admin && (
-                <Link href="/admin" className="mt-4 flex min-h-12 items-center gap-3 border-t border-[color:var(--rule)] px-3 pt-4 text-[15px] text-dim">
+                <Link href="/admin" className="mt-4 flex min-h-12 items-center gap-3 border-t border-[color:var(--rule)] px-3 pt-4 t-body text-dim">
                   <ShieldCheck aria-hidden="true" size={18} strokeWidth={1.7} className="text-[color:var(--text-muted)]" />
                   Owner console
                 </Link>
@@ -290,7 +290,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </motion.main>
 
         <footer className="px-4 pb-6 pt-2 lg:px-8">
-          <div className="mx-auto flex max-w-[1560px] items-center gap-2 border-t border-[color:var(--rule)] pt-4 text-[12px] text-[color:var(--text-muted)]">
+          <div className="mx-auto flex max-w-[1560px] items-center gap-2 border-t border-[color:var(--rule)] pt-4 t-label text-[color:var(--text-muted)]">
             <span className="h-[5px] w-[5px] rounded-full bg-up" aria-hidden="true" />
             Solana mainnet
           </div>

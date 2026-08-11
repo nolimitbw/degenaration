@@ -63,9 +63,9 @@ export default function PublicWallet({ address }: { address: string }) {
   return (
     <div>
       {data.partial && (
-        <div className="mb-4 flex items-start gap-3 rounded-md border border-amber-400/30 bg-amber-400/5 px-4 py-3 text-sm text-amber-100">
+        <div className="mb-4 flex items-start gap-3 rounded-md border border-amber-400/30 bg-amber-400/5 px-4 py-3 t-body text-amber-100">
           <AlertTriangle aria-hidden="true" size={17} className="mt-0.5 shrink-0 text-amber-300" />
-          <div><p className="font-semibold">Partial wallet data</p><p className="mt-0.5 text-xs leading-5 text-dim">{data.warning} Refresh shortly to retry the live read.</p></div>
+          <div><p className="font-semibold">Partial wallet data</p><p className="mt-0.5 t-label leading-5 text-dim">{data.warning} Refresh shortly to retry the live read.</p></div>
         </div>
       )}
       <div className="grid overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4">
@@ -81,35 +81,35 @@ export default function PublicWallet({ address }: { address: string }) {
             <thead className="ui-label bg-panel"><tr><th className="px-4 py-3">Asset</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Value</th><th className="px-4 py-3">24h</th><th className="px-4 py-3">Actions</th></tr></thead>
             <tbody>
               {data.positions.map((position) => (
-                <tr key={position.mint} className="border-t border-edge text-sm">
-                  <td className="px-4 py-3"><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 ui-code text-[12px] text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-4)}</p></td>
-                  <td className="px-4 py-3 font-mono text-xs text-dim">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{position.priceUsd == null ? "-" : usd(position.priceUsd)}</td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold">{usd(position.valueUsd || 0)}</td>
-                  <td className={`px-4 py-3 font-mono text-xs font-bold ${(position.change24h || 0) >= 0 ? "text-up" : "text-danger"}`}>{position.change24h == null ? "-" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(1)}%`}</td>
-                  <td className="px-4 py-3"><div className="flex gap-3 ui-code text-[12px]"><Link href={`/risk/${position.mint}`} className="text-gold-400 hover:underline">Risk report</Link></div></td>
+                <tr key={position.mint} className="border-t border-edge t-body">
+                  <td className="px-4 py-3"><p className="font-semibold text-ink">{position.symbol || "Unknown"}</p><p className="mt-0.5 ui-code t-label text-dim">{position.mint.slice(0, 6)}...{position.mint.slice(-4)}</p></td>
+                  <td className="px-4 py-3 font-mono t-label text-dim">{position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                  <td className="px-4 py-3 font-mono t-label">{position.priceUsd == null ? "-" : usd(position.priceUsd)}</td>
+                  <td className="px-4 py-3 font-mono t-label font-bold">{usd(position.valueUsd || 0)}</td>
+                  <td className={`px-4 py-3 font-mono t-label font-bold ${(position.change24h || 0) >= 0 ? "text-up" : "text-danger"}`}>{position.change24h == null ? "-" : `${position.change24h >= 0 ? "+" : ""}${position.change24h.toFixed(1)}%`}</td>
+                  <td className="px-4 py-3"><div className="flex gap-3 ui-code t-label"><Link href={`/risk/${position.mint}`} className="text-gold-400 hover:underline">Risk report</Link></div></td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <div className="grid min-h-48 place-items-center bg-panel/30 px-6 text-center"><div><WalletCards aria-hidden="true" className="mx-auto text-dim" /><p className="mt-3 font-semibold">No priced token balances</p><p className="mt-1 text-sm text-dim">This wallet currently has only SOL, dust, or unpriced assets.</p></div></div>
+          <div className="grid min-h-48 place-items-center bg-panel/30 px-6 text-center"><div><WalletCards aria-hidden="true" className="mx-auto text-dim" /><p className="mt-3 font-semibold">No priced token balances</p><p className="mt-1 t-body text-dim">This wallet currently has only SOL, dust, or unpriced assets.</p></div></div>
         )}
       </div>
 
-      <div className="mt-4 flex items-start gap-2 text-[12px] leading-5 text-dim">
+      <div className="mt-4 flex items-start gap-2 t-label leading-5 text-dim">
         <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-info" />
         The 24h figure estimates price movement on the wallet&apos;s current balances. It is not realized trade P&L and does not account for transfers or intraday balance changes.
       </div>
-      <a href={`https://solscan.io/account/${address}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold hover:border-gold-400/60">Verify on Solscan <ArrowUpRight aria-hidden="true" size={15} /></a>
+      <a href={`https://solscan.io/account/${address}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-4 t-body font-semibold hover:border-gold-400/60">Verify on Solscan <ArrowUpRight aria-hidden="true" size={15} /></a>
     </div>
   );
 }
 
 function Card({ label, value, detail, tone }: { label: string; value: string; detail: string; tone?: "up" | "down" }) {
-  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="ui-label">{label}</p><p className={`mt-2 text-xl font-bold ${tone === "up" ? "text-up" : tone === "down" ? "text-danger" : "text-ink"}`}>{value}</p><p className="mt-1 text-[12px] text-dim">{detail}</p></div>;
+  return <div className="bg-panel p-4 sm:border-r sm:border-edge sm:last:border-r-0"><p className="ui-label">{label}</p><p className={`mt-2 t-title font-bold ${tone === "up" ? "text-up" : tone === "down" ? "text-danger" : "text-ink"}`}>{value}</p><p className="mt-1 t-label text-dim">{detail}</p></div>;
 }
 
 function State({ error }: { error?: string }) {
-  return <div className="grid min-h-56 place-items-center rounded-md border border-edge bg-panel/40 p-6 text-center"><div>{error ? <AlertTriangle aria-hidden="true" className="mx-auto text-danger" /> : <LoaderCircle aria-hidden="true" className="mx-auto animate-spin text-gold-400" />}<p className="mt-3 font-bold">{error ? "Wallet unavailable" : "Loading on-chain wallet"}</p><p className="mt-1 text-sm text-dim">{error || "Reading balances and live market prices."}</p></div></div>;
+  return <div className="grid min-h-56 place-items-center rounded-md border border-edge bg-panel/40 p-6 text-center"><div>{error ? <AlertTriangle aria-hidden="true" className="mx-auto text-danger" /> : <LoaderCircle aria-hidden="true" className="mx-auto animate-spin text-gold-400" />}<p className="mt-3 font-bold">{error ? "Wallet unavailable" : "Loading on-chain wallet"}</p><p className="mt-1 t-body text-dim">{error || "Reading balances and live market prices."}</p></div></div>;
 }

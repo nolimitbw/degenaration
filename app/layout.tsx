@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
 import ReleaseBanner from "@/components/ReleaseBanner";
+import { ReadinessProvider } from "@/components/product/Readiness";
 import DegenBackdrop from "@/components/DegenBackdrop";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -52,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Skip to content
             </a>
             <ReleaseBanner />
-              {children}
+              <ReadinessProvider>{children}</ReadinessProvider>
             </ToastProvider>
           </Providers>
         </ThemeProvider>

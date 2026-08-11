@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { configuredPlatformFeeBps, formatBpsPercent } from "@/lib/fee-model";
+import { feeAccountReadiness } from "@/lib/server/fee-account";
 import { automationReadiness } from "@/lib/server/automation-readiness";
 
 export const dynamic = "force-dynamic";
@@ -33,18 +34,34 @@ async function workerHealth(): Promise<WorkerHealth | null> {
 }
 
 export async function GET() {
-  const platformFeeBps = configuredPlatformFeeBps();
-  const feeWalletConfigured = platformFeeBps > 0;
+  const configuredBps = configuredPlatformFeeBps();
   const workerConfigured = Boolean(process.env.AUTOMATION_WORKER_URL?.trim());
-  const [worker, readiness] = await Promise.all([workerHealth(), automationReadiness()]);
+  const [worker, readiness, fee] = await Promise.all([workerHealth(), automationReadiness(), feeAccountReadiness()]);
+
+  // The fee this deployment ACTUALLY charges, not the one it is configured to want.
+  //
+  // `feeWalletConfigured` used to be `configuredPlatformFeeBps() > 0` — a test that the
+  // environment variable is non-empty. `/api/quote` and `/api/swap` have always resolved the
+  // real destination through `resolveFeeAccount`, and skip the fee when the token account does
+  // not exist on chain. In production those two disagreed: this endpoint published
+  // `feeLabel: "2.00%"` and every quote returned `platformFeeBps: 0, feeAccountSet: false`.
+  //
+  // Users were shown a rate nobody was charged. It is the safe direction financially and the
+  // wrong direction for trust, and the whole interface reads its fee copy from here. One
+  // source now: if no account resolves, the platform charges nothing and says so.
+  const feeCharged = fee.ready;
+  const platformFeeBps = feeCharged ? configuredBps : 0;
   const automationLive = worker?.status === "ok" && worker.mode === "live"
     && worker.signingEnabled === true && worker.network === "mainnet";
   const copyTradingLive = automationLive && worker?.copyTradingEnabled === true;
   return NextResponse.json(
     {
       platformFeeBps,
-      feeWalletConfigured,
-      feeLabel: feeWalletConfigured ? formatBpsPercent(platformFeeBps) : "Off",
+      feeWalletConfigured: feeCharged,
+      feeLabel: feeCharged ? formatBpsPercent(platformFeeBps) : "None",
+      /** What the operator intends to charge once the fee account exists. Admin-facing. */
+      configuredPlatformFeeBps: configuredBps,
+      feeAccountReady: fee.ready,
       automation: {
         configured: workerConfigured,
         live: readiness.active,

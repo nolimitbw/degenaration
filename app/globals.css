@@ -211,6 +211,34 @@ input[type="number"]::-webkit-outer-spin-button {
   letter-spacing: -0.015em;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   ONE type scale.
+
+   The audit counted 18 distinct sizes in use, across two competing systems: the
+   Tailwind names (text-xs ×300, text-sm ×227, base, lg, xl, 2xl, 3xl) and pixel
+   literals added on top of them (text-[12px] ×194, [11px] ×95, [13px], [14px],
+   [15px], [17px], [22px], [25px], [10px] ×22, [9px] ×7, [8px] ×2). Two scales is
+   worse than one bad scale, because now nothing can be reasoned about.
+
+   Six steps. Each has a job, and a size only exists because a job needed it.
+   Product code uses these; raw `text-[Npx]` is the thing being retired.
+   ───────────────────────────────────────────────────────────────────────────── */
+.t-display { font-size: 34px; line-height: 1.08; letter-spacing: -0.022em; font-weight: 600; }
+.t-title   { font-size: 22px; line-height: 1.2;  letter-spacing: -0.016em; font-weight: 500; }
+.t-section { font-size: 17px; line-height: 1.35; letter-spacing: -0.01em;  font-weight: 500; }
+.t-body    { font-size: 14px; line-height: 1.5; }
+.t-meta    { font-size: 13px; line-height: 1.45; }
+.t-label   { font-size: 12px; line-height: 1.35; }
+
+@media (max-width: 640px) {
+  .t-display { font-size: 27px; }
+  .t-title   { font-size: 20px; }
+}
+
+/* Figures get their own two steps — a balance should be readable across a desk. */
+.t-figure-lg { font-size: 25px; line-height: 1.05; }
+.t-figure    { font-size: 15px; line-height: 1.2; }
+
 /* Monospace means "compare this character by character". Nothing else earns it. */
 :where(.ui-code) {
   font-size: 12px;

@@ -29,6 +29,7 @@ import {
 } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 import { NumericTextInput } from "@/components/product/NumericField";
+import { TradingNotice } from "@/components/product/Readiness";
 import { DISCORD_CREATOR_BPS, KOL_CREATOR_BPS, bpsOf } from "@/lib/fee-model";
 import { pendingNotice } from "@/lib/bot-control-contract";
 import { displayState } from "@/lib/bot-states";
@@ -758,7 +759,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               )}
             </div>
             <details className="group rounded-md border border-edge bg-void">
-              <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3 text-xs font-medium text-ink">
+              <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3 t-label font-medium text-ink">
                 Optional description
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
@@ -779,15 +780,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <div className="flex flex-col gap-4 rounded-md border border-edge bg-void px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="field-label">Selected wallet</p>
-                <p className="mt-2 truncate font-mono text-sm text-ink">{walletAddress || "Not connected"}</p>
-                <p className={`mt-1 text-[11px] ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required to activate"}</p>
+                <p className="mt-2 truncate font-mono t-body text-ink">{walletAddress || "Not connected"}</p>
+                <p className={`mt-1 t-label ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required to activate"}</p>
               </div>
               {!walletAddress && (
                 <button
                   type="button"
                   onClick={setupWallet}
                   disabled={walletCreating}
-                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-gold-400/45 px-3 text-xs font-semibold text-gold-400 disabled:opacity-50"
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-gold-400/45 px-3 t-label font-semibold text-gold-400 disabled:opacity-50"
                 >
                   {walletCreating ? <Loader2 aria-hidden="true" size={14} className="animate-spin" /> : <WalletCards aria-hidden="true" size={14} />}
                   {authenticated ? "Create Solana wallet" : "Connect account"}
@@ -816,15 +817,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     }}
                     options={sources.map((item) => ({ value: item.id, label: item.name }))}
                   />
-                  {sourcesLoading && <p className="mt-1.5 text-[11px] text-dim">Loading approved sources…</p>}
+                  {sourcesLoading && <p className="mt-1.5 t-label text-dim">Loading approved sources…</p>}
                   {!sourcesLoading && sourcesError && (
-                    <p role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-danger">
+                    <p role="alert" className="mt-1.5 flex flex-wrap items-center gap-2 t-label text-danger">
                       {sourcesError}
                       <button type="button" onClick={loadSources} className="inline-flex min-h-8 items-center rounded border border-edge px-2 font-semibold text-ink">Try again</button>
                     </p>
                   )}
                   {!sourcesLoading && !sourcesError && sources.length === 0 && (
-                    <p className="mt-1.5 text-[11px] text-dim">No approved sources yet. Browse Discord Sources to see communities awaiting approval.</p>
+                    <p className="mt-1.5 t-label text-dim">No approved sources yet. Browse Discord Sources to see communities awaiting approval.</p>
                   )}
                 </div>
                 <SelectField
@@ -856,7 +857,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <Toggle label="Emergency stop" detail="Refuse every new entry. Open positions still exit." checked={killSwitch} onChange={setKillSwitch} compact danger />
             </div>}
             {killSwitch && (
-              <p role="status" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-[11px] text-ink">
+              <p role="status" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 t-label text-ink">
                 Emergency stop is on. This bot will not open a new position, and its open positions keep exiting.
               </p>
             )}
@@ -866,13 +867,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <NumberField label={kind === "discord" ? "Margin amount per trade" : "Buy amount"} value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
             <div className="flex flex-wrap gap-2">
               {[0.1, 0.5, 1, 5].map((amount) => (
-                <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-11 sm:min-h-9 rounded-md border px-3 font-mono text-xs ${buyAmountSol === amount ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
+                <button key={amount} type="button" onClick={() => setBuyAmountSol(amount)} className={`min-h-11 sm:min-h-9 rounded-md border px-3 font-mono t-label ${buyAmountSol === amount ? "border-gold-400 bg-gold-400/10 text-gold-400" : "border-edge text-dim hover:text-ink"}`}>{amount} SOL</button>
               ))}
             </div>
             {kind === "discord" && (
               <>
                 <NumberField label="Max funds per day" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
-                <p className="text-[11px] leading-5 text-dim">Once this budget is used, new entries wait for the next UTC reset. Exits continue.</p>
+                <p className="t-label leading-5 text-dim">Once this budget is used, new entries wait for the next UTC reset. Exits continue.</p>
                 <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
                   <SourceStat label="Wallet available" value={walletAvailableLamports == null ? "Unavailable" : `${lamportsToSol(BigInt(walletAvailableLamports))} SOL`} />
                   <SourceStat label="Estimated max exposure" value={`${lamportsToSol(
@@ -886,8 +887,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             {kind === "kol" && <details className="group rounded-md border border-edge bg-void">
               <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
                 <span>
-                  <span className="block text-xs font-medium text-ink">Exposure limits</span>
-                  <span className="mt-0.5 block text-[12px] text-dim">{maximumCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
+                  <span className="block t-label font-medium text-ink">Exposure limits</span>
+                  <span className="mt-0.5 block t-label text-dim">{maximumCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
                 </span>
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
@@ -911,12 +912,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 "maximum exposure" row beside it said 0.50 for the same configuration. */}
             {kind === "kol" && <div className="rounded-md border border-edge bg-void px-4 py-3">
               <p className="field-label">Minimum planned capital</p>
-              <div className="mt-2 space-y-0.5 font-mono text-xs text-dim">
+              <div className="mt-2 space-y-0.5 font-mono t-label text-dim">
                 {explain(capitalPlan).map((line, index) => (
                   <p key={index} className={line.startsWith("=") ? "text-ink" : undefined}>{line}</p>
                 ))}
               </div>
-              <p className="mt-2 border-t border-edge pt-2 text-[11px] text-dim">
+              <p className="mt-2 border-t border-edge pt-2 t-label text-dim">
                 Take profit and stop loss are not counted — they close a position, they do not fund one.
                 Keep about {lamportsToSol(capitalPlan.reserveLamports)} SOL on top for network fees and rent;
                 that reserve is not trading capital.
@@ -960,7 +961,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     className="flex min-h-11 items-center gap-2 text-left sm:min-h-0 sm:self-center disabled:opacity-40"
                   >
                     <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled && takeProfitEnabled ? "bg-up" : "bg-edge"}`} />
-                    <span className="font-mono text-xs text-dim">TP {index + 1}</span>
+                    <span className="font-mono t-label text-dim">TP {index + 1}</span>
                     <span className={`ui-label ${level.enabled && takeProfitEnabled ?"text-up" : "text-dim"}`}>
                       {level.enabled ? "On" : "Off"}
                     </span>
@@ -973,7 +974,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               ))}
             </div>}
             {kind === "kol" && <div className="flex flex-wrap items-center justify-between gap-3">
-              <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0, enabled: true }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
+              <button type="button" onClick={() => setTpLevels((current) => current.length < 5 ? [...current, { targetBps: 90000, sellBps: 1000, trailingBps: 0, enabled: true }] : current)} disabled={tpLevels.length >= 5} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add TP level</button>
               <Toggle label="Trailing take profit" detail="Apply the per-level trailing distance after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} compact disabled={!takeProfitEnabled} />
             </div>}
             {tpAllocationBps > 10000 && <InlineError>Sell allocation exceeds 100%.</InlineError>}
@@ -1010,7 +1011,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <Toggle label="Freeze token after stop" detail="Block re-entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
               <Toggle label="Emergency exit" detail="If a sell keeps failing, widen slippage step by step up to 15% so the position can close." checked={emergencyExit} onChange={setEmergencyExit} />
             </div>}
-            {autoReentry && kind === "discord" && <p className="text-[11px] leading-5 text-dim">A fresh call may open the token again after its previous position closes.</p>}
+            {autoReentry && kind === "discord" && <p className="t-label leading-5 text-dim">A fresh call may open the token again after its previous position closes.</p>}
             {/* Directly below stop loss, per section 4. Not the same control as First call
                 only: that one refuses a repeat call while a position is open, this one refuses
                 a fresh entry once the position has closed. */}
@@ -1066,13 +1067,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="block">
                   <span className="field-label">Manual Solana mints</span>
-                  <textarea value={manualMints} onChange={(event) => setManualMints(event.target.value)} rows={4} className="field-control mt-1.5 resize-y px-3 py-2.5 font-mono text-xs" placeholder="One mint per line, optional when scanner discovery is enabled" />
+                  <textarea value={manualMints} onChange={(event) => setManualMints(event.target.value)} rows={4} className="field-control mt-1.5 resize-y px-3 py-2.5 font-mono t-label" placeholder="One mint per line, optional when scanner discovery is enabled" />
                 </label>
                 <div>
                   <span className="field-label">Scanner quick set</span>
                   <div className="mt-1.5 grid grid-cols-2 gap-2">
                     {PRESET_NAMES.map((value) => (
-                      <button key={value} type="button" onClick={() => applyPreset(value)} className={`min-h-11 rounded-md border px-3 text-left text-xs font-medium ${preset === value ? "border-gold-400 bg-gold-400/10 text-ink" : "border-edge bg-void text-dim hover:text-ink"}`}>{value}</button>
+                      <button key={value} type="button" onClick={() => applyPreset(value)} className={`min-h-11 rounded-md border px-3 text-left t-label font-medium ${preset === value ? "border-gold-400 bg-gold-400/10 text-ink" : "border-edge bg-void text-dim hover:text-ink"}`}>{value}</button>
                     ))}
                   </div>
                 </div>
@@ -1112,7 +1113,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                           className="flex min-h-11 items-center gap-2 text-left sm:min-h-0 sm:self-center"
                         >
                           <span className={`h-2 w-2 shrink-0 rounded-full ${level.enabled ? "bg-up" : "bg-edge"}`} />
-                          <span className="font-mono text-xs text-dim">DCA {index + 1}</span>
+                          <span className="font-mono t-label text-dim">DCA {index + 1}</span>
                           <span className={`ui-label ${level.enabled ?"text-up" : "text-dim"}`}>
                             {level.enabled ? "On" : "Off"}
                           </span>
@@ -1124,7 +1125,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                     ))}
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25, enabled: true }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
+                    <button type="button" onClick={() => setDcaLevels((current) => current.length < 6 ? [...current, { dropBps: 3000, buyAmountSol: 0.25, enabled: true }] : current)} disabled={dcaLevels.length >= 6} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink disabled:opacity-40"><Plus size={14} /> Add DCA level</button>
                     <NumberField label="DCA expiration" value={dcaExpirationMinutes} onChange={(value) => setDcaExpirationMinutes(Math.round(value))} unit="min" step={30} min={30} max={10080} compact />
                   </div>
                 </>
@@ -1139,13 +1140,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           >
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-edge bg-void px-4 py-3">
               <div>
-                <p className="text-xs font-semibold text-ink">Recommended protection is on</p>
-                <p className="mt-1 text-[11px] leading-5 text-dim">Enabled checks fail closed when fresh evidence is unavailable.</p>
+                <p className="t-label font-semibold text-ink">Recommended protection is on</p>
+                <p className="mt-1 t-label leading-5 text-dim">Enabled checks fail closed when fresh evidence is unavailable.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setSecurityOpen(true)}
-                className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400"
+                className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 t-label font-semibold text-gold-400"
               >
                 <ShieldCheck aria-hidden="true" size={14} />
                 Configure filters
@@ -1153,28 +1154,28 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-edge bg-void px-4 py-3">
               <div>
-                <p className="text-xs font-semibold text-ink">Current candidate preview</p>
-                <p className="mt-1 text-[11px] text-dim">Informational only. Every live signal is checked again with fresh evidence.</p>
+                <p className="t-label font-semibold text-ink">Current candidate preview</p>
+                <p className="mt-1 t-label text-dim">Informational only. Every live signal is checked again with fresh evidence.</p>
               </div>
-              <button type="button" onClick={runPreview} disabled={previewing} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 text-xs font-semibold text-gold-400 disabled:opacity-50">
+              <button type="button" onClick={runPreview} disabled={previewing} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-gold-400/50 px-4 t-label font-semibold text-gold-400 disabled:opacity-50">
                 <RefreshCw size={14} className={previewing ? "animate-spin" : ""} />
                 Run preview
               </button>
             </div>
             {preview && (
               <div className="divide-y divide-edge rounded-md border border-edge">
-                {preview.length === 0 && <p className="px-4 py-5 text-xs text-dim">No current candidates were returned by the live provider.</p>}
+                {preview.length === 0 && <p className="px-4 py-5 t-label text-dim">No current candidates were returned by the live provider.</p>}
                 {preview.slice(0, 12).map((item, index) => (
                   <div key={`${item.address}-${index}`} className="flex items-center gap-3 px-4 py-3">
                     <span className={`grid h-7 w-7 place-items-center rounded-sm ${item.pass ? "bg-up/10 text-up" : "bg-down/10 text-down"}`}>{item.pass ? <Check size={14} /> : <X size={14} />}</span>
-                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-ink">{item.symbol}</p><p className="mt-0.5 truncate ui-code text-[12px] text-dim">{item.address}</p></div>
-                    <p className={`max-w-[42%] text-right text-[10px] ${item.pass ? "text-up" : "text-down"}`}>{item.reason}</p>
+                    <div className="min-w-0 flex-1"><p className="truncate t-label font-semibold text-ink">{item.symbol}</p><p className="mt-0.5 truncate ui-code t-label text-dim">{item.address}</p></div>
+                    <p className={`max-w-[42%] text-right t-label ${item.pass ? "text-up" : "text-down"}`}>{item.reason}</p>
                   </div>
                 ))}
               </div>
             )}
             {previewError && (
-              <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-down/35 bg-down/5 px-4 py-3 text-xs text-down">
+              <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-down/35 bg-down/5 px-4 py-3 t-label text-down">
                 <span>{previewError}</span>
                 <button type="button" onClick={runPreview} className="min-h-9 rounded-md border border-down/35 px-3 font-semibold text-ink">Try again</button>
               </div>
@@ -1213,7 +1214,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             is the useful line, so it leads. */}
         <aside className="h-fit overflow-hidden rounded-lg border border-[color:var(--rule)] bg-panel xl:sticky xl:top-24">
           <header className="border-b border-[color:var(--rule)] px-5 py-4">
-            <h2 className="truncate text-[16px] font-medium text-ink">{name || "Untitled bot"}</h2>
+            <h2 className="truncate t-section font-medium text-ink">{name || "Untitled bot"}</h2>
             <p className="ui-label mt-1">This is what will be saved</p>
           </header>
           <dl className="divide-y divide-[color:var(--rule)] px-5">
@@ -1241,17 +1242,31 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             {/* One user-facing rate. Listing the creator share as a second row read as
                 2.00% + 0.70% additive, which is exactly what spec 13.2 forbids -- the
                 creator is paid OUT OF the platform fee, not on top of it. */}
+            {/* `platformFeeBps` now arrives from the server ALREADY resolved against the fee
+                token account, so when nothing is being collected this reads "None" rather than
+                the rate the operator hopes to charge one day. Quoting 2.00% while charging 0
+                was the specific misstatement the honesty audit scored 0 for. */}
             <SummaryRow
               label="Platform fee"
-              value={formatPercentBps(platformFeeBps)}
-              hint={`Charged on each confirmed swap leg. The ${formatPercentBps(creatorFeeBps)} creator share is paid out of this fee, not added to it.`}
+              value={platformFeeBps > 0 ? formatPercentBps(platformFeeBps) : "None"}
+              hint={platformFeeBps > 0
+                ? `Charged on each confirmed swap leg. The ${formatPercentBps(creatorFeeBps)} creator share is paid out of this fee, not added to it.`
+                : "This deployment is not collecting a platform fee. Solana network and priority fees still apply."}
             />
-            <SummaryRow
-              label="Fee per entry"
-              value={formatSol(platformFeeLamports)}
-              hint={`Estimated on a ${buyAmountSol.toFixed(3)} SOL entry. Solana network and priority fees are separate.`}
-            />
+            {platformFeeBps > 0 && (
+              <SummaryRow
+                label="Fee per entry"
+                value={formatSol(platformFeeLamports)}
+                hint={`Estimated on a ${buyAmountSol.toFixed(3)} SOL entry. Solana network and priority fees are separate.`}
+              />
+            )}
           </dl>
+          {/* The honest state of THIS bot, next to the button that saves it. It used to live
+              only in a dismissible page banner, so a user who closed it once saw a review panel
+              that read as a working product for every session afterwards. */}
+          <div className="border-t border-[color:var(--rule)] px-5 py-4">
+            <TradingNotice compact />
+          </div>
           {/* Two actions, exactly as section 5 specifies. RUN asks the server; the reason it
               shows is whichever single check failed first, so it is different for a user with
               no wallet and a user waiting on the fee account. Nothing here is computed from a
@@ -1264,7 +1279,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             {(validationError || readiness) && (
               <div
                 role={validationError || readiness?.ready === false ? "alert" : "status"}
-                className={`mt-3 rounded-md border px-3 py-2.5 text-[11px] leading-5 ${
+                className={`mt-3 rounded-md border px-3 py-2.5 t-label leading-5 ${
                   validationError || readiness?.ready === false
                     ? "border-down/35 bg-down/5 text-down"
                     : "border-up/30 bg-up/5 text-up"
@@ -1278,7 +1293,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 type="button"
                 onClick={run}
                 disabled={saving || checking}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:opacity-50"
               >
                 {checking ? <Loader2 aria-hidden="true" size={15} className="animate-spin" /> : <ShieldCheck aria-hidden="true" size={15} />}
                 {checking ? "Checking" : "RUN"}
@@ -1294,7 +1309,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   setConfirmStatus("draft");
                 }}
                 disabled={saving}
-                className="min-h-11 rounded-md border border-edge px-4 text-sm font-semibold text-ink disabled:opacity-40"
+                className="min-h-11 rounded-md border border-edge px-4 t-body font-semibold text-ink disabled:opacity-40"
               >
                 Save and use later
               </button>
@@ -1315,8 +1330,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-edge bg-panel px-5 py-4">
               <div>
                 <p className="ui-label text-gold-400">Advanced safeguards</p>
-                <h2 id="security-filter-title" className="mt-2 text-lg font-semibold text-ink">Security filters</h2>
-                <p className="mt-1 text-[11px] leading-5 text-dim">The final review shows enabled and disabled counts. Enabled checks reject missing or stale evidence.</p>
+                <h2 id="security-filter-title" className="mt-2 t-title font-semibold text-ink">Security filters</h2>
+                <p className="mt-1 t-label leading-5 text-dim">The final review shows enabled and disabled counts. Enabled checks reject missing or stale evidence.</p>
               </div>
               <button type="button" onClick={() => setSecurityOpen(false)} className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-edge text-dim" aria-label="Close security filters"><X size={16} /></button>
             </header>
@@ -1324,8 +1339,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <div className="space-y-5 p-5">
               <section>
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <div><h3 className="text-sm font-semibold text-ink">Core checks</h3><p className="mt-1 text-[11px] text-dim">Authority, metadata, liquidity, and transaction simulation evidence.</p></div>
-                  <span className="text-[12px] text-dim">{Object.values(flags).filter(Boolean).length}/{FLAG_FILTERS.length} on</span>
+                  <div><h3 className="t-body font-semibold text-ink">Core checks</h3><p className="mt-1 t-label text-dim">Authority, metadata, liquidity, and transaction simulation evidence.</p></div>
+                  <span className="t-label text-dim">{Object.values(flags).filter(Boolean).length}/{FLAG_FILTERS.length} on</span>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   {FLAG_FILTERS.map(([key, label, sourceLabel]) => (
@@ -1342,8 +1357,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   className="flex min-h-12 w-full items-center justify-between gap-3 bg-void px-4 text-left"
                 >
                   <span>
-                    <span className="block text-sm font-semibold text-ink">Range filters</span>
-                    <span className="mt-0.5 block text-[12px] text-dim">{Object.values(filters).filter((filter) => filter.enabled).length} enabled · optional min/max evidence</span>
+                    <span className="block t-body font-semibold text-ink">Range filters</span>
+                    <span className="mt-0.5 block t-label text-dim">{Object.values(filters).filter((filter) => filter.enabled).length} enabled · optional min/max evidence</span>
                   </span>
                   <ChevronDown aria-hidden="true" size={16} className={`shrink-0 text-dim transition ${advancedOpen ? "rotate-180" : ""}`} />
                 </button>
@@ -1356,8 +1371,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                           const value = filters[definition.key];
                           return (
                             <tr key={definition.key} className="border-t border-edge">
-                              <td className="px-3 py-3 text-xs font-medium text-ink">{definition.label}<span className="ml-1 text-[12px] text-dim">({definition.unit})</span></td>
-                              <td className="px-3 py-3 text-[12px] text-dim">{definition.source}</td>
+                              <td className="px-3 py-3 t-label font-medium text-ink">{definition.label}<span className="ml-1 t-label text-dim">({definition.unit})</span></td>
+                              <td className="px-3 py-3 t-label text-dim">{definition.source}</td>
                               <td className="px-3 py-3"><CompactNumber ariaLabel={`${definition.label} minimum`} value={value.min} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, min: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
                               <td className="px-3 py-3"><CompactNumber ariaLabel={`${definition.label} maximum`} value={value.max} onChange={(next) => setFilters((current) => ({ ...current, [definition.key]: { ...value, max: next } }))} suffix={definition.unit} disabled={!value.enabled} /></td>
                               <td className="px-3 py-3"><button type="button" role="switch" aria-label={`Require ${definition.label}`} aria-checked={value.enabled} onClick={() => setFilters((current) => ({ ...current, [definition.key]: { ...value, enabled: !value.enabled } }))} className={`relative h-6 w-11 rounded-full transition ${value.enabled ? "bg-gold-400" : "bg-edge"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-void transition ${value.enabled ? "left-6" : "left-1"}`} /></button></td>
@@ -1372,8 +1387,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
 
             <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-edge bg-panel px-5 py-4">
-              <p className="text-[12px] text-dim">{enabledSafetyCount} total checks enabled</p>
-              <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c]">Done</button>
+              <p className="t-label text-dim">{enabledSafetyCount} total checks enabled</p>
+              <button type="button" onClick={() => setSecurityOpen(false)} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-5 t-body font-semibold text-[#17110c]">Done</button>
             </footer>
           </div>
         </div>
@@ -1383,7 +1398,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }}>
           <div role="dialog" aria-modal="true" aria-labelledby="confirm-bot-title" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
-              <div><p className="ui-label text-gold-400">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 text-lg font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
+              <div><p className="ui-label text-gold-400">Final confirmation</p><h2 id="confirm-bot-title" className="mt-2 t-title font-semibold text-ink">{confirmStatus === "active" ? "Activate this bot?" : "Save this draft?"}</h2></div>
               <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={16} /></button>
             </header>
             <div className="space-y-4 p-5">
@@ -1430,16 +1445,16 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   <h3 className="ui-label mb-2 text-gold-400">{group.title}</h3>
                   <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
                     {group.items.map(([label, value]) => (
-                      <div key={label} className="bg-void p-3"><p className="field-label">{label}</p><p className="mt-1.5 break-words text-xs leading-5 text-ink">{value}</p></div>
+                      <div key={label} className="bg-void p-3"><p className="field-label">{label}</p><p className="mt-1.5 break-words t-label leading-5 text-ink">{value}</p></div>
                     ))}
                   </div>
                 </section>
               ))}
-              <div className="mt-4 flex gap-3 rounded-md border border-gold-400/35 bg-gold-400/5 p-3 text-xs leading-5 text-dim">
+              <div className="mt-4 flex gap-3 rounded-md border border-gold-400/35 bg-gold-400/5 p-3 t-label leading-5 text-dim">
                 <AlertTriangle className="mt-0.5 shrink-0 text-gold-400" size={16} />
                 <p>Only signals that pass every selected filter are eligible. Saving this draft cannot move funds, and bots do not place trades on their own until the execution worker is running.</p>
               </div>
-              <label className="mt-4 flex items-start gap-3 text-xs text-ink">
+              <label className="mt-4 flex items-start gap-3 t-label text-ink">
                 <input
                   type="checkbox"
                   required
@@ -1452,7 +1467,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </label>
             </div>
             <footer className="flex flex-col-reverse gap-2 border-t border-edge p-5 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="min-h-11 rounded-md border border-edge px-5 text-sm font-semibold text-ink">Cancel</button>
+              <button type="button" onClick={() => { setConfirmStatus(null); setConfirmReviewed(false); }} className="min-h-11 rounded-md border border-edge px-5 t-body font-semibold text-ink">Cancel</button>
               <button
                 type="button"
                 onClick={() => {
@@ -1463,7 +1478,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   save(confirmStatus);
                 }}
                 disabled={saving || !confirmReviewed}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c] disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-400 px-5 t-body font-semibold text-[#17110c] disabled:opacity-50"
               >
                 {saving && <Loader2 size={15} className="animate-spin" />}
                 {confirmStatus === "active" ? "Confirm and activate" : "Confirm and save draft"}
@@ -1500,17 +1515,17 @@ function FormSection({
           whole summary row is the click target; the chevron just points. */}
       <summary className="flex min-h-[64px] list-none items-center justify-between gap-4 px-5 py-3.5">
         <span className="min-w-0">
-          <span className="block text-[15px] font-medium text-ink">{title}</span>
-          <span className="mt-0.5 block text-[12px] leading-4 text-dim">{description}</span>
+          <span className="block t-body font-medium text-ink">{title}</span>
+          <span className="mt-0.5 block t-label leading-4 text-dim">{description}</span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
-          {summary && <span className="hidden max-w-56 truncate text-[12px] text-[color:var(--text-muted)] sm:block">{summary}</span>}
+          {summary && <span className="hidden max-w-56 truncate t-label text-[color:var(--text-muted)] sm:block">{summary}</span>}
           <ChevronDown aria-hidden="true" size={16} className="shrink-0 text-[color:var(--text-muted)] transition group-open:rotate-180" />
         </span>
       </summary>
       <div className="space-y-4 border-t border-[color:var(--rule)] p-5 pt-4">
         {pending && (
-          <p className="border-l-2 border-gold-400/50 pl-3 text-[12px] leading-5 text-dim" title={pending.reasons.join("\n\n")}>
+          <p className="border-l-2 border-gold-400/50 pl-3 t-label leading-5 text-dim" title={pending.reasons.join("\n\n")}>
             <span className="font-medium text-gold-400">Saves, but will not trade yet.</span>{" "}
             {pending.labels.join(" · ")}
           </p>
@@ -1544,11 +1559,11 @@ function SectionGroup({ title, description, count, children }: {
     <details className="group bg-void">
       <summary className="flex min-h-[64px] list-none items-center justify-between gap-4 px-5 py-3.5">
         <span className="min-w-0">
-          <span className="block text-[15px] font-medium text-ink">{title}</span>
-          <span className="mt-0.5 block text-[12px] leading-4 text-dim">{description}</span>
+          <span className="block t-body font-medium text-ink">{title}</span>
+          <span className="mt-0.5 block t-label leading-4 text-dim">{description}</span>
         </span>
         <span className="flex shrink-0 items-center gap-3">
-          <span className="hidden text-[12px] text-[color:var(--text-muted)] sm:block">{count}</span>
+          <span className="hidden t-label text-[color:var(--text-muted)] sm:block">{count}</span>
           <ChevronDown aria-hidden="true" size={16} className="shrink-0 text-[color:var(--text-muted)] transition group-open:rotate-180" />
         </span>
       </summary>
@@ -1690,9 +1705,9 @@ function NumberField({
           max={max}
           decimals={decimals}
           ariaLabel={label}
-          className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono text-xs text-ink outline-none"
+          className="min-w-0 flex-1 bg-transparent px-2 text-center font-mono t-label text-ink outline-none"
         />
-        <span className="self-center pr-2 text-[12px] text-dim">{unit}</span>
+        <span className="self-center pr-2 t-label text-dim">{unit}</span>
         <button type="button" disabled={disabled} onClick={() => update(value + step)} className="grid h-11 w-10 shrink-0 place-items-center border-l border-edge text-dim hover:text-ink disabled:pointer-events-none" aria-label={`Increase ${label}`}><Plus size={13} /></button>
       </span>
     </label>
@@ -1709,9 +1724,9 @@ function CompactNumber({ ariaLabel, value, onChange, suffix, disabled = false }:
         min={0}
         decimals={4}
         ariaLabel={ariaLabel}
-        className="min-w-0 flex-1 bg-transparent font-mono text-xs text-ink outline-none"
+        className="min-w-0 flex-1 bg-transparent font-mono t-label text-ink outline-none"
       />
-      <span className="ml-2 font-mono text-[8px] text-dim">{suffix}</span>
+      <span className="ml-2 font-mono t-label text-dim">{suffix}</span>
     </span>
   );
 }
@@ -1740,8 +1755,8 @@ function Toggle({ label, detail, checked, onChange, danger = false, compact = fa
       className={`flex items-center justify-between gap-4 rounded-md border border-edge bg-void px-3 py-2.5 text-left transition focus-visible:border-gold-400 disabled:opacity-40 ${compact ? "min-w-72" : "w-full"}`}
     >
       <span className="min-w-0">
-        <span className={`block text-xs font-medium ${danger && checked ? "text-gold-400" : "text-ink"}`}>{label}</span>
-        <span className="mt-0.5 block text-[10px] leading-4 text-dim">{detail}</span>
+        <span className={`block t-label font-medium ${danger && checked ? "text-gold-400" : "text-ink"}`}>{label}</span>
+        <span className="mt-0.5 block t-label leading-4 text-dim">{detail}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2">
         <span className={`ui-label ${checked ? danger ?"text-gold-400" : "text-up" : "text-dim"}`}>
@@ -1758,13 +1773,13 @@ function Toggle({ label, detail, checked, onChange, danger = false, compact = fa
 function SummaryRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5">
-      <dt className="flex items-center gap-1.5 text-[13px] text-dim">
+      <dt className="flex items-center gap-1.5 t-meta text-dim">
         {label}
         {/* Progressive disclosure: detail lives behind an info affordance rather than
             as helper text under every row (spec 6.1, 6.3). */}
-        {hint && <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-[color:var(--rule-strong)] text-[9px] leading-none text-[color:var(--text-muted)]">i</span>}
+        {hint && <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-[color:var(--rule-strong)] t-label leading-none text-[color:var(--text-muted)]">i</span>}
       </dt>
-      <dd className="ui-figure max-w-[58%] text-right text-[13px] leading-5 text-ink">{value}</dd>
+      <dd className="ui-figure max-w-[58%] text-right t-meta leading-5 text-ink">{value}</dd>
     </div>
   );
 }
@@ -1773,11 +1788,11 @@ function SourceStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-void px-4 py-3">
       <p className="field-label">{label}</p>
-      <p className="mt-2 font-mono text-xs leading-5 text-ink">{value}</p>
+      <p className="mt-2 font-mono t-label leading-5 text-ink">{value}</p>
     </div>
   );
 }
 
 function InlineError({ children }: { children: React.ReactNode }) {
-  return <p className="flex items-center gap-2 rounded-md border border-down/35 bg-down/5 px-3 py-2 text-xs text-down"><AlertTriangle size={14} />{children}</p>;
+  return <p className="flex items-center gap-2 rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label text-down"><AlertTriangle size={14} />{children}</p>;
 }

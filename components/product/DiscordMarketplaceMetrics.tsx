@@ -59,7 +59,7 @@ function ActivityState({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 sm:border-l sm:border-[color:var(--rule)] sm:px-4 sm:first:border-l-0 sm:first:pl-0">
       <p className="ui-label">{label}</p>
-      <p className="mt-1 text-[13px] leading-5 text-ink">{value}</p>
+      <p className="mt-1 t-meta leading-5 text-ink">{value}</p>
     </div>
   );
 }
@@ -71,10 +71,10 @@ function PerformanceState({ label, performance }: { label: string; performance?:
   return (
     <div className="min-w-0 sm:border-l sm:border-[color:var(--rule)] sm:px-4 sm:first:border-l-0 sm:first:pl-0">
       <p className="ui-label">{label}</p>
-      <p className={`ui-figure mt-1 text-[17px] ${value == null ? "text-[color:var(--text-muted)]" : tone}`}>
+      <p className={`ui-figure mt-1 t-section ${value == null ? "text-[color:var(--text-muted)]" : tone}`}>
         {value == null ? "Collecting data" : formatSol(value)}
       </p>
-      <p className="mt-0.5 truncate text-[11px] text-[color:var(--text-muted)]">
+      <p className="mt-0.5 truncate t-label text-[color:var(--text-muted)]">
         {performance ? `${performance.sampleSize} trades · ${formatWhen(performance.asOf)}` : "Not enough history yet"}
       </p>
     </div>
@@ -84,7 +84,7 @@ function PerformanceState({ label, performance }: { label: string; performance?:
 function CountState({ label, value }: { label: string; value?: number | string }) {
   return (
     <div className="min-w-0 border-l border-[color:var(--rule)] px-3 first:border-l-0 first:pl-0 [&:nth-child(5)]:border-l-0 [&:nth-child(5)]:pl-0">
-      <p className={`ui-figure truncate text-[15px] ${value == null ? "ui-absent" : "text-ink"}`}>
+      <p className={`ui-figure truncate t-body ${value == null ? "ui-absent" : "text-ink"}`}>
         {value == null ? "—" : value}
       </p>
       <p className="ui-label mt-0.5 truncate">{label}</p>

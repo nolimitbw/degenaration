@@ -93,7 +93,7 @@ function RetryButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+      className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink"
     >
       <RefreshCw size={13} /> Try again
     </button>
@@ -173,8 +173,8 @@ export default function ClientLedger({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Clients</h2>
-          <p className="mt-1 text-[11px] text-dim">
+          <h2 className="t-body font-semibold text-ink">Clients</h2>
+          <p className="mt-1 t-label text-dim">
             Ledger-derived. Balances live on chain, not in the database.
           </p>
         </div>
@@ -185,7 +185,7 @@ export default function ClientLedger({
               onClick={() => void recompute()}
               disabled={recomputing}
               title="Recompute portfolio, bot, KOL and Discord performance from the ledger"
-              className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
+              className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
             >
               <Gauge size={13} className={recomputing ? "animate-pulse" : undefined} />
               {recomputing ? "Recomputing…" : "Recompute performance"}
@@ -194,7 +194,7 @@ export default function ClientLedger({
           <button
             type="button"
             onClick={() => void load()}
-            className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+            className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : undefined} /> Refresh
           </button>
@@ -202,16 +202,16 @@ export default function ClientLedger({
       </div>
 
       {recomputed && (
-        <p className="rounded-md border border-up/35 bg-up/5 px-3 py-2 text-[11px] text-up">{recomputed}</p>
+        <p className="rounded-md border border-up/35 bg-up/5 px-3 py-2 t-label text-up">{recomputed}</p>
       )}
       {error && data && (
-        <p className="flex items-center gap-2 rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">
+        <p className="flex items-center gap-2 rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label text-down">
           <AlertCircle size={13} /> {error}
         </p>
       )}
 
       {data?.summaryError && (
-        <p className="flex items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 text-[11px] text-dim">
+        <p className="flex items-center gap-2 rounded-md border border-edge bg-panel px-3 py-2 t-label text-dim">
           <AlertCircle size={13} className="text-warn" /> Totals unavailable — the client table below is still current.
         </p>
       )}
@@ -235,9 +235,9 @@ export default function ClientLedger({
         <EmptyState title="No clients yet" description="Clients appear here after their first sign-in." />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-edge bg-panel">
-          <table className="w-full min-w-[1100px] text-left text-xs">
+          <table className="w-full min-w-[1100px] text-left t-label">
             <thead className="sticky top-0 bg-panel">
-              <tr className="border-b border-edge text-[10px] uppercase tracking-wide text-dim">
+              <tr className="border-b border-edge t-label uppercase tracking-wide text-dim">
                 <th className="px-4 py-3 font-medium">Client</th>
                 <th className="px-4 py-3 font-medium">Wallet</th>
                 <th className="px-4 py-3 text-right font-medium" title="UTC day">Volume today</th>
@@ -257,16 +257,16 @@ export default function ClientLedger({
               {clients.map((c) => (
                 <tr key={c.privyUserId} className="border-b border-edge/60 last:border-0">
                   <td className="px-4 py-3">
-                    <span className="text-[12px] text-ink">{shortId(c.privyUserId)}</span>
+                    <span className="t-label text-ink">{shortId(c.privyUserId)}</span>
                     {c.status !== "active" && <StatusPill status={c.status} />}
                   </td>
                   <td className="px-4 py-3">
                     {c.walletAddress ? (
-                      <span className="text-[12px] text-dim" title={c.walletAddress}>
+                      <span className="t-label text-dim" title={c.walletAddress}>
                         {shortAddr(c.walletAddress)}
                       </span>
                     ) : (
-                      <span className="text-[11px] text-dim">Not registered</span>
+                      <span className="t-label text-dim">Not registered</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{period(c.volumeTodayLamports)}</td>
@@ -274,10 +274,10 @@ export default function ClientLedger({
                   <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">{period(c.volume30dLamports)}</td>
                   <td className="px-4 py-3 text-right ui-figure tabular-nums text-ink">
                     {sol(c.executedVolumeLamports)}
-                    <span className="ml-1 text-[10px] text-dim">({c.executionCount})</span>
+                    <span className="ml-1 t-label text-dim">({c.executionCount})</span>
                     {attention(c) > 0 && (
                       <span
-                        className="ml-2 rounded bg-down/15 px-1.5 py-0.5 text-[9px] font-semibold text-down"
+                        className="ml-2 rounded bg-down/15 px-1.5 py-0.5 t-label font-semibold text-down"
                         title={`${c.failedExecutions || 0} failed execution(s), ${c.failedWithdrawals || 0} failed withdrawal(s), ${c.reconciliationWarnings || 0} unreconciled`}
                       >
                         {attention(c)}
@@ -292,20 +292,20 @@ export default function ClientLedger({
                   <td className="px-4 py-3 text-right ui-figure tabular-nums text-dim">
                     {sol(c.withdrawnLamports)}
                     {c.pendingWithdrawalLamports !== "0" && (
-                      <span className="ml-1 text-[10px] text-warn">+{sol(c.pendingWithdrawalLamports)}</span>
+                      <span className="ml-1 t-label text-warn">+{sol(c.pendingWithdrawalLamports)}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center text-[11px] text-dim">
+                  <td className="px-4 py-3 text-center t-label text-dim">
                     {c.discordBots + c.kolBots === 0 ? "—" : `${c.discordBots}D · ${c.kolBots}K`}
                   </td>
-                  <td className="px-4 py-3 text-[11px] text-dim">
+                  <td className="px-4 py-3 t-label text-dim">
                     {c.lastTradeAt ? new Date(c.lastTradeAt).toLocaleDateString() : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"
                       onClick={() => setOpened(c.privyUserId)}
-                      className="inline-flex min-h-11 sm:min-h-9 items-center rounded-md border border-edge px-3 text-xs font-semibold text-ink"
+                      className="inline-flex min-h-11 sm:min-h-9 items-center rounded-md border border-edge px-3 t-label font-semibold text-ink"
                     >
                       Open
                     </button>
@@ -318,7 +318,7 @@ export default function ClientLedger({
       )}
 
       {data?.clients?.balanceNote && (
-        <p className="text-[10px] leading-4 text-dim">{data.clients.balanceNote}</p>
+        <p className="t-label leading-4 text-dim">{data.clients.balanceNote}</p>
       )}
     </div>
   );

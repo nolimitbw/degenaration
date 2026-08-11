@@ -95,7 +95,7 @@ export default function BotsPage() {
             <button type="button" onClick={loadPublic} className="grid h-11 w-11 place-items-center rounded-md text-dim transition hover:bg-[color:var(--rule)] hover:text-ink sm:h-10 sm:w-10" aria-label="Refresh" title="Refresh">
               <RefreshCw aria-hidden="true" size={15} className={loading ? "animate-spin" : ""} />
             </button>
-            <Link href="/bots/discord/new" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 text-[14px] font-medium text-[#17110c] transition hover:bg-gold-300 sm:min-h-10">
+            <Link href="/bots/discord/new" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-medium text-[#17110c] transition hover:bg-gold-300 sm:min-h-10">
               <Plus aria-hidden="true" size={16} /> New bot
             </Link>
           </>
@@ -118,10 +118,10 @@ export default function BotsPage() {
       <section className="mt-11">
         <header className="flex flex-wrap items-baseline justify-between gap-3 pb-3">
           <div className="flex items-baseline gap-2.5">
-            <h2 className="text-[17px] font-medium text-ink">Discord sources</h2>
+            <h2 className="t-section font-medium text-ink">Discord sources</h2>
             <span className="ui-label">Last 7 days</span>
           </div>
-          <Link href="/bots/discord" className="inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
+          <Link href="/bots/discord" className="inline-flex min-h-11 items-center gap-1 t-meta font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
             All sources <ArrowRight aria-hidden="true" size={13} className="text-[color:var(--text-muted)]" />
           </Link>
         </header>
@@ -155,7 +155,7 @@ export default function BotsPage() {
               <li key={source.id} className="border-b border-[color:var(--rule)] py-4">
                 <div className="flex items-center gap-2.5">
                   <DiscordSourceAvatar source={source} />
-                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-ink">{source.name}</span>
+                  <span className="min-w-0 flex-1 truncate t-body font-medium text-ink">{source.name}</span>
                   <IntegrationHealthDot status={source.integrationHealth} />
                 </div>
                 <dl className="mt-3 grid grid-cols-3 gap-y-3">
@@ -172,12 +172,12 @@ export default function BotsPage() {
                   />
                 </dl>
                 <div className="mt-3.5 flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-[12px] text-[color:var(--text-muted)]">
+                  <span className="min-w-0 truncate t-label text-[color:var(--text-muted)]">
                     {source.lastSignalAt ? formatWhen(source.lastSignalAt) : "Listening"} · {source.activeFollowers} following
                   </span>
                   <Link
                     href={`/bots/discord/new?source=${source.id}`}
-                    className="inline-flex min-h-11 shrink-0 items-center rounded-md border border-[color:var(--rule-strong)] px-3.5 text-[13px] font-medium text-ink"
+                    className="inline-flex min-h-11 shrink-0 items-center rounded-md border border-[color:var(--rule-strong)] px-3.5 t-meta font-medium text-ink"
                   >
                     Use this
                   </Link>
@@ -206,21 +206,21 @@ export default function BotsPage() {
                     <td className="py-3.5 pr-4">
                       <div className="flex items-center gap-2.5">
                         <DiscordSourceAvatar source={source} />
-                        <span className="truncate text-[14px] font-medium text-ink">{source.name}</span>
+                        <span className="truncate t-body font-medium text-ink">{source.name}</span>
                         <IntegrationHealthDot status={source.integrationHealth} />
                       </div>
                     </td>
-                    <td className="py-3.5 pr-4 text-[13px] text-dim">
+                    <td className="py-3.5 pr-4 t-meta text-dim">
                       {source.lastSignalAt ? formatWhen(source.lastSignalAt) : "Listening"}
                     </td>
-                    <td className="ui-figure py-3.5 pr-4 text-right text-[14px] text-ink">{source.measuredCalls}</td>
+                    <td className="ui-figure py-3.5 pr-4 text-right t-body text-ink">{source.measuredCalls}</td>
                     <Pair peak={source.winRate} now={source.currentWinRate ?? null} suffix="%" digits={1} />
                     <Pair peak={source.medianReturnX} now={source.medianCurrentX ?? null} suffix="x" digits={2} />
-                    <td className="ui-figure py-3.5 pr-4 text-right text-[14px] text-dim">{source.activeFollowers}</td>
+                    <td className="ui-figure py-3.5 pr-4 text-right t-body text-dim">{source.activeFollowers}</td>
                     <td className="py-3.5 text-right">
                       <Link
                         href={`/bots/discord/new?source=${source.id}`}
-                        className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 text-[13px] font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8"
+                        className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 t-meta font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8"
                       >
                         Use this
                       </Link>
@@ -236,8 +236,8 @@ export default function BotsPage() {
       <section className="mt-11 grid gap-11 xl:grid-cols-2 xl:gap-10">
         <div>
           <header className="flex items-baseline justify-between gap-3 pb-1">
-            <h2 className="text-[17px] font-medium text-ink">Your bots</h2>
-            <Link href="/bots/manage" className="inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
+            <h2 className="t-section font-medium text-ink">Your bots</h2>
+            <Link href="/bots/manage" className="inline-flex min-h-11 items-center gap-1 t-meta font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
               Manage <ArrowRight aria-hidden="true" size={13} className="text-[color:var(--text-muted)]" />
             </Link>
           </header>
@@ -251,7 +251,7 @@ export default function BotsPage() {
               title="You have not built a bot yet"
               description="Pick a source above to copy its calls, or write your own market rules."
               action={
-                <Link href="/bots/kol/new" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[color:var(--rule-strong)] px-3.5 text-[13px] font-medium text-ink transition hover:border-gold-400/60 sm:min-h-9">
+                <Link href="/bots/kol/new" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[color:var(--rule-strong)] px-3.5 t-meta font-medium text-ink transition hover:border-gold-400/60 sm:min-h-9">
                   Build a KOL strategy
                 </Link>
               }
@@ -262,14 +262,14 @@ export default function BotsPage() {
               {bots.slice(0, 6).map((bot) => (
                 <li key={bot.id} className="flex items-center justify-between gap-3 border-b border-[color:var(--rule)] py-3.5">
                   <div className="min-w-0">
-                    <p className="truncate text-[14px] font-medium text-ink">{bot.name}</p>
-                    <p className="mt-0.5 truncate text-[12px] text-dim">
+                    <p className="truncate t-body font-medium text-ink">{bot.name}</p>
+                    <p className="mt-0.5 truncate t-label text-dim">
                       {bot.kind === "discord" ? bot.sourceName || "Discord source" : "KOL strategy"} · version {bot.version}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-4">
                     <StatusPill status={bot.status} />
-                    <Link href={`/bots/${bot.kind}/${bot.id}/edit`} className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 text-[13px] font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8">Edit</Link>
+                    <Link href={`/bots/${bot.kind}/${bot.id}/edit`} className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 t-meta font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8">Edit</Link>
                   </div>
                 </li>
               ))}
@@ -279,8 +279,8 @@ export default function BotsPage() {
 
         <div>
           <header className="flex items-baseline justify-between gap-3 pb-1">
-            <h2 className="text-[17px] font-medium text-ink">KOL strategies</h2>
-            <Link href="/bots/kol" className="inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
+            <h2 className="t-section font-medium text-ink">KOL strategies</h2>
+            <Link href="/bots/kol" className="inline-flex min-h-11 items-center gap-1 t-meta font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
               All strategies <ArrowRight aria-hidden="true" size={13} className="text-[color:var(--text-muted)]" />
             </Link>
           </header>
@@ -295,20 +295,20 @@ export default function BotsPage() {
               {strategies.slice(0, 6).map((strategy) => (
                 <li key={strategy.id} className="flex items-center justify-between gap-3 border-b border-[color:var(--rule)] py-3.5">
                   <div className="min-w-0">
-                    <p className="truncate text-[14px] font-medium text-ink">{strategy.name}</p>
-                    <p className="mt-0.5 truncate text-[12px] text-dim">
+                    <p className="truncate t-body font-medium text-ink">{strategy.name}</p>
+                    <p className="mt-0.5 truncate t-label text-dim">
                       {strategy.creatorName} · {strategy.sampleSize} trades
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-4">
                     {strategy.netPnlLamports == null ? (
-                      <span className="text-[12px] text-[color:var(--text-muted)]">Collecting data</span>
+                      <span className="t-label text-[color:var(--text-muted)]">Collecting data</span>
                     ) : (
-                      <span className={`ui-figure text-[14px] ${Number(strategy.netPnlLamports) >= 0 ? "text-up" : "text-down"}`}>
+                      <span className={`ui-figure t-body ${Number(strategy.netPnlLamports) >= 0 ? "text-up" : "text-down"}`}>
                         {formatSol(strategy.netPnlLamports)}
                       </span>
                     )}
-                    <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 text-[13px] font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8">Open</Link>
+                    <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 t-meta font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8">Open</Link>
                   </div>
                 </li>
               ))}
@@ -333,9 +333,9 @@ function CardStat({ label, value, now }: { label: string; value: string | null; 
   return (
     <div className="min-w-0">
       <dt className="ui-label">{label}</dt>
-      <dd className={`ui-figure mt-1 text-[15px] ${value == null ? "ui-absent" : "text-ink"}`}>{value ?? "—"}</dd>
+      <dd className={`ui-figure mt-1 t-body ${value == null ? "ui-absent" : "text-ink"}`}>{value ?? "—"}</dd>
       {now !== undefined && (
-        <dd className={`ui-figure text-[12px] ${now == null ? "ui-absent" : "text-dim"}`}>{now ?? "—"}</dd>
+        <dd className={`ui-figure t-label ${now == null ? "ui-absent" : "text-dim"}`}>{now ?? "—"}</dd>
       )}
     </div>
   );
@@ -349,11 +349,11 @@ function Tile({ label, value, detail, tone = "default" }: {
 }) {
   return (
     <div className="min-w-0">
-      <p className={`ui-figure text-[22px] leading-none lg:text-[25px] ${tone === "positive" ? "text-up" : "text-ink"}`}>
+      <p className={`ui-figure t-title leading-none lg:t-figure-lg ${tone === "positive" ? "text-up" : "text-ink"}`}>
         {value == null ? <span className="ui-absent">—</span> : value}
       </p>
       <p className="ui-label mt-2 truncate">{label}</p>
-      {detail && <p className="mt-1 truncate text-[11px] text-[color:var(--text-muted)]">{detail}</p>}
+      {detail && <p className="mt-1 truncate t-label text-[color:var(--text-muted)]">{detail}</p>}
     </div>
   );
 }
@@ -381,10 +381,10 @@ function Pair({ peak, now, suffix, digits }: {
   const nowTone = now == null ? "ui-absent" : suffix === "x" && now < 1 ? "text-down" : "text-dim";
   return (
     <td className="py-3.5 pr-4 text-right">
-      <span className={`ui-figure block text-[14px] ${peakText == null ? "ui-absent" : "text-ink"}`}>
+      <span className={`ui-figure block t-body ${peakText == null ? "ui-absent" : "text-ink"}`}>
         {peakText ?? "—"}
       </span>
-      <span className={`ui-figure mt-0.5 block text-[12px] ${nowTone}`}>{nowText ?? "—"}</span>
+      <span className={`ui-figure mt-0.5 block t-label ${nowTone}`}>{nowText ?? "—"}</span>
     </td>
   );
 }

@@ -97,14 +97,14 @@ function ConfirmDialog({
         <header className="flex items-start justify-between gap-4 border-b border-edge p-5">
           <div>
             <p className="ui-label text-gold-400">Privileged action</p>
-            <h2 id="admin-action-title" className="mt-2 text-base font-semibold text-ink">{action.title}</h2>
+            <h2 id="admin-action-title" className="mt-2 t-section font-semibold text-ink">{action.title}</h2>
           </div>
           <button type="button" onClick={onCancel} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label="Close confirmation">
             <X size={16} />
           </button>
         </header>
         <div className="p-5">
-          <p className="text-sm leading-6 text-dim">{action.description}</p>
+          <p className="t-body leading-6 text-dim">{action.description}</p>
           <label className="field-label mt-5 block" htmlFor="admin-reason">Reason</label>
           <textarea
             id="admin-reason"
@@ -115,20 +115,20 @@ function ConfirmDialog({
             autoFocus
           />
           {action.destructive && (
-            <p className="mt-3 rounded-md border border-down/35 bg-down/5 px-3 py-2 text-xs leading-5 text-down">
+            <p className="mt-3 rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label leading-5 text-down">
               This changes an active product state. Historical records remain preserved.
             </p>
           )}
         </div>
         <footer className="flex justify-end gap-2 border-t border-edge p-4">
-          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-dim hover:text-ink disabled:opacity-50">
+          <button type="button" onClick={onCancel} disabled={busy} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 t-label font-semibold text-dim hover:text-ink disabled:opacity-50">
             Cancel
           </button>
           <button
             type="button"
             onClick={() => onConfirm(reason.trim())}
             disabled={!canConfirm || busy}
-            className={`min-h-11 sm:min-h-10 rounded-md px-4 text-xs font-semibold disabled:opacity-50 ${
+            className={`min-h-11 sm:min-h-10 rounded-md px-4 t-label font-semibold disabled:opacity-50 ${
               action.destructive ? "bg-down text-white" : "bg-gold-400 text-[#17110c]"
             }`}
           >
@@ -259,7 +259,7 @@ export default function OwnerConsole() {
             type="button"
             onClick={load}
             disabled={refreshing || !identityToken}
-            className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
+            className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-dim transition hover:border-gold-400/50 hover:text-ink disabled:opacity-50"
           >
             <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
             Refresh
@@ -267,23 +267,23 @@ export default function OwnerConsole() {
         }
       />
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[12px] text-dim">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 t-label text-dim">
         <span>{email || "Owner identity"} · signed Google identity required</span>
         <span>{lastSync ? `Last synced ${lastSync.toLocaleTimeString()}` : identityToken ? "Waiting for owner data" : "Waiting for signed identity token"}</span>
       </div>
 
       {!identityToken && (
-        <div className="mt-5 rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3 text-xs leading-5 text-gold-400">
+        <div className="mt-5 rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3 t-label leading-5 text-gold-400">
           Privy has not supplied the signed owner identity token yet. Sign out and use Continue with Google if this state does not clear.
         </div>
       )}
       {errors.length > 0 && (
         <div className="mt-5 rounded-md border border-down/35 bg-down/5 px-4 py-3">
-          <p className="text-xs font-semibold text-down">Some owner data could not be loaded</p>
-          {errors.map((error) => <p key={error} className="mt-1 text-[12px] text-down">{error}</p>)}
+          <p className="t-label font-semibold text-down">Some owner data could not be loaded</p>
+          {errors.map((error) => <p key={error} className="mt-1 t-label text-down">{error}</p>)}
         </div>
       )}
-      {notice && <p className="mt-5 rounded-md border border-up/35 bg-up/5 px-4 py-3 text-xs text-up">{notice}</p>}
+      {notice && <p className="mt-5 rounded-md border border-up/35 bg-up/5 px-4 py-3 t-label text-up">{notice}</p>}
 
       <nav className="mt-6 flex max-w-full gap-1 overflow-x-auto border-b border-edge" aria-label="Owner console sections">
         {TABS.map(({ id, label, icon: Icon }) => (
@@ -291,7 +291,7 @@ export default function OwnerConsole() {
             key={id}
             type="button"
             onClick={() => setActive(id)}
-            className={`relative flex min-h-11 shrink-0 items-center gap-2 px-3 text-xs font-medium transition ${
+            className={`relative flex min-h-11 shrink-0 items-center gap-2 px-3 t-label font-medium transition ${
               active === id ? "text-ink" : "text-dim hover:text-ink"
             }`}
           >

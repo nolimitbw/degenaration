@@ -147,9 +147,9 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         <div className="max-w-sm border-t border-[color:var(--rule)] pt-8">
           <div>
             <WalletCards className="text-[color:var(--text-muted)]" size={20} />
-            <h2 className="mt-3 text-[17px] font-medium text-ink">Connect your wallet</h2>
-            <p className="mt-1.5 text-[13px] leading-5 text-dim">Your earnings, referrals and payouts are private to your account.</p>
-            <button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 text-[14px] font-medium text-[#17110c] transition hover:bg-gold-300">Connect wallet</button>
+            <h2 className="mt-3 t-section font-medium text-ink">Connect your wallet</h2>
+            <p className="mt-1.5 t-meta leading-5 text-dim">Your earnings, referrals and payouts are private to your account.</p>
+            <button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 t-body font-medium text-[#17110c] transition hover:bg-gold-300">Connect wallet</button>
           </div>
         </div>
       </>
@@ -166,7 +166,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
         actions={
           <>
             <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh affiliate dashboard"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
-            <button type="button" onClick={() => setPayoutOpen(true)} disabled={!summary || Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Request payout</button>
+            <button type="button" onClick={() => setPayoutOpen(true)} disabled={!summary || Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Request payout</button>
           </>
         }
       />
@@ -178,7 +178,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
           ["referrals", "Referrals"],
           ["payouts", "Payouts"]
         ].map(([value, label]) => (
-          <button key={value} type="button" onClick={() => setScope(value as Scope)} className={`relative min-h-11 shrink-0 px-4 text-sm font-medium ${scope === value ? "text-ink" : "text-dim hover:text-ink"}`}>
+          <button key={value} type="button" onClick={() => setScope(value as Scope)} className={`relative min-h-11 shrink-0 px-4 t-body font-medium ${scope === value ? "text-ink" : "text-dim hover:text-ink"}`}>
             {label}
             {scope === value && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-gold-400" />}
           </button>
@@ -198,17 +198,17 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       {/* Recoverable failure with a retry, instead of a blank page and a vanished toast. */}
       {!loading && !summary && error && (
         <div className="mt-6 rounded-md border border-edge bg-panel p-6">
-          <p className="text-sm font-semibold text-ink">Affiliate data could not be loaded</p>
-          <p className="mt-1 text-xs leading-5 text-dim">{error}</p>
-          <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-xs font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+          <p className="t-body font-semibold text-ink">Affiliate data could not be loaded</p>
+          <p className="mt-1 t-label leading-5 text-dim">{error}</p>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-label font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
         </div>
       )}
 
       {/* Last known data is preserved on a transient failure and labelled as stale. */}
       {summary && error && (
         <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-edge bg-panel px-4 py-3">
-          <p className="text-xs text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
-          <button type="button" onClick={load} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 text-xs font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
+          <p className="t-label text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
+          <button type="button" onClick={load} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
         </div>
       )}
       {summary && (scope === "discord" || scope === "kol") && (
@@ -225,10 +225,10 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
                   {label}
                   {/* Reference R1 puts an info affordance on every metric so the page needs
                       no explanatory prose (spec §6.1, §6.3). */}
-                  <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono text-[8px] normal-case leading-none text-dim">i</span>
+                  <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono t-label normal-case leading-none text-dim">i</span>
                 </p>
-                <p className="mt-2 font-mono text-xl font-semibold text-ink">{value}</p>
-                <p className="mt-1 text-[11px] text-dim">{detail}</p>
+                <p className="mt-2 font-mono t-title font-semibold text-ink">{value}</p>
+                <p className="mt-1 t-label text-dim">{detail}</p>
               </div>
             ))}
           </section>
@@ -236,7 +236,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-                <div><h2 className="text-sm font-semibold text-ink">Earnings</h2><p className="mt-1 text-[11px] text-dim">Creator commission credits from authoritative ledger entries.</p></div>
+                <div><h2 className="t-body font-semibold text-ink">Earnings</h2><p className="mt-1 t-label text-dim">Creator commission credits from authoritative ledger entries.</p></div>
                 <Segmented value={period} onChange={setPeriod} label="Earnings period" options={[{ value: "24h", label: "24H" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "3m", label: "3M" }]} />
               </header>
               <AffiliateChart rows={summary.chart || []} period={period} />
@@ -249,17 +249,17 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
             </section>
 
             <aside className="overflow-hidden rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><p className="ui-label text-gold-400">Referral link</p><h2 className="mt-2 text-sm font-semibold text-ink">Stable creator URL</h2></header>
+              <header className="border-b border-edge px-5 py-4"><p className="ui-label text-gold-400">Referral link</p><h2 className="mt-2 t-body font-semibold text-ink">Stable creator URL</h2></header>
               <div className="p-5">
                 <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
                   <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
-                  <span className="min-w-0 flex-1 truncate ui-code text-[12px] text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
+                  <span className="min-w-0 flex-1 truncate ui-code t-label text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
                   <button type="button" onClick={copyReferral} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link"><Copy size={14} /></button>
                 </div>
-                <p className="mt-3 text-[11px] leading-5 text-dim">Attribution is stored server-side. This code does not contain your user ID, wallet, or email.</p>
+                <p className="mt-3 t-label leading-5 text-dim">Attribution is stored server-side. This code does not contain your user ID, wallet, or email.</p>
                 <div className="mt-4 rounded-md border border-edge bg-void p-3">
                   <p className="field-label">Signed-in creator</p>
-                  <p className="mt-1.5 truncate text-xs text-ink">{emailFromPrivyUser(user) || "Privy account"}</p>
+                  <p className="mt-1.5 truncate t-label text-ink">{emailFromPrivyUser(user) || "Privy account"}</p>
                 </div>
               </div>
             </aside>
@@ -319,11 +319,11 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
               }
             ].map(({ q, a }) => (
               <details key={q} className="group rounded-md border border-edge bg-panel">
-                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-xs font-semibold text-ink">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 t-label font-semibold text-ink">
                   {q}
                   <ChevronDown aria-hidden="true" size={14} className="shrink-0 text-dim transition group-open:rotate-180" />
                 </summary>
-                <p className="border-t border-edge px-4 py-3 text-[11px] leading-5 text-dim">{a}</p>
+                <p className="border-t border-edge px-4 py-3 t-label leading-5 text-dim">{a}</p>
               </details>
             ))}
           </div>
@@ -450,8 +450,8 @@ function ReferralDashboard({
         ].map(([label, value, detail]) => (
           <div key={label} className="bg-panel p-4">
             <p className="ui-label">{label}</p>
-            <p className="mt-2 font-mono text-lg font-semibold text-ink">{value}</p>
-            <p className="mt-1 text-[10px] leading-4 text-dim">{detail}</p>
+            <p className="mt-2 font-mono t-title font-semibold text-ink">{value}</p>
+            <p className="mt-1 t-label leading-4 text-dim">{detail}</p>
           </div>
         ))}
       </section>
@@ -460,8 +460,8 @@ function ReferralDashboard({
         <div className="flex items-start gap-3 rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3">
           <ShieldAlert size={17} className="mt-0.5 shrink-0 text-gold-400" />
           <div>
-            <p className="text-xs font-semibold text-ink">Referral attribution is active; monetary rewards await an approved policy.</p>
-            <p className="mt-1 text-[11px] leading-5 text-dim">Invites and qualifying activity are recorded now. No reward amount is promised or accrued until the owner approves a rate and hold period.</p>
+            <p className="t-label font-semibold text-ink">Referral attribution is active; monetary rewards await an approved policy.</p>
+            <p className="mt-1 t-label leading-5 text-dim">Invites and qualifying activity are recorded now. No reward amount is promised or accrued until the owner approves a rate and hold period.</p>
           </div>
         </div>
       )}
@@ -470,15 +470,15 @@ function ReferralDashboard({
         <section className="overflow-hidden rounded-md border border-edge bg-panel">
           <header className="border-b border-edge px-5 py-4">
             <p className="ui-label text-gold-400">Referral activity</p>
-            <h2 className="mt-2 text-sm font-semibold text-ink">Immutable first-touch attribution</h2>
-            <p className="mt-1 text-[11px] text-dim">A referred account is assigned once. Review and abuse states never earn rewards automatically.</p>
+            <h2 className="mt-2 t-body font-semibold text-ink">Immutable first-touch attribution</h2>
+            <p className="mt-1 t-label text-dim">A referred account is assigned once. Review and abuse states never earn rewards automatically.</p>
           </header>
           {!summary.referralActivity?.length ? (
             <div className="grid min-h-60 place-items-center p-8 text-center">
               <div>
                 <UserPlus size={22} className="mx-auto text-gold-400" />
-                <p className="mt-3 text-sm font-semibold text-ink">No attributed invites yet</p>
-                <p className="mt-1 text-[11px] text-dim">Share your stable URL to begin the attribution flow.</p>
+                <p className="mt-3 t-body font-semibold text-ink">No attributed invites yet</p>
+                <p className="mt-1 t-label text-dim">Share your stable URL to begin the attribution flow.</p>
               </div>
             </div>
           ) : (
@@ -486,13 +486,13 @@ function ReferralDashboard({
               {summary.referralActivity.slice(0, 20).map((event) => (
                 <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]">
                   <div>
-                    <p className="text-xs font-semibold text-ink">{event.inviteLabel}</p>
-                    <p className="mt-1 text-[10px] text-dim">{event.statusReason}</p>
+                    <p className="t-label font-semibold text-ink">{event.inviteLabel}</p>
+                    <p className="mt-1 t-label text-dim">{event.statusReason}</p>
                   </div>
                   <StatusPill status={event.status} />
                   <div className="text-right">
-                    <p className="font-mono text-xs text-ink">{formatSol(event.rewardLamports)}</p>
-                    <p className="mt-1 text-[12px] text-dim">{formatWhen(event.attributed_at)}</p>
+                    <p className="font-mono t-label text-ink">{formatSol(event.rewardLamports)}</p>
+                    <p className="mt-1 t-label text-dim">{formatWhen(event.attributed_at)}</p>
                   </div>
                 </div>
               ))}
@@ -503,12 +503,12 @@ function ReferralDashboard({
         <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel">
           <header className="border-b border-edge px-5 py-4">
             <p className="ui-label text-gold-400">Referral URL</p>
-            <h2 className="mt-2 text-sm font-semibold text-ink">Your public link</h2>
+            <h2 className="mt-2 t-body font-semibold text-ink">Your public link</h2>
           </header>
           <div className="p-5">
             <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
               <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
-              <span className="min-w-0 flex-1 truncate ui-code text-[12px] text-ink">/r/{summary.referralCode}</span>
+              <span className="min-w-0 flex-1 truncate ui-code t-label text-ink">/r/{summary.referralCode}</span>
               <button type="button" onClick={copyLink} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link">
                 <Copy size={14} />
               </button>
@@ -517,9 +517,9 @@ function ReferralDashboard({
             <div className="mt-5 border-t border-edge pt-5">
               <div className="flex items-center gap-2">
                 {summary.customSlugEligible ? <PencilLine size={15} className="text-gold-400" /> : <LockKeyhole size={15} className="text-dim" />}
-                <p className="text-xs font-semibold text-ink">Custom path</p>
+                <p className="t-label font-semibold text-ink">Custom path</p>
               </div>
-              <p className="mt-2 text-[11px] leading-5 text-dim">
+              <p className="mt-2 t-label leading-5 text-dim">
                 {summary.customSlugEligible
                   ? "Change only the final path segment. Previous links remain reserved and redirect safely for one year."
                   : "Custom paths unlock after a Discord source or affiliate account is approved."}
@@ -531,10 +531,10 @@ function ReferralDashboard({
                   onChange={(event) => setSlug(event.target.value.toLowerCase())}
                   disabled={!summary.customSlugEligible || cooldownActive}
                   maxLength={32}
-                  className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 font-mono text-sm text-ink outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 font-mono t-body text-ink outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
-              <p className={`mt-2 min-h-5 text-[10px] ${
+              <p className={`mt-2 min-h-5 t-label ${
                 !validation.ok || check?.available === false ? "text-down" : check?.available ? "text-up" : "text-dim"
               }`}>
                 {!summary.customSlugEligible
@@ -553,7 +553,7 @@ function ReferralDashboard({
                 type="button"
                 onClick={() => setConfirmOpen(true)}
                 disabled={!changed || !check?.available || checking || saving || cooldownActive}
-                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <PencilLine size={15} />
                 Review URL change
@@ -569,19 +569,19 @@ function ReferralDashboard({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="ui-label text-gold-400">Confirm referral URL</p>
-                <h2 id="referral-confirm-title" className="mt-2 text-base font-semibold text-ink">Change your public path?</h2>
+                <h2 id="referral-confirm-title" className="mt-2 t-section font-semibold text-ink">Change your public path?</h2>
               </div>
               <button type="button" onClick={() => setConfirmOpen(false)} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={15} /></button>
             </div>
-            <dl className="mt-5 divide-y divide-edge border-y border-edge text-xs">
+            <dl className="mt-5 divide-y divide-edge border-y border-edge t-label">
               <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Current</dt><dd className="break-all font-mono text-ink">/r/{currentSlug}</dd></div>
               <div className="flex justify-between gap-4 py-3"><dt className="text-dim">New</dt><dd className="break-all font-mono text-gold-400">/r/{validatedSlug}</dd></div>
               <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Cooldown</dt><dd className="font-mono text-ink">30 days</dd></div>
             </dl>
-            <p className="mt-4 text-[11px] leading-5 text-dim">The old URL will keep redirecting during its retention period and cannot be claimed by another account.</p>
+            <p className="mt-4 t-label leading-5 text-dim">The old URL will keep redirecting during its retention period and cannot be claimed by another account.</p>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-ink">Cancel</button>
-              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
+              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 t-label font-semibold text-ink">Cancel</button>
+              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
             </div>
           </div>
         </div>
@@ -612,13 +612,13 @@ function AffiliateChart({ rows, period }: { rows: AffiliateSummary["chart"]; per
           return <circle key={row.day} cx={x} cy={y} r="3.5" fill="rgb(var(--void-rgb))" stroke="rgb(var(--gold-rgb))" strokeWidth="2" />;
         })}
       </svg>
-      {data.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><p className="text-sm font-semibold text-ink">No earnings in this period</p><p className="mt-1 text-[11px] text-dim">Confirmed creator commission entries will appear here.</p></div></div>}
+      {data.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><p className="t-body font-semibold text-ink">No earnings in this period</p><p className="mt-1 t-label text-dim">Confirmed creator commission entries will appear here.</p></div></div>}
     </div>
   );
 }
 
 function ChartMetric({ label, value }: { label: string; value: string }) {
-  return <div className="bg-panel p-4"><p className="field-label">{label}</p><p className="mt-2 font-mono text-sm text-ink">{value}</p></div>;
+  return <div className="bg-panel p-4"><p className="field-label">{label}</p><p className="mt-2 font-mono t-body text-ink">{value}</p></div>;
 }
 
 function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, ownership }: {
@@ -638,14 +638,14 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-        <div><h2 className="text-sm font-semibold text-ink">Discord creator setup</h2><p className="mt-1 text-[11px] text-dim">{ownership?.connectedDiscord ? `Connected Discord: ${ownership.connectedDiscord.discordUsername ? `@${ownership.connectedDiscord.discordUsername}` : ownership.connectedDiscord.discordUserId}` : "Connect ownership, install the official bot, register a channel, then submit for review."}</p></div>
+        <div><h2 className="t-body font-semibold text-ink">Discord creator setup</h2><p className="mt-1 t-label text-dim">{ownership?.connectedDiscord ? `Connected Discord: ${ownership.connectedDiscord.discordUsername ? `@${ownership.connectedDiscord.discordUsername}` : ownership.connectedDiscord.discordUserId}` : "Connect ownership, install the official bot, register a channel, then submit for review."}</p></div>
         <StatusPill status={linked ? "Discord connected" : "Discord not connected"} />
       </header>
       <div className="grid gap-px bg-edge lg:grid-cols-4">
-        <CreatorStep number="01" title="Connect Discord" detail={linked ? "Discord identity and source ownership are verified." : providerLinked ? "Run /connect discord in the server to verify Manage Server ownership." : "Link Discord, then run /connect discord in the server."} done={linked} action={!providerLinked ? <button type="button" onClick={onLink} className="text-xs font-semibold text-gold-400">Connect Discord</button> : !linked ? <span className="font-mono text-xs text-ink">/connect discord</span> : null} />
-        <CreatorStep number="02" title="Install bot" detail="The guild install grants only the channel permissions needed for source tracking and /register." done={false} action={<a href={botConfig?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-gold-400">Add bot <ArrowUpRight size={13} /></a>} />
-        <CreatorStep number="03" title="Register channel" detail="Run /register in the call channel. The bot checks your Manage Server role and its own channel access." done={false} action={<span className="font-mono text-xs text-ink">/register</span>} />
-        <CreatorStep number="04" title="Submit application" detail="Add server details, invite URL, call format, and owner agreement for admin review." done={bots.length > 0} action={<Link href="/apply" className="text-xs font-semibold text-gold-400">Open application</Link>} />
+        <CreatorStep number="01" title="Connect Discord" detail={linked ? "Discord identity and source ownership are verified." : providerLinked ? "Run /connect discord in the server to verify Manage Server ownership." : "Link Discord, then run /connect discord in the server."} done={linked} action={!providerLinked ? <button type="button" onClick={onLink} className="t-label font-semibold text-gold-400">Connect Discord</button> : !linked ? <span className="font-mono t-label text-ink">/connect discord</span> : null} />
+        <CreatorStep number="02" title="Install bot" detail="The guild install grants only the channel permissions needed for source tracking and /register." done={false} action={<a href={botConfig?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 t-label font-semibold text-gold-400">Add bot <ArrowUpRight size={13} /></a>} />
+        <CreatorStep number="03" title="Register channel" detail="Run /register in the call channel. The bot checks your Manage Server role and its own channel access." done={false} action={<span className="font-mono t-label text-ink">/register</span>} />
+        <CreatorStep number="04" title="Submit application" detail="Add server details, invite URL, call format, and owner agreement for admin review." done={bots.length > 0} action={<Link href="/apply" className="t-label font-semibold text-gold-400">Open application</Link>} />
       </div>
       <div className="grid gap-px border-t border-edge bg-edge sm:grid-cols-4">
         <ChartMetric label="Bot runtime" value={botConfig?.live?.online ? "Online" : "Unavailable"} />
@@ -653,14 +653,14 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
         <ChartMetric label="Channel registry" value={botConfig?.live?.approvedChannelRefreshOk ? "Synced" : "Degraded"} />
         <ChartMetric label="Setup status" value={liveReady ? "Ready" : "Check status"} />
       </div>
-      {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 ui-code text-[12px] text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
+      {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="t-label font-semibold text-ink">{bot.name}</p><p className="mt-1 ui-code t-label text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
       {ownership?.sources?.length ? (
         <div className="border-t border-edge">
-          <header className="px-5 py-4"><h3 className="text-sm font-semibold text-ink">Owned sources</h3><p className="mt-1 text-[11px] text-dim">Only confirmed reconciled executions contribute volume and earnings.</p></header>
+          <header className="px-5 py-4"><h3 className="t-body font-semibold text-ink">Owned sources</h3><p className="mt-1 t-label text-dim">Only confirmed reconciled executions contribute volume and earnings.</p></header>
           <div className="divide-y divide-edge">
             {ownership.sources.map((source) => (
               <div key={source.sourceGroupId} className="px-5 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold text-ink">{source.sourceName}</p><p className="mt-1 text-[12px] text-dim">Connected {formatWhen(source.ownedSince)}</p></div><StatusPill status={source.verificationStatus} /></div>
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="t-label font-semibold text-ink">{source.sourceName}</p><p className="mt-1 t-label text-dim">Connected {formatWhen(source.ownedSince)}</p></div><StatusPill status={source.verificationStatus} /></div>
                 <div className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-5">
                   <ChartMetric label="Commission rate" value={formatPercentBps(source.commissionRateBps)} />
                   <ChartMetric label="Eligible calls" value={String(source.eligibleCalls)} />
@@ -672,7 +672,7 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
             ))}
           </div>
         </div>
-      ) : linked ? <p className="border-t border-edge px-5 py-6 text-center text-xs text-dim">Discord is connected. No eligible source is owned by this account yet.</p> : null}
+      ) : linked ? <p className="border-t border-edge px-5 py-6 text-center t-label text-dim">Discord is connected. No eligible source is owned by this account yet.</p> : null}
     </section>
   );
 }
@@ -680,9 +680,9 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
 function CreatorStep({ number, title, detail, done, action }: { number: string; title: string; detail: string; done: boolean; action: React.ReactNode }) {
   return (
     <div className="min-h-44 bg-panel p-5">
-      <div className="flex items-center justify-between"><span className="text-[12px] text-gold-400">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
-      <h3 className="mt-5 text-sm font-semibold text-ink">{title}</h3>
-      <p className="mt-2 min-h-12 text-[11px] leading-5 text-dim">{detail}</p>
+      <div className="flex items-center justify-between"><span className="t-label text-gold-400">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
+      <h3 className="mt-5 t-body font-semibold text-ink">{title}</h3>
+      <p className="mt-2 min-h-12 t-label leading-5 text-dim">{detail}</p>
       {/*
         Each step's action is a bare text link — "Connect Discord", "Add bot", "Open
         application". Measured signed in at 390px they were 16px tall, a third of the 44px
@@ -699,24 +699,24 @@ function KolAffiliate({ bots, summary }: { bots: ProductBot[]; summary: Affiliat
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-        <div><h2 className="text-sm font-semibold text-ink">KOL creator strategies</h2><p className="mt-1 text-[11px] text-dim">Published, paused, and draft strategies count toward quota according to lifecycle state.</p></div>
-        <div className="font-mono text-xs text-ink">{bots.filter((bot) => bot.visibility === "public" && bot.status !== "archived").length} / 3 published</div>
+        <div><h2 className="t-body font-semibold text-ink">KOL creator strategies</h2><p className="mt-1 t-label text-dim">Published, paused, and draft strategies count toward quota according to lifecycle state.</p></div>
+        <div className="font-mono t-label text-ink">{bots.filter((bot) => bot.visibility === "public" && bot.status !== "archived").length} / 3 published</div>
       </header>
       {bots.length === 0 ? (
-        <div className="p-8 text-center"><Bot className="mx-auto text-gold-400" size={22} /><p className="mt-3 text-sm font-semibold text-ink">No KOL strategies yet</p><Link href="/bots/kol/new" className="mt-3 inline-flex text-xs font-semibold text-gold-400">Create a strategy</Link></div>
+        <div className="p-8 text-center"><Bot className="mx-auto text-gold-400" size={22} /><p className="mt-3 t-body font-semibold text-ink">No KOL strategies yet</p><Link href="/bots/kol/new" className="mt-3 inline-flex t-label font-semibold text-gold-400">Create a strategy</Link></div>
       ) : (
         <div className="divide-y divide-edge">
           {bots.map((bot) => (
             <div key={bot.id} className="grid items-center gap-4 px-5 py-4 md:grid-cols-[1fr_auto_auto_auto]">
-              <div className="min-w-0"><p className="truncate text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 truncate text-[12px] text-dim">{bot.strategySlug || "Private draft"} · v{bot.version}</p></div>
-              <span className="text-[12px] text-dim">{bot.followers || 0} followers</span>
-              <span className="text-[12px] text-ink">{formatSol(bot.volumeLamports)}</span>
+              <div className="min-w-0"><p className="truncate t-label font-semibold text-ink">{bot.name}</p><p className="mt-1 truncate t-label text-dim">{bot.strategySlug || "Private draft"} · v{bot.version}</p></div>
+              <span className="t-label text-dim">{bot.followers || 0} followers</span>
+              <span className="t-label text-ink">{formatSol(bot.volumeLamports)}</span>
               <StatusPill status={bot.moderationStatus || bot.status} />
             </div>
           ))}
         </div>
       )}
-      <div className="border-t border-edge px-5 py-4 text-[11px] text-dim">Accrued KOL commission: <span className="font-mono text-ink">{formatSol(summary.lifetimeLamports)}</span> at a default 0.20% rate.</div>
+      <div className="border-t border-edge px-5 py-4 t-label text-dim">Accrued KOL commission: <span className="font-mono text-ink">{formatSol(summary.lifetimeLamports)}</span> at a default 0.20% rate.</div>
     </section>
   );
 }
@@ -724,10 +724,10 @@ function KolAffiliate({ bots, summary }: { bots: ProductBot[]; summary: Affiliat
 function RecentEvents({ events }: { events: any[] }) {
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
-      <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Recent earning events</h2></header>
-      {events.length === 0 ? <p className="px-5 py-8 text-center text-xs text-dim">No creator commission events yet.</p> : (
+      <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Recent earning events</h2></header>
+      {events.length === 0 ? <p className="px-5 py-8 text-center t-label text-dim">No creator commission events yet.</p> : (
         <div className="divide-y divide-edge">
-          {events.slice(0, 12).map((event) => <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><div><p className="text-xs font-semibold text-ink">{event.sourceType} commission</p><p className="mt-1 text-[12px] text-dim">{event.sourceId || "platform"} · {event.rateBps ? `${event.rateBps / 100}%` : "adjustment"}</p></div><span className={`font-mono text-xs ${Number(event.amountLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(event.amountLamports)}</span><span className="text-[12px] text-dim">{formatWhen(event.created_at)}</span></div>)}
+          {events.slice(0, 12).map((event) => <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><div><p className="t-label font-semibold text-ink">{event.sourceType} commission</p><p className="mt-1 t-label text-dim">{event.sourceId || "platform"} · {event.rateBps ? `${event.rateBps / 100}%` : "adjustment"}</p></div><span className={`font-mono t-label ${Number(event.amountLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(event.amountLamports)}</span><span className="t-label text-dim">{formatWhen(event.created_at)}</span></div>)}
         </div>
       )}
     </section>
@@ -738,20 +738,20 @@ function PayoutHistory({ summary, onRequest }: { summary: AffiliateSummary; onRe
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="overflow-hidden rounded-md border border-edge bg-panel">
-        <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Payout history</h2><p className="mt-1 text-[11px] text-dim">A payout is not shown as paid until its on-chain transaction is confirmed.</p></header>
-        {summary.payouts.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No payout requests yet.</p> : (
+        <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Payout history</h2><p className="mt-1 t-label text-dim">A payout is not shown as paid until its on-chain transaction is confirmed.</p></header>
+        {summary.payouts.length === 0 ? <p className="px-5 py-12 text-center t-label text-dim">No payout requests yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[780px] text-left">
               <thead className="ui-label bg-void"><tr><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Gross</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Net</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Status</th></tr></thead>
-              <tbody>{summary.payouts.map((payout) => <tr key={payout.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-dim">{formatWhen(payout.requested_at)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.grossLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(payout.processingFeeLamports)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.netLamports)}</td><td className="px-4 py-4 text-[12px] text-dim">{payout.destinationWallet.slice(0, 6)}...{payout.destinationWallet.slice(-5)}</td><td className="px-4 py-4"><StatusPill status={payout.status} /></td></tr>)}</tbody>
+              <tbody>{summary.payouts.map((payout) => <tr key={payout.id} className="border-t border-edge t-label"><td className="px-4 py-4 font-mono text-dim">{formatWhen(payout.requested_at)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.grossLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(payout.processingFeeLamports)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.netLamports)}</td><td className="px-4 py-4 t-label text-dim">{payout.destinationWallet.slice(0, 6)}...{payout.destinationWallet.slice(-5)}</td><td className="px-4 py-4"><StatusPill status={payout.status} /></td></tr>)}</tbody>
             </table>
           </div>
         )}
       </section>
       <aside className="h-fit rounded-md border border-edge bg-panel p-5">
-        <p className="field-label">Available balance</p><p className="mt-2 font-mono text-2xl text-ink">{formatSol(summary.availableLamports)}</p>
-        <dl className="mt-5 divide-y divide-edge border-y border-edge"><div className="flex justify-between py-3 text-xs text-dim"><dt>Minimum request</dt><dd className="font-mono text-ink">{formatSol(summary.minimumPayoutLamports)}</dd></div><div className="flex justify-between py-3 text-xs text-dim"><dt>Processing fee</dt><dd className="font-mono text-ink">{formatSol(summary.processingFeeLamports)}</dd></div></dl>
-        <button type="button" onClick={onRequest} disabled={Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="mt-5 min-h-11 w-full rounded-md bg-gold-400 text-sm font-semibold text-[#17110c] disabled:opacity-40">Request payout</button>
+        <p className="field-label">Available balance</p><p className="mt-2 font-mono t-display text-ink">{formatSol(summary.availableLamports)}</p>
+        <dl className="mt-5 divide-y divide-edge border-y border-edge"><div className="flex justify-between py-3 t-label text-dim"><dt>Minimum request</dt><dd className="font-mono text-ink">{formatSol(summary.minimumPayoutLamports)}</dd></div><div className="flex justify-between py-3 t-label text-dim"><dt>Processing fee</dt><dd className="font-mono text-ink">{formatSol(summary.processingFeeLamports)}</dd></div></dl>
+        <button type="button" onClick={onRequest} disabled={Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="mt-5 min-h-11 w-full rounded-md bg-gold-400 t-body font-semibold text-[#17110c] disabled:opacity-40">Request payout</button>
       </aside>
     </div>
   );
@@ -809,18 +809,18 @@ function PayoutModal({
   return (
     <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="payout-title" className="w-full max-w-lg rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="ui-label text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 text-lg font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
+        <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="ui-label text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 t-title font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
         <div className="space-y-4 p-5">
-          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={minimum} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="text-[12px] text-dim">SOL</span></span></label>
-          <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono text-xs" /></label>
+          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={minimum} className="min-w-0 flex-1 bg-transparent font-mono t-body outline-none" /><span className="t-label text-dim">SOL</span></span></label>
+          <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono t-label" /></label>
           <div className="divide-y divide-edge rounded-md border border-edge bg-void px-3">
-            <div className="flex justify-between py-3 text-xs text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>
-            <div className="flex justify-between py-3 text-xs text-dim"><span>Processing/admin fee</span><span className="font-mono text-ink">-{fee.toFixed(3)} SOL</span></div>
-            <div className="flex justify-between py-3 text-xs font-semibold text-ink"><span>Net wallet payout</span><span className="font-mono">{net.toFixed(3)} SOL</span></div>
+            <div className="flex justify-between py-3 t-label text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>
+            <div className="flex justify-between py-3 t-label text-dim"><span>Processing/admin fee</span><span className="font-mono text-ink">-{fee.toFixed(3)} SOL</span></div>
+            <div className="flex justify-between py-3 t-label font-semibold text-ink"><span>Net wallet payout</span><span className="font-mono">{net.toFixed(3)} SOL</span></div>
           </div>
-          <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I confirm the destination, gross amount, fixed {formatSol(summary.processingFeeLamports)} processing fee, and net payout. I understand this request is pending until reviewed and reconciled.</label>
+          <label className="flex items-start gap-2 t-label leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I confirm the destination, gross amount, fixed {formatSol(summary.processingFeeLamports)} processing fee, and net payout. I understand this request is pending until reviewed and reconciled.</label>
         </div>
-        <footer className="flex justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={onClose} className="min-h-11 rounded-md border border-edge px-5 text-sm font-semibold text-ink">Cancel</button><button type="button" onClick={submit} disabled={invalid || !confirmed || busy} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-5 text-sm font-semibold text-[#17110c] disabled:opacity-40">{busy && <Loader2 size={14} className="animate-spin" />}Submit request</button></footer>
+        <footer className="flex justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={onClose} className="min-h-11 rounded-md border border-edge px-5 t-body font-semibold text-ink">Cancel</button><button type="button" onClick={submit} disabled={invalid || !confirmed || busy} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-5 t-body font-semibold text-[#17110c] disabled:opacity-40">{busy && <Loader2 size={14} className="animate-spin" />}Submit request</button></footer>
       </div>
     </div>
   );
