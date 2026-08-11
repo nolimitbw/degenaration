@@ -97,8 +97,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Imported lazily so a deployment missing credentials never even loads the signing stack.
-  const { missingExitPath } = require("@/server/engine/exit-path");
-  const store = require("@/server/engine/store");
+  //
+  // `interop` is not defensive noise. These are CommonJS modules required from a TypeScript
+  // route, and Next's bundler may hand back the module namespace rather than module.exports —
+  // in which case the real exports sit under `.default` and a spread copies nothing. The
+  // symptom is a minified "f is not a function" from a destructured dependency, which says
+  // nothing about which one. Normalising once at the boundary removes the whole class.
+  const interop = <T,>(mod: any): T => (mod && mod.default && !mod.loadPendingCalls ? mod.default : mod) as T;
+
+  const { missingExitPath } = interop<any>(require("@/server/engine/exit-path"));
+  const store = interop<any>(require("@/server/engine/store"));
 
   const missing = missingExitPath(store);
   if (missing.length) {
@@ -112,25 +120,75 @@ export async function GET(req: NextRequest) {
 
   const started = Date.now();
   const counts: Record<string, number> = {};
-  const record = (event: { type?: string }) => {
+  // A bounded sample of the actual messages. Counting `LOAD_ERROR: 6` tells you something is
+  // broken and nothing about what — and "the worker reads a column production does not have"
+  // is a failure this codebase has shipped more than once. One example of each distinct error
+  // is the difference between a diagnosis and a shrug.
+  const errors: Record<string, string> = {};
+  const record = (event: { type?: string; error?: string }) => {
     const key = String(event?.type || "UNKNOWN");
     counts[key] = (counts[key] || 0) + 1;
+    if (event?.error && !errors[key] && Object.keys(errors).length < 6) {
+      errors[key] = String(event.error).slice(0, 300);
+    }
   };
 
   let ticks = 0;
   try {
-    const { refreshCallPerformance } = require("@/server/engine/performance");
-    // One pass per interval until the budget is spent. Sequential on purpose: two overlapping
-    // passes would race the same claim, and the claim is what makes a double-buy impossible.
+    const mod = (m: any) => (m && m.default && Object.keys(m).length <= 2 ? m.default : m);
+    const { startCallWatcher } = mod(require("@/server/engine/calls"));
+    const { startMonitor } = mod(require("@/server/engine/monitor"));
+    const { startSettlementWatcher } = mod(require("@/server/engine/settlement"));
+    const { getPrice } = mod(require("@/server/engine/prices"));
+    const jupiter = mod(require("@/server/engine/jupiter"));
+    const { confirmSignature, fetchReceivedAmount } = mod(require("@/server/engine/confirm"));
+    const signer = mod(require("@/server/engine/signer"));
+
+    // Named explicitly rather than spread, so a missing dependency is a build error here
+    // instead of a minified runtime failure inside a watcher.
+    if (typeof store.loadPendingCalls !== "function") {
+      return NextResponse.json({
+        ok: false, mode: "error",
+        reason: "engine store did not resolve its exports — module interop",
+        storeKeys: Object.keys(store || {}).slice(0, 12)
+      }, { status: 500 });
+    }
+
+    const net = String(process.env.WORKER_NET).trim().toLowerCase();
+    const signAndSend = (base64Tx: string, walletId: string, intent: unknown = {}) =>
+      signer.signAndSend(base64Tx, walletId, net, intent);
+
+    // The wiring is imported, never rebuilt here. Several watcher dependencies have different
+    // names from the store's exports (loadSubmitted / claimExit / recordPeak …), and a
+    // `{ ...store }` spread delivered them as undefined — which produced exactly this route
+    // reporting `mode: "live"` with seven LOAD_ERRORs and no trades.
+    const { monitorDeps, settlementDeps, callDeps, missingWiring } = mod(require("@/server/engine/wiring"));
+
+    const unwired = missingWiring(store);
+    if (unwired.length) {
+      return NextResponse.json({
+        ok: false, mode: "error",
+        reason: "engine wiring incomplete — a watcher dependency does not resolve to a function",
+        unwired
+      }, { status: 500 });
+    }
+
+    const io = { getPrice, signAndSend, confirmSignature, fetchReceivedAmount, onEvent: record };
+    // pollMs 0 → one pass, no self-scheduling. A setTimeout that outlives the response is
+    // either killed mid-write or resumed on a warm container with stale state.
+    const passes = [
+      startSettlementWatcher(settlementDeps(store, io), 0), // reconcile first, so the rest sees truth
+      startMonitor(monitorDeps(store, io), 0),              // exits before entries: never open what you cannot close
+      startCallWatcher(callDeps(store, io), 0)
+    ];
+    void jupiter;
+
+    // Sequential on purpose. Two overlapping passes would race the same claim, and the claim
+    // is the thing that makes a double-buy impossible.
     while (Date.now() - started < BUDGET_MS) {
       ticks += 1;
-      await refreshCallPerformance({
-        loadPerformanceCalls: store.loadPerformanceCalls,
-        recordCallMarketScan: store.recordCallMarketScan,
-        onEvent: record
-      });
-      const elapsed = Date.now() - started;
-      if (elapsed >= BUDGET_MS) break;
+      for (const pass of passes) await pass();
+      if (Date.now() - started >= BUDGET_MS) break;
       await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS));
     }
   } catch (reason) {
@@ -140,7 +198,8 @@ export async function GET(req: NextRequest) {
       ticks,
       elapsedMs: Date.now() - started,
       error: reason instanceof Error ? reason.message : "tick failed",
-      counts
+      counts,
+      errors
     }, { status: 502 });
   }
 
@@ -150,6 +209,7 @@ export async function GET(req: NextRequest) {
     ticks,
     intervalMs: INTERVAL_MS,
     elapsedMs: Date.now() - started,
-    counts
+    counts,
+    errors
   });
 }

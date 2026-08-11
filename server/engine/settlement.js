@@ -163,6 +163,18 @@ function startSettlementWatcher(deps, pollMs = POLL_MS) {
     }
   };
 
+  // A pollMs of 0 means "give me one pass and do not schedule anything".
+  //
+  // The worker calls this with a real interval and keeps its self-rescheduling loop, unchanged.
+  // A serverless invocation cannot own a setTimeout that outlives its response — it would be
+  // torn down mid-flight, or resume on a warm container with stale closure state — so it drives
+  // the same runTick itself, once per iteration, from `app/api/worker/tick`.
+  //
+  // Returning runTick rather than exporting it separately keeps the dependency wiring in one
+  // place. A second construction path could be handed different deps, and the two would drift
+  // exactly the way a reader and a writer drift when nothing checks them against each other.
+  if (!pollMs) return runTick;
+
   const tick = async () => {
     try { await runTick(); }
     catch (e) { onEvent({ type: "TICK_ERROR", error: e.message }); }
