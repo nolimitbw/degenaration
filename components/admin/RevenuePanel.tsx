@@ -143,6 +143,13 @@ export default function RevenuePanel({
         </p>
       )}
 
+      <WithdrawFees
+        available={revenue.availableLamports || "0"}
+        reconciled={revenue.reconciled !== false}
+        fetchJson={fetchJson}
+        onDone={load}
+      />
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Figure label="Fees today" value={formatSol(fee.today)} />
         <Figure label="Fees 7D" value={formatSol(fee.d7)} />
@@ -209,12 +216,6 @@ export default function RevenuePanel({
         </dl>
       </div>
 
-      <WithdrawFees
-        available={revenue.availableLamports || "0"}
-        reconciled={revenue.reconciled !== false}
-        fetchJson={fetchJson}
-        onDone={load}
-      />
     </div>
   );
 }
@@ -290,7 +291,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
     <div className="rounded-md border border-edge bg-panel p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-xl">
-          <p className="t-label font-semibold text-ink">Withdraw fees</p>
+          <p className="t-label font-semibold text-ink">Withdraw revenue</p>
           <p className="mt-1 t-label leading-5 text-dim">
             Moves DegenAration&apos;s retained share only. It cannot reach client principal, locked capital, creator rewards or referral rewards — the amount is bounded by the retained total, from which those allocations were already subtracted.
           </p>
@@ -307,7 +308,7 @@ function WithdrawFees({ available, reconciled, fetchJson, onDone }: {
             }
             className="min-h-11 rounded-md border border-gold-400/50 px-4 t-label font-semibold text-gold-400 disabled:opacity-50"
           >
-            Withdraw fees
+            Withdraw revenue
           </button>
         )}
       </div>

@@ -55,22 +55,17 @@ services:
   #    approved sources show no measured performance. It is a separate program with its
   #    own package.json (discord.js), so it needs its own service and its own rootDir.
   #
-  #    A worker type, not web: it holds a gateway connection and serves no HTTP.
-  #
-  #    PLAN NOTE — this service CANNOT run on the free tier. Render's free plan covers web
-  #    services only; background workers are paid. It was declared `plan: free`, which does not
-  #    deploy — it fails, and a blueprint that half-fails is worse than one that is explicit.
-  #
-  #    You do not need it yet. `degencalls` on Render is already listening in both approved
-  #    guilds and forwarding to /api/ingest-call, and the Vercel history backfill cron covers
-  #    the rest. Deploy this only when retiring that listener, and expect to pay for it.
-  - type: worker
+  #    Render's free tier only supports web services. The bot already exposes a secret-free
+  #    /health endpoint, so running it as a web service preserves the Gateway process while
+  #    keeping this deployment free and independently observable.
+  - type: web
     name: degenaration-discord-bot
     runtime: node
-    plan: starter
+    plan: free
     rootDir: server/bot
     buildCommand: npm ci
     startCommand: npm start
+    healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
@@ -111,3 +106,5 @@ services:
         sync: false
       - key: BOT_BUILD
         sync: false
+      - key: HISTORY_BACKFILL_ENABLED
+        value: "on"
