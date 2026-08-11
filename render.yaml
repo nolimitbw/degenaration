@@ -12,8 +12,18 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.22.0
+      # NOT hardcoded, and this line is load-bearing.
+      #
+      # It read `value: devnet`. Production's readiness check requires
+      # `worker.network === "mainnet"`, so a perfectly deployed worker would have reported
+      # devnet and failed `workerHealth` forever — a green service that the app correctly
+      # refuses to trust, which is the most expensive kind of wrong.
+      #
+      # Set it in the dashboard: `devnet` while you verify, `mainnet` when you mean it.
       - key: WORKER_NET
-        value: devnet
+        sync: false
+      # Watch-only until signing is deliberately enabled. Leave "off" for the first deploy:
+      # bring the service up, confirm it heartbeats, then flip it.
       - key: DELEGATED_SIGNING
         value: "off"
       - key: COPY_TRADING
@@ -46,10 +56,18 @@ services:
   #    own package.json (discord.js), so it needs its own service and its own rootDir.
   #
   #    A worker type, not web: it holds a gateway connection and serves no HTTP.
+  #
+  #    PLAN NOTE — this service CANNOT run on the free tier. Render's free plan covers web
+  #    services only; background workers are paid. It was declared `plan: free`, which does not
+  #    deploy — it fails, and a blueprint that half-fails is worse than one that is explicit.
+  #
+  #    You do not need it yet. `degencalls` on Render is already listening in both approved
+  #    guilds and forwarding to /api/ingest-call, and the Vercel history backfill cron covers
+  #    the rest. Deploy this only when retiring that listener, and expect to pay for it.
   - type: worker
     name: degenaration-discord-bot
     runtime: node
-    plan: free
+    plan: starter
     rootDir: server/bot
     buildCommand: npm ci
     startCommand: npm start

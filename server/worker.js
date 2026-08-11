@@ -145,6 +145,38 @@ http.createServer((req, res) => {
 }).listen(PORT, HEALTH_HOST, () => console.log(`[worker] health listening on ${HEALTH_HOST}:${PORT}`));
 
 /**
+ * Stay awake on a free web-service tier.
+ *
+ * Render's free plan suspends a web service after roughly fifteen minutes with no INBOUND
+ * HTTP request, and a suspended worker is not watch-only — it is absent. It misses the calls
+ * it exists to catch, `worker_leases` goes stale, and the app correctly reports the worker as
+ * gone. Nothing in this process's own polling counts as traffic, because those are outbound.
+ *
+ * So the service requests its own public URL. The round trip leaves the platform and comes
+ * back through the router, which is what the idle timer measures. `RENDER_EXTERNAL_URL` is
+ * injected by Render; on any host that does not set it — Railway, a VM, a laptop — this whole
+ * block is inert, which is the correct behaviour rather than a special case to configure.
+ *
+ * This PREVENTS sleep; it cannot end it. A service already suspended has no process to run the
+ * timer. That is the honest limit of the technique and the reason the interval is well inside
+ * the window rather than near it.
+ *
+ * A failed ping is logged once and otherwise ignored. Keeping the container warm is a hosting
+ * concern, and it must never be able to interrupt an exit that is mid-flight.
+ */
+const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL?.trim() || process.env.WORKER_PUBLIC_URL?.trim() || null;
+const KEEP_ALIVE_INTERVAL_MS = 10 * 60_000;
+
+if (KEEP_ALIVE_URL) {
+  console.log(`[worker] keep-alive every ${KEEP_ALIVE_INTERVAL_MS / 60_000}m against ${KEEP_ALIVE_URL}`);
+  setInterval(() => {
+    const target = new URL("/health", KEEP_ALIVE_URL);
+    fetch(target, { cache: "no-store", signal: AbortSignal.timeout(20_000) })
+      .catch((error) => console.log(`[worker] keep-alive ping failed: ${error?.message || error}`));
+  }, KEEP_ALIVE_INTERVAL_MS).unref?.();
+}
+
+/**
  * Report liveness into the database the trades are recorded in.
  *
  * The /health endpoint above answers whoever can reach this container's port. That is not the
@@ -166,7 +198,9 @@ http.createServer((req, res) => {
  */
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const HEARTBEAT_LEASE_SECONDS = 90;
-const INSTANCE_ID = `${process.env.RAILWAY_REPLICA_ID || process.env.HOSTNAME || "local"}:${startedAt}`;
+// Render's instance id is checked before Railway's so a migrated worker still identifies the
+// container it is actually running in rather than falling through to the pod hostname.
+const INSTANCE_ID = `${process.env.RENDER_INSTANCE_ID || process.env.RAILWAY_REPLICA_ID || process.env.HOSTNAME || "local"}:${startedAt}`;
 const heartbeatMode = NET === "devnet" ? "solana-devnet" : NET === "paper" ? "paper" : "solana-mainnet";
 
 async function beat() {
