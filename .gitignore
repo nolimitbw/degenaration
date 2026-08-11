@@ -13,3 +13,4 @@ docs/reference-frames/
 
 .references/
 tsconfig.tsbuildinfo
+.env*
