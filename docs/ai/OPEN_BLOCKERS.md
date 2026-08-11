@@ -1,191 +1,99 @@
-# Open blockers
+# Open blockers — rewritten 2026-08-11 from live state
 
-Updated: 2026-08-04
+Everything below was read from production, the live database, Railway, GitHub and Solana
+mainnet on 2026-08-11. Prior revisions of this file inferred blockers from the repository;
+several were wrong about the cause.
 
-External requirements are E-*. I-* are internal decisions that belong to the owner because
-they change which record is authoritative for money — implementable, but not silently.
+## The finding that reorders everything
 
-## Owner decisions
+**288 commits existed only on one laptop.** GitHub's newest branch was `master` @ `2f03090`.
+The entire Codex final implementation and every session since — including the worker heartbeat,
+the DCA engine, the signer policy and the readiness layer — had never been pushed.
 
-### I-1 — Two position ledgers exist and only one is written — **DECIDED 2026-08-04**
+Railway builds the worker **from GitHub**. So "the worker will not deploy" was never a
+configuration problem: the code was not there to build. Pushed 2026-08-11 as
+`codex/final-degenaration-2026-08-08`.
 
-**Resolved as a decision. `app_private` is authoritative; the worker's journal is demoted to
-an operational queue. The full inventory, rationale, formulas, invariants and a six-step
-implementation sequence are in `docs/ai/ACCOUNTING_MODEL.md`.**
+## B-1 — Railway trial expired · BLOCKS THE WHOLE TRADING PATH
 
-The inventory made the choice one-sided rather than balanced: `app_private.call_executions`
-has **no fee column of any kind** and stores `amount_sol` as floating point, so World B
-cannot carry the spec's invariants without being rebuilt into World A. And the problem is
-wider than positions — `trade_intents`, `trade_executions`, `positions`, `position_lots`,
-`cash_movements` and `performance_snapshots` **all** have zero writers, which means the
-entire 200 bps fee apparatus is correct code hung on a table nothing writes.
+```
+connect_service_source → "Your trial has expired. Please select a plan to continue using Railway."
+list_deployments       → Unauthorized
+```
 
-The single most urgent consequence, not previously recorded: `app_user_withdrawable_state`
-derives locked capital from `trade_intents`, so `lockedLamports` is **structurally always
-zero** — a user can withdraw SOL the worker has already committed to a buy. Step 2 of the
-sequence closes it.
+Every deployment on `degenaration-worker` reads `REMOVED`. Railway tore them down. The
+`degenaration-bot` project is unreachable for the same reason.
 
-**All six writers now exist.** `trade_intents` (`fcebe9c`), `trade_executions` /
-`positions` / `position_lots` (`d554243`), `position_exits` (`a428857`),
-`performance_snapshots` (`cbeabe5`). `cash_movements` remains unwritten and is the one item
-of this blocker still open — it needs the withdrawal path to run against a real wallet
-(E-6/E-3), not a decision. Every other consequence recorded here is closed and covered by a
-verifier; none of the migrations is applied to production yet — `PENDING_DEPLOYMENT.md`.
+This single fact explains **13 of the 18 failing readiness checks** in production:
+`workerLease`, `workerHealth`, `signer`, `durableIntents`, `quote`, `simulation`, `submission`,
+`confirmation`, `positionCapture`, `takeProfitStopLoss`, `dailyRisk`, `reconciliation`, `fee`.
 
-The original framing is kept below for history.
+It also explains the empty performance journal: 1,780 of 1,781 calls have no price because the
+worker's scanner is what prices them.
 
----
+**Owner action: choose a Railway plan, or move `server/` to another host.** Nothing else in this
+file can be tested until then.
 
-`app_private.positions` and `app_private.position_lots` are the product ledger. The
-Portfolio positions tab, the position PnL card, the admin open-position count and the bot
-archival guard all read them. **Nothing inserts into either** — there is no INSERT in
-`supabase/`, `server/`, `app/` or `lib/`. The worker opens positions in `public.positions`
-through the deployed `public.worker_open_position`.
+## B-2 — The platform fee token account does not exist on chain
 
-Consequences, in order of severity:
+`PLATFORM_FEE_ACCOUNT` is set to a **wallet**, not a token account. `resolveFeeAccount` derives
+the ATA per fee mint and finds it uninitialised, so `/api/quote` and `/api/swap` correctly skip
+the fee. **0 bps has been collected on every trade, in both directions.**
 
-1. The bot archival guard could not fire, so a bot holding open funded positions archived
-   cleanly. **Fixed** in `37d5e19` by checking both ledgers, which fails closed whichever
-   ledger becomes authoritative.
-2. The Portfolio positions tab would stay empty even with a deployed, trading worker.
-3. Position PnL cards can never be produced for real trades.
-4. `position_lots` is the lot ledger that would yield average entry and exit prices. It is
-   never populated, which is the true root cause behind Priority 5 being recorded as
-   BLOCKED — not a missing computation, a missing writer.
+Until 2026-08-11 `/api/platform/config` disagreed with them — it tested only that the
+environment variable was non-empty, so the interface advertised 2.00% while charging nothing.
+Fixed in `407b7b9`; the config endpoint now resolves the real account.
 
-The decision: which ledger is authoritative? Either the worker writes the product ledger
-(entry/exit legs, lots, executions — the richer model the Portfolio was designed against),
-or the product read model projects `public.positions` (smaller change, loses the lot
-model and with it durable average entry and exit prices).
+**Owner action: initialise the Associated Token Account for the fee wallet — wSOL first (covers
+every sell), then USDC.** ~0.00204 SOL rent each. This requires a signed transaction from the
+fee wallet and cannot be done from here.
 
-Claude did not choose. Unifying them changes which record is authoritative for user money,
-and no reversible half-measure exists.
+Run `npm run verify:fee-account <PLATFORM_FEE_ACCOUNT>` for the exact derived addresses.
 
-**New evidence from the 2026-08-04 live audit, which narrows this decision considerably.**
+## B-3 — Delegated signing is off
 
-Every financial table in production is empty — `trade_intents`, `trade_executions`, both
-`positions` tables, `position_lots`, `cash_movements`, `commission_ledger_entries`,
-`payout_requests` and `public.trades` all have 0 rows. **There is therefore no data to
-migrate and no user record to invalidate**, which removes the usual reason this decision is
-irreversible. Whichever ledger is chosen, nothing has to be rewritten.
+`DELEGATED_SIGNING` is not `on`, so `server/worker.js` boots watch-only and starts no watcher
+that can claim, sign or trade. The Privy credentials are already present; the signer was never
+the blocker. Gated behind B-1 — there is no running service to set it on.
 
-A second finding constrains it further: `app_private.trading_wallets` is empty and
-`app_user_upsert_wallet` — although allowlisted and deployed — has **no call site anywhere
-in the application**. The server consequently cannot name any user's wallet address; wallet
-identity exists only inside the per-request Privy identity token. So today *no* server-side
-balance reconciliation is possible for any user, under either ledger. Persisting the wallet
-on sign-in is a prerequisite for the authoritative model, not a detail of it.
+## Resolved 2026-08-11
 
-### I-2 — A credential digest is committed to the repository
-
-`supabase/admin-dashboard-secret-rpcs.sql:14` embeds a SHA-256 digest of `ADMIN_KEY`, and
-`app_private.bot_secret_ok` does the same for the bot secret in production. A digest of a
-shared secret in a repository is an offline brute-force target; the secret's strength is the
-only thing standing between the file and full service-role RPC access.
-
-Not changed here, because rotating `ADMIN_KEY` invalidates every deployed caller
-simultaneously (web app, worker, both edge functions) and must be sequenced by the owner.
-`bot_secret_ok` was deliberately **not** reproduced when its sibling function was captured
-into `supabase/degenaration-legacy-discord-call-ingestion.sql`, so this weakness was not
-extended.
-
-## External requirements
-
-| ID | Gate | Exact external requirement | State |
-| --- | --- | --- | --- |
-| E-0 | **Edge-function redeploy — the funds incident** | The deployed `app-bridge` (v9, 2026-07-28) is missing four operations the app calls, including `app_user_withdrawable_state`. Until it is redeployed, **no user can withdraw and no bot can be saved.** Nothing in the repository can fix this; the correction is one deploy of `supabase/functions/app-bridge/index.ts` to project `uqccguunmjabjheeivhx` with **`verify_jwt: false`** (the deploy default is `true`, and flipping it would 401 every bridge call — a worse outage than today). Full evidence, mechanism and rollback: `docs/ai/DEPLOYMENT_DRIFT_REPORT.md`. Reproduce any time with `npm run verify:bridge-live`. | **BLOCKED — awaiting deployment approval** |
-| E-1 | Migration deployment proof | Four verified migrations remain unapplied — subscriber-config versioning, bot-lifecycle safety, Discord marketplace parity, Discord call performance. Production state re-read 2026-08-04 and recorded in `PENDING_DEPLOYMENT.md`; the eleven listed as applied there were confirmed object by object. All four are rerun-safe and preserve every fixture row. **Deploy order: the subscriber-config migration must be applied before the current worker build runs**, because `server/engine/store.js` selects `kill_switch`, `subscriber_config_version_id` and `subscriber_config_snapshot`, and PostgREST answers an unknown column with 400. That is no longer only a note — `npm run check:worker-schema-contract` fails if the worker reads a column neither production nor the package provides, and it fired on exactly this before the package was corrected. | BLOCKED |
-| E-2 | Live Discord ingestion proof | **Root-caused 2026-08-05, and the quarantine rule was never the blocker.** A real mint was posted in an approved channel at 08:02. The bridge counters moved `attempts 2→4, accepted 1→3`, **`quarantined` unchanged at 55** — so nothing was quarantined. Both new events were `eventType: delete` with a null mint, journaled 3.5s apart; **no create was ever forwarded**. Our own listener logged *nothing at all* while handling a slash command two minutes later, so the gateway was alive. The defect was ours: `handleDetectedCall` ended a no-mint message with a bare `return null`, making three different faults — event never delivered, channel unreadable, parser found nothing — produce identical evidence. Fixed in `fb99bd5` and **deployed**: every ignored message now logs its *shape* (counts only, never content), so `contentLength: 0` with `embeds: 0` identifies a permission/intent fault and content-with-no-mint identifies a parser result. **The two messages were deleted within seconds of posting**, which is why only deletes reached the journal. Needs one message that stays up. | BLOCKED — one owner action |
-| E-3 | Production worker | **WORKER DEPLOYED 2026-08-06.** The existing Railway `degenaration-worker` service is connected to this branch at `rootDir server`, health at `/health`, and runs the current SHA. It boots **watch-only** — `server/worker.js` gates the entire trading stack behind `DELEGATED_SIGNING === "on"`, so no watcher that can claim, sign or trade is started — and its performance scanner is measuring real calls. The Privy signer credentials were already present; the signer was never the blocker. **The signing boundary now exists**: `server/engine/signer-policy.js` binds every signature to its intent (fee payer must be the intent's wallet, program allowlist, summed lamport ceiling, expiry) and refuses before the Privy client is constructed. What remains is one deliberate owner act. | Set `DELEGATED_SIGNING=on` on the worker service |
-| E-2b | Retire the legacy `degencalls` listener | **Unblocked in code 2026-08-05.** The retirement plan required the Railway listener to cover `degencalls`'s other duties first. It did not sync guild profiles — the endpoint that writes `approved_groups.avatar_url`, which is where the marketplace card's real server avatar comes from — so retiring it would have frozen every avatar, name and member count silently. Now covered: `profileSync {attempts: 2, succeeded: 2, failed: 0}` in the heartbeat, and the `profile_synced_at` timestamps `09:48:20.346` / `09:48:21.667` fall inside our boot window, so those writes are ours. Retirement still waits on the listener being seen to receive one MESSAGE_CREATE — `degencalls` is currently the only process that has forwarded anything. | READY, pending that one observation |
-| E-4 | Mainnet fee collection | **HALF CLOSED 2026-08-06.** The preview/charge mismatch is fixed: `/api/quote` and `/api/simulate` advertised 2.00% via `configuredPlatformFeeBps()` while `/api/swap` applied 0 via `resolveFeeAccount()`. All three now resolve the account and gate the rate on it, pinned by a test. Production quotes truthfully report `platformFeeBps: 0, feeAccountSet: false`. The account itself still does not exist on chain, so 0 bps is still collected — that needs an owner transaction paying rent. | Create the associated token account for `PLATFORM_FEE_ACCOUNT` on wSOL first (covers every sell), then USDC. Run `npm run verify:fee-account <PLATFORM_FEE_ACCOUNT>` for the exact derived addresses |
-| E-5 | Mainnet activation | Explicit controlled-mainnet authorization after staging, signer, reconciliation, provider, fee, withdrawal, alerting, and emergency-control gates pass. | BLOCKED |
-| E-6 | Authenticated browser evidence | **CONSUMED 2026-08-05.** The owner signed in to a remote-debugging Chrome and 32 frames were captured across 8 private routes at four widths. Record: `docs/ai/AUTHENTICATED_EVIDENCE_2026-08-05.md`. It produced three real fixes, one harness fix, and two reclassifications — the PnL cards turn out to need **E-3**, not a session, and the builder rows need the **application deployed**, because production is ~80 commits behind. | **CLOSED** |
-| ~~E-7~~ | ~~Application deployment~~ | **CLOSED 2026-08-05.** Production serves `a173ed8`, confirmed by `/api/build`, together with migrations 11 and 12 and `bot-bridge` v4. Every finding listed here as awaiting a deploy is now live. | **CLOSED** |
-| ~~E-8~~ | ~~Railway listener not redeployed~~ | **CLOSED 2026-08-06.** `connect_service_source` pointed the existing service at this branch, preserving its GitHub source — no new service, no tarball upload, no secret touched. Deployed `543e419`; the previous deployment is REMOVED, so no duplicate DegenAration listener remains. Verified live: bot login, 6 commands in both guilds, `watchedChannels: 2`, `deadLetters: 0`, and `guildMismatchChannels` present in the heartbeat — a counter that exists only in this build. | **CLOSED** |
-| **E-9** | **A second, non-DegenAration listener is still live** | `degencalls.onrender.com` is up and `discord.ready` in the same 2 guilds. Not dangerous — `raw_signals` is unique on (source_type, source_ref, external_event_id), so both listeners forwarding the same message collapses to one row and cannot double-trade. But it is a duplicate, it is not in this repository, and it is on Render, which this session has no access to. | Stop or delete the `degencalls` Render service |
-
----
-
-## Recovery audit, 2026-08-05 — what already exists
-
-Performed as deployment operator. No secret value was printed, and nothing was signed,
-broadcast or transferred. Findings supersede the E-2/E-3/E-4 wording above.
-
-### E-2 — the Discord bot is ALREADY DEPLOYED and healthy
-
-`https://degencalls.onrender.com/health?format=json`, uptime 7.4 days:
-
-| | |
+| Was | Now |
 |---|---|
-| `discord.ready` | **true** |
-| `discord.guilds` | **2** — both approved guilds visible |
-| commands | 2 attempts, **2 succeeded, 0 failed**, registered in 2 guilds |
-| `source_bridge.configured` | **true**, `approvedChannels: 2` |
-| `approvedRefresh` | 21,337 / 21,341 succeeded |
-| `profileSync` | 53 / 61 succeeded |
+| `mainnet_execution_enabled = false` | **true.** `mainnetPolicy` passes in production |
+| `payout_processing_enabled = false` | **true** |
+| Branch unpushed, 288 commits on one machine | pushed to `origin` |
+| Config advertised 2.00% while charging 0 | config resolves the real fee account (`407b7b9`) |
+| Trading state shown once, dismissible | `TradingNotice` on builder, manager and portfolio (`407b7b9`) |
 
-Application id `1525315046303858748` (public). Commands published: `/register` (exactly one),
-`/alpha`, `/degen status|profile|referral|callers|channel-add`, `/onboard`, `/help`.
+Rollback for the flags, exact:
 
-**So E-2 is not "deploy a bot". The bot runs, sees both guilds and both approved channels,
-and its command set is correct.** The failure is isolated to one stage:
-
-```
-"ingestion": { "attempts": 0, "accepted": 0, "failed": 0,
-               "quarantined": 50, "lastAttemptAt": null }
+```sql
+update app_private.system_flags set value = 'false'::jsonb, updated_at = now()
+where flag_key in ('mainnet_execution_enabled','payout_processing_enabled');
 ```
 
-**50 candidate events were quarantined and the bridge has never once attempted to forward
-one.** That is the entire reason `raw_signals` is 0, and why both approved sources show no
-measured performance. The other two bridge directions work, so this is not connectivity.
+Enabling them changed no behaviour on its own — `automationLive` is still `false` and 13 checks
+still fail — because a trade needs the worker (B-1) and the signer (B-3) as well. They were the
+two gates that could be lifted without a running service.
 
-The quarantine decision lives inside the `degencalls` program, which is not in this
-repository and is not visible under the `nolimitbw` GitHub account, so its rule cannot be
-read from here. One test message in an approved channel distinguishes the two possibilities:
-`quarantined` increments and `attempts` stays 0 → the bridge rejects even well-formed calls;
-`attempts` becomes 1 → the chain proceeds and the journal fills.
+## Not blockers, corrected
 
-The receiving side is deployed and correct: `POST /api/ingest-call` answers **401** without
-`x-bot-secret` and **405** to GET, leaks nothing, and validates the mint on chain
-(`parsed.type === "mint"`) before journaling.
+- **`privy_profiles` = 0 does not mean the platform lost its users.** It is the legacy table
+  behind the `/wallet` spending-limits page, written only when someone saves limits there. The
+  real user record is `app_private.app_users` — **6 users**, intact, 4 with registered wallets.
+- **`signal_deliveries` = 0 is not a fan-out defect.** `fan_out_parsed_signal` reads
+  `app_private.bot_profiles`, which has 0 rows. `app_user_save_bot` writes it, so bots saved
+  through the current path will fan out. The single existing `public.subscriptions` row predates
+  that path, is `paused`, and has `channel_id = null` — it was never going to receive a call.
+- **The user wallets are not stuck.** The product is non-custodial; there is no platform deposit
+  account. The 4 registered wallets hold 0.0009 SOL combined, verified on mainnet.
 
-### E-3 — worker host exists but is not running
+## E-9 — a second listener that is not in this repository
 
-`automation: {configured: false, live: false, mode: "not-configured", network: null}` from
-production `/api/platform/config`. Railway project `degenaration-worker` exists; Railway
-`degenaration-bot` exists with `INGEST_URL` and `SUPABASE_URL` set but **no
-`DISCORD_BOT_TOKEN`**, and both its deployments are `REMOVED` since 2026-07-08. `render.yaml`
-declares both services. So the hosts are provisioned; the worker has never been started with
-a signer.
-
-### E-4 — the fee account is set, and collects nothing. PROVEN ON MAINNET.
-
-`PLATFORM_FEE_ACCOUNT` **is** set — `/api/platform/config` reports `feeWalletConfigured:
-true`, `platformFeeBps: 200`. But three unsigned mainnet swap builds against production
-(SOL→USDC, SOL→BONK, USDC→SOL) every one returned:
-
-```
-platformFeeBps: 0    feeAccountSet: false
-```
-
-including the sell-side, whose output is wSOL. Transactions built (752 / 916 / 1016 base64
-chars) and were never signed or sent.
-
-Tracing `lib/server/fee-account.ts`, the branch being hit is the last one: the configured
-value is a **wallet**, so the resolver derives its Associated Token Account for each fee
-mint and finds **the ATA is not initialised**. It then skips the fee, because charging into
-an uninitialised ATA makes the swap fail on chain. That guard is correct and is why trading
-still works — but the consequence is that **0 bps is collected on every trade in both
-directions**.
-
-**A second defect follows from it.** `/api/quote` reports `platformFeeBps: 200,
-feeAccountSet: true`, because it uses `configuredPlatformFeeBps()` — which only tests that
-the env var is non-empty. `/api/swap`, which builds what actually executes, uses
-`resolveFeeAccount()` and applies **0**. So the fee shown in the preview is not the fee
-charged. Users are quoted more than they pay, which is the safe direction, but the two halves
-disagree — the same defect class as the rest of this project.
-
-**The fix is one wallet action:** initialise the Associated Token Account for the fee wallet
-on the fee mints — wSOL first, which covers every sell, then USDC. Rent is roughly 0.00204
-SOL per account. No transfer and no swap is involved.
+`degencalls.onrender.com` is the only Discord listener currently running and it is not built
+from this repo. It is not dangerous — `raw_signals` is unique on
+`(source_type, source_ref, external_event_id)`, so duplicate forwarding collapses to one row —
+but it is unowned by this codebase and it stopped producing calls on 2026-08-09.
+Its own counters: 5 ingestion attempts ever, 3 accepted, 2 failed, **100 quarantined**, last
+error `address is not a Solana token mint`.
