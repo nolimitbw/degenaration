@@ -716,9 +716,41 @@ function UserList({ data }: { data: AdminData }) {
  * account per mint so the owner can create it, rather than leaving "create the right fee
  * account" as an instruction nobody can act on.
  */
-function FeeAccountPanel({ data }: { data: AdminData }) {
+type PhantomFeeProvider = {
+  isPhantom?: boolean;
+  connect: () => Promise<unknown>;
+  publicKey?: { toBase58: () => string } | null;
+  signAndSendTransaction: (tx: unknown) => Promise<{ signature?: string }>;
+};
+
+function FeeAccountPanel({ data, fetchJson }: {
+  data: AdminData;
+  fetchJson: <T>(path: string, init?: RequestInit) => Promise<T>;
+}) {
   const fee = (data.summary as Record<string, any>)?.feeAccount;
+  const [creating, setCreating] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
   if (!fee) return null;
+
+  async function createWsolAccount() {
+    setCreating(true);
+    setResult(null);
+    try {
+      const provider = (window as unknown as { solana?: PhantomFeeProvider }).solana;
+      if (!provider?.isPhantom) throw new Error("Open Phantom with the configured platform fee wallet.");
+      await provider.connect();
+      if (provider.publicKey?.toBase58() !== fee.owner) throw new Error("Connected Phantom wallet is not the configured platform fee wallet.");
+      const payload = await fetchJson<{ transaction: string; account: string }>("/api/admin/fee-account", { method: "POST", body: "{}" });
+      const web3 = await import("@solana/web3.js");
+      const transaction = web3.Transaction.from(Uint8Array.from(atob(payload.transaction), (char) => char.charCodeAt(0)));
+      const sent = await provider.signAndSendTransaction(transaction);
+      setResult(`Fee account transaction sent: ${sent.signature || "submitted"}`);
+    } catch (cause) {
+      setResult(cause instanceof Error ? cause.message : "Fee account creation failed");
+    } finally {
+      setCreating(false);
+    }
+  }
 
   if (!fee.configured) {
     return (
@@ -741,11 +773,21 @@ function FeeAccountPanel({ data }: { data: AdminData }) {
         <StatusPill status={fee.ready ? "enabled" : "disabled"} />
       </header>
       {!fee.ready && (
-        <p className="border-b border-edge px-4 py-3 t-label leading-5 text-dim">
-          A fee is skipped whenever its account does not exist, so the swap still succeeds and
-          collects nothing. Creating an account below is a one-off transaction that pays rent;
-          it moves no client funds.
-        </p>
+        <div className="border-b border-edge px-4 py-3">
+          <p className="t-label leading-5 text-dim">
+            A fee is skipped whenever its account does not exist. Create the wSOL account once;
+            Phantom shows the mainnet rent before approval and no client funds move.
+          </p>
+          <button
+            type="button"
+            onClick={createWsolAccount}
+            disabled={creating}
+            className="mt-3 min-h-11 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] disabled:opacity-50"
+          >
+            {creating ? "Preparing…" : "Create wSOL fee account"}
+          </button>
+          {result && <p role="status" className="mt-2 break-all t-label text-dim">{result}</p>}
+        </div>
       )}
       <div className="divide-y divide-edge">
         {(fee.mints || []).map((mint: Record<string, any>) => (
@@ -765,10 +807,14 @@ function FeeAccountPanel({ data }: { data: AdminData }) {
   );
 }
 
-function System({ data, act }: { data: AdminData; act: (action: AdminAction) => void }) {
+function System({ data, act, fetchJson }: {
+  data: AdminData;
+  act: (action: AdminAction) => void;
+  fetchJson: <T>(path: string, init?: RequestInit) => Promise<T>;
+}) {
   return (
     <section>
-      <FeeAccountPanel data={data} />
+      <FeeAccountPanel data={data} fetchJson={fetchJson} />
       <SectionTitle title="System flags" detail="Every mutation requires a reason and is audited" />
       <div className="divide-y divide-edge rounded-md border border-edge bg-panel">
         {data.flags.map((flag) => {
@@ -846,11 +892,13 @@ function Audit({ data }: { data: AdminData }) {
 export default function OwnerSections({
   active,
   data,
-  act
+  act,
+  fetchJson
 }: {
   active: AdminTab;
   data: AdminData;
   act: (action: AdminAction) => void;
+  fetchJson: <T>(path: string, init?: RequestInit) => Promise<T>;
 }) {
   if (active === "overview") return <Overview data={data} />;
   if (active === "discord") return <Discord data={data} act={act} />;
@@ -859,7 +907,7 @@ export default function OwnerSections({
   if (active === "payouts") return <Payouts data={data} act={act} />;
   if (active === "operations") return <Operations data={data} />;
   if (active === "users") return <UserList data={data} />;
-  if (active === "system") return <System data={data} act={act} />;
+  if (active === "system") return <System data={data} act={act} fetchJson={fetchJson} />;
   if (active === "audit") return <Audit data={data} />;
   return <EmptyState icon={CircleAlert} title="Unknown admin view" description="Choose an owner-console section." />;
 }

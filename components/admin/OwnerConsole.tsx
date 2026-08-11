@@ -221,8 +221,8 @@ export default function OwnerConsole() {
   // The client ledger and the performance refresh both go through the same signed owner
   // identity as every other admin call; they differ only in throwing rather than returning a
   // result envelope, because the ledger renders its own error and retry states.
-  const fetchJson = useCallback(async <T,>(path: string): Promise<T> => {
-    const result = await adminFetchJson<T>(path, getAccessToken, identityToken, email);
+  const fetchJson = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
+    const result = await adminFetchJson<T>(path, getAccessToken, identityToken, email, init);
     if (!result.ok) throw new Error(result.error);
     return result.data as T;
   }, [email, getAccessToken, identityToken]);
@@ -334,7 +334,7 @@ export default function OwnerConsole() {
           // and a caller only wanting the client table should not have to fetch it.
           <RevenuePanel fetchJson={fetchJson} feeAccount={(data.summary as any)?.feeAccount} />
         ) : loaded ? (
-          <OwnerSections active={active} data={data} act={setPendingAction} />
+          <OwnerSections active={active} data={data} act={setPendingAction} fetchJson={fetchJson} />
         ) : (
           <LoadingRows count={4} />
         )}
