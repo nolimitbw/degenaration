@@ -109,13 +109,16 @@ export default function Commissions() {
   async function createFeeAccount() {
     setStatus(null);
     const sol = (window as unknown as { solana?: PhantomProvider }).solana;
-    if (!sol?.isPhantom) { setStatus("Connect Phantom with the configured fee wallet to create its wSOL fee account."); return; }
+    if (!sol?.isPhantom) { setStatus("Connect Phantom with a wallet that can pay the one-time account rent."); return; }
     setCreatingFeeAccount(true);
     try {
       await sol.connect();
-      const owner = sol.publicKey?.toBase58();
-      if (owner !== feeWallet) throw new Error("Connected wallet is not the configured platform fee wallet.");
-      const res = await adminFetchJson<any>("/api/admin/fee-account", getAccessToken, identityToken, email, { method: "POST" });
+      const payer = sol.publicKey?.toBase58();
+      if (!payer) throw new Error("Connect a Phantom wallet to pay the one-time account rent.");
+      const res = await adminFetchJson<any>("/api/admin/fee-account", getAccessToken, identityToken, email, {
+        method: "POST",
+        body: JSON.stringify({ payer })
+      });
       if (!res.ok) throw new Error(res.error);
       const web3 = await import("@solana/web3.js");
       const tx = web3.Transaction.from(Uint8Array.from(atob(res.data.transaction), (c) => c.charCodeAt(0)));

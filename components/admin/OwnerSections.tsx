@@ -737,10 +737,14 @@ function FeeAccountPanel({ data, fetchJson }: {
     setResult(null);
     try {
       const provider = (window as unknown as { solana?: PhantomFeeProvider }).solana;
-      if (!provider?.isPhantom) throw new Error("Open Phantom with the configured platform fee wallet.");
+      if (!provider?.isPhantom) throw new Error("Open Phantom with a wallet that can pay the one-time account rent.");
       await provider.connect();
-      if (provider.publicKey?.toBase58() !== fee.owner) throw new Error("Connected Phantom wallet is not the configured platform fee wallet.");
-      const payload = await fetchJson<{ transaction: string; account: string }>("/api/admin/fee-account", { method: "POST", body: "{}" });
+      const payer = provider.publicKey?.toBase58();
+      if (!payer) throw new Error("Connect a Phantom wallet to pay the one-time account rent.");
+      const payload = await fetchJson<{ transaction: string; account: string }>("/api/admin/fee-account", {
+        method: "POST",
+        body: JSON.stringify({ payer })
+      });
       const web3 = await import("@solana/web3.js");
       const transaction = web3.Transaction.from(Uint8Array.from(atob(payload.transaction), (char) => char.charCodeAt(0)));
       const sent = await provider.signAndSendTransaction(transaction);
@@ -776,7 +780,7 @@ function FeeAccountPanel({ data, fetchJson }: {
         <div className="border-b border-edge px-4 py-3">
           <p className="t-label leading-5 text-dim">
             A fee is skipped whenever its account does not exist. Create the wSOL account once;
-            Phantom shows the mainnet rent before approval and no client funds move.
+            Any wallet may pay the one-time rent; Phantom shows the amount before approval and no client funds move.
           </p>
           <button
             type="button"
