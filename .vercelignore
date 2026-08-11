@@ -44,8 +44,6 @@ tsconfig.tsbuildinfo
 # directory is excluded, so each level is opened with `/*` before the exception is named.
 /server/*
 !/server/engine
-/server/engine/*
-!/server/engine
 #
 # WIDENED 2026-08-11 from the single performance.js file to the whole engine directory.
 #
