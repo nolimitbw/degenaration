@@ -45,7 +45,22 @@ tsconfig.tsbuildinfo
 /server/*
 !/server/engine
 /server/engine/*
-!/server/engine/performance.js
+!/server/engine
+#
+# WIDENED 2026-08-11 from the single performance.js file to the whole engine directory.
+#
+# `app/api/worker/tick` runs the execution engine — exits and entries — from Vercel, because
+# the worker has no host: Railway's trial expired and removed every deployment, and a new host
+# needs an account this environment does not have. The engine is dependency-injected and
+# provider-agnostic, so the same modules the worker drives run unchanged behind an HTTP route.
+#
+# Only `engine/` crosses. `server/worker.js`, `server/bot/` and `server/test/` stay excluded:
+# the worker's own process entry point must not be bundled into the app, and the listener is a
+# separate program with its own package.json.
+#
+# The alternative was copying the exit logic into the route, which would give two definitions
+# of when a stop loss fires. That is the defect class this codebase keeps finding, and it is
+# not one to repeat on the code that sells a user's position.
 
 # Database migrations and rollback scripts. Applied through the Supabase MCP connection, never
 # read at request time. NOT lib/supabase.ts.
