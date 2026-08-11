@@ -115,18 +115,49 @@ function isPresetName(value: unknown): value is keyof typeof PRESETS {
   return typeof value === "string" && Object.prototype.hasOwnProperty.call(PRESETS, value);
 }
 
+/**
+ * What `server/engine/safety.js` can actually evaluate today.
+ *
+ * A DEFAULT MAY ONLY NAME A FILTER FROM THESE TWO SETS, and that rule is enforced by
+ * `npm run verify:default-filters-tradeable` rather than by hope.
+ *
+ * Why it matters: an enabled filter whose evidence is unavailable BLOCKS the trade. That is
+ * correct — silently skipping a safety control the user asked for is the defect safety.js was
+ * written to remove — but it makes the default set load-bearing in a way it does not look.
+ *
+ * The defaults previously enabled `top10HolderBps`, `minimumRouteLiquidityUsd` and
+ * `maximumPriceImpactBps`, plus every flag except `dexPaid`. Ten of those have no wired
+ * provider. So every bot created by clicking through the builder would have refused EVERY
+ * candidate, forever, with one blocked reason per unwired filter — and because no worker has
+ * ever run, nobody had seen it. It would have surfaced on the first day of live trading and
+ * read as "the worker is broken".
+ *
+ * These lists mirror safety.js because the builder is a client component and cannot import
+ * from `server/`, which deploys with `rootDir: server`. Same constraint that makes the worker
+ * mirror PLATFORM_FEE_BPS, and the same answer: mirror, then gate the drift.
+ */
+const ENGINE_EVALUABLE_RANGES = ["liquidityUsd", "marketCapUsd", "volumeUsd", "priceChangeBps", "tokenAgeMinutes"];
+const ENGINE_EVALUABLE_FLAGS = ["latinNameSymbol", "mintAuthorityRevoked", "freezeAuthorityRevoked", "dexPaid"];
+
+// The two range filters worth requiring of every bot, both evaluable. The rest stay available
+// and off: a user who enables one deliberately still gets fail-closed behaviour, which is the
+// honest answer to "I asked for this and you cannot check it".
+const DEFAULT_ON_RANGES = new Set<string>(["liquidityUsd", "marketCapUsd"]);
+
 function defaultFilters() {
-  return Object.fromEntries(FILTERS.map((filter) => [filter.key, { enabled: ["liquidityUsd", "marketCapUsd", "top10HolderBps", "minimumRouteLiquidityUsd", "maximumPriceImpactBps"].includes(filter.key), min: filter.min, max: filter.max }])) as Record<string, FilterValue>;
+  return Object.fromEntries(FILTERS.map((filter) => [
+    filter.key,
+    { enabled: DEFAULT_ON_RANGES.has(filter.key) && ENGINE_EVALUABLE_RANGES.includes(filter.key), min: filter.min, max: filter.max }
+  ])) as Record<string, FilterValue>;
 }
 
-// Security-critical flags default ON. These are legitimacy signals rather than safety
-// checks, and requiring them by default would reject most newly launched tokens — so
-// they are opt-in.
+// `dexPaid` is a legitimacy signal rather than a safety check, and requiring it by default
+// would reject most newly launched tokens — so it stays opt-in even though it IS evaluable.
 const OPT_IN_FLAGS = new Set<string>(["dexPaid"]);
 
 function defaultFlags() {
   return Object.fromEntries(
-    FLAG_FILTERS.map(([key]) => [key, !OPT_IN_FLAGS.has(key)])
+    FLAG_FILTERS.map(([key]) => [key, ENGINE_EVALUABLE_FLAGS.includes(key) && !OPT_IN_FLAGS.has(key)])
   ) as Record<string, boolean>;
 }
 
