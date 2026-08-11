@@ -181,7 +181,7 @@ export default function KolStrategyDetailsPage() {
   return (
     <AppShell>
       <PageHeader
-        
+
         title={strategy?.name || "KOL strategy"}
         description="Review net-of-fee history and configure your own bounded capital controls before copying."
         actions={<Link href="/bots/kol" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-body font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>}

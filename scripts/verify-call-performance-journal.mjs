@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { PGlite } from "@electric-sql/pglite";
 
 const require = createRequire(import.meta.url);
-const { refreshCallPerformance } = require("../server/engine/performance");
+const { PERFORMANCE_CONCURRENCY, refreshCallPerformance } = require("../server/engine/performance");
 
 const workerWrites = [];
 let quoteCount = 0;
@@ -21,6 +21,34 @@ await refreshCallPerformance({
 });
 assert.equal(quoteCount, 1, "one deterministic tick reuses a mint quote across calls");
 assert.deepEqual(workerWrites.map((entry) => entry.id), ["call-a", "call-b"]);
+
+let activeQuotes = 0;
+let peakQuotes = 0;
+await refreshCallPerformance({
+  loadPerformanceCalls: async () => Array.from({ length: PERFORMANCE_CONCURRENCY + 3 }, (_, index) => ({
+    id: `parallel-${index}`,
+    mint: `parallel-mint-${index}`
+  })),
+  quote: async () => {
+    activeQuotes += 1;
+    peakQuotes = Math.max(peakQuotes, activeQuotes);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    activeQuotes -= 1;
+    return { provider: "test", freshness: "fresh", priceUsd: 1 };
+  },
+  recordCallMarketScan: async () => ({ measured: true })
+});
+assert.ok(peakQuotes > 1, "independent mint quotes run concurrently");
+assert.ok(peakQuotes <= PERFORMANCE_CONCURRENCY, "quote concurrency stays bounded");
+
+const failureEvents = [];
+const loadFailure = await refreshCallPerformance({
+  loadPerformanceCalls: async () => { throw new Error("database unavailable"); },
+  recordCallMarketScan: async () => ({ measured: true }),
+  onEvent: (event) => failureEvents.push(event)
+});
+assert.equal(loadFailure.loadErrors, 1);
+assert.equal(failureEvents[0].type, "PERFORMANCE_LOAD_ERROR");
 
 const db = new PGlite();
 const migration = await readFile("supabase/degenaration-call-performance-journal.sql", "utf8");

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validAmount, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 import { getMintDecimals } from "@/lib/server/tokenMeta";
 import { configuredPlatformFeeBps, bpsOf, lamportsToSolString } from "@/lib/fee-model";
-import { resolveFeeAccount } from "@/lib/server/fee-account";
+import { resolveSwapFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const [inputDecimals, outputDecimals, resolvedFee] = await Promise.all([
       getMintDecimals(inputMint),
       getMintDecimals(outputMint),
-      resolveFeeAccount(outputMint)
+      resolveSwapFeeAccount(inputMint, outputMint)
     ]);
     const platformFeeBps = resolvedFee.feeAccount ? configuredPlatformFeeBps() : 0;
     const applyFee = platformFeeBps > 0;

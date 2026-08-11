@@ -114,6 +114,18 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  const failed = (counts.PERFORMANCE_LOAD_ERROR || 0) + (counts.PERFORMANCE_WRITE_ERROR || 0);
+  if (failed > 0) {
+    return NextResponse.json({
+      error: "call performance scan completed with database errors",
+      scanned: counts.PERFORMANCE_UPDATED || 0,
+      unpriced: counts.PERFORMANCE_MISSING || 0,
+      writeErrors: counts.PERFORMANCE_WRITE_ERROR || 0,
+      loadErrors: counts.PERFORMANCE_LOAD_ERROR || 0,
+      errors
+    }, { status: 502 });
+  }
+
   return NextResponse.json({
     ok: true,
     scanned: counts.PERFORMANCE_UPDATED || 0,

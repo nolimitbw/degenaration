@@ -3,7 +3,6 @@ import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
-import ReleaseBanner from "@/components/ReleaseBanner";
 import { ReadinessProvider } from "@/components/product/Readiness";
 import DegenBackdrop from "@/components/DegenBackdrop";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -52,8 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <a href="#main-content" className="fixed left-3 top-3 z-[100] inline-flex min-h-11 -translate-y-20 items-center rounded-md bg-gold-400 px-4 py-2 text-sm font-semibold text-[#17110c] transition focus:translate-y-0">
               Skip to content
             </a>
-            <ReleaseBanner />
-              <ReadinessProvider>{children}</ReadinessProvider>
+            <ReadinessProvider>{children}</ReadinessProvider>
             </ToastProvider>
           </Providers>
         </ThemeProvider>

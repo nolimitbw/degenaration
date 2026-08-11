@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { scanChannel } = require("../server/bot/history-backfill");
+const { backfillApprovedChannels, scanChannel } = require("../server/bot/history-backfill");
 const { createMessageHandlers } = require("../server/bot/handlers");
 const { normalizeIngestRequest, buildIngestRpcParams } = require("../lib/discord-ingest");
 
@@ -13,6 +13,7 @@ const makeMessage = (n) => ({
 const journal = Array.from({ length: 230 }, (_, index) => makeMessage(index + 1));
 const channel = {
   id: "1495930481018142801",
+  isTextBased: () => true,
   messages: {
     async fetch({ limit, before, after }) {
       let rows = journal;
@@ -52,6 +53,29 @@ const second = await scanChannel({
 assert.equal(second.completed, true);
 assert.equal(secondSeen.length, 30);
 assert.equal(new Set([...seen, ...secondSeen]).size, 230, "resume must cover the whole journal exactly once");
+
+// One guild may revoke access while another remains approved. That channel must be reported,
+// not allowed to abort every later/earlier journal in the same run.
+const isolatedSeen = [];
+const isolatedSummary = await backfillApprovedChannels({
+  client: {
+    channels: {
+      async fetch(id) {
+        if (id === "blocked") throw new Error("Missing Access");
+        return channel;
+      }
+    }
+  },
+  approvedChannels: { blocked: {}, readable: {} },
+  getState: async () => ({ completed: true, newest_message_id: journal[228].id }),
+  saveState: async () => {},
+  ingestMessage: async (message) => isolatedSeen.push(message.id),
+  maxMessagesPerChannel: 100,
+  log: () => {}
+});
+assert.equal(isolatedSummary.failedChannels, 1);
+assert.equal(isolatedSummary.channels, 1);
+assert.equal(isolatedSeen.length, 1, "an inaccessible guild must not abort the readable guild");
 
 const normalized = normalizeIngestRequest({
   guildId: "1495795490657275914",

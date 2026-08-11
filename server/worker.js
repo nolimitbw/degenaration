@@ -18,6 +18,7 @@ const { startCallWatcher } = require("./engine/calls");
 const { startPerformanceScanner } = require("./engine/performance");
 const { startSettlementWatcher } = require("./engine/settlement");
 const { startMonitor } = require("./engine/monitor");
+const jupiter = require("./engine/jupiter");
 const { confirmSignature, fetchReceivedAmount } = require("./engine/confirm");
 const { missingExitPath } = require("./engine/exit-path");
 const signer = require("./engine/signer");
@@ -30,6 +31,9 @@ const PORT = Number(process.env.PORT || 10000);
 const HEALTH_HOST = process.env.HEALTH_HOST || "0.0.0.0";
 const startedAt = Date.now();
 const state = { events: 0, errors: 0, lastEventAt: null, lastError: null };
+jupiter.ensureFeeAccountChecked().catch((error) => {
+  console.warn(`[worker] fee readiness probe failed: ${error?.message || error}`);
+});
 
 /**
  * Sign+send a base64 tx with the user's Privy delegated session key (see engine/signer.js).
@@ -127,7 +131,7 @@ http.createServer((req, res) => {
     signingEnabled: SIGNING_READY,
     copyTradingEnabled: COPY_TRADING_READY,
     network: NET,
-    feeEnabled: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
+    feeEnabled: jupiter.feeAccountReady(),
     capabilities: {
       durableIntents: typeof store.claimCallExecution === "function",
       quote: typeof getPrice === "function",

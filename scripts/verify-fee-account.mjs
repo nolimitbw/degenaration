@@ -30,15 +30,12 @@ const WALLET = (process.argv[2] || process.env.PLATFORM_FEE_ACCOUNT || "").trim(
 /**
  * The mints a fee can actually arrive in.
  *
- * Jupiter's default ExactIn mode takes the platform fee from the swap's OUTPUT mint, so a SELL
- * (token -> SOL) pays in wSOL and a BUY (SOL -> token) pays in that token. wSOL therefore
- * covers every exit and is the one account that matters most; USDC covers the common
- * stable-quoted pair. A buy into an arbitrary memecoin needs that coin's ATA, which cannot be
- * pre-created for a token nobody has called yet — that is a real limitation of collecting the
- * fee on the output side, and it is stated here rather than discovered later.
+ * Jupiter Metis ExactIn accepts a fee account for either mint in the pair. Prefer wSOL for
+ * SOL-quoted pairs so one initialized account covers both entries and exits; USDC provides the
+ * same stable side for USDC-quoted pairs.
  */
 const FEE_MINTS = [
-  { symbol: "wSOL", mint: "So11111111111111111111111111111111111111112", why: "every sell leg" },
+  { symbol: "wSOL", mint: "So11111111111111111111111111111111111111112", why: "both legs of SOL-quoted pairs" },
   { symbol: "USDC", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", why: "stable-quoted pairs" }
 ];
 
@@ -162,7 +159,8 @@ for (const { symbol, mint, why } of FEE_MINTS) {
   });
 }
 
-const missing = report.filter((r) => !r.usable);
+const required = report.find((r) => r.symbol === "wSOL");
+const missingRequired = required?.usable ? [] : [required].filter(Boolean);
 
 console.log(JSON.stringify({
   verifier: "fee-account",
@@ -170,19 +168,18 @@ console.log(JSON.stringify({
   feeWallet: WALLET,
   configuredAccountKind: configuredKind,
   perMint: report,
-  collectsFeeToday: missing.length === 0,
-  ...(missing.length
+  collectsFeeToday: missingRequired.length === 0,
+  ...(missingRequired.length
     ? {
         action: "Create the associated token account for each address below. It is a one-time " +
           "`createAssociatedTokenAccount` per mint, costs about 0.00204 SOL of rent each, and " +
           "moves no user funds. Until then the resolver correctly skips the fee rather than " +
           "charging into an uninitialised account and making every swap fail on chain.",
-        create: missing.map((r) => ({ symbol: r.symbol, mint: r.mint, associatedTokenAccount: r.associatedTokenAccount }))
+        create: missingRequired.map((r) => ({ symbol: r.symbol, mint: r.mint, associatedTokenAccount: r.associatedTokenAccount }))
       }
     : {}),
-  limitation:
-    "Jupiter takes the fee from the OUTPUT mint in ExactIn mode, so a BUY into an arbitrary " +
-    "memecoin needs that coin's fee account, which cannot be pre-created for a token nobody " +
-    "has called yet. wSOL covers every SELL leg, which is where realised value is.",
+  coverage:
+    "Jupiter Metis ExactIn accepts either pair mint. wSOL covers both directions of every " +
+    "SOL-quoted market; USDC is optional coverage for markets that do not include SOL.",
   safety: { signed: false, broadcast: false, accountsCreated: 0, rpcMethodsUsed: ["getAccountInfo"] }
 }, null, 2));

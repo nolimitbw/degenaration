@@ -253,4 +253,11 @@ export type AdminAction = {
   body: Record<string, unknown>;
   destructive?: boolean;
   reasonRequired?: boolean;
+  input?: {
+    key: string;
+    label: string;
+    placeholder?: string;
+    required?: boolean;
+    pattern?: string;
+  };
 };

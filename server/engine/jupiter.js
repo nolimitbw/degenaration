@@ -5,6 +5,9 @@
  */
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
+const { PublicKey } = require("@solana/web3.js");
+const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
 // Canonical rate lives in lib/fee-model.js. The worker deploys with rootDir: server
 // (render.yaml), so lib/ is not present at runtime and cannot be imported here. The
 // value is mirrored instead, and server/test/run.js fails if the two ever drift.
@@ -31,37 +34,59 @@ const FEE_ACCOUNT = process.env.PLATFORM_FEE_ACCOUNT;
 // recoverable; breaking every trade is not.
 let APPLY_FEE = false;
 let feeAccountChecked = false;
-// The mint the configured fee account actually holds. Jupiter collects the ExactIn platform
-// fee in the OUTPUT mint, so the fee may only be requested on a swap whose output IS this
-// mint. Confirmed against the live quote endpoint: SOL -> BONK with platformFeeBps=200
-// reports platformFee.amount in BONK units, not lamports.
-//
-// Without this check the worker would hand Jupiter a wSOL account on a BUY, where the fee
-// is collected in the token being bought. Jupiter does not validate feeAccount, so the
-// transaction would build and then fail ON CHAIN — breaking the trade, which is exactly the
-// failure this guard exists to prevent.
+// Jupiter Metis ExactIn accepts a fee account for either mint in the quoted pair. The product
+// trades SOL pairs, so one initialized wSOL account safely covers both buys and sells. We still
+// verify the account mint before quoting because Jupiter does not validate feeAccount itself.
 let FEE_ACCOUNT_MINT = null;
+let RESOLVED_FEE_ACCOUNT = null;
 
-async function feeAccountUsable() {
+function associatedTokenAddress(owner, mint) {
+  return PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  )[0].toBase58();
+}
+
+async function feeAccountUsable(feeMint = SOL_MINT) {
   if (!FEE_ACCOUNT) return false;
   const rpc = process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
   try {
-    const r = await fetch(rpc, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo",
-        params: [FEE_ACCOUNT, { encoding: "jsonParsed" }] }),
-      signal: AbortSignal.timeout(6000)
-    });
-    const value = (await r.json())?.result?.value;
-    const parsed = value?.data?.parsed;
-    const usable = parsed?.type === "account";
+    const accountInfo = async (address) => {
+      const r = await fetch(rpc, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo",
+          params: [address, { encoding: "jsonParsed" }] }),
+        signal: AbortSignal.timeout(6000)
+      });
+      if (!r.ok) return null;
+      return (await r.json())?.result?.value || null;
+    };
+
+    const configured = await accountInfo(FEE_ACCOUNT);
+    const parsed = configured?.data?.parsed;
+    if (parsed?.type === "account") {
+      if (parsed?.info?.mint !== feeMint) {
+        console.warn(`[jupiter] platform fee DISABLED — configured token account holds ${parsed?.info?.mint}, expected ${feeMint}`);
+        return false;
+      }
+      RESOLVED_FEE_ACCOUNT = FEE_ACCOUNT;
+      FEE_ACCOUNT_MINT = feeMint;
+      console.info(`[jupiter] platform fee enabled for ${feeMint}`);
+      return true;
+    }
+
+    const derived = associatedTokenAddress(new PublicKey(FEE_ACCOUNT), new PublicKey(feeMint));
+    const value = await accountInfo(derived);
+    const derivedParsed = value?.data?.parsed;
+    const usable = derivedParsed?.type === "account" && derivedParsed?.info?.mint === feeMint;
     if (!usable) {
-      console.warn(`[jupiter] platform fee DISABLED — PLATFORM_FEE_ACCOUNT ${FEE_ACCOUNT} is not an initialised token account`);
+      console.warn(`[jupiter] platform fee DISABLED — no initialized ${feeMint} account for ${FEE_ACCOUNT}`);
       return false;
     }
-    FEE_ACCOUNT_MINT = parsed?.info?.mint || null;
-    console.info(`[jupiter] platform fee enabled for output mint ${FEE_ACCOUNT_MINT}`);
+    RESOLVED_FEE_ACCOUNT = derived;
+    FEE_ACCOUNT_MINT = feeMint;
+    console.info(`[jupiter] platform fee enabled for pair mint ${FEE_ACCOUNT_MINT}`);
     return true;
   } catch {
     console.warn("[jupiter] platform fee DISABLED — could not verify PLATFORM_FEE_ACCOUNT");
@@ -69,9 +94,10 @@ async function feeAccountUsable() {
   }
 }
 
-/** The fee may only be requested when Jupiter would deposit it into the configured account. */
-function feeAppliesToOutput(outputMint) {
-  return APPLY_FEE && Boolean(FEE_ACCOUNT_MINT) && outputMint === FEE_ACCOUNT_MINT;
+/** The fee may only be requested when the verified fee mint belongs to this ExactIn pair. */
+function feeAppliesToPair(inputMint, outputMint) {
+  return APPLY_FEE && Boolean(FEE_ACCOUNT_MINT)
+    && (inputMint === FEE_ACCOUNT_MINT || outputMint === FEE_ACCOUNT_MINT);
 }
 
 async function ensureFeeAccountChecked() {
@@ -91,7 +117,12 @@ function __setFeeAccountUsable(usable, mint) {
   APPLY_FEE = Boolean(usable);
   // Default to wSOL so existing callers keep the sell-side behaviour they assert on.
   FEE_ACCOUNT_MINT = usable ? (mint || SOL_MINT) : null;
+  RESOLVED_FEE_ACCOUNT = usable ? FEE_ACCOUNT : null;
   feeAccountChecked = true;
+}
+
+function feeAccountReady() {
+  return APPLY_FEE && Boolean(RESOLVED_FEE_ACCOUNT) && Boolean(FEE_ACCOUNT_MINT);
 }
 
 /** Exact integer fee on a lamport notional. This is the ledger-facing calculation. */
@@ -170,7 +201,7 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
   url.searchParams.set("amount", String(amountLamports));
   url.searchParams.set("slippageBps", String(slippageBps));
   await ensureFeeAccountChecked();
-  if (feeAppliesToOutput(outputMint)) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+  if (feeAppliesToPair(inputMint, outputMint)) url.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) throw new Error(`quote failed (${response.status})`);
   const q = await response.json();
@@ -186,6 +217,7 @@ async function getQuote({ inputMint, outputMint, amountLamports, slippageBps }) 
 async function buildSwapTx({ quote, userPublicKey, execution }) {
   // Mirror the quote decision exactly. Requesting platformFeeBps without feeAccount (or the
   // reverse) makes Jupiter reject the build, so both calls must agree on the same mint.
+  const inputMint = quote?.inputMint;
   const outputMint = quote?.outputMint;
   const swapBody = {
     quoteResponse: quote,
@@ -195,7 +227,7 @@ async function buildSwapTx({ quote, userPublicKey, execution }) {
     prioritizationFeeLamports: prioritizationFee(execution)
   };
   await ensureFeeAccountChecked();
-  if (feeAppliesToOutput(outputMint)) swapBody.feeAccount = FEE_ACCOUNT;
+  if (feeAppliesToPair(inputMint, outputMint)) swapBody.feeAccount = RESOLVED_FEE_ACCOUNT;
   const res = await fetch(`${JUP}/swap`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -253,7 +285,7 @@ const sellToken = (mint, tokenAmountRaw, userPublicKey, slippageBps = 300, execu
 module.exports = {
   getQuote, buildSwapTx, buyToken, sellToken, platformFeeSol, platformFeeLamports, solToLamports,
   prioritizationFee, quoteExpired, PRIORITY_LEVELS, DEFAULT_QUOTE_TTL_SECONDS,
-  ensureFeeAccountChecked, __setFeeAccountUsable, feeAppliesToOutput,
+  ensureFeeAccountChecked, __setFeeAccountUsable, feeAppliesToPair, feeAccountReady,
   SOL_MINT, PLATFORM_FEE_BPS,
   // APPLY_FEE is resolved asynchronously by the probe, so it is exposed as a getter
   // rather than a snapshot taken at module load (which was always false).

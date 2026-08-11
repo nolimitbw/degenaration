@@ -370,18 +370,15 @@ test("worker fee uses exact integer lamport arithmetic", () => {
   assert.strictEqual(platformFeeLamports(HUNDRED_SOL), feeModel.bpsOf(HUNDRED_SOL, 200));
   assert.strictEqual(platformFeeLamports(lam(1)), BigInt(0));
 
-  // Jupiter collects the ExactIn platform fee in the OUTPUT mint, so the fee may only be
-  // requested when the configured account holds that mint. Verified against the live quote
-  // endpoint: SOL -> BONK with platformFeeBps=200 reports platformFee.amount in BONK units.
-  //
-  // Without this gate the worker hands Jupiter a wSOL account on a BUY, the transaction
-  // builds because Jupiter does not validate feeAccount, and it then fails ON CHAIN.
+  // Jupiter Metis ExactIn accepts a fee account for either pair mint. One initialized wSOL
+  // account therefore covers both SOL -> token buys and token -> SOL sells.
   const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
   jup.__setFeeAccountUsable(true, jup.SOL_MINT);
-  assert.strictEqual(jup.feeAppliesToOutput(jup.SOL_MINT), true,  "sell into wSOL collects the fee");
-  assert.strictEqual(jup.feeAppliesToOutput(BONK), false, "buy paying out BONK must NOT request the fee");
+  assert.strictEqual(jup.feeAppliesToPair(jup.SOL_MINT, BONK), true, "buy from wSOL collects the fee");
+  assert.strictEqual(jup.feeAppliesToPair(BONK, jup.SOL_MINT), true, "sell into wSOL collects the fee");
+  assert.strictEqual(jup.feeAppliesToPair(BONK, "USDC"), false, "the account mint must belong to the pair");
   jup.__setFeeAccountUsable(false);
-  assert.strictEqual(jup.feeAppliesToOutput(jup.SOL_MINT), false, "no usable account, no fee");
+  assert.strictEqual(jup.feeAppliesToPair(jup.SOL_MINT, BONK), false, "no usable account, no fee");
   jup.__setFeeAccountUsable(true, jup.SOL_MINT);
   if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
   else delete process.env.PLATFORM_FEE_ACCOUNT;
@@ -2676,7 +2673,7 @@ console.log("price selection");
     for (const route of QUOTING_ROUTES) {
       const src = strip(read(route));
       assert.ok(
-        /resolveFeeAccount\(/.test(src),
+        /resolve(?:Swap)?FeeAccount\(/.test(src),
         `${route} reports a platform fee without resolving the fee account — it would advertise ` +
           "a rate the swap does not charge"
       );

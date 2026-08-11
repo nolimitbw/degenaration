@@ -395,6 +395,16 @@ export const PACKAGE = [
       "source timestamp and deliberately have no fabricated call-time price; historical " +
       "parses cannot fan out into deliveries or trades. The listener resumes after every page.",
   },
+  {
+    n: 31,
+    apply: "degenaration-advisor-performance-fixes.sql",
+    rollback: "31-advisor-performance-fixes.sql",
+    reapply: [],
+    note:
+      "Adds covering indexes for the six foreign keys reported by the production advisor and " +
+      "wraps auth.uid() in a select so the public positions policy is initialized once per " +
+      "statement. No authorization rule or product data changes.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

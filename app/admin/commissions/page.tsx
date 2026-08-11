@@ -36,6 +36,7 @@ export default function Commissions() {
   const [fee, setFee] = useState<FeeConfig>({});
   const [loaded, setLoaded] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [creatingFeeAccount, setCreatingFeeAccount] = useState(false);
   const feeWallet = fee.publicFeeWallet || "";
   const validDest = MINT_RE.test(dest.trim());
   const validAmount = Number.isFinite(amount) && amount > 0 && amount <= 10000 && balanceLoaded && balance != null && amount < balance;
@@ -105,6 +106,32 @@ export default function Commissions() {
     setBusy(false);
   }
 
+  async function createFeeAccount() {
+    setStatus(null);
+    const sol = (window as unknown as { solana?: PhantomProvider }).solana;
+    if (!sol?.isPhantom) { setStatus("Connect Phantom with a wallet that can pay the one-time account rent."); return; }
+    setCreatingFeeAccount(true);
+    try {
+      await sol.connect();
+      const payer = sol.publicKey?.toBase58();
+      if (!payer) throw new Error("Connect a Phantom wallet to pay the one-time account rent.");
+      const res = await adminFetchJson<any>("/api/admin/fee-account", getAccessToken, identityToken, email, {
+        method: "POST",
+        body: JSON.stringify({ payer })
+      });
+      if (!res.ok) throw new Error(res.error);
+      const web3 = await import("@solana/web3.js");
+      const tx = web3.Transaction.from(Uint8Array.from(atob(res.data.transaction), (c) => c.charCodeAt(0)));
+      const sent = await sol.signAndSendTransaction(tx);
+      setStatus(`Fee account creation sent: ${sent.signature ?? sent}`);
+      await load();
+    } catch (cause) {
+      setStatus(cause instanceof Error ? cause.message : "Fee account creation failed");
+    } finally {
+      setCreatingFeeAccount(false);
+    }
+  }
+
   return (
     <AdminGuard>
     <AppShell>
@@ -156,6 +183,23 @@ export default function Commissions() {
         <p className="mt-6 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">
           Commission tracking is enabled, but withdrawals are disabled until ADMIN_WALLETS or PLATFORM_FEE_ACCOUNT is available server-side.
         </p>
+      )}
+
+      {fee.feeWalletConfigured && (
+        <div className="mt-6 rounded-lg border border-edge bg-panel p-5">
+          <h2 className="font-bold">Platform fee account</h2>
+          <p className="mt-1 text-xs leading-5 text-dim">
+            Create the configured wallet&apos;s wSOL token account once. Phantom shows the mainnet rent before you approve it; no client funds move.
+          </p>
+          <button
+            type="button"
+            onClick={createFeeAccount}
+            disabled={creatingFeeAccount}
+            className="mt-4 min-h-11 rounded-md bg-gold-400 px-4 text-sm font-bold text-[#17110c] disabled:opacity-50"
+          >
+            {creatingFeeAccount ? "Preparing…" : "Create wSOL fee account"}
+          </button>
+        </div>
       )}
 
       <div className="mt-8 max-w-lg rounded-lg border border-edge bg-panel p-6">

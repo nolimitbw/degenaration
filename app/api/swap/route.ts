@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 import { configuredPlatformFeeBps } from "@/lib/fee-model";
-import { resolveFeeAccount } from "@/lib/server/fee-account";
+import { resolveSwapFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -32,17 +32,11 @@ export async function POST(req: NextRequest) {
   // then fail every swap on chain. When no usable account exists the fee is skipped —
   // collecting nothing is recoverable, breaking every trade is not.
   //
-  // RESOLVE AGAINST THE OUTPUT MINT. This route sends no swapMode, so Jupiter defaults to
-  // ExactIn, and in ExactIn the platform fee is collected in the OUTPUT mint. Verified
-  // against the live quote endpoint: SOL -> BONK with platformFeeBps=200 returns
-  // platformFee.amount = 511657893, which is BONK at 5 decimals, not lamports of SOL.
-  //
-  // This previously passed inputMint, so it checked the wrong token: on a buy it looked for
-  // a wSOL account while Jupiter wanted one for the token being bought. The practical effect
-  // is that the fee is now collected on SELLS (output is wSOL, one stable account) and
-  // skipped on buys unless an account exists for that specific token — which avoids
-  // accumulating dust across every memecoin traded. See OPEN_BLOCKERS B-1.
-  const resolvedFee = await resolveFeeAccount(outputMint);
+  // Metis ExactIn accepts a fee account whose mint is EITHER side of the pair. Prefer wSOL,
+  // which covers both SOL -> token buys and token -> SOL sells with one initialized account.
+  // The former output-only assumption silently skipped every buy fee and contradicted the
+  // required 200 bps per confirmed leg.
+  const resolvedFee = await resolveSwapFeeAccount(inputMint, outputMint);
   const feeAccount = resolvedFee.feeAccount;
   const platformFeeBps = feeAccount ? configuredPlatformFeeBps() : 0;
   const applyFee = platformFeeBps > 0 && Boolean(feeAccount);

@@ -65,15 +65,16 @@ async function backfillApprovedChannels({
   client, approvedChannels, getState, saveState, ingestMessage,
   maxMessagesPerChannel = 50000, log = () => {}
 }) {
-  const summary = { channels: 0, completedChannels: 0, truncatedChannels: 0, messagesScanned: 0 };
+  const summary = { channels: 0, completedChannels: 0, truncatedChannels: 0, failedChannels: 0, messagesScanned: 0 };
   for (const channelId of Object.keys(approvedChannels)) {
-    const channel = await client.channels.fetch(channelId);
-    if (!channel?.isTextBased?.() || !channel.messages?.fetch) {
-      log("history.backfill.skipped", { channelId, reason: "channel is not readable text" });
-      continue;
-    }
-    summary.channels += 1;
     try {
+      const channel = await client.channels.fetch(channelId);
+      if (!channel?.isTextBased?.() || !channel.messages?.fetch) {
+        log("history.backfill.skipped", { channelId, reason: "channel is not readable text" });
+        summary.failedChannels += 1;
+        continue;
+      }
+      summary.channels += 1;
       const state = await getState(channelId);
       const result = await scanChannel({
         channel, state, saveState, ingestMessage,
@@ -83,8 +84,9 @@ async function backfillApprovedChannels({
       if (result.completed) summary.completedChannels += 1;
       if (result.truncated) summary.truncatedChannels += 1;
     } catch (error) {
+      summary.failedChannels += 1;
       await saveState(channelId, { completed: false, messagesScanned: 0, lastError: String(error?.message || error) }).catch(() => {});
-      throw error;
+      log("history.backfill.channel_failed", { channelId, error: String(error?.message || error).slice(0, 160) });
     }
   }
   log("history.backfill.completed", summary);

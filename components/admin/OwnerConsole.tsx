@@ -81,10 +81,13 @@ function ConfirmDialog({
   action: AdminAction;
   busy: boolean;
   onCancel: () => void;
-  onConfirm: (reason: string) => void;
+  onConfirm: (reason: string, inputValue: string) => void;
 }) {
   const [reason, setReason] = useState("");
-  const canConfirm = !action.reasonRequired || reason.trim().length >= 3;
+  const [inputValue, setInputValue] = useState("");
+  const inputMatches = !action.input?.pattern || new RegExp(action.input.pattern).test(inputValue.trim());
+  const inputReady = !action.input?.required || (inputValue.trim().length > 0 && inputMatches);
+  const canConfirm = (!action.reasonRequired || reason.trim().length >= 3) && inputReady;
   return (
     <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4" role="presentation" onMouseDown={onCancel}>
       <section
@@ -114,6 +117,20 @@ function ConfirmDialog({
             placeholder="Record the operational reason for this decision"
             autoFocus
           />
+          {action.input && (
+            <>
+              <label className="field-label mt-5 block" htmlFor="admin-action-input">{action.input.label}</label>
+              <input
+                id="admin-action-input"
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                className="field-control mt-2 w-full font-mono"
+                placeholder={action.input.placeholder}
+                required={action.input.required}
+              />
+              {!inputMatches && inputValue.trim() && <p className="mt-2 t-label text-down">Enter a valid value.</p>}
+            </>
+          )}
           {action.destructive && (
             <p className="mt-3 rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label leading-5 text-down">
               This changes an active product state. Historical records remain preserved.
@@ -126,7 +143,7 @@ function ConfirmDialog({
           </button>
           <button
             type="button"
-            onClick={() => onConfirm(reason.trim())}
+            onClick={() => onConfirm(reason.trim(), inputValue.trim())}
             disabled={!canConfirm || busy}
             className={`min-h-11 sm:min-h-10 rounded-md px-4 t-label font-semibold disabled:opacity-50 ${
               action.destructive ? "bg-down text-white" : "bg-gold-400 text-[#17110c]"
@@ -204,8 +221,8 @@ export default function OwnerConsole() {
   // The client ledger and the performance refresh both go through the same signed owner
   // identity as every other admin call; they differ only in throwing rather than returning a
   // result envelope, because the ledger renders its own error and retry states.
-  const fetchJson = useCallback(async <T,>(path: string): Promise<T> => {
-    const result = await adminFetchJson<T>(path, getAccessToken, identityToken, email);
+  const fetchJson = useCallback(async <T,>(path: string, init?: RequestInit): Promise<T> => {
+    const result = await adminFetchJson<T>(path, getAccessToken, identityToken, email, init);
     if (!result.ok) throw new Error(result.error);
     return result.data as T;
   }, [email, getAccessToken, identityToken]);
@@ -222,11 +239,15 @@ export default function OwnerConsole() {
     return result.data?.snapshotsRefreshed ?? 0;
   }, [email, getAccessToken, identityToken]);
 
-  async function confirmAction(reason: string) {
+  async function confirmAction(reason: string, inputValue: string) {
     if (!pendingAction) return;
     setActing(true);
     setNotice(null);
-    const body = { ...pendingAction.body, reason };
+    const body = {
+      ...pendingAction.body,
+      reason,
+      ...(pendingAction.input ? { [pendingAction.input.key]: inputValue } : {})
+    };
     const result = await adminFetchJson<any>(
       pendingAction.endpoint,
       getAccessToken,
@@ -313,7 +334,7 @@ export default function OwnerConsole() {
           // and a caller only wanting the client table should not have to fetch it.
           <RevenuePanel fetchJson={fetchJson} feeAccount={(data.summary as any)?.feeAccount} />
         ) : loaded ? (
-          <OwnerSections active={active} data={data} act={setPendingAction} />
+          <OwnerSections active={active} data={data} act={setPendingAction} fetchJson={fetchJson} />
         ) : (
           <LoadingRows count={4} />
         )}

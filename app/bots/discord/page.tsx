@@ -115,6 +115,7 @@ export default function DiscordMarketplacePage() {
         <label className="flex min-h-11 sm:min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
           <input
+            aria-label="Search approved Discord sources"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search approved sources"

@@ -71,5 +71,5 @@ export function capabilitiesFrom(config: PlatformConfig | null | undefined): Cap
  */
 export function restrictionNotice(state: CapabilityState): string | null {
   if (state.automation.available) return null;
-  return "Bots save, edit and pause normally, and they do not place trades on their own yet.";
+  return "Automatic execution is waiting for the live worker connection.";
 }

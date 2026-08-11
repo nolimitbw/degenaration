@@ -65,13 +65,9 @@ async function accountInfo(address: string) {
 }
 
 /**
- * @param feeMint the mint the fee is actually collected in. For Jupiter's default ExactIn
- *                mode that is the swap's OUTPUT mint — confirmed against the live quote
- *                endpoint, where a SOL -> BONK quote with platformFeeBps=200 reports
- *                platformFee.amount in BONK units, not lamports.
- *
- *                Do not pass the input mint. Doing so checks an account for a token the fee
- *                will never arrive in, which makes the guard below verify the wrong thing.
+ * @param feeMint the pair mint selected for Jupiter's ExactIn fee account. Metis accepts
+ *                either the input or output mint, so callers prefer wSOL/USDC to avoid
+ *                requiring an account for every newly discovered token.
  */
 export async function resolveFeeAccount(feeMint: string): Promise<Resolution> {
   const configured = process.env.PLATFORM_FEE_ACCOUNT?.trim();
@@ -133,17 +129,15 @@ export async function resolveFeeAccount(feeMint: string): Promise<Resolution> {
  * the value ever leaving the server for anyone else — and without anyone having to pull the
  * whole production environment to a laptop to find out.
  *
- * Jupiter's default ExactIn mode takes the fee from the swap's OUTPUT mint, so a SELL pays in
- * wSOL and a BUY pays in the token bought. wSOL therefore covers every exit and is the account
- * that matters most. A buy into an arbitrary memecoin needs that coin's account, which cannot
- * be pre-created for a token nobody has called yet — a real limitation of collecting on the
- * output side, stated here rather than discovered later.
+ * Jupiter Metis ExactIn permits the fee account to hold either pair mint. The product trades
+ * SOL pairs, so the wSOL account covers both entry and exit legs without pre-creating an ATA
+ * for every token discovered by the scanner.
  */
 export const FEE_MINTS: Array<{ mint: string; symbol: string; why: string }> = [
   {
     mint: "So11111111111111111111111111111111111111112",
     symbol: "wSOL",
-    why: "every sell pays its fee here — the one account that matters most"
+    why: "covers both entry and exit fees for SOL-quoted pairs"
   },
   {
     mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
@@ -151,6 +145,24 @@ export const FEE_MINTS: Array<{ mint: string; symbol: string; why: string }> = [
     why: "the common stable-quoted pair"
   }
 ];
+
+/**
+ * Jupiter Metis ExactIn accepts a fee account for EITHER mint in the pair. Prefer the stable
+ * side so one initialized account covers both directions of the same market: wSOL covers
+ * SOL -> token buys (input fee) and token -> SOL sells (output fee). USDC does the same for
+ * stable-quoted markets. Only fall back to the input mint when neither canonical quote mint
+ * is present.
+ */
+export function feeMintForExactInPair(inputMint: string, outputMint: string) {
+  const pair = new Set([inputMint, outputMint]);
+  for (const entry of FEE_MINTS) if (pair.has(entry.mint)) return entry.mint;
+  return inputMint;
+}
+
+export async function resolveSwapFeeAccount(inputMint: string, outputMint: string) {
+  const feeMint = feeMintForExactInPair(inputMint, outputMint);
+  return { feeMint, ...(await resolveFeeAccount(feeMint)) };
+}
 
 export async function feeAccountReadiness() {
   const configured = process.env.PLATFORM_FEE_ACCOUNT?.trim() || null;
@@ -178,8 +190,9 @@ export async function feeAccountReadiness() {
   return {
     configured: true,
     owner: configured,
-    // Every fee is skipped until at least wSOL exists, so readiness is not "any mint resolves".
-    ready: mints.every((m) => m.ready),
+    // The product trades SOL pairs by default. One wSOL account covers BOTH ExactIn legs,
+    // because Jupiter permits the fee account to use either pair mint.
+    ready: mints.find((m) => m.symbol === "wSOL")?.ready === true,
     mints
   };
 }

@@ -91,7 +91,7 @@ export default function KolMarketplacePage() {
         />
         <label className="flex min-h-11 sm:min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search strategies" className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-dim/70" />
+          <input aria-label="Search KOL strategies" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search strategies" className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-dim/70" />
         </label>
         <label className="flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 t-label text-dim">
           <SlidersHorizontal aria-hidden="true" size={14} />
