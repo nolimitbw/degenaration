@@ -10,6 +10,24 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
     rpc: "bot_approved_call_channels",
     params: ["p_secret"]
   },
+  // Call pricing, so the journal fills from Vercel while the worker has no host.
+  //
+  // Both target a `bot_*` wrapper that validates p_secret, never the `worker_*` RPC directly.
+  // This bridge does not authenticate its callers — it dispatches by name and runs as
+  // service_role — so every operation is safe only because the function behind it checks the
+  // secret. Pointing either of these at the unguarded worker RPC would let anyone reaching
+  // this URL write a source's entire price history.
+  calls_awaiting_scan: {
+    rpc: "bot_calls_awaiting_scan",
+    params: ["p_secret", "p_limit"]
+  },
+  record_call_scan: {
+    rpc: "bot_record_call_market_scan",
+    params: [
+      "p_secret", "p_call_id", "p_provider", "p_observed_at",
+      "p_price_usd", "p_market_cap_usd", "p_liquidity_usd", "p_freshness"
+    ]
+  },
   ingest_call: {
     rpc: "bot_ingest_discord_call",
     params: [

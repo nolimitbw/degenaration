@@ -5,6 +5,7 @@
   "devCommand": "next dev",
   "installCommand": "npm install",
   "crons": [
-    { "path": "/api/cron/discord-backfill", "schedule": "0 0 * * *" }
+    { "path": "/api/cron/discord-backfill", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/call-performance", "schedule": "30 1 * * *" }
   ]
 }

@@ -26,10 +26,26 @@ node_modules
 .next
 tsconfig.tsbuildinfo
 
-# The Discord listener and the trading worker. Deployed separately to Railway and Render, and
-# imported by nothing in the Next build — `grep -rn "from \"@/server" app lib components`
-# returns nothing. NOT lib/server, which the build needs.
-/server
+# The Discord listener and the trading worker. Deployed separately, and — with one deliberate
+# exception below — imported by nothing in the Next build. NOT lib/server, which the build needs.
+#
+# THE EXCEPTION. `app/api/cron/call-performance` drives `server/engine/performance.js`, the
+# call-price scanner. That module used to run only inside the worker, and the worker has no
+# host: the Railway trial expired and its deployments were torn down, leaving 1,780 of 1,781
+# journalled calls unpriced and the marketplace with nothing to show.
+#
+# The obvious alternatives are both wrong here. Moving the engine to `lib/` breaks the worker,
+# which deploys with `rootDir: server` and cannot see `lib/` at runtime — the same constraint
+# that makes the worker mirror PLATFORM_FEE_BPS rather than import it. Copying the engine into
+# the route gives two definitions of "what counts as a measured call", which is the defect
+# class this codebase keeps finding. So one file crosses the boundary, and only that one.
+#
+# The four lines below are gitignore semantics: a file cannot be re-included once its parent
+# directory is excluded, so each level is opened with `/*` before the exception is named.
+/server/*
+!/server/engine
+/server/engine/*
+!/server/engine/performance.js
 
 # Database migrations and rollback scripts. Applied through the Supabase MCP connection, never
 # read at request time. NOT lib/supabase.ts.
