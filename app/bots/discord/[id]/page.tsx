@@ -37,7 +37,7 @@ export default function DiscordSourceDetailsPage() {
   return (
     <AppShell>
       <PageHeader
-        
+
         title={source?.name || "Discord source"}
         description="Measured call history and approved channel coverage."
         actions={

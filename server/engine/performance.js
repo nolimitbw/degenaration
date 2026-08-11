@@ -3,6 +3,7 @@
  * assuming a subscriber actually traded the call.
  */
 const DEX = "https://api.dexscreener.com/latest/dex/tokens/";
+const PERFORMANCE_CONCURRENCY = 12;
 
 function numberOrNull(value) {
   const number = Number(value);
@@ -38,18 +39,47 @@ async function quoteToken(mint, fetcher = fetch) {
   }
 }
 
+async function mapWithConcurrency(values, concurrency, worker) {
+  const rows = Array.from(values || []);
+  const results = new Array(rows.length);
+  let next = 0;
+  const runners = Array.from(
+    { length: Math.min(Math.max(1, concurrency), rows.length) },
+    async () => {
+      while (next < rows.length) {
+        const index = next;
+        next += 1;
+        results[index] = await worker(rows[index], index);
+      }
+    }
+  );
+  await Promise.all(runners);
+  return results;
+}
+
 async function refreshCallPerformance(deps) {
   const { loadPerformanceCalls, recordCallMarketScan, onEvent = () => {}, quote = quoteToken } = deps;
   let calls = [];
   try { calls = await loadPerformanceCalls(); }
-  catch (error) { onEvent({ type: "PERFORMANCE_LOAD_ERROR", error: error.message }); return; }
+  catch (error) {
+    onEvent({ type: "PERFORMANCE_LOAD_ERROR", error: error.message });
+    return { loaded: 0, updated: 0, missing: 0, writeErrors: 0, loadErrors: 1 };
+  }
 
-  const quotes = new Map();
-  for (const call of calls || []) {
-    if (!call?.id || !call?.mint) continue;
-    if (!quotes.has(call.mint)) quotes.set(call.mint, quote(call.mint));
-    const live = await quotes.get(call.mint);
-    if (!live) { onEvent({ type: "PERFORMANCE_MISSING", mint: call.mint }); continue; }
+  const eligible = (calls || []).filter((call) => call?.id && call?.mint);
+  const mints = [...new Set(eligible.map((call) => call.mint))];
+  const quoteRows = await mapWithConcurrency(mints, PERFORMANCE_CONCURRENCY, async (mint) => {
+    try { return [mint, await quote(mint)]; }
+    catch (error) {
+      onEvent({ type: "PERFORMANCE_QUOTE_ERROR", mint, error: error.message });
+      return [mint, null];
+    }
+  });
+  const quotes = new Map(quoteRows);
+
+  await mapWithConcurrency(eligible, PERFORMANCE_CONCURRENCY, async (call) => {
+    const live = quotes.get(call.mint);
+    if (!live) { onEvent({ type: "PERFORMANCE_MISSING", mint: call.mint }); return; }
     try {
       const result = await recordCallMarketScan(call.id, live);
       onEvent({
@@ -60,7 +90,9 @@ async function refreshCallPerformance(deps) {
     } catch (error) {
       onEvent({ type: "PERFORMANCE_WRITE_ERROR", mint: call.mint, error: error.message });
     }
-  }
+  });
+
+  return { loaded: eligible.length };
 }
 
 function startPerformanceScanner(deps, pollMs = 300_000) {
@@ -72,4 +104,11 @@ function startPerformanceScanner(deps, pollMs = 300_000) {
   tick();
 }
 
-module.exports = { bestSolanaPair, quoteToken, refreshCallPerformance, startPerformanceScanner };
+module.exports = {
+  bestSolanaPair,
+  quoteToken,
+  refreshCallPerformance,
+  startPerformanceScanner,
+  mapWithConcurrency,
+  PERFORMANCE_CONCURRENCY
+};

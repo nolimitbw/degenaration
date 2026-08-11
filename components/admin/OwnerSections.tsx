@@ -533,27 +533,48 @@ function Referrals({ data }: { data: AdminData }) {
   );
 }
 
-function nextPayoutActions(payout: Payout) {
+function nextPayoutActions(payout: Payout, processingEnabled: boolean) {
   if (payout.status === "requested") return ["review", "approve", "reject"] as const;
   if (payout.status === "reviewing") return ["approve", "reject"] as const;
-  if (payout.status === "approved") return ["reject"] as const;
+  if (payout.status === "approved") return processingEnabled ? ["processing", "reject"] as const : ["reject"] as const;
+  if (payout.status === "processing") return processingEnabled ? ["confirm", "fail"] as const : [] as const;
   return [] as const;
 }
 
 function Payouts({ data, act }: { data: AdminData; act: (action: AdminAction) => void }) {
+  const processingEnabled = data.product.systemFlags?.payout_processing_enabled === true;
   const requestAction = (payout: Payout, action: string) => act({
     title: `${action} payout request`,
-    description: `${action} ${formatSol(payout.grossLamports)} for ${compact(payout.destinationWallet)}. No transfer is executed from this console while the payout gate is off.`,
+    description: action === "confirm"
+      ? `Record the confirmed treasury transfer of ${formatSol(payout.netLamports)} to ${compact(payout.destinationWallet)}. The signature is immutable once saved.`
+      : action === "processing"
+        ? `Reserve ${formatSol(payout.netLamports)} for the treasury transfer to ${compact(payout.destinationWallet)}. Send the transfer, then confirm it with its signature.`
+        : `${action} ${formatSol(payout.grossLamports)} for ${compact(payout.destinationWallet)}.`,
     endpoint: "/api/admin/payouts",
     body: { payoutId: payout.id, action },
-    destructive: action === "reject",
-    reasonRequired: true
+    destructive: action === "reject" || action === "fail",
+    reasonRequired: true,
+    ...(action === "confirm" ? {
+      input: {
+        key: "txSignature",
+        label: "Confirmed Solana transaction signature",
+        placeholder: "Paste the treasury transfer signature",
+        required: true,
+        pattern: "^[1-9A-HJ-NP-Za-km-z]{64,120}$"
+      }
+    } : {})
   });
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3">
-        <p className="t-label font-semibold text-gold-400">Payout execution is disabled</p>
-        <p className="mt-1 t-label leading-5 text-dim">Review and approval are ledger state changes only. No wallet signing or transfer action is exposed here.</p>
+      <div className={`rounded-md border px-4 py-3 ${processingEnabled ? "border-up/35 bg-up/5" : "border-gold-400/35 bg-gold-400/5"}`}>
+        <p className={`t-label font-semibold ${processingEnabled ? "text-up" : "text-gold-400"}`}>
+          {processingEnabled ? "Payout settlement is available" : "Payout settlement gate is off"}
+        </p>
+        <p className="mt-1 t-label leading-5 text-dim">
+          {processingEnabled
+            ? "Approved requests can enter processing and are confirmed only with an on-chain transaction signature."
+            : "Requests can still be reviewed and approved. Enable the audited payout gate after the treasury signer is ready."}
+        </p>
       </div>
       <section>
         <SectionTitle title="Creator payout requests" detail="0.1 SOL minimum · 0.043 SOL processing fee" />
@@ -577,7 +598,7 @@ function Payouts({ data, act }: { data: AdminData; act: (action: AdminAction) =>
                   <p className="mt-1">Requested <span className="float-right text-ink">{formatDate(payout.requested_at)}</span></p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {nextPayoutActions(payout).map((action) => (
+                  {nextPayoutActions(payout, processingEnabled).map((action) => (
                     <ActionButton key={action} tone={action === "approve" ? "positive" : action === "reject" ? "negative" : "neutral"} onClick={() => requestAction(payout, action)}>
                       {action[0].toUpperCase()}{action.slice(1)}
                     </ActionButton>

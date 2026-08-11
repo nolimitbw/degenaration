@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
 import { getMintDecimals } from "@/lib/server/tokenMeta";
 import { configuredPlatformFeeBps } from "@/lib/fee-model";
-import { resolveFeeAccount } from "@/lib/server/fee-account";
+import { resolveSwapFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
     //
     // This route reported `configuredPlatformFeeBps()`, which only tests that the environment
     // variable is non-empty. /api/swap uses `resolveFeeAccount()`, which additionally checks the
-    // fee token account is initialised for THIS output mint and applies 0 when it is not. In
-    // production the configured value is a wallet whose associated token account does not
+    // fee token account is initialised for a mint in THIS pair and applies 0 when it is not. In
+    // production the configured value is a wallet whose associated wSOL account does not
     // exist, so the quote advertised 2.00% and the swap charged nothing.
     //
     // Quoting more than is charged is the safe direction, but the two halves disagreeing is the
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     const [inputDecimals, outputDecimals, resolvedFee] = await Promise.all([
       getMintDecimals(inputMint),
       getMintDecimals(outputMint),
-      resolveFeeAccount(outputMint)
+      resolveSwapFeeAccount(inputMint, outputMint)
     ]);
     const platformFeeBps = resolvedFee.feeAccount ? configuredPlatformFeeBps() : 0;
     const applyFee = platformFeeBps > 0;

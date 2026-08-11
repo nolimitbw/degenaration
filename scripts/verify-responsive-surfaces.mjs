@@ -218,7 +218,12 @@ const MEASURE = `(() => {
       const lr = label ? label.getBoundingClientRect() : null;
       const h = Math.max(Math.round(r.height), lr ? Math.round(lr.height) : 0);
       const w = Math.max(Math.round(r.width), lr ? Math.round(lr.width) : 0);
-      return { w, h, what: (el.getAttribute('aria-label') || el.textContent || label?.innerText || el.tagName).trim().slice(0, 40) };
+      const labelledBy = el.getAttribute('aria-labelledby');
+      const labelledText = labelledBy
+        ? labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ')
+        : '';
+      const accessibleName = (el.getAttribute('aria-label') || labelledText || el.textContent || label?.innerText || '').trim();
+      return { w, h, accessibleName, what: (accessibleName || el.tagName).slice(0, 40) };
     })
     .filter((t) => t.w > 0 && t.h > 0);
   return {
@@ -228,6 +233,7 @@ const MEASURE = `(() => {
     // Both dimensions: the header nav button was 21px WIDE at 44px tall, and a
     // height-only filter passed it.
     small: targets.filter((t) => Math.min(t.w, t.h) < 44).slice(0, 8),
+    unnamed: targets.filter((t) => !t.accessibleName).map((t) => t.what).slice(0, 8),
     text: document.body.innerText.slice(0, 40000)
   };
 })()`;
@@ -317,6 +323,9 @@ for (const surface of SURFACES) {
     if (viewport.mobile && measured.small.length) {
       failures.push(`${surface.name} @${viewport.name}: ${measured.small.length} tap target(s) under 44px — ` +
         measured.small.map((t) => `${t.what} (${t.h}px)`).join("; "));
+    }
+    if (measured.unnamed.length) {
+      failures.push(`${surface.name} @${viewport.name}: interactive controls without an accessible name — ${measured.unnamed.join(", ")}`);
     }
     results[`${surface.name}@${viewport.name}`] = { scrollWidth: measured.scrollWidth, clientWidth: measured.clientWidth };
 

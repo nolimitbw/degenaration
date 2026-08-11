@@ -55,7 +55,7 @@ export default function BotActivityPage() {
   return (
     <AppShell>
       <PageHeader
-        
+
         title={data?.bot.name || "Signals and executions"}
         description="Rejected signals keep their reason; transaction failures keep their last recorded state."
         actions={<Link href="/bots/manage" className="inline-flex min-h-11 items-center rounded-md border border-edge px-4 t-body font-semibold text-ink">Back to My Bots</Link>}

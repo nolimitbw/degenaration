@@ -36,4 +36,61 @@ assert.equal(saved.newestMessageId, rows[0].id);
 assert.equal(saved.oldestMessageId, rows[0].id);
 assert.equal(saved.completed, true);
 
-console.log("Vercel Discord REST history backfill preserves timestamp, cursor, and parsed mint.");
+// A completed historical walk changes pagination direction. The persisted newest cursor must
+// advance after a catch-up page, and the historical oldest bound must not be replaced by a
+// recent message. This is the production regression that made every daily run return 200 while
+// replaying the same first page forever.
+const historicalOldest = "1400000000000000000";
+const previousNewest = "1500000000000000000";
+const caughtUpNewest = "1600000000000000000";
+let catchupSaved = null;
+const catchup = await scanDiscordHistoryPage({
+  channel,
+  state: {
+    completed_at: "2026-08-09T00:00:00.000Z",
+    newest_message_id: previousNewest,
+    oldest_message_id: historicalOldest,
+    messages_scanned: 100
+  },
+  token: "token",
+  fetchImpl: async () => ({
+    ok: true,
+    status: 200,
+    json: async () => [{
+      ...rows[0],
+      id: caughtUpNewest,
+      timestamp: "2026-08-10T00:00:00.000Z"
+    }]
+  }),
+  ingest: async () => ({ accepted: true }),
+  saveState: async (_channelId, state) => { catchupSaved = state; }
+});
+
+assert.equal(catchup.completed, true);
+assert.equal(catchup.hasMore, false);
+assert.equal(catchupSaved.newestMessageId, caughtUpNewest);
+assert.equal(catchupSaved.oldestMessageId, historicalOldest);
+
+// A full Discord page is not proof the catch-up is exhausted. The route uses this signal to
+// keep walking within its bounded six-page budget instead of waiting another day per page.
+const fullPage = Array.from({ length: 100 }, (_, index) => ({
+  ...rows[0],
+  id: String(BigInt(previousNewest) + BigInt(index + 1)),
+  timestamp: new Date(Date.UTC(2026, 7, 10, 0, 0, index)).toISOString()
+}));
+const fullResult = await scanDiscordHistoryPage({
+  channel,
+  state: {
+    completed_at: "2026-08-09T00:00:00.000Z",
+    newest_message_id: previousNewest,
+    oldest_message_id: historicalOldest,
+    messages_scanned: 100
+  },
+  token: "token",
+  fetchImpl: async () => ({ ok: true, status: 200, json: async () => fullPage }),
+  ingest: async () => ({ accepted: true }),
+  saveState: async () => {}
+});
+assert.equal(fullResult.hasMore, true);
+
+console.log("Vercel Discord REST history backfill preserves timestamp, advances catch-up cursors, and continues full pages.");

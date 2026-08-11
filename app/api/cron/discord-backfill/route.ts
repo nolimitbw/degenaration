@@ -59,18 +59,25 @@ export async function GET(req: NextRequest) {
   try {
     const channels = await bridge("approved_channels", {});
     const rows = Array.isArray(channels) ? channels : [];
-    const results = new Map<string, { channelId: string; scanned: number; accepted: number; rejected: number; completed: boolean }>();
+    const results = new Map<string, { channelId: string; scanned: number; accepted: number; rejected: number; completed: boolean; hasMore: boolean }>();
     const states = new Map<string, Record<string, unknown>>();
     for (const channel of rows) {
       states.set(channel.channel_id, await bridge("backfill_state", { p_channel_id: channel.channel_id }));
-      results.set(channel.channel_id, { channelId: channel.channel_id, scanned: 0, accepted: 0, rejected: 0, completed: false });
+      results.set(channel.channel_id, {
+        channelId: channel.channel_id,
+        scanned: 0,
+        accepted: 0,
+        rejected: 0,
+        completed: Boolean(states.get(channel.channel_id)?.completed_at),
+        hasMore: true
+      });
     }
     for (let page = 0; page < MAX_PAGES_PER_RUN; page += 1) {
       let pending = false;
       for (const channel of rows) {
+        const total = results.get(channel.channel_id)!;
+        if (!total.hasMore) continue;
         let state = states.get(channel.channel_id) || {};
-        const alreadyCompleted = Boolean(state.completed_at || state.completed);
-        if (alreadyCompleted && page > 0) continue;
         const pageResult = await scanDiscordHistoryPage({
           channel,
           state,
@@ -88,12 +95,12 @@ export async function GET(req: NextRequest) {
             states.set(channelId, state);
           }
         });
-        const total = results.get(channel.channel_id)!;
         total.scanned += pageResult.scanned;
         total.accepted += pageResult.accepted;
         total.rejected += pageResult.rejected;
         total.completed = pageResult.completed;
-        if (!pageResult.completed) pending = true;
+        total.hasMore = pageResult.hasMore;
+        if (pageResult.hasMore) pending = true;
       }
       if (!pending) break;
     }
