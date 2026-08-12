@@ -984,3 +984,12 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   stroke: rgb(var(--ink-rgb) / 0.14);
   stroke-width: 1;
 }
+
+/* The promoted card in the workspace card row. It reuses .stage-bloom, so it needs a base
+   that the bloom can sit on without the card reading as a different surface material from
+   the three data cards beside it — a tint and a stronger edge, not a gradient of its own. */
+.spotlight-cta {
+  background:
+    linear-gradient(160deg, rgb(var(--gold-rgb) / 0.10), transparent 62%),
+    var(--panel);
+}

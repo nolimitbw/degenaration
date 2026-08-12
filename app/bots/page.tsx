@@ -7,6 +7,7 @@ import { ArrowRight, Plus, RefreshCw } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { EmptyState, LoadingRows, PageHeader, ProductTabs, StatusPill } from "@/components/product/Primitives";
 import { DiscordSourceAvatar, IntegrationHealthDot } from "@/components/product/DiscordSourceVisual";
+import SourceSpotlight from "@/components/product/SourceSpotlight";
 import DiscordSignalIcon from "@/components/icons/DiscordSignalIcon";
 import KolStrategyIcon from "@/components/icons/KolStrategyIcon";
 import DegenBotIcon from "@/components/icons/DegenBotIcon";
@@ -114,6 +115,12 @@ export default function BotsPage() {
         <Tile label="Your bots" value={totals.bots} detail={authenticated ? undefined : "Connect to view"} />
         <Tile label="Running" value={totals.active} tone={totals.active ? "positive" : "default"} />
       </section>
+
+      {/* The card row from the dashboard reference, above the dense list rather than instead
+          of it. The rail answers "how much", these answer "which one", and the list below
+          answers "all of them" — three questions, in the order someone opening the app asks
+          them. Renders nothing until real sources have loaded. */}
+      {sources != null && sources.length > 0 && <SourceSpotlight sources={sources} />}
 
       <section className="mt-11">
         <header className="flex flex-wrap items-baseline justify-between gap-3 pb-3">
