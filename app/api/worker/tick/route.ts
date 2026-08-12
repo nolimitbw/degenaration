@@ -192,14 +192,26 @@ export async function GET(req: NextRequest) {
     ];
     void jupiter;
 
+    // `?once=1` runs a SINGLE pass and returns, for the real-time path.
+    //
+    // A Discord call reaches /api/ingest-call the moment it is posted. Waiting for the next
+    // scheduled tick would put up to a minute between the message and the trade, which for a
+    // memecoin call is the difference between the entry the user expected and a worse one. So
+    // ingest triggers this mode straight after recording, and the scheduled loop stays as the
+    // safety net for anything that arrived between invocations.
+    //
+    // Same claims, same guards, same code — only the loop is skipped. Nothing about a
+    // single-pass invocation may be more permissive than a scheduled one.
+    const once = req.nextUrl.searchParams.get("once") === "1";
+
     // Sequential on purpose. Two overlapping passes would race the same claim, and the claim
     // is the thing that makes a double-buy impossible.
-    while (Date.now() - started < BUDGET_MS) {
+    do {
       ticks += 1;
       for (const pass of passes) await pass();
-      if (Date.now() - started >= BUDGET_MS) break;
+      if (once || Date.now() - started >= BUDGET_MS) break;
       await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS));
-    }
+    } while (Date.now() - started < BUDGET_MS);
   } catch (reason) {
     return NextResponse.json({
       ok: false,

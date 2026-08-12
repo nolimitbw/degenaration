@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { rateLimit, fetchWithTimeout } from "@/lib/server/guard";
 import { botBridgeHeaders, getBotBridgeUrl } from "@/lib/server/bot-rpc";
 import { isBotRequest } from "@/lib/server/bot-auth";
@@ -135,6 +135,32 @@ export async function POST(req: NextRequest) {
     if (data?.ok === false) {
       return NextResponse.json({ error: data.error || "record failed" }, { status: data.status || 400 });
     }
+
+    // THE REAL-TIME PATH. The call is recorded; now execute it rather than leaving it for the
+    // next scheduled tick, which could be up to a minute away. On a memecoin call a minute is
+    // the difference between the entry the user configured and a materially worse one.
+    //
+    // `after` runs once the response has been sent, so the Discord listener is never held
+    // waiting on a quote, a simulation and a signature — it gets its acknowledgement at the
+    // same speed as before, and a slow RPC can never turn into a listener timeout that makes
+    // the bot retry and post the call twice.
+    //
+    // Fire and forget BY DESIGN. Execution is idempotent at the claim, so the scheduled loop
+    // picks up anything this misses; a failure here must never turn a successfully journalled
+    // call into a 502, because the journal is what the marketplace measures.
+    if (data?.accepted !== false) {
+      after(async () => {
+        try {
+          await fetchWithTimeout(new URL("/api/worker/tick?once=1", req.nextUrl.origin).toString(), {
+            headers: { "x-bot-secret": process.env.BOT_SHARED_SECRET! },
+            cache: "no-store"
+          }, 60_000);
+        } catch (error) {
+          console.error("[ingest] real-time execution trigger failed:", (error as Error)?.message);
+        }
+      });
+    }
+
     return NextResponse.json(data);
   } catch {
     return NextResponse.json({ error: "record failed" }, { status: 502 });
