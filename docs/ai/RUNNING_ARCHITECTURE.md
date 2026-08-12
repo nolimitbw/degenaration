@@ -1,8 +1,44 @@
 # How DegenAration actually runs — 2026-08-12
 
 The deployment model changed completely today. Every document written before this describes a
-worker on Railway that no longer exists. **There is no worker host.** Railway's trial expired and
-removed every deployment, so the engine runs on Vercel and Supabase drives it.
+worker on Railway that no longer exists — Railway's trial expired and removed every deployment,
+so the engine runs on Vercel and Supabase drives it.
+
+## Two executors exist. Only one can trade.
+
+A `degenaration-worker` **is** hosted on Render and has been up for ~20 hours. An earlier
+revision of this file said "there is no worker host"; that was true when written and is not now.
+But it is **watch-only** — `server/worker.js` gates the whole trading stack behind
+`DELEGATED_SIGNING === "on"`, and Render's copy does not have it:
+
+```
+mode: watch-only   signingEnabled: false   capabilities.submission: false
+```
+
+So the split is:
+
+| | Render worker | Vercel in-app engine |
+|---|---|---|
+| Watches, reconciles, heartbeats | yes | yes |
+| **Can sign and submit** | **no** | **yes** |
+| Driven by | its own loop | `pg_cron` → `/api/worker/tick` |
+
+**Both running is safe but redundant.** `worker_claim_call_execution` claims atomically under
+`for update`, so a call cannot be taken twice however many watchers race for it. Redundancy in
+trading code is still a liability: when signing moves to Render, drop the
+`degenaration-execution-engine` schedule rather than leaving two paths live.
+
+### The trap this laid, once
+
+`automationReadiness()` was modelled entirely on a hosted worker and asked its `/health` for
+everything. `submission` is the one capability that depends on SIGNING rather than on code being
+present, so the watch-only Render worker reported it false — and **vetoed the deployment that
+was actually executing trades.** The product told users automation was unavailable while it was
+signing. `signer` had the same shape: it ANDed a database fact derived from the hosted worker's
+heartbeat with that worker's health, neither of which describes Vercel.
+
+Each executor now proves signing for itself and neither vouches for the other. If a third
+execution path is ever added, that is the rule to keep.
 
 ## The live path
 
@@ -43,6 +79,8 @@ each minute.
 
 **Both are bridges.** A hosted `server/bot` detects in ~100ms instead of ~5s, and a hosted
 `server/worker.js` needs no loop at all. When either is hosted, drop the matching schedule.
+`server/worker.js` **is** hosted now — but watch-only, so the schedule stays until it can sign.
+Setting `DELEGATED_SIGNING=on` on Render is what retires `degenaration-execution-engine`.
 
 ## The wiring rule that cost the most to learn
 

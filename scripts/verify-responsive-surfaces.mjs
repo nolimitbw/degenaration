@@ -241,6 +241,10 @@ const MEASURE = `(() => {
 await mkdir(OUT, { recursive: true });
 const results = {};
 const failures = [];
+// Surfaces that could not be measured for a REASON, kept apart from failures so a skip can
+// never read as a pass. Printed on success as well, because a silently shrinking audit is
+// exactly how a gate stops covering the thing it was written for.
+const skipped = [];
 const captured = [];
 
 /**
@@ -294,11 +298,26 @@ const SURFACES = [
   {
     route: "/source/degenaration-548e33f6",
     name: "source-profile",
-    ready: "document.body.innerText.includes('All-time recorded performance')"
+    ready: "document.body.innerText.includes('All-time recorded performance')",
+    // The one surface whose data is fetched SERVER-side. Every other route here is stubbed at
+    // the browser, which is why they need nothing: `Fetch.fulfillRequest` intercepts requests
+    // the PAGE makes, and a Next server component's fetch never reaches the browser to be
+    // intercepted. So this route renders against the real Supabase or not at all.
+    //
+    // Both names are PUBLISHABLE — they ship in the client bundle and are not credentials.
+    // But a fresh checkout has no .env.local, and without this the surface 404'd and failed
+    // four widths, which made `npm run check` unable to pass on a clean clone. A gate that
+    // cannot run in CI is not a gate. Missing config skips with a reason; it never passes.
+    needsEnv: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]
   }
 ];
 
 for (const surface of SURFACES) {
+  const missingEnv = (surface.needsEnv || []).filter((name) => !process.env[name]?.trim());
+  if (missingEnv.length) {
+    skipped.push(`${surface.name}: server-rendered from Supabase and ${missingEnv.join(", ")} ${missingEnv.length === 1 ? "is" : "are"} not set`);
+    continue;
+  }
   for (const viewport of VIEWPORTS) {
     // Navigate BEFORE overriding the viewport. about:blank carries no <meta name="viewport">,
     // so setting device metrics first makes Chrome fall back to its 980px layout viewport and
@@ -478,6 +497,11 @@ if (realErrors.length) {
 
 cleanup();
 
+if (skipped.length) {
+  console.error(`\nresponsive-surfaces: ${skipped.length} surface(s) not measured\n`);
+  for (const message of skipped) console.error(`  - ${message}\n`);
+}
+
 if (failures.length) {
   console.error(`\nresponsive-surfaces: ${failures.length} problem(s)\n`);
   for (const message of failures) console.error(`  - ${message}\n`);
@@ -487,7 +511,8 @@ if (failures.length) {
 console.log(JSON.stringify({
   verifier: "responsive-surfaces",
   engine: "headless Chrome over CDP against a local production build",
-  surfaces: SURFACES.map((s) => s.route),
+  surfaces: SURFACES.filter((s) => !skipped.some((m) => m.startsWith(`${s.name}:`))).map((s) => s.route),
+  notMeasured: skipped,
   unauthenticatedSurfaces: UNAUTHENTICATED.map((s) => s.route),
   widths: VIEWPORTS.map((v) => v.width),
   measurements: results,
