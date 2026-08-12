@@ -883,3 +883,104 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 :is(.app-shell, .degen-home) .bg-toxic.text-white {
   color: #17110c;
 }
+
+/* ── Landing stage ──────────────────────────────────────────────────────────────────────
+   The inset hero viewport. Every layer here is painted rather than an image, so it stays
+   crisp on a 5K display and costs no network request — the reference look is entirely
+   gradients, a grid and four SVG paths.
+
+   The bloom is GOLD. The reference blooms mint and its dashboard accents purple; our
+   identity is black/gold/white, and the design guidance independently names "AI purple/pink
+   gradients" as the pattern to avoid on a fintech surface. */
+
+/* The card must read as an object sitting ON the page, which needs the page behind it to be
+   darker than the card. Both were the same token at first and the rounded corner was
+   invisible — the inset was there and did nothing. */
+.degen-home {
+  background: #050504;
+}
+
+.stage {
+  background: var(--canvas);
+  min-height: min(84vh, 780px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 0.55);
+}
+
+/* The diagonal light.
+ *
+ * Three overlapping radials, not one: a single ellipse reads as a spotlight with an obvious
+ * centre, while offset layers give the soft directional falloff the reference has. The first
+ * pass was built at ~0.20 alpha and was invisible on a real display — the bloom is the whole
+ * atmosphere of this design, so it carries real weight here.
+ *
+ * The white layer does most of the lifting and the gold tints it. Gold alone at this strength
+ * turns the corner amber and starts to look like a warning state rather than light.
+ */
+.stage-bloom {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(58% 46% at 74% 24%, rgb(var(--ink-rgb) / 0.30), transparent 70%),
+    radial-gradient(46% 38% at 80% 16%, rgb(var(--gold-300-rgb) / 0.34), transparent 72%),
+    radial-gradient(80% 64% at 92% 4%, rgb(var(--ink-rgb) / 0.16), transparent 66%),
+    radial-gradient(52% 46% at 12% 94%, rgb(var(--gold-rgb) / 0.20), transparent 72%);
+  filter: blur(26px);
+}
+
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, rgb(var(--ink-rgb) / 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--ink-rgb) / 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  /* Fades out before the edges so the grid never collides with the card's rounded corner. */
+  mask-image: radial-gradient(88% 78% at 50% 42%, #000 35%, transparent 78%);
+  -webkit-mask-image: radial-gradient(88% 78% at 50% 42%, #000 35%, transparent 78%);
+}
+
+/* The vertical light shafts under the headline. */
+.stage-streaks {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 46%;
+  z-index: 0;
+  background-image:
+    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.28)),
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.16)),
+    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.16));
+  background-size: 1px 100%, 1px 100%, 1px 100%;
+  background-position: 46% bottom, 50% bottom, 54.5% bottom;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(to bottom, transparent, #000 55%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 55%, transparent);
+}
+
+/* The closing phrase falls into the background. background-clip:text needs a transparent
+   fill, which strips the text from forced-colors mode — so that mode gets the solid ink
+   colour back rather than an invisible headline. */
+.stage-display-fade {
+  background: linear-gradient(96deg, rgb(var(--ink-rgb)) 4%, rgb(var(--ink-rgb) / 0.34) 82%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (forced-colors: active) {
+  .stage-display-fade {
+    color: rgb(var(--ink-rgb));
+    -webkit-text-fill-color: rgb(var(--ink-rgb));
+  }
+}
+
+.stage-wire {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.14);
+  stroke-width: 1;
+}
