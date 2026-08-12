@@ -302,17 +302,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             <nav className="mt-8 grid gap-0.5">
-              {NAV.map(({ href, label, icon: Icon }) => {
+              {NAV.map(({ href, label, icon: Icon, children }) => {
                 const active = isActivePath(path, href);
                 return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={`flex min-h-12 items-center gap-3 rounded-md px-3 t-body ${active ? "font-medium text-ink" : "text-dim"}`}
-                  >
-                    <Icon aria-hidden="true" size={18} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
-                    {label}
-                  </Link>
+                  <div key={href}>
+                    <Link
+                      href={href}
+                      className={`flex min-h-12 items-center gap-3 rounded-md px-3 t-body ${active ? "font-medium text-ink" : "text-dim"}`}
+                    >
+                      <Icon aria-hidden="true" size={18} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
+                      {label}
+                    </Link>
+                    {/* The same children the desktop rail shows. Adding them to one and not
+                        the other gave mobile a strictly worse map of the product than
+                        desktop — and mobile is where a cramped drawer makes a missing path
+                        hardest to recover from. */}
+                    {children && active && (
+                      <ul className="mb-1 ml-[1.85rem] grid gap-0.5 border-l border-[color:var(--rule)] pl-3">
+                        {children.map((child) => {
+                          const childActive = isActivePath(path, child.href);
+                          return (
+                            <li key={child.href}>
+                              <Link
+                                href={child.href}
+                                aria-current={childActive ? "page" : undefined}
+                                className={`flex min-h-11 items-center rounded-md px-3 t-meta ${childActive ? "font-medium text-ink" : "text-dim"}`}
+                              >
+                                {child.label}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 );
               })}
               {admin && (

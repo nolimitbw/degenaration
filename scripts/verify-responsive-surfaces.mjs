@@ -238,6 +238,48 @@ const MEASURE = `(() => {
   };
 })()`;
 
+/**
+ * The mobile navigation drawer.
+ *
+ * On mobile this IS the navigation — the desktop rail is hidden below 1024px — and it had
+ * never been measured, because it lives behind a button and every previous pass measured only
+ * what renders on load. That blind spot hid a real regression: sub-navigation was added to the
+ * desktop rail and not to the drawer, so for one build mobile had a strictly worse map of the
+ * product than desktop, on the surface where a missing path is hardest to recover from.
+ *
+ * Opens it, measures the same way the page is measured, and closes it again so the surface
+ * screenshot afterwards is of the page rather than the drawer.
+ */
+const DRAWER = `(async () => {
+  const open = [...document.querySelectorAll('button')]
+    .find((b) => b.getAttribute('aria-label') === 'Open navigation');
+  if (!open || open.offsetParent === null) return { present: false };
+  open.click();
+  await new Promise((r) => setTimeout(r, 400));
+  const drawer = document.querySelector('[role="dialog"][aria-label="Navigation"]');
+  if (!drawer) return { present: true, opened: false };
+  const targets = [...drawer.querySelectorAll('a[href], button')]
+    .filter((el) => el.offsetParent !== null)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const name = (el.getAttribute('aria-label') || el.textContent || '').trim();
+      return { w: Math.round(r.width), h: Math.round(r.height), what: (name || el.tagName).slice(0, 40) };
+    })
+    .filter((t) => t.w > 0 && t.h > 0);
+  const rect = drawer.getBoundingClientRect();
+  const close = drawer.querySelector('[aria-label="Close navigation"]');
+  if (close) close.click();
+  await new Promise((r) => setTimeout(r, 250));
+  return {
+    present: true,
+    opened: true,
+    links: targets.length,
+    overflows: Math.round(rect.right) > document.documentElement.clientWidth + 1,
+    small: targets.filter((t) => Math.min(t.w, t.h) < 44).slice(0, 8),
+    unnamed: targets.filter((t) => !t.what).length
+  };
+})()`;
+
 await mkdir(OUT, { recursive: true });
 const results = {};
 const failures = [];
@@ -245,6 +287,9 @@ const failures = [];
 // never read as a pass. Printed on success as well, because a silently shrinking audit is
 // exactly how a gate stops covering the thing it was written for.
 const skipped = [];
+/** How many surfaces actually had their drawer opened and measured, reported so a drawer that
+ *  silently stops rendering shows up as coverage going to zero rather than as a quiet pass. */
+let drawerChecks = 0;
 const captured = [];
 
 /**
@@ -350,6 +395,20 @@ for (const surface of SURFACES) {
       failures.push(`${surface.name} @${viewport.name}: horizontal overflow, ` +
         `scrollWidth ${measured.scrollWidth} > clientWidth ${measured.clientWidth}` +
         (measured.overflowing.length ? ` — widest: ${measured.overflowing.join(", ")}` : ""));
+    }
+    if (viewport.mobile) {
+      const drawer = await page.evaluate(DRAWER);
+      if (drawer?.present && !drawer.opened) {
+        failures.push(`${surface.name} @${viewport.name}: the navigation button did not open the drawer`);
+      } else if (drawer?.opened) {
+        drawerChecks += 1;
+        if (drawer.overflows) failures.push(`${surface.name} @${viewport.name}: the navigation drawer overflows the viewport`);
+        if (drawer.small.length) {
+          failures.push(`${surface.name} @${viewport.name}: ${drawer.small.length} drawer tap target(s) under 44px — ` +
+            drawer.small.map((t) => `${t.what} (${Math.min(t.w, t.h)}px)`).join("; "));
+        }
+        if (drawer.unnamed) failures.push(`${surface.name} @${viewport.name}: ${drawer.unnamed} unnamed control(s) in the drawer`);
+      }
     }
     if (viewport.mobile && measured.small.length) {
       failures.push(`${surface.name} @${viewport.name}: ${measured.small.length} tap target(s) under 44px — ` +
@@ -525,6 +584,7 @@ console.log(JSON.stringify({
   engine: "headless Chrome over CDP against a local production build",
   surfaces: SURFACES.filter((s) => !skipped.some((m) => m.startsWith(`${s.name}:`))).map((s) => s.route),
   notMeasured: skipped,
+  mobileDrawersMeasured: drawerChecks,
   unauthenticatedSurfaces: UNAUTHENTICATED.map((s) => s.route),
   widths: VIEWPORTS.map((v) => v.width),
   measurements: results,
