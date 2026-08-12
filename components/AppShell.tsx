@@ -19,7 +19,9 @@ import {
 } from "lucide-react";
 import Logo from "@/components/Logo";
 import ReferralCaptureCompletion from "@/components/ReferralCaptureCompletion";
+import SidebarBots from "@/components/product/SidebarBots";
 import WalletRegistration from "@/components/WalletRegistration";
+import { useReadiness } from "@/components/product/Readiness";
 import { useIsAdmin } from "@/lib/admin";
 import { type ThemePreference, useTheme } from "@/components/ThemeProvider";
 
@@ -33,8 +35,23 @@ const WalletStatus = dynamic(() => import("@/components/WalletStatus"), {
   loading: () => <span className="t-label text-dim">Checking wallet</span>
 });
 
-const NAV = [
-  { href: "/bots", label: "Bots", icon: Bot },
+/**
+ * Three destinations, as spec §9 requires. Bots carries the sub-navigation the spec already
+ * describes ("Bots contains: Discord Bots, KOL Bots, My Bots") — it existed as routes but the
+ * rail never exposed it, so every visit to a marketplace started with a click into Bots and a
+ * second click back out.
+ */
+const NAV: { href: string; label: string; icon: typeof Bot; children?: { href: string; label: string }[] }[] = [
+  {
+    href: "/bots",
+    label: "Bots",
+    icon: Bot,
+    children: [
+      { href: "/bots/discord", label: "Discord sources" },
+      { href: "/bots/kol", label: "KOL strategies" },
+      { href: "/bots/manage", label: "My bots" }
+    ]
+  },
   { href: "/affiliate", label: "Affiliate", icon: ChartNoAxesCombined },
   { href: "/portfolio", label: "Portfolio", icon: WalletCards }
 ];
@@ -156,6 +173,30 @@ function ThemeMenu() {
   );
 }
 
+/**
+ * The card at the foot of the rail.
+ *
+ * The reference puts an upsell here ("Activate Super — unlock all features"). We have nothing
+ * to upsell and inventing one would be a decorative control, so the slot carries the single
+ * fact that changes what the rest of the product can do: whether bots trade on their own.
+ *
+ * Renders nothing once trading is live. A card that is always present is furniture, and people
+ * stop reading furniture — the same reason TradingNotice disappears when it has nothing to say.
+ */
+function RailStatus() {
+  const { trading, reason, known } = useReadiness();
+  if (!known || trading) return null;
+  return (
+    <div className="mx-1 mb-1 rounded-lg border border-[color:var(--rule)] p-3">
+      <p className="flex items-center gap-2 t-meta font-medium text-ink">
+        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[color:var(--warning)]" />
+        Automation pending
+      </p>
+      <p className="mt-1.5 t-label leading-5 text-dim">{reason}</p>
+    </div>
+  );
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -191,23 +232,50 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           "Workspace" heading above a three-item list, and a bordered card restating
           "Solana Mainnet" — a fact the header pill and the footer were each stating as
           well. One screen said mainnet three times and said nothing else about it. */}
-      <aside className="app-sidebar sticky top-0 z-40 hidden h-screen w-[232px] shrink-0 flex-col lg:flex">
-        <div className="flex h-[72px] items-center px-6">
+      <aside className="app-sidebar sticky top-0 z-40 hidden h-screen w-[252px] shrink-0 flex-col overflow-y-auto lg:flex">
+        <div className="flex h-[72px] shrink-0 items-center px-6">
           <Link href="/bots" aria-label="DegenAration bots"><Logo /></Link>
         </div>
         <nav className="grid gap-0.5 px-3 pt-4" aria-label="Primary navigation">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.map(({ href, label, icon: Icon, children }) => {
             const active = isActivePath(path, href);
             return (
-              <Link key={href} href={href} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
-                {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
-                <Icon aria-hidden="true" size={17} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
-                {label}
-              </Link>
+              <div key={href}>
+                <Link href={href} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+                  {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+                  <Icon aria-hidden="true" size={17} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
+                  {label}
+                </Link>
+                {/* Children appear only within their own section. Showing all six rows at all
+                    times turns a three-item rail into a wall and loses the hierarchy that
+                    makes three items readable in the first place. */}
+                {children && active && (
+                  <ul className="mb-1 ml-[1.55rem] grid gap-0.5 border-l border-[color:var(--rule)] pl-2.5">
+                    {children.map((child) => {
+                      const childActive = isActivePath(path, child.href);
+                      return (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            aria-current={childActive ? "page" : undefined}
+                            className={`flex min-h-10 items-center rounded-md px-2.5 t-meta transition-colors duration-150 ${childActive ? "font-medium text-ink" : "text-dim hover:text-ink"}`}
+                          >
+                            {child.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             );
           })}
         </nav>
+
+        <SidebarBots />
+
         <div className="mt-auto space-y-1 p-3">
+          <RailStatus />
           {admin && (
             <Link href="/admin" className={`flex min-h-11 items-center gap-3 rounded-md px-3 t-body ${isActivePath(path, "/admin") ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
               <ShieldCheck aria-hidden="true" size={17} strokeWidth={1.7} className={isActivePath(path, "/admin") ? "text-ink" : "text-[color:var(--text-muted)]"} /> Owner console
@@ -278,6 +346,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 h1 states it; a third copy in the bar was the eyebrow again, one size down. */}
             <span className="sr-only">{section}</span>
             <div className="ml-auto flex min-w-0 items-center gap-1.5">
+              {/* One primary action, as the reference has. Gold is spent once per screen and
+                  this is where it goes in the app — funding is the step that gates everything
+                  else, and it was previously two clicks inside Portfolio with nothing on the
+                  bar pointing at it. */}
+              <Link
+                href="/wallet"
+                className="mr-1 hidden min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 t-meta font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200 sm:inline-flex"
+              >
+                Add funds
+              </Link>
               <ThemeMenu />
               <Notifications />
               <WalletButton />

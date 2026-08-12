@@ -46,7 +46,10 @@ export default function HeroStage({ stats }: { stats: LandingStats }) {
 
         {/* ── Nav ───────────────────────────────────────────────────────────────────── */}
         <header className="relative z-20 flex items-center justify-between gap-4 px-4 py-4 sm:px-7 sm:py-6">
-          <Link href="/" aria-label="DegenAration home" className="shrink-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold-400">
+          {/* min-h-11/min-w-11: the mark itself is 32px, so the link was a 39px target at
+              390px. The audit measures min(width, height), and a logo is the one control on
+              the page every visitor aims at first. */}
+          <Link href="/" aria-label="DegenAration home" className="inline-flex min-h-11 min-w-11 shrink-0 items-center rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold-400">
             <Logo compact className="sm:hidden" />
             <Logo className="hidden sm:inline-flex" />
           </Link>

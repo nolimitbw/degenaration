@@ -87,19 +87,38 @@ results.authorization = "PASS";
   // 200 bps of 100 SOL = 2 SOL, split 70 bps creator / 10% of fee referral / remainder retained.
   // (intent_id, attempt) is unique, so each fixture execution takes the next attempt number.
   let attempt = 0;
-  const insert = async ({ ago, status, gross, platform, creator, referral }) => {
+  /**
+   * `today` clamps the row into the current day.
+   *
+   * The fixture placed the "today" execution at `now() - 1 hour` and asserted it counted
+   * toward today. Between midnight and 01:00 that lands on YESTERDAY, so the total came back
+   * 0 and the whole suite failed — for one hour, every day, on a clock rather than on a
+   * change. It failed for real on 2026-08-13 minutes after the date rolled over.
+   *
+   * `greatest(..., date_trunc('day', now()))` is the same expression the function itself
+   * filters on (`at >= date_trunc('day', now())` in degenaration-admin-revenue.sql), so the
+   * row is inside the window by construction rather than by luck. It still sits an hour back
+   * for the other 23 hours, which is what the case was written to exercise.
+   *
+   * Only the today row clamps. Applying it to all of them would drag the 3-day and 20-day
+   * executions into today and quietly destroy the period separation this block exists to test.
+   */
+  const insert = async ({ ago, status, gross, platform, creator, referral, today = false }) => {
     attempt += 1;
     return db.query(
       `insert into app_private.trade_executions
          (intent_id, attempt, owner_privy_user_id, execution_mode, status, gross_notional_lamports,
           platform_fee_lamports, creator_fee_lamports, referral_fee_lamports, confirmed_at)
        values ($7::uuid, $8::integer, 'did:privy:client', 'solana-mainnet', $1::text, $2::bigint,
-               $3::bigint, $4::bigint, $5::bigint, now() - ($6::text)::interval)`,
-      [status, gross, platform, creator, referral, ago, INTENT, attempt]
+               $3::bigint, $4::bigint, $5::bigint,
+               case when $9::boolean
+                    then greatest(now() - ($6::text)::interval, date_trunc('day', now()))
+                    else now() - ($6::text)::interval end)`,
+      [status, gross, platform, creator, referral, ago, INTENT, attempt, today]
     );
   };
 
-  await insert({ ago: "1 hour",  status: "confirmed",  gross: 100_000_000_000, platform: 2_000_000_000, creator: 700_000_000, referral: 200_000_000 });
+  await insert({ ago: "1 hour",  status: "confirmed",  gross: 100_000_000_000, platform: 2_000_000_000, creator: 700_000_000, referral: 200_000_000, today: true });
   await insert({ ago: "3 days",  status: "reconciled", gross: 50_000_000_000,  platform: 1_000_000_000, creator: 350_000_000, referral: 100_000_000 });
   await insert({ ago: "20 days", status: "confirmed",  gross: 10_000_000_000,  platform: 200_000_000,   creator: 70_000_000,  referral: 20_000_000 });
   // Not revenue: submitted, not confirmed. Must appear as PENDING and in no period total.

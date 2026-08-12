@@ -266,6 +266,18 @@ const UNAUTHENTICATED = [
 ];
 
 const SURFACES = [
+  /**
+   * The landing page — the product's front door, and until now the one surface with no
+   * responsive coverage at all. It is also the densest composition we ship: an inset stage
+   * with absolutely-positioned nodes, a display line at 4.6rem, and a pill nav. Absolute
+   * positioning inside a rounded viewport is precisely how a 390px overflow gets introduced
+   * without anyone noticing, which is the failure this audit exists to catch.
+   *
+   * The predicate asserts the headline rather than a length, because a 404 page also has
+   * text — a weak readiness check once let this harness measure the not-found page at four
+   * widths while reporting a real surface's name.
+   */
+  { route: "/", name: "landing", ready: "document.body.innerText.includes('From Discord call to')" },
   { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: `/bots/discord/${SOURCE_MEASURED.id}`, name: "discord-source-detail", ready: "document.body.innerText.includes('Alpha Desk')" },

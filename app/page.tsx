@@ -99,9 +99,12 @@ export default async function Home() {
                 ["Risk", "/risk"]
               ].map(([label, href]) => (
                 <li key={href}>
+                  {/* min-w-11 as well as min-h-11: "Bots" is ~30px wide, and the audit
+                      measures the SMALLER dimension. Height alone left three of these four
+                      links failing at 390px. */}
                   <Link
                     href={href}
-                    className="inline-flex min-h-11 items-center t-meta text-dim transition-colors duration-150 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center t-meta text-dim transition-colors duration-150 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
                   >
                     {label}
                   </Link>
