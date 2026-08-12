@@ -43,8 +43,17 @@ import { isBotRequest } from "@/lib/server/bot-auth";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-/** Leave headroom under maxDuration so the loop returns rather than being killed mid-write. */
-const BUDGET_MS = 240_000;
+/**
+ * The loop must finish INSIDE the caller's HTTP timeout, not merely inside Vercel's function
+ * limit. A 240s budget completed its work but the pg_cron caller reported "HTTP request
+ * cancelled" every run — the route kept going server-side after the client hung up, so the
+ * work landed while the schedule showed nothing but failures. A job that always reports failure
+ * is a job whose alerts get muted, which is how a real outage later goes unnoticed.
+ *
+ * 50s of passes on a 60s schedule: the caller gets a clean response, and the gap between
+ * invocations is smaller than the old one anyway.
+ */
+const BUDGET_MS = 50_000;
 const INTERVAL_MS = 8_000;
 
 function digest(value: string) {
