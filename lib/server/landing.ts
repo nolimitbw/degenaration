@@ -38,14 +38,35 @@ function count(value: unknown): number | null {
 
 export async function getLandingStats(): Promise<LandingStats> {
   try {
-    const result = await callAppBridge<any>("app_public_list_discord_marketplace", {
-      p_period: "30d",
-      p_sort: "calls",
-      p_limit: 12
-    });
+    /**
+     * BOTH calls, and the same merge `/api/product/marketplace/discord` performs.
+     *
+     * The first version called only the marketplace RPC, and the landing reported 376 calls
+     * for a source the marketplace page reported 385 for — two public surfaces disagreeing
+     * about the same source, which is precisely the "two individually correct halves never
+     * checked against each other" failure this codebase keeps hitting. On a page whose entire
+     * job is persuading a stranger the numbers can be trusted, a visitor who clicks through
+     * and sees a different figure has learned the opposite.
+     *
+     * The journal stats win on conflict, exactly as they do in the route, so the marketplace
+     * stays the single definition and this reads it rather than computing a second one.
+     */
+    const [result, journal] = await Promise.all([
+      callAppBridge<any>("app_public_list_discord_marketplace", {
+        p_period: "30d",
+        p_sort: "calls",
+        p_limit: 12
+      }),
+      callAppBridge<any>("app_public_discord_journal_stats", { p_period: "30d" })
+        .catch(() => ({ ok: false } as any))
+    ]);
     if (!result.ok) return EMPTY;
 
-    const sources: any[] = Array.isArray(result.data?.sources) ? result.data.sources : [];
+    let sources: any[] = Array.isArray(result.data?.sources) ? result.data.sources : [];
+    if (journal?.ok) {
+      const byId = new Map((journal.data?.sources || []).map((source: any) => [source.id, source]));
+      sources = sources.map((source) => ({ ...source, ...(byId.get(source.id) || {}) }));
+    }
     const named = sources
       .map((source) => ({
         name: String(source?.name || source?.displayName || "").trim(),
