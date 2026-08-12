@@ -20,7 +20,12 @@ import {
 export function DiscordActivityGrid({ source }: { source: DiscordSource }) {
   return (
     <div className="grid gap-y-4 sm:grid-cols-3 sm:gap-y-0">
-      <ActivityState label="Last call seen" value={activityTime(source.lastProcessedCallAt, "None yet")} />
+      {/* `lastSignalAt` is max(called_at) — when a caller actually posted.
+          `lastProcessedCallAt` is max(executed_at), which the ENGINE stamps when it handles a
+          call, including when the rug check rejects it. Labelling the second "Last call seen"
+          made the card report a source as active hours after its last real call, because the
+          engine had just walked the backlog. A source that has gone quiet must look quiet. */}
+      <ActivityState label="Last call seen" value={activityTime(source.lastSignalAt, "None yet")} />
       <ActivityState label="Last trade filled" value={activityTime(source.lastSuccessfulExecutionAt, "None yet")} />
       <ActivityState label="Data updated" value={freshnessState(source)} />
     </div>
