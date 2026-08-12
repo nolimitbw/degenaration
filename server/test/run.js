@@ -3552,6 +3552,59 @@ console.log("price selection");
   });
 }
 
+// ── The public config endpoint must not publish operator wording ───────────────────────────
+//
+// `/api/platform/config` is public and unauthenticated. It served `readiness.reason` — the
+// operator sentence for the first failing check — and AppShell rendered it on every page while
+// TradingNotice repeated it on the builder, the manager and the portfolio. So users read "The
+// platform fee account is not ready on both the app and worker" while deciding whether to trust
+// the product with money. It also served the whole `checks` array, naming to any anonymous
+// caller exactly which piece of infrastructure was down. Nothing in the UI ever read it.
+//
+// Asserted against the SOURCE because the runner is plain node and cannot require a .ts module
+// (same constraint that put lib/pnl-card.js and lib/discord-ingest.js in .js). A source
+// assertion is the right shape anyway: the defect is which field gets serialised, and that is
+// visible statically and cheap to pin.
+{
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const read = (p) => fs.readFileSync(path.join(__dirname, "../../", p), "utf8");
+
+  const config = read("app/api/platform/config/route.ts");
+  const served = config.slice(config.indexOf("automation: {"), config.indexOf("workerReportedLive"));
+
+  test("the public config endpoint serves the vetted public sentence, not the operator reason", () => {
+    assert.ok(/reason:\s*readiness\.publicReason/.test(served),
+      "automation.reason must be assigned readiness.publicReason");
+    assert.ok(!/reason:\s*readiness\.reason\b/.test(served),
+      "the operator reason must not be served to unauthenticated callers");
+  });
+
+  test("the public config endpoint does not publish the per-check diagnosis", () => {
+    assert.ok(!/\bchecks:\s*readiness\.checks/.test(served), "checks must not be public");
+    assert.ok(!/\bfailedCheck:\s*readiness\.failedCheck/.test(served), "failedCheck must not be public");
+  });
+
+  // The public sentences are CONSTANTS, not the failing check's text rewritten. If a future
+  // check's operator reason is ever reused as one of them, the leak returns silently — this is
+  // what makes it impossible by construction rather than fixed once.
+  test("no operator reason is reused as a public sentence", () => {
+    const source = read("lib/server/automation-readiness.ts");
+    const publicSentences = [...source.matchAll(/^const PUBLIC_[A-Z_]+_REASON = "([^"]+)"/gm)].map((m) => m[1]);
+    assert.equal(publicSentences.length, 2, "expected exactly two vetted public sentences");
+    const operatorReasons = [...source.matchAll(/\breason:\s*"([^"]+)"/g)].map((m) => m[1]);
+    // Prove the regex actually matched something, without pinning a count — several reasons are
+    // template literals or wrap across lines, so any fixed number is brittle and says nothing.
+    // A known operator string is the honest sanity check: if this stops matching, the shape
+    // changed and the loop below would be vacuously passing.
+    assert.ok(operatorReasons.some((r) => r.includes("platform fee account")),
+      "the fee check's operator reason was not found — the regex no longer matches, so this test proves nothing");
+    for (const sentence of publicSentences) {
+      assert.ok(!operatorReasons.includes(sentence), `public sentence is also an operator reason: ${sentence}`);
+    }
+  });
+}
+
 // ── RUN readiness, and the eight bot states ────────────────────────────────────────────────
 //
 // What is being pinned is not "does it refuse" — it is that the refusal is SPECIFIC. The three

@@ -123,7 +123,33 @@ export async function automationReadiness() {
     active: !failed,
     status: failed ? "Pending" : "Active",
     reason: failed?.reason || "Bots can place and manage trades automatically.",
+    publicReason: failed ? PUBLIC_PENDING_REASON : PUBLIC_ACTIVE_REASON,
     failedCheck: failed?.id || null,
     checks
   };
 }
+
+/**
+ * What a USER is told, as a constant rather than as the failing check's text.
+ *
+ * Every `reason` above is written for whoever operates this thing — "the platform fee account
+ * is not ready on both the app and worker" is precise, and it is exactly the class §23 forbids
+ * in the public UI, alongside "engine not configured" and "database reserves". It reached the
+ * builder, the manager and the portfolio through TradingNotice, so a user weighing whether to
+ * trust the product with money read a sentence about our fee plumbing.
+ *
+ * It is a CONSTANT, deliberately, and not `failed.reason` rewritten. Deriving the public string
+ * from the failing check means the next check anyone adds leaks its operator wording the first
+ * time it trips — which is how this happened. Here leakage is impossible by construction, and
+ * `assertPublicReasonsAreVetted` fails the build if either sentence drifts.
+ *
+ * All eighteen checks are infrastructure; not one is something a user can fix. So naming WHICH
+ * one failed tells them nothing they can act on, while the operator keeps the precise reason in
+ * `reason` and the full array in `checks`. That is the split §23 asks for — user language in
+ * front, technical detail behind the operator surface — not detail removed.
+ */
+const PUBLIC_PENDING_REASON = "Automated trading is not live yet, so bots save but do not place trades.";
+const PUBLIC_ACTIVE_REASON = "Bots can place and manage trades automatically.";
+
+/** Both sentences, so a test can assert no operator `reason` is ever one of them. */
+export const PUBLIC_REASONS = [PUBLIC_PENDING_REASON, PUBLIC_ACTIVE_REASON] as const;

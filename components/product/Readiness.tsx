@@ -30,16 +30,18 @@ import { createContext, useContext, useEffect, useState } from "react";
  * telling someone their money is working when it is idle.
  */
 
-export type ReadinessCheck = { id: string; ok: boolean; reason: string };
-
 export type Readiness = {
   /** Do bots place trades on their own, right now, on mainnet? */
   trading: boolean;
-  /** Server's own one-line reason for the first failing check. */
+  /**
+   * The USER-facing sentence, vetted server-side.
+   *
+   * Was the operator reason for the first failing check, rendered verbatim here and in
+   * AppShell — so users read "the platform fee account is not ready on both the app and
+   * worker" while deciding whether to trust the product with money. The per-check detail is
+   * no longer served publicly at all; see the comment in lib/server/automation-readiness.ts.
+   */
   reason: string;
-  /** Which of the eleven named checks failed first. */
-  failedCheck: string | null;
-  checks: ReadinessCheck[];
   /** The fee ACTUALLY charged. 0 when no fee token account resolves on chain. */
   feeBps: number;
   feeLabel: string;
@@ -50,8 +52,6 @@ export type Readiness = {
 const UNKNOWN: Readiness = {
   trading: false,
   reason: "Checking whether automated trading is running.",
-  failedCheck: null,
-  checks: [],
   feeBps: 0,
   feeLabel: "None",
   known: false
@@ -71,8 +71,6 @@ export function ReadinessProvider({ children }: { children: React.ReactNode }) {
         setValue({
           trading: Boolean(config.automation?.live),
           reason: config.automation?.reason || "Automated trading is not running.",
-          failedCheck: config.automation?.failedCheck ?? null,
-          checks: Array.isArray(config.automation?.checks) ? config.automation.checks : [],
           feeBps: Number(config.platformFeeBps ?? 0),
           feeLabel: String(config.feeLabel ?? "None"),
           known: true

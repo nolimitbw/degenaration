@@ -69,9 +69,15 @@ export async function GET() {
         mode: worker?.mode || (workerConfigured ? "unreachable" : "not-configured"),
         network: worker?.network || null,
         status: readiness.status,
-        reason: readiness.reason,
-        failedCheck: readiness.failedCheck,
-        checks: readiness.checks,
+        // The USER-facing sentence only. This endpoint is public and unauthenticated, and it
+        // was publishing `reason` (operator wording, rendered verbatim by AppShell and
+        // TradingNotice) plus the entire `checks` array — naming, to anyone who asked, exactly
+        // which piece of our infrastructure was down. Nothing in the UI ever read `checks`.
+        //
+        // The operator detail is not lost: `automationReadiness()` still returns `reason`,
+        // `failedCheck` and `checks`, and /api/product/bots/readiness reads them server-side.
+        // It is simply no longer served to the public.
+        reason: readiness.publicReason,
         workerReportedLive: automationLive
       }
     },
