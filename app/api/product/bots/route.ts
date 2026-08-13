@@ -39,7 +39,10 @@ export async function POST(req: NextRequest) {
   if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
   if (parsed.value.status === "active") {
     const readiness = await automationReadiness();
-    if (!readiness.active) {
+    // `tradable`, not `active`: the fee check protects revenue, not the user, and blocking on
+    // it stopped every activation while defending nothing — with no bot able to run there were
+    // no trades to take 2% of. Every check that guards the user still blocks here.
+    if (!readiness.tradable) {
     return NextResponse.json(
       { error: readiness.reason, code: "AUTOMATION_RELEASE_LOCKED" },
       { status: 503, headers: { "Retry-After": "3600" } }

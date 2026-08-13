@@ -119,15 +119,41 @@ export async function automationReadiness() {
     { id: "reconciliationState", ok: Number(facts.reconciliationWarnings ?? -1) === 0, reason: "Confirmed executions are awaiting reconciliation." }
   ];
   const failed = checks.find((check) => !check.ok) || null;
+  const blocking = checks.find((check) => !check.ok && !ADVISORY.has(check.id)) || null;
   return {
     active: !failed,
+    /** True when nothing that protects a USER is failing. See ADVISORY. */
+    tradable: !blocking,
     status: failed ? "Pending" : "Active",
     reason: failed?.reason || "Bots can place and manage trades automatically.",
     publicReason: failed ? PUBLIC_PENDING_REASON : PUBLIC_ACTIVE_REASON,
     failedCheck: failed?.id || null,
+    blockingCheck: blocking?.id || null,
     checks
   };
 }
+
+/**
+ * Checks that are reported but do NOT stop a bot from running.
+ *
+ * Only `fee`, and only because it protects REVENUE rather than a user. Every other check
+ * guards something a user could be harmed by — a missing signer, an unconfirmed submission,
+ * exits that will not fire. Those stay blocking and always should.
+ *
+ * The fee account does not exist on chain, so `resolveFeeAccount` finds no destination and the
+ * swap path skips the charge. That was blocking every activation, which protected nothing: with
+ * no bot able to run there are no trades, so there was no 2% being defended — only trades that
+ * never happened. Unblocking cannot earn less than zero.
+ *
+ * Nothing about the fee itself changes. The rate is still 200 bps per confirmed leg, the ledger
+ * is untouched, and `/api/platform/config` still reports the collected rate honestly — "None"
+ * today, "2.00%" the moment the account exists, with no code change and no redeploy.
+ *
+ * This is the owner's decision, taken after they were shown both options and asked for the
+ * product to work. It is recorded here rather than in a commit message because the next session
+ * needs to know it was a choice and not an oversight.
+ */
+const ADVISORY: ReadonlySet<string> = new Set(["fee"]);
 
 /**
  * What a USER is told, as a constant rather than as the failing check's text.

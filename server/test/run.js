@@ -3552,6 +3552,43 @@ console.log("price selection");
   });
 }
 
+// ── Only revenue-protecting checks may be advisory ─────────────────────────────────────────
+//
+// Activation now gates on `tradable`, which ignores the ADVISORY set, so anything added to
+// that set stops blocking a bot from running. Exactly one check belongs there: `fee`, which
+// protects the platform's revenue and not the user. Every other check guards something a user
+// can be harmed by — a missing signer, an unconfirmed submission, exits that never fire — and
+// quietly moving one of those in would open live trading with a real safety gate disabled.
+//
+// Asserted against the source: the runner is plain node and cannot require a .ts module.
+{
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const source = fs.readFileSync(path.join(__dirname, "../../lib/server/automation-readiness.ts"), "utf8");
+
+  test("the advisory set contains only the fee check", () => {
+    const declared = /const ADVISORY: ReadonlySet<string> = new Set\(\[([^\]]*)\]\)/.exec(source);
+    assert.ok(declared, "ADVISORY set not found — the gate's shape changed");
+    const ids = [...declared[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(ids, ["fee"],
+      `only "fee" may be advisory; found ${JSON.stringify(ids)}. Every other check protects a user.`);
+  });
+
+  test("activation gates on tradable, and both activation routes agree", () => {
+    for (const route of ["app/api/product/bots/route.ts", "app/api/product/kol-subscriptions/route.ts"]) {
+      const body = fs.readFileSync(path.join(__dirname, "../../", route), "utf8");
+      assert.ok(/if \(!readiness\.tradable\)/.test(body), `${route} must gate on readiness.tradable`);
+      assert.ok(!/if \(!readiness\.active\)/.test(body),
+        `${route} still gates on readiness.active — the two activation paths would disagree about whether the product is open`);
+    }
+  });
+
+  test("the fee rate itself is untouched by the gate change", () => {
+    const { PLATFORM_FEE_BPS } = require("../../lib/fee-model");
+    assert.equal(PLATFORM_FEE_BPS, 200, "the platform fee is 200 bps per confirmed leg regardless of whether it can currently be collected");
+  });
+}
+
 // ── Splitting the portfolio total for display ──────────────────────────────────────────────
 //
 // Introduced with the balance block, which renders the whole part at full weight and the

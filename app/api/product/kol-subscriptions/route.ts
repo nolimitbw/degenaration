@@ -58,7 +58,11 @@ export async function POST(req: NextRequest) {
   }
   if (status === "active") {
     const readiness = await automationReadiness();
-    if (!readiness.active) {
+    // Same gate as the bot route: `tradable` excludes the revenue-only fee check, every
+    // user-protecting check still blocks. Left on `active` this route would keep refusing
+    // every KOL subscription while the bot route accepted, which is the worse failure —
+    // two activation paths disagreeing about whether the product is open.
+    if (!readiness.tradable) {
     return NextResponse.json(
       { error: readiness.reason, code: "AUTOMATION_RELEASE_LOCKED" },
       { status: 503, headers: { "Retry-After": "3600" } }
