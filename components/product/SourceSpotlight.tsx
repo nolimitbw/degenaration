@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { DiscordSourceAvatar } from "@/components/product/DiscordSourceVisual";
+import { EmptyState } from "@/components/product/Primitives";
+import DiscordSignalIcon from "@/components/icons/DiscordSignalIcon";
 import type { DiscordSource } from "@/lib/product-api";
 
 /**
@@ -22,9 +24,14 @@ import type { DiscordSource } from "@/lib/product-api";
  * A source with nothing measured shows its call count and the word Tracking. It never shows a
  * 0% win rate, because no measured calls and every call losing are different facts.
  */
-export default function SourceSpotlight({ sources }: { sources: DiscordSource[] }) {
-  const top = sources.slice(0, 3);
-  if (top.length === 0) return null;
+export default function SourceSpotlight({
+  sources,
+  loading = false
+}: {
+  sources: DiscordSource[] | null;
+  loading?: boolean;
+}) {
+  const top = (sources || []).slice(0, 3);
 
   return (
     <section className="mt-7" aria-labelledby="spotlight">
@@ -33,8 +40,36 @@ export default function SourceSpotlight({ sources }: { sources: DiscordSource[] 
           <h2 id="spotlight" className="t-section font-medium text-ink">Most active sources</h2>
           <span className="ui-label">By calls recorded</span>
         </div>
+        <Link
+          href="/bots/discord"
+          className="inline-flex min-h-11 items-center gap-1 t-meta font-medium text-ink transition-colors duration-150 hover:text-gold-400 sm:min-h-0"
+        >
+          All sources <ArrowRight aria-hidden="true" size={13} className="text-[color:var(--text-muted)]" />
+        </Link>
       </header>
 
+      {/* The three states the dense table used to carry. They moved here with it rather than
+          being dropped: a request that fails and a marketplace with nothing in it are
+          different facts, and neither may render as an empty row of cards. */}
+      {loading && sources == null && (
+        <p className="rounded-2xl border border-edge bg-panel p-6 t-meta text-dim">Loading sources…</p>
+      )}
+      {sources == null && !loading && (
+        <EmptyState
+          icon={DiscordSignalIcon}
+          title="Could not load sources"
+          description="The marketplace did not answer. Refresh to try again."
+        />
+      )}
+      {sources != null && sources.length === 0 && (
+        <EmptyState
+          icon={DiscordSignalIcon}
+          title="No approved sources yet"
+          description="Call communities show up here once a server passes review."
+        />
+      )}
+
+      {top.length > 0 && (
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {top.map((source) => <SpotlightCard key={source.id} source={source} />)}
 
@@ -57,6 +92,7 @@ export default function SourceSpotlight({ sources }: { sources: DiscordSource[] 
           </Link>
         </article>
       </div>
+      )}
     </section>
   );
 }
@@ -67,6 +103,9 @@ function SpotlightCard({ source }: { source: DiscordSource }) {
   const median = source.medianCurrentX;
   // `currentWinRate` arrives as a percentage share of measured calls that are up now.
   const upShare = measured > 0 && winRate != null ? Math.max(0, Math.min(100, Number(winRate))) : null;
+  // The peak family, shown beside the current one rather than instead of it.
+  const peakShare = measured > 0 && source.winRate != null ? Number(source.winRate) : null;
+  const peakMedian = measured > 0 && source.medianReturnX != null ? Number(source.medianReturnX) : null;
   const href = source.publicSlug ? `/source/${source.publicSlug}` : "/bots/discord";
 
   return (
@@ -97,10 +136,17 @@ function SpotlightCard({ source }: { source: DiscordSource }) {
         </div>
       ) : (
         <div className="mt-6">
-          <p className="ui-label">Up now</p>
+          <p className="ui-label">Hit rate — up now</p>
           <p className="ui-figure mt-1 text-3xl leading-none text-ink">{upShare.toFixed(1)}%</p>
+          {/* Peak beside current, always, never one alone.
+              A source whose every call touched 2x and then went to zero reads 72.2% peak and
+              33.3% up now — the pair is the whole story and either number by itself is a
+              different, wrong one. This product shipped the peak-only version once. */}
           <p className="mt-1.5 t-label text-dim">
-            {median == null ? `${measured} measured` : `Median ${Number(median).toFixed(2)}x · ${measured} measured`}
+            {peakShare != null && <>Peak {peakShare.toFixed(1)}% · </>}
+            {median != null && <>Median now {Number(median).toFixed(2)}x · </>}
+            {peakMedian != null && <>peak {Number(peakMedian).toFixed(2)}x · </>}
+            {measured} measured
           </p>
           {/* The distribution, as real proportions. Text states it too — colour never carries
               the meaning on its own. */}

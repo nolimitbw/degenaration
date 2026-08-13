@@ -102,7 +102,10 @@ export default function BotsPage() {
           </>
         }
       />
-      <ProductTabs items={TABS} active="/bots" />
+      {/* No tab strip. The rail already lists Discord sources, KOL strategies and My bots, so
+          this was the same four destinations twice on one screen, six inches apart. Two
+          navigations for one set of pages is the thing that makes a product feel unfinished —
+          and it leaves the user to work out whether they differ. They did not. */}
 
       {/* The ledger rail: figures on the canvas between two hairlines, read number-first.
           This was six bordered cells with the value at 18px above a 9px caption — the money
@@ -120,125 +123,11 @@ export default function BotsPage() {
           of it. The rail answers "how much", these answer "which one", and the list below
           answers "all of them" — three questions, in the order someone opening the app asks
           them. Renders nothing until real sources have loaded. */}
-      {sources != null && sources.length > 0 && <SourceSpotlight sources={sources} />}
-
-      <section className="mt-11">
-        <header className="flex flex-wrap items-baseline justify-between gap-3 pb-3">
-          <div className="flex items-baseline gap-2.5">
-            <h2 className="t-section font-medium text-ink">Discord sources</h2>
-            <span className="ui-label">Last 7 days</span>
-          </div>
-          <Link href="/bots/discord" className="inline-flex min-h-11 items-center gap-1 t-meta font-medium text-ink transition hover:text-gold-400 sm:min-h-0">
-            All sources <ArrowRight aria-hidden="true" size={13} className="text-[color:var(--text-muted)]" />
-          </Link>
-        </header>
-        {loading && sources == null ? <LoadingRows count={2} /> : null}
-        {sources != null && sources.length === 0 && (
-          <EmptyState icon={DiscordSignalIcon} title="No approved sources yet" description="Call communities show up here once a server passes review." />
-        )}
-        {sources == null && !loading && (
-          <EmptyState
-            icon={DiscordSignalIcon}
-            title="Could not load sources"
-            description="The marketplace did not answer. Refresh to try again."
-          />
-        )}
-        {/* Plain scroll container. Bleeding the table to the viewport edge with `-mx-4 px-4`
-            put 32px of padding INSIDE the scroller, so a 760px table reported 792px of
-            content and overflowed the page at 768.
-
-            Four separate return columns became two paired ones. Peak and current must both
-            stay on screen — showing only the peak is the defect migration 10 was written to
-            fix, and a source whose calls each touched 2x then went to zero would read as a
-            flawless record. Pairing them keeps both facts and halves the number of columns a
-            reader has to hold at once. */}
-        {/* Below 640px the same rows are cards. A seven-column table cannot fit 390px, and the
-            honest options there are a sideways scroll or a different shape — the sideways
-            scroll hides the action column behind a gesture nobody performs. Every figure the
-            table shows is in the card, including both halves of each peak/now pair. */}
-        {sources != null && sources.length > 0 && (
-          <ul className="border-t border-[color:var(--rule)] sm:hidden">
-            {sources.map((source) => (
-              <li key={source.id} className="border-b border-[color:var(--rule)] py-4">
-                <div className="flex items-center gap-2.5">
-                  <DiscordSourceAvatar source={source} />
-                  <span className="min-w-0 flex-1 truncate t-body font-medium text-ink">{source.name}</span>
-                  <IntegrationHealthDot status={source.integrationHealth} />
-                </div>
-                <dl className="mt-3 grid grid-cols-3 gap-y-3">
-                  <CardStat label="Calls" value={String(source.measuredCalls)} />
-                  <CardStat
-                    label="Hit rate"
-                    value={source.winRate == null ? null : `${source.winRate.toFixed(1)}%`}
-                    now={source.currentWinRate == null ? null : `${source.currentWinRate.toFixed(1)}%`}
-                  />
-                  <CardStat
-                    label="Median"
-                    value={source.medianReturnX == null ? null : `${source.medianReturnX.toFixed(2)}x`}
-                    now={source.medianCurrentX == null ? null : `${source.medianCurrentX.toFixed(2)}x`}
-                  />
-                </dl>
-                <div className="mt-3.5 flex items-center justify-between gap-3">
-                  <span className="min-w-0 truncate t-label text-[color:var(--text-muted)]">
-                    {source.lastSignalAt ? formatWhen(source.lastSignalAt) : "Listening"} · {source.activeFollowers} following
-                  </span>
-                  <Link
-                    href={`/bots/discord/new?source=${source.id}`}
-                    className="inline-flex min-h-11 shrink-0 items-center rounded-md border border-[color:var(--rule-strong)] px-3.5 t-meta font-medium text-ink"
-                  >
-                    Use this
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {sources != null && sources.length > 0 && (
-          <div className="hidden overflow-x-auto sm:block">
-            <table className="w-full min-w-[680px] text-left">
-              <thead>
-                <tr className="border-b border-[color:var(--rule)]">
-                  <Th>Source</Th>
-                  <Th>Last call</Th>
-                  <Th right>Calls</Th>
-                  <Th right>Hit rate <Faint>peak / now</Faint></Th>
-                  <Th right>Median <Faint>peak / now</Faint></Th>
-                  <Th right>Followers</Th>
-                  <Th right><span className="sr-only">Actions</span></Th>
-                </tr>
-              </thead>
-              <tbody>
-                {sources.map((source) => (
-                  <tr key={source.id} className="border-b border-[color:var(--rule)] last:border-b-0">
-                    <td className="py-3.5 pr-4">
-                      <div className="flex items-center gap-2.5">
-                        <DiscordSourceAvatar source={source} />
-                        <span className="truncate t-body font-medium text-ink">{source.name}</span>
-                        <IntegrationHealthDot status={source.integrationHealth} />
-                      </div>
-                    </td>
-                    <td className="py-3.5 pr-4 t-meta text-dim">
-                      {source.lastSignalAt ? formatWhen(source.lastSignalAt) : "Listening"}
-                    </td>
-                    <td className="ui-figure py-3.5 pr-4 text-right t-body text-ink">{source.measuredCalls}</td>
-                    <Pair peak={source.winRate} now={source.currentWinRate ?? null} suffix="%" digits={1} />
-                    <Pair peak={source.medianReturnX} now={source.medianCurrentX ?? null} suffix="x" digits={2} />
-                    <td className="ui-figure py-3.5 pr-4 text-right t-body text-dim">{source.activeFollowers}</td>
-                    <td className="py-3.5 text-right">
-                      <Link
-                        href={`/bots/discord/new?source=${source.id}`}
-                        className="inline-flex min-h-11 items-center rounded-md border border-[color:var(--rule-strong)] px-3 t-meta font-medium text-ink transition hover:border-gold-400/60 sm:min-h-8"
-                      >
-                        Use this
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {/* One presentation of the sources, not two. The dense table that sat here repeated
+          these same rows immediately below the cards — with two approved sources it was
+          literally the same two, twice. The full table still exists at /bots/discord, which
+          is where "All sources" goes. */}
+      <SourceSpotlight sources={sources} loading={loading} />
 
       <section className="mt-11 grid gap-11 xl:grid-cols-2 xl:gap-10">
         <div>

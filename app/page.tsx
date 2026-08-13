@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import HeroStage from "@/components/landing/HeroStage";
 import HowItWorks from "@/components/landing/HowItWorks";
-import LiveMarketTerminal from "@/components/LiveMarketTerminal";
 import Logo from "@/components/Logo";
 import { getLandingStats } from "@/lib/server/landing";
 
@@ -20,7 +19,21 @@ export const dynamic = "force-dynamic";
  * rather than guessed SVG paths, which also keeps us clear of anyone's brand guidelines.
  */
 
-const BUILT_ON = ["Solana", "Jupiter", "Privy", "Discord", "Supabase", "DexScreener"];
+/**
+ * Real integrations, with the vendors' real marks. `scripts/fetch-builton-logos.mjs` downloads
+ * them into public/logos.
+ *
+ * DexScreener is deliberately absent. We do use it for pricing, but it publishes no SVG mark
+ * and blocks scraping, and one redrawn logo beside five official ones looks worse than five —
+ * a hand-approximated trademark is both visibly wrong and not ours to draw.
+ */
+const BUILT_ON = [
+  { name: "Solana", file: "solana.svg" },
+  { name: "Jupiter", file: "jupiter.svg" },
+  { name: "Privy", file: "privy.svg" },
+  { name: "Discord", file: "discord.svg" },
+  { name: "Supabase", file: "supabase.svg" }
+];
 
 export default async function Home() {
   const stats = await getLandingStats();
@@ -34,10 +47,21 @@ export default async function Home() {
           <h2 id="built-on" className="ui-label text-center">
             Built on
           </h2>
-          <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4 sm:gap-x-14">
-            {BUILT_ON.map((name) => (
-              <li key={name} className="t-body font-medium tracking-tight text-[color:var(--text-muted)]">
-                {name}
+          <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 sm:gap-x-16">
+            {BUILT_ON.map(({ name, file }) => (
+              <li key={name} className="flex items-center gap-2.5">
+                {/* The vendors' own marks, downloaded once into public/logos and committed, so
+                    the page makes no external request and does not depend on anyone's CDN.
+                    Monochrome and dimmed to sit as one row rather than six brand colours
+                    fighting each other and the gold. */}
+                <img
+                  src={`/logos/${file}`}
+                  alt=""
+                  width={22}
+                  height={22}
+                  className="h-[22px] w-[22px] opacity-60 [filter:brightness(0)_invert(1)]"
+                />
+                <span className="t-body font-medium tracking-tight text-[color:var(--text-muted)]">{name}</span>
               </li>
             ))}
           </ul>
@@ -45,17 +69,10 @@ export default async function Home() {
 
         <HowItWorks stats={stats} />
 
-        <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-24">
-          <div className="flex flex-wrap items-end justify-between gap-4 pb-6">
-            <div>
-              <h2 className="text-[1.9rem] font-semibold leading-[1.1] tracking-[-0.02em] text-ink sm:text-4xl">
-                Live market
-              </h2>
-              <p className="mt-2 t-meta text-dim">Solana mainnet, read directly. Nothing here is simulated.</p>
-            </div>
-          </div>
-          <LiveMarketTerminal />
-        </section>
+        {/* No live market panel. It showed a token chart and a manual buy preview on a product
+            that has no manual trading — the one thing on the page a visitor could not actually
+            do. A landing page demonstrating a feature that does not exist is the most expensive
+            kind of clutter. */}
 
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 sm:pb-28">
           <div className="relative isolate overflow-hidden rounded-2xl border border-edge px-6 py-14 text-center sm:px-10 sm:py-20">

@@ -352,9 +352,9 @@ input[type="number"]::-webkit-outer-spin-button {
   --warning-rgb: 208 170 124;
   --info-rgb: 208 170 124;
   color-scheme: dark;
+  /* No grid. This 32px one was the grid still showing on every dashboard page after the
+     backdrop's was removed — the shell painted its own, so removing one left the other. */
   background: var(--void);
-  background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
-  background-size: 32px 32px;
   color: var(--ink);
 }
 
