@@ -5,9 +5,9 @@
  * code-generated CSS and inline SVG — no bitmap that would blur on large screens, no
  * animation, no layout shift. It is fixed, behind all content, and inert to pointers.
  *
- * Deliberately restrained: the grid sits near 2% opacity and the signal curves near 5%,
- * so tables and charts stay the focus. If you can clearly "see the background" on a
- * data screen, it is too strong.
+ * Light and grain only. The grid and the signal curves that used to live here were removed:
+ * they are the two clearest generated-page tells, and neither reference frame has them.
+ * If you can clearly "see the background" on a data screen, it is too strong.
  */
 export default function DegenBackdrop() {
   return (
@@ -22,39 +22,17 @@ export default function DegenBackdrop() {
         }}
       />
 
-      {/* Technical grid at 56px. Kept under 2.5% so it reads as texture, not pattern. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(194,148,99,0.022) 1px, transparent 1px)," +
-            "linear-gradient(90deg, rgba(194,148,99,0.022) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(1200px 800px at 50% 0%, #000 55%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(1200px 800px at 50% 0%, #000 55%, transparent 100%)"
-        }}
-      />
-
-      {/* Two low-contrast signal paths. Static geometry, no floating shapes. */}
-      <svg
-        className="absolute inset-0 h-full w-full"
-        viewBox="0 0 1440 900"
-        preserveAspectRatio="xMidYMid slice"
-        focusable="false"
-      >
-        <path
-          d="M-120 640 C 240 560, 420 300, 760 300 S 1240 190, 1600 120"
-          fill="none"
-          stroke="rgba(194,148,99,0.05)"
-          strokeWidth="1.25"
-        />
-        <path
-          d="M-120 820 C 300 780, 560 520, 920 520 S 1320 430, 1600 380"
-          fill="none"
-          stroke="rgba(194,148,99,0.035)"
-          strokeWidth="1"
-        />
-      </svg>
+      {/* No grid, and no decorative signal curves.
+       *
+       * Both were here for "depth" and both are among the most recognisable tells of a
+       * generated page: a faint technical grid over a dark canvas, and two low-contrast
+       * curves sweeping behind the content meaning nothing. Neither reference frame has
+       * either. Removed on the owner's instruction, and they were the right things to lose —
+       * the light and the grain carry the depth, and a texture that encodes nothing is just
+       * pattern competing with data.
+       *
+       * If depth is ever needed again here, add it with light, not with geometry.
+       */}
 
       {/* Film grain, well under 3%, generated as SVG noise so it never pixelates. */}
       <div

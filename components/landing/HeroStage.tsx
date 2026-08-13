@@ -84,9 +84,11 @@ export default function HeroStage({ stats }: { stats: LandingStats }) {
 
         {/* ── The panel: light, dust, shafts, graph and headline all live inside it ──── */}
         <div className="stage-panel">
+          {/* No grid. A faint technical grid over a dark hero is one of the most recognisable
+              AI-generated-page tells there is, the reference has none, and it was fighting the
+              light for attention. The dust does the job of keeping the black from reading flat. */}
           <div aria-hidden="true" className="stage-bloom" />
           <div aria-hidden="true" className="stage-stars" />
-          <div aria-hidden="true" className="stage-grid" />
           <div aria-hidden="true" className="stage-streaks" />
 
           {nodes.length > 0 && (
