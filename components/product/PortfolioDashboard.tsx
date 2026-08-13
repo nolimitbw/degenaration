@@ -199,9 +199,11 @@ export default function PortfolioDashboard() {
         description="Balances, positions, performance, and transactions."
         actions={
           <>
+            {/* Deposit and Withdraw moved down to the balance block, beside the number they
+                act on. Keeping them here as well put the same two primary actions twice on
+                one screen, and the gold Withdraw pill twice — gold is spent once per screen,
+                and the copy in the header was the further of the two from its meaning. */}
             <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh portfolio"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
-            <button type="button" onClick={() => setDepositOpen(true)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-body font-semibold text-ink"><ArrowDownToLine size={15} /> Deposit</button>
-            <button type="button" onClick={() => setWithdrawOpen(true)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c]"><ArrowUpFromLine size={15} /> Withdraw</button>
             <button
               type="button"
               onClick={async () => {
@@ -227,13 +229,56 @@ export default function PortfolioDashboard() {
           The user is entitled to know which. */}
       <div className="mt-5"><TradingNotice /></div>
 
-      <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
-        <div className="grid gap-px bg-edge lg:grid-cols-[1.35fr_repeat(4,1fr)]">
-          <div className="bg-panel p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2"><p className="field-label">Total portfolio value</p><span className="ui-label inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-up" /> Solana Mainnet</span></div>
-            <p className="ui-figure mt-3 t-display text-ink">{totalSolEquivalent.toFixed(3)} <span className="t-section text-dim">SOL</span></p>
-            <p className="ui-figure mt-1 t-meta text-dim">{fmtUsd(totalUsd)}</p>
+      {/**
+        * The balance block, given the reference dashboard's treatment.
+        *
+        * It was a 1.35fr cell beside four equal ones, so the number the whole page exists to
+        * report was barely larger than the four supporting it — the money did not lead. Here
+        * the total dominates, the actions sit with it, and the supporting figures form a row
+        * beneath rather than competing alongside.
+        *
+        * The reference pairs its big figure with a period control. Ours is NOT repeated here:
+        * one already governs the chart below, and a second control writing the same state is
+        * a decorative control by another name.
+        */}
+      <section className="mt-5 rounded-md border border-edge bg-panel">
+        <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="ui-label inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-up" aria-hidden="true" /> Total portfolio value
+            </p>
+            {/* Trailing decimals sit back a step. The reference dims the tail of its figure and
+                it earns its place here: it puts the whole-SOL amount first at a glance without
+                hiding a digit, which rounding would. */}
+            <p className="ui-figure mt-3 text-[2.6rem] leading-[1.05] tracking-[-0.02em] text-ink sm:text-6xl">
+              {Math.trunc(totalSolEquivalent).toLocaleString()}
+              <span className="text-[color:var(--text-muted)]">
+                .{totalSolEquivalent.toFixed(3).split(".")[1]}
+              </span>
+              <span className="ml-2 align-baseline t-section text-dim">SOL</span>
+            </p>
+            <p className="ui-figure mt-2 t-meta text-dim">{fmtUsd(totalUsd)}</p>
           </div>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setDepositOpen(true)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-edge px-5 t-body font-medium text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+            >
+              <ArrowDownToLine aria-hidden="true" size={15} /> Deposit
+            </button>
+            <button
+              type="button"
+              onClick={() => setWithdrawOpen(true)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-gold-400 px-5 t-body font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200"
+            >
+              <ArrowUpFromLine aria-hidden="true" size={15} /> Withdraw
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-px border-t border-edge bg-edge sm:grid-cols-2 xl:grid-cols-5">
           <BalanceMetric label="Available" value={`${availableSol.toFixed(3)} SOL`} detail="Wallet balance" />
           <BalanceMetric label="Allocated" value={`${allocated.toFixed(3)} SOL`} detail={`${openPositions.length} open positions`} />
           <BalanceMetric label="Realized PnL" value={`${realized >= 0 ? "+" : ""}${realized.toFixed(3)} SOL`} detail={period.toUpperCase()} tone={realized >= 0 ? "positive" : "negative"} />
