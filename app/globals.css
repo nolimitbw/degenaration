@@ -896,16 +896,40 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 /* The card must read as an object sitting ON the page, which needs the page behind it to be
    darker than the card. Both were the same token at first and the rounded corner was
    invisible — the inset was there and did nothing. */
+/* The surround. In the reference the page BEHIND the card is not flat black — it carries a
+   soft light at two corners, which is what makes the near-black card read as an object lying
+   on a surface rather than as the page itself. Flat black was why the rounded corner did
+   nothing: there was nothing for it to be a corner against. */
 .degen-home {
-  background: #050504;
+  background:
+    radial-gradient(60% 40% at 6% 2%, rgb(var(--gold-300-rgb) / 0.07), transparent 62%),
+    radial-gradient(50% 40% at 96% 96%, rgb(var(--ink-rgb) / 0.05), transparent 66%),
+    #060605;
 }
 
 .stage {
-  background: var(--canvas);
-  min-height: min(84vh, 780px);
+  background: #080807;
+  min-height: min(92vh, 940px);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 30px 90px rgb(0 0 0 / 0.55);
+  box-shadow: 0 40px 120px rgb(0 0 0 / 0.7);
+}
+
+/* The inner panel — the layer I missed first time, and the one that makes the composition.
+   The reference nests a second rounded rectangle inside the card, below the nav, and the
+   bloom lives INSIDE it. Without it the light bleeds to the card edge and the whole frame
+   reads as one flat wash; with it the light is contained and the panel edge catches it. */
+.stage-panel {
+  position: absolute;
+  inset: 84px 14px 14px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--ink-rgb) / 0.07);
+  background: #0a0a09;
+}
+
+@media (min-width: 640px) {
+  .stage-panel { inset: 96px 22px 22px; border-radius: 26px; }
 }
 
 /* The diagonal light.
@@ -918,16 +942,54 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
  * The white layer does most of the lifting and the gold tints it. Gold alone at this strength
  * turns the corner amber and starts to look like a warning state rather than light.
  */
+/**
+ * The light.
+ *
+ * This is the whole design, and my first two passes badly under-built it. In the reference the
+ * bloom covers roughly a third of the panel and its core is near-WHITE — bright enough that
+ * the closing word of the headline is legible only as a silhouette against it. Mine peaked
+ * around 0.34 alpha over a quarter of the frame, which reads as a smudge.
+ *
+ * Built as a bright core inside a much wider warm falloff, offset from each other. A single
+ * radial gives an obvious centre and a visible edge; offsetting a small hot core inside a
+ * large soft one is what produces directional light rather than a spotlight.
+ *
+ * White carries the brightness and gold tints it. Gold alone at this intensity turns the
+ * corner amber and starts reading as a warning state instead of light.
+ */
 .stage-bloom {
   position: absolute;
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(58% 46% at 74% 24%, rgb(var(--ink-rgb) / 0.30), transparent 70%),
-    radial-gradient(46% 38% at 80% 16%, rgb(var(--gold-300-rgb) / 0.34), transparent 72%),
-    radial-gradient(80% 64% at 92% 4%, rgb(var(--ink-rgb) / 0.16), transparent 66%),
-    radial-gradient(52% 46% at 12% 94%, rgb(var(--gold-rgb) / 0.20), transparent 72%);
-  filter: blur(26px);
+    /* hot core */
+    radial-gradient(30% 26% at 70% 22%, rgb(var(--ink-rgb) / 0.62), transparent 72%),
+    radial-gradient(38% 32% at 74% 18%, rgb(var(--gold-300-rgb) / 0.44), transparent 74%),
+    /* wide falloff, carrying the diagonal down to the left */
+    radial-gradient(78% 66% at 78% 12%, rgb(var(--ink-rgb) / 0.24), transparent 70%),
+    radial-gradient(90% 80% at 88% 6%, rgb(var(--gold-rgb) / 0.16), transparent 72%),
+    /* the answering light at the opposite corner */
+    radial-gradient(46% 42% at 8% 96%, rgb(var(--ink-rgb) / 0.16), transparent 72%),
+    radial-gradient(58% 52% at 4% 100%, rgb(var(--gold-rgb) / 0.14), transparent 74%);
+  filter: blur(34px);
+}
+
+/* Starfield. The reference's dark quadrants are not empty — they carry a fine dust that keeps
+   the black from reading as a void. Three offset dot grids at different sizes so no repeat is
+   visible, masked away from the bloom where they would only muddy it. */
+.stage-stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    radial-gradient(1px 1px at 18% 24%, rgb(var(--ink-rgb) / 0.5), transparent),
+    radial-gradient(1px 1px at 62% 78%, rgb(var(--ink-rgb) / 0.4), transparent),
+    radial-gradient(1px 1px at 84% 62%, rgb(var(--ink-rgb) / 0.35), transparent),
+    radial-gradient(1px 1px at 32% 88%, rgb(var(--ink-rgb) / 0.45), transparent),
+    radial-gradient(1px 1px at 8% 58%, rgb(var(--ink-rgb) / 0.3), transparent);
+  background-size: 220px 190px, 310px 260px, 170px 230px, 260px 300px, 190px 210px;
+  mask-image: radial-gradient(70% 60% at 74% 20%, transparent 30%, #000 78%);
+  -webkit-mask-image: radial-gradient(70% 60% at 74% 20%, transparent 30%, #000 78%);
 }
 
 .stage-grid {
@@ -944,21 +1006,25 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 }
 
 /* The vertical light shafts under the headline. */
+/* The light shafts falling from the headline. Five of them at mixed brightness and uneven
+   spacing — evenly spaced identical lines read as a UI element rather than as light. */
 .stage-streaks {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 46%;
+  height: 58%;
   z-index: 0;
   background-image:
-    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.28)),
-    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.16)),
-    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.16));
-  background-size: 1px 100%, 1px 100%, 1px 100%;
-  background-position: 46% bottom, 50% bottom, 54.5% bottom;
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.42)),
+    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.30)),
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.55)),
+    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.22)),
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.28));
+  background-size: 1px 100%, 1px 100%, 1px 100%, 1px 100%, 1px 100%;
+  background-position: 43.5% bottom, 47% bottom, 50.5% bottom, 53% bottom, 57.5% bottom;
   background-repeat: no-repeat;
-  mask-image: linear-gradient(to bottom, transparent, #000 55%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, transparent 4%, #000 62%, transparent 96%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, #000 62%, transparent 96%);
 }
 
 /* The closing phrase falls into the background. background-clip:text needs a transparent
