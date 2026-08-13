@@ -64,8 +64,20 @@ export async function GET() {
       feeAccountReady: fee.ready,
       automation: {
         configured: workerConfigured,
-        live: readiness.active,
-        copyLive: readiness.active && copyTradingLive,
+        /**
+         * `tradable`, not `active` — the answer to the question a user is actually asking.
+         *
+         * `active` requires all eighteen checks including `fee`, which protects revenue and
+         * not the user. Once activation stopped gating on it, reporting `active` here meant
+         * the product told users "bots save but do not place trades" while accepting
+         * activations and trading — saying one thing and doing another, which is worse than
+         * either state on its own.
+         *
+         * The fee position stays visible and separate: feeLabel reads "None" until the
+         * account exists and "2.00%" the moment it does.
+         */
+        live: readiness.tradable,
+        copyLive: readiness.tradable && copyTradingLive,
         mode: worker?.mode || (workerConfigured ? "unreachable" : "not-configured"),
         network: worker?.network || null,
         status: readiness.status,

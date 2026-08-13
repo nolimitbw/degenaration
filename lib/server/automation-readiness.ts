@@ -121,12 +121,23 @@ export async function automationReadiness() {
   const failed = checks.find((check) => !check.ok) || null;
   const blocking = checks.find((check) => !check.ok && !ADVISORY.has(check.id)) || null;
   return {
+    /** Every check passing, fee included. The operator's bar. */
     active: !failed,
-    /** True when nothing that protects a USER is failing. See ADVISORY. */
+    /** True when nothing that protects a USER is failing. See ADVISORY. The product's bar. */
     tradable: !blocking,
-    status: failed ? "Pending" : "Active",
+    /**
+     * The two PUBLIC fields answer the user's question — can my bot trade? — so they follow
+     * `tradable`. Reporting `active` here left the product saying "bots save but do not place
+     * trades" while it accepted activations and traded: one thing said, another done, which is
+     * worse than either state alone.
+     *
+     * The operator fields below still follow `active`, so `reason`, `failedCheck` and `checks`
+     * keep naming the fee account until it exists. Nothing is hidden; the two audiences are
+     * simply asked different questions.
+     */
+    status: blocking ? "Pending" : "Active",
+    publicReason: blocking ? PUBLIC_PENDING_REASON : PUBLIC_ACTIVE_REASON,
     reason: failed?.reason || "Bots can place and manage trades automatically.",
-    publicReason: failed ? PUBLIC_PENDING_REASON : PUBLIC_ACTIVE_REASON,
     failedCheck: failed?.id || null,
     blockingCheck: blocking?.id || null,
     checks
