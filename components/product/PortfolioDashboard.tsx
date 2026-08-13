@@ -29,6 +29,7 @@ import { fetchPortfolio, fmtUsd, type Portfolio } from "@/lib/queries";
 import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch } from "@/lib/product-api";
 import { getNet } from "@/lib/net";
 import { portfolioStatistics, unrealizedPnl } from "@/lib/portfolio-stats";
+const { splitFigure } = require("@/lib/figure");
 
 type Period = "7d" | "30d" | "3m";
 type View = "overview" | "positions" | "trades" | "movements";
@@ -249,12 +250,22 @@ export default function PortfolioDashboard() {
             </p>
             {/* Trailing decimals sit back a step. The reference dims the tail of its figure and
                 it earns its place here: it puts the whole-SOL amount first at a glance without
-                hiding a digit, which rounding would. */}
+                hiding a digit, which rounding would.
+                Split by the tested helper rather than inline — done inline this rendered
+                "NaN.undefined SOL" for a total the API could not supply, and a plain
+                Number() coercion would have rendered an unknown balance as a confident 0.000. */}
             <p className="ui-figure mt-3 text-[2.6rem] leading-[1.05] tracking-[-0.02em] text-ink sm:text-6xl">
-              {Math.trunc(totalSolEquivalent).toLocaleString()}
-              <span className="text-[color:var(--text-muted)]">
-                .{totalSolEquivalent.toFixed(3).split(".")[1]}
-              </span>
+              {(() => {
+                const figure = splitFigure(totalSolEquivalent);
+                if (!figure.ok) return <span className="ui-absent align-middle">—</span>;
+                return (
+                  <>
+                    {figure.sign}
+                    {figure.whole}
+                    <span className="text-[color:var(--text-muted)]">.{figure.fraction}</span>
+                  </>
+                );
+              })()}
               <span className="ml-2 align-baseline t-section text-dim">SOL</span>
             </p>
             <p className="ui-figure mt-2 t-meta text-dim">{fmtUsd(totalUsd)}</p>

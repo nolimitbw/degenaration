@@ -3552,6 +3552,62 @@ console.log("price selection");
   });
 }
 
+// ── Splitting the portfolio total for display ──────────────────────────────────────────────
+//
+// Introduced with the balance block, which renders the whole part at full weight and the
+// decimals a step back. Done inline it produced "NaN.undefined SOL" for any total the API
+// could not supply — Math.trunc(NaN) is NaN and NaN.toFixed(3).split('.')[1] is undefined —
+// which is worse than the plain "NaN" it replaced, because it reads as a formatting bug on top
+// of a data one. A balance is the last place to print something that resembles a number and
+// is not.
+{
+  const { splitFigure } = require("../../lib/figure");
+
+  test("a normal balance splits into a grouped whole part and its decimals", () => {
+    const f = splitFigure(1234.5678);
+    assert.equal(f.ok, true);
+    assert.equal(f.whole, "1,234");
+    assert.equal(f.fraction, "568");
+    assert.equal(f.sign, "");
+  });
+
+  test("an integer balance still carries its decimals rather than dropping them", () => {
+    const f = splitFigure(12);
+    assert.equal(f.whole, "12");
+    assert.equal(f.fraction, "000");
+  });
+
+  test("a non-finite total reports not-ok so the caller renders its absent marker", () => {
+    for (const bad of [Number.NaN, Infinity, -Infinity, undefined, null, "", "abc", {}]) {
+      const f = splitFigure(bad);
+      assert.equal(f.ok, false, `expected ok:false for ${String(bad)}`);
+      // Nothing printable leaks out of a rejected value.
+      assert.equal(f.whole, "");
+      assert.equal(f.fraction, "");
+    }
+  });
+
+  test("the sign is carried apart from the grouped digits, never inside them", () => {
+    const f = splitFigure(-1234.5);
+    assert.equal(f.sign, "-");
+    assert.equal(f.whole, "1,234", "the minus must not end up inside the grouped whole part");
+    assert.equal(f.fraction, "500");
+  });
+
+  test("negative zero does not print a leading minus on an empty balance", () => {
+    assert.equal(splitFigure(-0).sign, "");
+    assert.equal(splitFigure(0).whole, "0");
+  });
+
+  // A numeric string is what an API returns for a lamport figure often enough to matter.
+  test("a numeric string is accepted", () => {
+    const f = splitFigure("41.25");
+    assert.equal(f.ok, true);
+    assert.equal(f.whole, "41");
+    assert.equal(f.fraction, "250");
+  });
+}
+
 // ── The public config endpoint must not publish operator wording ───────────────────────────
 //
 // `/api/platform/config` is public and unauthenticated. It served `readiness.reason` — the
