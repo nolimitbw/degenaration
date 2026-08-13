@@ -50,6 +50,21 @@ fee wallet and cannot be done from here.
 
 Run `npm run verify:fee-account <PLATFORM_FEE_ACCOUNT>` for the exact derived addresses.
 
+**You cannot get that address from here, and neither can an agent.** It is marked *Sensitive*
+in Vercel, so `vercel env pull` writes the literal string `[SENSITIVE]` — 11 characters, not
+base58 — instead of the value. A session that pulls it and derives an ATA without checking will
+get a base58 decode error, not a wrong answer, which is the safe failure but wastes a pass.
+Read it from the Vercel dashboard, or work from the wallet itself.
+
+**The simplest fix needs no CLI and no key handling.** Open the fee wallet and swap a small
+amount of SOL to wSOL — wrapping creates the associated token account as a side effect, which
+is the whole requirement. `spl-token create-account So111...112` from that wallet does the same
+thing explicitly.
+
+Creating it is the only step here that needs a signature, which is why it sits outside agent
+autonomy under the carve-out in `CLAUDE.md` rather than being a difficulty an agent should push
+through.
+
 ## B-3 — Delegated signing is off
 
 `DELEGATED_SIGNING` is not `on`, so `server/worker.js` boots watch-only and starts no watcher
