@@ -37,7 +37,10 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
   },
   record_call_entry_price: {
     rpc: "bot_record_call_entry_price",
-    params: ["p_secret", "p_call_id", "p_price_usd", "p_market_cap_usd", "p_liquidity_usd"]
+    // p_peak_price_usd carries the highest price traded SINCE the call, recovered from history.
+    // Without it the peak only starts where the scanner first looked, which produced peaks
+    // BELOW the entry — impossible, and the buckets are ranges over exactly that ratio.
+    params: ["p_secret", "p_call_id", "p_price_usd", "p_market_cap_usd", "p_liquidity_usd", "p_peak_price_usd"]
   },
   ingest_call: {
     rpc: "bot_ingest_discord_call",

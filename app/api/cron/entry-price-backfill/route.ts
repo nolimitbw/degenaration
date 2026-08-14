@@ -111,6 +111,40 @@ async function priceAt(pool: string, calledAtMs: number): Promise<number | null>
   return null;
 }
 
+/**
+ * The highest price traded SINCE the call, from hourly candles.
+ *
+ * Without this the recorded peak begins at the first time the scanner happened to look, so the
+ * whole window between a call and its first scan is missing — and for a backfilled call that
+ * window is the entire life of the call. It produced peaks BELOW the entry (peak_x 0.988,
+ * 0.998), which is not merely inaccurate, it is impossible, and the buckets are ranges over
+ * exactly that number.
+ *
+ * Hourly rather than minute: a call from two days ago is 2,880 minute candles and 48 hourly
+ * ones, and the bucket boundaries are 0.5x / 1.5x / 2x / 5x — an hourly high resolves those
+ * without paginating. It can understate a spike that began and ended inside one hour, so this
+ * only ever RAISES the stored peak and never lowers it.
+ */
+async function peakSince(pool: string, calledAtMs: number): Promise<number | null> {
+  const seconds = Math.floor(calledAtMs / 1000);
+  const hours = Math.ceil((Date.now() - calledAtMs) / 3_600_000);
+  if (hours < 1) return null;
+  const response = await gecko(
+    `/networks/solana/pools/${pool}/ohlcv/hour?limit=${Math.min(hours + 1, 1000)}&currency=usd`
+  );
+  if (!response.ok) return null;
+  const list = (await response.json().catch(() => null))?.data?.attributes?.ohlcv_list || [];
+  let highest: number | null = null;
+  for (const row of list) {
+    const [ts, , high] = row || [];
+    // Only candles at or after the call. A high from before it is someone else's move.
+    if (typeof ts !== "number" || ts < seconds - 3_600) continue;
+    const value = Number(high);
+    if (Number.isFinite(value) && value > 0 && (highest == null || value > highest)) highest = value;
+  }
+  return highest;
+}
+
 export async function GET(req: NextRequest) {
   if (!isBotRequest(req) && !isCronRequest(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -120,7 +154,7 @@ export async function GET(req: NextRequest) {
   }
 
   const started = Date.now();
-  const counts = { considered: 0, priced: 0, noPool: 0, noCandle: 0, failed: 0 };
+  const counts = { considered: 0, priced: 0, peaked: 0, noPool: 0, noCandle: 0, failed: 0 };
   const poolCache = new Map<string, { address: string; liquidity: number | null } | null>();
 
   try {
@@ -146,11 +180,18 @@ export async function GET(req: NextRequest) {
         await new Promise((r) => setTimeout(r, REQUEST_SPACING_MS));
         if (price == null) { counts.noCandle += 1; continue; }
 
+        // The peak is best-effort: a call with an entry and no recoverable peak is still worth
+        // recording, and the RPC floors the peak at the entry either way.
+        const peak = await peakSince(pool.address, calledAt).catch(() => null);
+        await new Promise((r) => setTimeout(r, REQUEST_SPACING_MS));
+        if (peak != null && peak > price) counts.peaked += 1;
+
         const result = await bridge("record_call_entry_price", {
           p_call_id: row.id,
           p_price_usd: price,
           p_market_cap_usd: null,
-          p_liquidity_usd: pool.liquidity
+          p_liquidity_usd: pool.liquidity,
+          p_peak_price_usd: peak
         });
         if (result?.ok) counts.priced += 1; else counts.failed += 1;
       } catch {

@@ -24,10 +24,22 @@ export async function GET(req: NextRequest) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   if (journalResult.status === "fulfilled" && journalResult.value.ok) {
     const byId = new Map((journalResult.value.data?.sources || []).map((source: any) => [source.id, source]));
-    result.data.sources = (result.data.sources || []).map((source: any) => ({
-      ...source,
-      ...(byId.get(source.id) || {})
-    }));
+    result.data.sources = (result.data.sources || []).map((source: any) => {
+      const journal = { ...(byId.get(source.id) || {}) } as Record<string, unknown>;
+      // The two RPCs both compute "measured" and they do NOT agree: the marketplace counts
+      // calls that have a peak ratio, the journal counts performance_status = 'measured'. A
+      // call backfilled since the scanner last ran has the first and not the second, so the
+      // journal reported 21 while the distribution it labels was built from 22 — the caption
+      // under a chart describing a different population than the chart.
+      //
+      // The marketplace RPC owns this family, because the buckets, the hit rate and the
+      // medians are all derived from exactly the same rows in that query. The journal keeps
+      // everything else it is better at: activity, freshness, delivery counts.
+      for (const owned of ["measuredCalls", "measuredCurrent", "winRate", "currentWinRate"]) {
+        delete journal[owned];
+      }
+      return { ...source, ...journal };
+    });
   }
   return rpcResponse(result);
 }
