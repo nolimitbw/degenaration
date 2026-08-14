@@ -3552,6 +3552,77 @@ console.log("price selection");
   });
 }
 
+// ── Every link format a Solana caller actually posts ───────────────────────────────────────
+//
+// The parser knew four hosts: pump.fun, DexScreener, Birdeye, Jupiter. Call channels do not
+// confine themselves to four, and this is a PUBLIC marketplace — a server owner listing their
+// channel and finding half their calls missing has no way to know why, and no reason to stay.
+//
+// A missing host does not merely lose the link, it loses the DISAMBIGUATION. The fallback
+// still finds the base58 inside the URL, but a link is what says "this address is the token";
+// without it, one wallet pasted beside the call makes the whole message ambiguous and it is
+// refused. That is the failure this pins.
+{
+  const { parseMessage } = require("../../lib/discord-parser");
+  const MINT = "8sLbNZoA1cfnvMJLPfp98ZLAnFSYCFApfJKMbiXNLwxj";
+  const OTHER = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
+  const parse = (content) => parseMessage({ content, embeds: [], attachments: [] });
+
+  const HOSTS = [
+    ["pump.fun", `https://pump.fun/coin/${MINT}`, "mint"],
+    ["birdeye", `https://birdeye.so/token/${MINT}`, "mint"],
+    ["jupiter swap", `https://jup.ag/swap/SOL-${MINT}`, "mint"],
+    ["jupiter tokens", `https://jup.ag/tokens/${MINT}`, "mint"],
+    ["gmgn", `https://gmgn.ai/sol/token/${MINT}`, "mint"],
+    ["solscan", `https://solscan.io/token/${MINT}`, "mint"],
+    ["bullx", `https://neo.bullx.io/terminal?chainId=1399811149&address=${MINT}`, "mint"],
+    ["raydium", `https://raydium.io/swap/?inputMint=sol&outputMint=${MINT}`, "mint"],
+    ["axiom token", `https://axiom.trade/t/${MINT}`, "mint"],
+    // These carry a POOL or PAIR, not a mint. On-chain validation refuses such an address, so
+    // they must be typed for resolution or the call is dropped — which is what was happening.
+    ["dexscreener", `https://dexscreener.com/solana/${MINT}`, "dexscreener_address"],
+    ["dextools", `https://www.dextools.io/app/en/solana/pair-explorer/${MINT}`, "dexscreener_address"],
+    ["photon", `https://photon-sol.tinyastro.io/en/lp/${MINT}`, "dexscreener_address"],
+    ["axiom meme", `https://axiom.trade/meme/${MINT}`, "dexscreener_address"]
+  ];
+
+  for (const [name, url, expectedType] of HOSTS) {
+    test(`a ${name} link is recognised as a link, not a bare address`, () => {
+      const result = parse(`new call ${url} ape it`);
+      assert.ok(result, `${name} produced no parse`);
+      assert.equal(result.mint, MINT, `${name} did not yield the mint`);
+      assert.match(result.confidence, /link/, `${name} was read as a bare address, losing disambiguation`);
+      assert.equal(result.candidateType || "mint", expectedType,
+        `${name} must be typed ${expectedType} so a pool address is resolved rather than refused`);
+    });
+  }
+
+  // The safety property the link tier exists to provide, and the one it must never lose.
+  test("a link names the token even when a wallet is pasted beside it", () => {
+    const result = parse(`https://gmgn.ai/sol/token/${MINT} tip me at ${OTHER}`);
+    assert.equal(result.mint, MINT);
+  });
+
+  test("two bare addresses are still refused rather than guessed", () => {
+    assert.equal(parse(`${MINT} and ${OTHER}`).rejected, "ambiguous-addresses");
+  });
+
+  test("two links naming different tokens are still refused", () => {
+    assert.equal(parse(`https://gmgn.ai/sol/token/${MINT} https://birdeye.so/token/${OTHER}`).rejected, "ambiguous-links");
+  });
+
+  test("the same mint via two different hosts is one unambiguous call", () => {
+    assert.equal(parse(`https://gmgn.ai/sol/token/${MINT} https://birdeye.so/token/${MINT}`).mint, MINT);
+  });
+
+  // Call channels frequently relay through a bot that posts an embed with an empty content.
+  test("an embed-only call is parsed", () => {
+    const result = parseMessage({ content: "", embeds: [{ description: `CA: https://axiom.trade/meme/${MINT}` }], attachments: [] });
+    assert.equal(result.mint, MINT);
+    assert.match(result.confidence, /embed/);
+  });
+}
+
 // ── Only revenue-protecting checks may be advisory ─────────────────────────────────────────
 //
 // Activation now gates on `tradable`, which ignores the ADVISORY set, so anything added to
