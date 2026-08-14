@@ -47,7 +47,27 @@ begin
       -- GeckoTerminal's minute history does not reach back indefinitely; beyond this the
       -- lookup returns nothing and the row would be retried forever for no reason.
       and called_at > now() - interval '180 days'
-    order by called_at asc
+    -- FRESH CALLS FIRST, absolutely.
+    --
+    -- Detection is 2-6 seconds, measured. But the price at ingest is null: DexScreener has
+    -- not indexed a pair for a token that is seconds old, so the live enrichment finds
+    -- nothing. The GeckoTerminal candle DOES exist, which is why this backfill prices those
+    -- same calls successfully later — "later" was the entire problem.
+    --
+    -- Two earlier orderings were both wrong, in opposite directions. Oldest-first was written
+    -- on the reasoning that long-unmeasured calls hold a source's record hostage; five rows
+    -- landed and the measurable count moved by zero, because those tokens are dead and have no
+    -- current price either. Then current-price-first, which is right for the backlog and puts
+    -- a brand-new call — which has no current price yet — behind 543 older ones.
+    --
+    -- A source's newest call is the one someone is actually watching, so it goes first.
+    -- Second, calls that already have a current price, since those become measurable the
+    -- instant the entry lands. Everything else last: mostly dead tokens with no pool left to
+    -- query, which is where 24 of every 34 attempts were being spent.
+    order by
+      (called_at > now() - interval '2 hours') desc,
+      (latest_price_usd is not null) desc,
+      called_at desc
     limit greatest(1, least(coalesce(p_limit, 40), 100))
   ) c;
 
