@@ -55,10 +55,48 @@ async function liveStatus() {
   }
 }
 
+/**
+ * What OUR Discord application actually is, asked of Discord with our own bot token.
+ *
+ * `live` below reports degencalls.onrender.com — a listener that is not in this repository. Its
+ * guild count and readiness were the only Discord facts on this endpoint, so a different
+ * application's health was being read as ours. That is how "the bot in my server is not the
+ * DegenAration bot" stayed invisible: the page said a bot was online, and it was, just not this
+ * one. This block names ours specifically so the two can never be confused again.
+ */
+async function selfApplication() {
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) return { configured: false, name: null, id: null, guilds: null, commands: null };
+  const auth = { authorization: `Bot ${token}` };
+  try {
+    const app = await fetchWithTimeout("https://discord.com/api/v10/applications/@me", { headers: auth, cache: "no-store" }, 6_000);
+    const application = app.ok ? await app.json().catch(() => null) : null;
+    if (!application?.id) return { configured: true, name: null, id: null, guilds: null, commands: null, error: `applications/@me ${app.status}` };
+
+    const [guildsResponse, commandsResponse] = await Promise.all([
+      fetchWithTimeout("https://discord.com/api/v10/users/@me/guilds", { headers: auth, cache: "no-store" }, 6_000),
+      fetchWithTimeout(`https://discord.com/api/v10/applications/${application.id}/commands`, { headers: auth, cache: "no-store" }, 6_000)
+    ]);
+    const guilds = guildsResponse.ok ? await guildsResponse.json().catch(() => []) : [];
+    const commands = commandsResponse.ok ? await commandsResponse.json().catch(() => []) : [];
+
+    return {
+      configured: true,
+      id: application.id,
+      name: application.name ?? null,
+      interactionsEndpointSet: Boolean(application.interactions_endpoint_url),
+      guilds: Array.isArray(guilds) ? guilds.map((g: any) => g?.name).filter(Boolean) : [],
+      commands: Array.isArray(commands) ? commands.map((c: any) => c?.name).filter(Boolean) : []
+    };
+  } catch {
+    return { configured: true, name: null, id: null, guilds: null, commands: null, error: "unreachable" };
+  }
+}
+
 export async function GET() {
   const clientId = process.env.DISCORD_BOT_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_BOT_CLIENT_ID || DEFAULT_BOT_CLIENT_ID;
   const configured = Boolean(process.env.BOT_SHARED_SECRET);
-  const status = await liveStatus();
+  const [status, self] = await Promise.all([liveStatus(), selfApplication()]);
 
   return NextResponse.json({
     clientId,
@@ -71,7 +109,10 @@ export async function GET() {
     commands: ["/register", "/connect discord", "/alpha", "/degen status", "/degen profile", "/degen referral", "/degen callers", "/onboard", "/help"],
     registrationBridgeConfigured: configured,
     botBuild: process.env.BOT_BUILD || EXPECTED_BOT_BUILD,
-    live: status
+    /** The listener at degencalls.onrender.com — NOT this repository's bot. */
+    live: status,
+    /** This repository's own Discord application. */
+    self
   }, {
     headers: { "Cache-Control": "no-store, max-age=0" }
   });
