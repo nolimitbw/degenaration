@@ -58,7 +58,11 @@ export default function HeroStage({ stats }: { stats: LandingStats }) {
                 ["Discord sources", "/bots/discord"],
                 ["KOL strategies", "/bots/kol"],
                 ["Affiliate", "/affiliate"],
-                ["Portfolio", "/portfolio"]
+                ["Portfolio", "/portfolio"],
+                // Docs sits last in the pill: it is the one destination a stranger reaches for
+                // before signing in, so it belongs on the front door rather than only in the
+                // footer where a first-time reader never looks.
+                ["Docs", "/docs"]
               ].map(([label, href]) => (
                 <li key={href}>
                   <Link
@@ -72,14 +76,26 @@ export default function HeroStage({ stats }: { stats: LandingStats }) {
             </ul>
           </nav>
 
-          <Link
-            href="/portfolio"
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[color:rgb(var(--ink-rgb)/0.12)] px-4 py-2.5 t-meta font-medium text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
-          >
-            <span className="hidden sm:inline">Open app</span>
-            <span className="sm:hidden">App</span>
-            <ArrowUpRight aria-hidden="true" size={15} />
-          </Link>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* The pill above is hidden below lg, so without this a phone visitor could only
+                reach the documentation from the very bottom of the page. It is the one link a
+                stranger looks for before signing in, so it stays reachable at every width and
+                simply steps aside once the pill appears. */}
+            <Link
+              href="/docs"
+              className="inline-flex min-h-11 items-center rounded-full px-3 t-meta text-dim transition-colors duration-150 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400 lg:hidden"
+            >
+              Docs
+            </Link>
+            <Link
+              href="/portfolio"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-[color:rgb(var(--ink-rgb)/0.12)] px-4 py-2.5 t-meta font-medium text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+            >
+              <span className="hidden sm:inline">Open app</span>
+              <span className="sm:hidden">App</span>
+              <ArrowUpRight aria-hidden="true" size={15} />
+            </Link>
+          </div>
         </header>
 
         {/* ── The panel: light, dust, shafts, graph and headline all live inside it ──── */}

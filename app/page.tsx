@@ -113,6 +113,7 @@ export default async function Home() {
                 ["Bots", "/bots"],
                 ["Affiliate", "/affiliate"],
                 ["Portfolio", "/portfolio"],
+                ["Docs", "/docs"],
                 ["Risk", "/risk"]
               ].map(([label, href]) => (
                 <li key={href}>
