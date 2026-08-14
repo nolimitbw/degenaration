@@ -98,7 +98,73 @@ export async function GET(req: NextRequest) {
       }));
   }
 
-  return NextResponse.json({ ok: true, guilds: report }, { headers: { "Cache-Control": "no-store" } });
+  /**
+   * Can the bot actually READ each approved channel right now?
+   *
+   * The scanner reported no error and no messages for a channel whose owner says it is busy.
+   * Those two look identical from the outside — "nothing new" and "cannot see it" both come
+   * back as zero — so the only way to tell them apart is to ask Discord directly and report
+   * the status code.
+   */
+  const channels = await fetchWithTimeout(
+    `${req.nextUrl.origin}/api/cron/discord-backfill`,
+    { headers: { authorization: req.headers.get("authorization") || "" }, cache: "no-store" }, 60_000
+  ).catch(() => null);
+
+  const probe: Record<string, unknown> = {};
+  for (const id of ["1521876069693526158", "1495930481018142801"]) {
+    const response = await fetchWithTimeout(
+      `https://discord.com/api/v10/channels/${id}/messages?limit=5`,
+      { headers: auth, cache: "no-store" }, 8_000
+    ).catch(() => null);
+    if (!response) { probe[id] = { error: "unreachable" }; continue; }
+    if (!response.ok) {
+      probe[id] = { status: response.status, detail: (await response.text().catch(() => "")).slice(0, 160) };
+      continue;
+    }
+    const messages = await response.json().catch(() => []);
+    probe[id] = {
+      status: 200,
+      visible: Array.isArray(messages) ? messages.length : 0,
+      newest: Array.isArray(messages) && messages[0]?.timestamp ? messages[0].timestamp : null,
+      newestId: Array.isArray(messages) && messages[0]?.id ? messages[0].id : null
+    };
+  }
+
+  /**
+   * Every text channel the bot can see, newest activity first.
+   *
+   * A registered channel that has genuinely gone quiet and a busy channel nobody registered
+   * look the same from the journal: no new calls. This tells them apart by naming where the
+   * activity actually is, so the answer is "register #that-one" rather than "the scanner is
+   * broken".
+   *
+   * `last_message_id` is a snowflake and its timestamp is the top 42 bits, so the time of the
+   * newest message comes free with the channel list — no per-channel message fetch, which at
+   * this many channels would be the thing that gets us rate limited.
+   */
+  const DISCORD_EPOCH = 1420070400000;
+  const activity: Record<string, unknown> = {};
+  for (const guild of Array.isArray(guilds) ? guilds : []) {
+    if (!guild?.id) continue;
+    const response = await fetchWithTimeout(`https://discord.com/api/v10/guilds/${guild.id}/channels`, { headers: auth, cache: "no-store" }, 8_000);
+    if (!response.ok) { activity[guild.name || guild.id] = { error: `channels ${response.status}` }; continue; }
+    const list = await response.json().catch(() => []);
+    activity[guild.name || guild.id] = (Array.isArray(list) ? list : [])
+      .filter((c: any) => c?.type === 0 && c?.last_message_id)
+      .map((c: any) => ({
+        name: c.name,
+        id: c.id,
+        lastMessageAt: new Date(Number(BigInt(c.last_message_id) >> BigInt(22)) + DISCORD_EPOCH).toISOString()
+      }))
+      .sort((a: any, b: any) => (a.lastMessageAt < b.lastMessageAt ? 1 : -1))
+      .slice(0, 12);
+  }
+
+  return NextResponse.json(
+    { ok: true, guilds: report, channelRead: probe, channelActivity: activity, scannerReachable: Boolean(channels) },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
 
 /**
