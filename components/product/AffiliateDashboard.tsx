@@ -638,20 +638,115 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-        <div><h2 className="t-body font-semibold text-ink">Discord creator setup</h2><p className="mt-1 t-label text-dim">{ownership?.connectedDiscord ? `Connected Discord: ${ownership.connectedDiscord.discordUsername ? `@${ownership.connectedDiscord.discordUsername}` : ownership.connectedDiscord.discordUserId}` : "Connect ownership, install the official bot, register a channel, then submit for review."}</p></div>
+        <div>
+          <h2 className="t-body font-semibold text-ink">List your Discord server</h2>
+          <p className="mt-1 t-label text-dim">
+            {ownership?.connectedDiscord
+              ? `Connected as ${ownership.connectedDiscord.discordUsername ? `@${ownership.connectedDiscord.discordUsername}` : ownership.connectedDiscord.discordUserId}`
+              : "Four steps, about two minutes. You earn a share of every trade your calls produce."}
+          </p>
+        </div>
         <StatusPill status={linked ? "Discord connected" : "Discord not connected"} />
       </header>
       <div className="grid gap-px bg-edge lg:grid-cols-4">
-        <CreatorStep number="01" title="Connect Discord" detail={linked ? "Discord identity and source ownership are verified." : providerLinked ? "Run /connect discord in the server to verify Manage Server ownership." : "Link Discord, then run /connect discord in the server."} done={linked} action={!providerLinked ? <button type="button" onClick={onLink} className="t-label font-semibold text-gold-400">Connect Discord</button> : !linked ? <span className="font-mono t-label text-ink">/connect discord</span> : null} />
-        <CreatorStep number="02" title="Install bot" detail="The guild install grants only the channel permissions needed for source tracking and /register." done={false} action={<a href={botConfig?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 t-label font-semibold text-gold-400">Add bot <ArrowUpRight size={13} /></a>} />
-        <CreatorStep number="03" title="Register channel" detail="Run /register in the call channel. The bot checks your Manage Server role and its own channel access." done={false} action={<span className="font-mono t-label text-ink">/register</span>} />
-        <CreatorStep number="04" title="Submit application" detail="Add server details, invite URL, call format, and owner agreement for admin review." done={bots.length > 0} action={<Link href="/apply" className="t-label font-semibold text-gold-400">Open application</Link>} />
+        {/*
+          Written for a Discord owner, not for us. The old copy said things like "the guild
+          install grants only the channel permissions needed for source tracking" — accurate,
+          and it tells someone deciding whether to trust us with their server nothing they can
+          act on. Each step now says what to do, and what it costs them.
+
+          `state` is derived, never guessed. Whether the bot is installed in THEIR particular
+          server is not something this page can know — botConfig reports our application
+          globally — so step 2 is never ticked, only ever offered. A tick that might be wrong
+          is worse than no tick, because the whole point of the column is telling someone where
+          they are.
+        */}
+        <CreatorStep
+          number="01"
+          title="Connect your Discord"
+          detail={
+            linked
+              ? "Verified. We know which servers you manage."
+              : providerLinked
+                ? "Run this command in your server so we can confirm you manage it."
+                : "Link your Discord account so we can confirm which servers you manage."
+          }
+          state={linked ? "done" : "current"}
+          action={
+            !providerLinked ? (
+              <button
+                type="button"
+                onClick={onLink}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200"
+              >
+                Connect Discord
+              </button>
+            ) : !linked ? (
+              <CopyCommand command="/connect discord" />
+            ) : null
+          }
+        />
+        <CreatorStep
+          number="02"
+          title="Add the bot to your server"
+          detail="It can read the one channel you choose. It cannot post, manage members, or see anything else."
+          state={linked ? "current" : "todo"}
+          action={
+            <a
+              href={botConfig?.invite || "/api/bot/config"}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-edge px-4 t-label font-semibold text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+            >
+              Add bot <ArrowUpRight aria-hidden="true" size={13} />
+            </a>
+          }
+        />
+        <CreatorStep
+          number="03"
+          title="Point us at your calls channel"
+          detail="Run this inside the channel where you post calls. Nothing is tracked until you do."
+          state={ownership?.sources?.length ? "done" : linked ? "current" : "todo"}
+          action={<CopyCommand command="/register" />}
+        />
+        <CreatorStep
+          number="04"
+          title="Send it for review"
+          detail="Your server details and how your calls look. We check it by hand and come back to you."
+          state={bots.length > 0 ? "done" : ownership?.sources?.length ? "current" : "todo"}
+          action={
+            <Link
+              href="/apply"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-edge px-4 t-label font-semibold text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+            >
+              Open application <ArrowUpRight aria-hidden="true" size={13} />
+            </Link>
+          }
+        />
       </div>
-      <div className="grid gap-px border-t border-edge bg-edge sm:grid-cols-4">
-        <ChartMetric label="Bot runtime" value={botConfig?.live?.online ? "Online" : "Unavailable"} />
-        <ChartMetric label="Slash commands" value={botConfig?.live?.commandsRegistered ? "Registered" : "Syncing"} />
-        <ChartMetric label="Channel registry" value={botConfig?.live?.approvedChannelRefreshOk ? "Synced" : "Degraded"} />
-        <ChartMetric label="Setup status" value={liveReady ? "Ready" : "Check status"} />
+      {/*
+        Was a four-cell strip reading "Bot runtime Online · Slash commands Registered · Channel
+        registry Synced · Setup status Ready" — four pieces of operator telemetry on a page
+        written for Discord owners, none of which they can act on and all of which they have to
+        read past. When everything is fine it now says so in one line; the detail appears only
+        when something is actually wrong, which is the only time it changes what they should do.
+      */}
+      <div className="border-t border-edge px-5 py-3.5">
+        {liveReady ? (
+          <p className="flex items-center gap-2 t-label text-dim">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-up" />
+            The bot is online and ready to accept your server.
+          </p>
+        ) : (
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 t-label text-dim">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[color:var(--warning)]" />
+            <span className="text-ink">Setup is temporarily unavailable.</span>
+            {!botConfig?.live?.online && <span>The bot is not responding.</span>}
+            {botConfig?.live?.online && !botConfig?.live?.commandsRegistered && <span>Commands are still syncing.</span>}
+            {botConfig?.live?.online && !botConfig?.live?.approvedChannelRefreshOk && <span>The channel registry is behind.</span>}
+            <span>You can still complete the steps above; nothing is lost.</span>
+          </p>
+        )}
       </div>
       {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="t-label font-semibold text-ink">{bot.name}</p><p className="mt-1 ui-code t-label text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
       {ownership?.sources?.length ? (
@@ -677,21 +772,86 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
   );
 }
 
-function CreatorStep({ number, title, detail, done, action }: { number: string; title: string; detail: string; done: boolean; action: React.ReactNode }) {
+/**
+ * One step of Discord creator onboarding.
+ *
+ * The number used to render TWICE on every card — once as a gold label on the left and again
+ * inside the status circle on the right — so each card read "01 … 01". Now the circle carries
+ * either the number or a tick, and nothing repeats it.
+ *
+ * `state` drives the whole card. A creator following this should never have to work out which
+ * step they are on: the current one is the only card with a live-coloured marker and an
+ * emphasised action, finished ones tick, and later ones sit back.
+ */
+function CreatorStep({
+  number,
+  title,
+  detail,
+  state,
+  action
+}: {
+  number: string;
+  title: string;
+  detail: string;
+  state: "done" | "current" | "todo";
+  action: React.ReactNode;
+}) {
+  const marker =
+    state === "done"
+      ? "border-transparent bg-up/15 text-up"
+      : state === "current"
+        ? "border-gold-400 text-gold-400"
+        : "border-[color:var(--rule)] text-[color:var(--text-muted)]";
+
   return (
-    <div className="min-h-44 bg-panel p-5">
-      <div className="flex items-center justify-between"><span className="t-label text-gold-400">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
-      <h3 className="mt-5 t-body font-semibold text-ink">{title}</h3>
-      <p className="mt-2 min-h-12 t-label leading-5 text-dim">{detail}</p>
-      {/*
-        Each step's action is a bare text link — "Connect Discord", "Add bot", "Open
-        application". Measured signed in at 390px they were 16px tall, a third of the 44px
-        minimum, on the three controls that start Discord onboarding. The text size and colour
-        are unchanged; only the hit area grows, and it shrinks back at sm where a pointer is
-        the input device.
-      */}
-      <div className="mt-3 [&>*]:inline-flex [&>*]:min-h-11 [&>*]:items-center [&>*]:gap-1 sm:[&>*]:min-h-0">{action}</div>
+    <div className={`flex min-h-48 flex-col bg-panel p-5 ${state === "todo" ? "opacity-70" : ""}`}>
+      <div className="flex items-center gap-2.5">
+        <span className={`ui-figure grid h-7 w-7 shrink-0 place-items-center rounded-full border t-label ${marker}`}>
+          {state === "done" ? <Check size={14} aria-hidden="true" /> : number}
+        </span>
+        {/* The state is written, not only coloured — the tick and the gold ring are both
+            reinforcement, never the only carrier. */}
+        {state === "current" && <span className="ui-label text-gold-400">Do this next</span>}
+        {state === "done" && <span className="ui-label text-up">Done</span>}
+      </div>
+      <h3 className="mt-4 t-body font-semibold text-ink">{title}</h3>
+      <p className="mt-2 t-label leading-5 text-dim">{detail}</p>
+      {/* Actions stay at the bottom so the four buttons line up across the row regardless of
+          how long each description runs. */}
+      <div className="mt-auto pt-4">{action}</div>
     </div>
+  );
+}
+
+/**
+ * A slash command with a copy button.
+ *
+ * Two of these steps used to print `/connect discord` and `/register` as plain text, leaving
+ * the creator to retype them into Discord exactly. That is the slowest and most error-prone
+ * moment in the whole flow, and it had no control at all — the owner asked for a button on
+ * every step, and these two are why.
+ */
+function CopyCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(command).then(
+          () => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 2000);
+          },
+          () => setCopied(false)
+        );
+      }}
+      className="inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-edge px-3 text-left transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+    >
+      <span className="ui-code truncate t-label text-ink">{command}</span>
+      <span className={`shrink-0 t-label font-semibold ${copied ? "text-up" : "text-gold-400"}`}>
+        {copied ? "Copied" : "Copy"}
+      </span>
+    </button>
   );
 }
 
