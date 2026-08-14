@@ -156,11 +156,65 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  /**
+   * The command a DIFFERENT server's owner runs to put their calls channel forward. This is
+   * the whole onboarding path for the marketplace — without it the only sources are the ones
+   * added by hand — and it was missing from the HTTP endpoint, so the one bot that is actually
+   * installed could not accept a new server.
+   *
+   * Mirrors registerCallChannel in server/bot/index.js: manager permission required, the
+   * channel is taken from where the command was run, and approval stays manual.
+   */
+  if (name === "register") {
+    const guildId = body?.guild_id;
+    const channelId = body?.channel_id;
+    if (!guildId || !channelId) return ephemeral("Run /register inside the channel where calls are posted.");
+
+    let permissions = BigInt(0);
+    try { permissions = BigInt(body?.member?.permissions ?? "0"); } catch { permissions = BigInt(0); }
+    if ((permissions & MANAGE_GUILD) !== MANAGE_GUILD) {
+      return ephemeral("Only a server manager can register a call channel.");
+    }
+
+    // The interaction payload carries ids but not always names, and the register RPC records
+    // them for the marketplace listing. Ask Discord rather than storing a blank.
+    let guildName: string | null = null;
+    let channelName: string | null = null;
+    let memberCount: number | null = null;
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (token) {
+      const auth = { authorization: `Bot ${token}` };
+      const [g, c] = await Promise.all([
+        fetchWithTimeout(`https://discord.com/api/v10/guilds/${guildId}?with_counts=true`, { headers: auth, cache: "no-store" }, 5_000).catch(() => null),
+        fetchWithTimeout(`https://discord.com/api/v10/channels/${channelId}`, { headers: auth, cache: "no-store" }, 5_000).catch(() => null)
+      ]);
+      const guild = g?.ok ? await g.json().catch(() => null) : null;
+      const channel = c?.ok ? await c.json().catch(() => null) : null;
+      guildName = guild?.name ?? null;
+      memberCount = Number.isInteger(guild?.approximate_member_count) ? guild.approximate_member_count : null;
+      channelName = channel?.name ?? null;
+    }
+
+    try {
+      await bridge("register_channel", {
+        p_guild_id: guildId,
+        p_guild_name: guildName,
+        p_guild_member_count: memberCount,
+        p_channel_id: channelId,
+        p_channel_name: channelName,
+        p_registered_by: body?.member?.user?.username ?? null
+      });
+      return ephemeral("Channel submitted. It will start copying calls once DegenAration approves it.");
+    } catch {
+      return ephemeral("Could not register right now — try again shortly.");
+    }
+  }
+
   if (name === "help") {
     return ephemeral(
       "DegenAration commands:\n" +
-      "/connect discord — link this server to your DegenAration account\n" +
-      "/register — submit this channel for review"
+      "/register — submit this channel as a call source for review\n" +
+      "/connect discord — link this server to your DegenAration account"
     );
   }
 

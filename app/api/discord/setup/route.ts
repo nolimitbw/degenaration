@@ -28,6 +28,12 @@ export const runtime = "nodejs";
 
 const COMMANDS = [
   {
+    // The onboarding path for every OTHER server: an owner runs this in their calls channel
+    // and it goes forward for review. Without it the marketplace can only grow by hand.
+    name: "register",
+    description: "Submit this channel as a DegenAration call source for review."
+  },
+  {
     name: "connect",
     description: "Securely connect a server owner to DegenAration.",
     options: [{
