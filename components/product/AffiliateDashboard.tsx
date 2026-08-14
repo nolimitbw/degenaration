@@ -661,66 +661,76 @@ function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, own
           is worse than no tick, because the whole point of the column is telling someone where
           they are.
         */}
+        {/*
+          The owner's actual order: add the bot, register the channel, wait for approval, THEN
+          connect ownership. The previous order put /connect first, which cannot work — there
+          is no source to take ownership OF until a channel is registered and approved, so
+          anyone following it ran the last step first and got nothing.
+
+          Only the final step has a real signal. `ownership.sources` populates when ownership
+          links, which IS step 4, so it cannot report progress on steps 1-3; and whether the
+          bot is in a particular server is not knowable from here. Those three are therefore
+          offered, never ticked. Inventing progress on the screen that tells a creator where
+          they are would be the worst possible place for it.
+        */}
         <CreatorStep
           number="01"
-          title="Connect your Discord"
-          detail={
-            linked
-              ? "Verified. We know which servers you manage."
-              : providerLinked
-                ? "Run this command in your server so we can confirm you manage it."
-                : "Link your Discord account so we can confirm which servers you manage."
-          }
-          state={linked ? "done" : "current"}
-          action={
-            !providerLinked ? (
-              <button
-                type="button"
-                onClick={onLink}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200"
-              >
-                Connect Discord
-              </button>
-            ) : !linked ? (
-              <CopyCommand command="/connect discord" />
-            ) : null
-          }
-        />
-        <CreatorStep
-          number="02"
           title="Add the bot to your server"
           detail="It can read the one channel you choose. It cannot post, manage members, or see anything else."
-          state={linked ? "current" : "todo"}
+          state={linked ? "done" : "current"}
           action={
             <a
               href={botConfig?.invite || "/api/bot/config"}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-edge px-4 t-label font-semibold text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200"
             >
               Add bot <ArrowUpRight aria-hidden="true" size={13} />
             </a>
           }
         />
         <CreatorStep
-          number="03"
-          title="Point us at your calls channel"
-          detail="Run this inside the channel where you post calls. Nothing is tracked until you do."
-          state={ownership?.sources?.length ? "done" : linked ? "current" : "todo"}
+          number="02"
+          title="Register your calls channel"
+          detail="Run this inside the channel where you post calls. That is the channel we will track."
+          state={linked ? "done" : "todo"}
           action={<CopyCommand command="/register" />}
         />
         <CreatorStep
-          number="04"
-          title="Send it for review"
-          detail="Your server details and how your calls look. We check it by hand and come back to you."
-          state={bots.length > 0 ? "done" : ownership?.sources?.length ? "current" : "todo"}
+          number="03"
+          title="We review it"
+          detail="A person checks the server and the channel by hand. You do not need to do anything while you wait."
+          state={linked ? "done" : "todo"}
           action={
             <Link
               href="/apply"
-              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-edge px-4 t-label font-semibold text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-edge px-4 t-label font-medium text-dim transition-colors duration-150 hover:border-gold-400 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
             >
-              Open application <ArrowUpRight aria-hidden="true" size={13} />
+              Add details <ArrowUpRight aria-hidden="true" size={13} />
             </Link>
+          }
+        />
+        <CreatorStep
+          number="04"
+          title="Claim your server"
+          detail={
+            linked
+              ? "Done. Your earnings from this server are tracked to your account."
+              : "Once approved, run this in your server. It links the source to you so you get paid for it."
+          }
+          state={linked ? "done" : "todo"}
+          action={
+            !providerLinked ? (
+              <button
+                type="button"
+                onClick={onLink}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-edge px-4 t-label font-semibold text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+              >
+                Connect Discord
+              </button>
+            ) : !linked ? (
+              <CopyCommand command="/connect discord" />
+            ) : null
           }
         />
       </div>
@@ -804,14 +814,17 @@ function CreatorStep({
         : "border-[color:var(--rule)] text-[color:var(--text-muted)]";
 
   return (
-    <div className={`flex min-h-48 flex-col bg-panel p-5 ${state === "todo" ? "opacity-70" : ""}`}>
+    // `todo` is NOT dimmed. Every step here is something the creator can act on right now, and
+    // we cannot see their progress through the middle three — fading them would be inventing a
+    // sequence lock that does not exist and making the buttons harder to read for no reason.
+    <div className="flex min-h-48 flex-col bg-panel p-5">
       <div className="flex items-center gap-2.5">
         <span className={`ui-figure grid h-7 w-7 shrink-0 place-items-center rounded-full border t-label ${marker}`}>
           {state === "done" ? <Check size={14} aria-hidden="true" /> : number}
         </span>
         {/* The state is written, not only coloured — the tick and the gold ring are both
             reinforcement, never the only carrier. */}
-        {state === "current" && <span className="ui-label text-gold-400">Do this next</span>}
+        {state === "current" && <span className="ui-label text-gold-400">Start here</span>}
         {state === "done" && <span className="ui-label text-up">Done</span>}
       </div>
       <h3 className="mt-4 t-body font-semibold text-ink">{title}</h3>
