@@ -28,6 +28,17 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
       "p_price_usd", "p_market_cap_usd", "p_liquidity_usd", "p_freshness"
     ]
   },
+  // Entry-price backfill. Same rule as the two above: both point at a `bot_*` wrapper that
+  // checks the secret. `bot_record_call_entry_price` additionally refuses to overwrite a
+  // baseline captured live, so even a caller holding the secret cannot rewrite a real one.
+  calls_awaiting_entry_price: {
+    rpc: "bot_calls_awaiting_entry_price",
+    params: ["p_secret", "p_limit"]
+  },
+  record_call_entry_price: {
+    rpc: "bot_record_call_entry_price",
+    params: ["p_secret", "p_call_id", "p_price_usd", "p_market_cap_usd", "p_liquidity_usd"]
+  },
   ingest_call: {
     rpc: "bot_ingest_discord_call",
     params: [
