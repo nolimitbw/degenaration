@@ -323,6 +323,13 @@ const SURFACES = [
    * widths while reporting a real surface's name.
    */
   { route: "/", name: "landing", ready: "document.body.innerText.includes('From Discord call to')" },
+  /**
+   * The documentation. Long-form prose with a sticky contents rail and a timeline — the two
+   * shapes most likely to overflow a phone — and it is the page an investor or a prospective
+   * source owner reads before deciding anything. A broken layout here is expensive in a way a
+   * broken internal screen is not.
+   */
+  { route: "/docs", name: "docs", ready: "document.body.innerText.includes('Fees and revenue')" },
   { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: `/bots/discord/${SOURCE_MEASURED.id}`, name: "discord-source-detail", ready: "document.body.innerText.includes('Alpha Desk')" },
