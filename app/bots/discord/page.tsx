@@ -23,7 +23,7 @@ import {
   StatusPill
 } from "@/components/product/Primitives";
 import { DiscordSourceAvatar, IntegrationHealthDot } from "@/components/product/DiscordSourceVisual";
-import { DiscordActivityGrid, DiscordCallCounts, DiscordPerformanceGrid } from "@/components/product/DiscordMarketplaceMetrics";
+import { DiscordActivityGrid, DiscordCallCounts } from "@/components/product/DiscordMarketplaceMetrics";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
 import { safeDiscordBotInstall, safeDiscordInvite } from "@/lib/external-url";
 
@@ -35,6 +35,10 @@ const TABS = [
 ];
 
 type Period = "1d" | "7d" | "30d";
+
+/** Written out, because "1d" above a column of counts reads as a unit rather than a window. */
+const PERIOD_LABEL: Record<Period, string> = { "1d": "last 24 hours", "7d": "last 7 days", "30d": "last 30 days" };
+const periodLabel = (period: Period) => PERIOD_LABEL[period];
 type Sort = "performance" | "drawdown" | "followers" | "calls" | "newest" | "fee";
 
 export default function DiscordMarketplacePage() {
@@ -153,14 +157,14 @@ export default function DiscordMarketplacePage() {
           />
         )}
         <div className="grid gap-4 xl:grid-cols-2">
-          {visible.map((source) => <SourceCard key={source.id} source={source} minimumSampleSize={minimumSampleSize} />)}
+          {visible.map((source) => <SourceCard key={source.id} source={source} minimumSampleSize={minimumSampleSize} period={period} />)}
         </div>
       </div>
     </AppShell>
   );
 }
 
-function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; minimumSampleSize: number }) {
+function SourceCard({ source, minimumSampleSize, period }: { source: DiscordSource; minimumSampleSize: number; period: Period }) {
   const measured = source.measuredCalls >= minimumSampleSize;
   const joinUrl = safeDiscordInvite(source.joinUrl);
   return (
@@ -189,36 +193,86 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
       {/* Bands separated by rules and spacing rather than by filled boxes on a 1px grid.
           The card held eighteen bordered cells inside a bordered card inside a page. */}
       <div className="border-b border-[color:var(--rule)] px-5 py-4"><DiscordActivityGrid source={source} /></div>
-      <div className="border-b border-[color:var(--rule)] px-5 py-4"><DiscordPerformanceGrid source={source} /></div>
+      {/*
+        The call record, as a distribution — how many went which way — instead of four
+        statistics about the same calls.
 
-      {/* Peak and current are shown side by side, always. Every return figure this card used
-          to show was a peak multiple with nothing saying so, so a source whose calls had all
-          round-tripped to zero read "Win rate 100% · Average return 2.00x". The pairing is
-          the point: one number alone cannot be read honestly. */}
-      <div className="grid grid-cols-2 gap-y-4 border-b border-[color:var(--rule)] px-5 py-5 sm:grid-cols-4">
-        <Metric
-          label="Hit rate (peak)"
-          value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "—"}
-          tone={measured ? "positive" : "default"}
-          hint="Share of measured calls that traded above entry at any point."
-        />
-        <Metric
-          label="Up now"
-          value={measured && source.currentWinRate != null ? `${source.currentWinRate.toFixed(1)}%` : "—"}
-          tone={measured && source.currentWinRate != null && source.currentWinRate >= 50 ? "positive" : "default"}
-          hint="Share of those same calls trading above entry right now."
-        />
-        <Metric
-          label="Median peak"
-          value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "—"}
-          hint="Best multiple the middle call reached. Not where it is now."
-        />
-        <Metric
-          label="Median now"
-          value={measured && source.medianCurrentX != null ? `${source.medianCurrentX.toFixed(2)}x` : "—"}
-          tone={measured && source.medianCurrentX != null && source.medianCurrentX < 1 ? "negative" : "default"}
-          hint="Where the middle call is trading today, on the same set of calls."
-        />
+        Replaces two rows. The first was net PnL at 1 day / 7 days / 30 days, which is money
+        from COPIED TRADES and reads "Collecting data" until someone has actually copied this
+        source; three permanently empty cards above a period selector that already exists is
+        what made the periods look broken. The second was Hit rate / Up now / Median peak /
+        Median now — four ways of saying the same thing to someone who wants to know whether
+        the calls landed.
+
+        Every bucket here is period-scoped already: `period_calls` in
+        degenaration-discord-current-return.sql filters `called_at >= v_since`, so changing
+        1D/7D/30D above changes all of these.
+
+        All five figures come from the PEAK family, on one basis. Mixing peak and current is
+        the defect this codebase shipped once — "win rate 100%, average return 2.00x" for a
+        source whose every call touched 2x and went to zero — so the heading says which basis
+        it is rather than leaving the reader to assume.
+      */}
+      <div className="border-b border-[color:var(--rule)] px-5 py-5">
+        <p className="ui-label">Best each call reached · {periodLabel(period)}</p>
+        <div className="mt-3 grid grid-cols-3 gap-y-4 sm:grid-cols-5">
+          <Metric
+            label="Hit rate"
+            value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "—"}
+            tone={measured ? "positive" : "default"}
+            hint="Share of measured calls that traded above entry at any point in this period."
+          />
+          <Metric
+            label="−50%"
+            value={measured ? String(source.down50 ?? 0) : "—"}
+            tone={measured && (source.down50 ?? 0) > 0 ? "negative" : "default"}
+            hint="Calls that never recovered half their entry price."
+          />
+          <Metric
+            label="+50%"
+            value={measured ? String(source.plus50 ?? 0) : "—"}
+            hint="Calls that reached at least +50% but not 2x."
+          />
+          <Metric
+            label="2x"
+            value={measured ? String(source.twoX ?? 0) : "—"}
+            tone={measured && (source.twoX ?? 0) > 0 ? "positive" : "default"}
+            hint="Calls that reached at least 2x but not 5x."
+          />
+          <Metric
+            label="5x+"
+            value={measured ? String(source.fiveX ?? 0) : "—"}
+            tone={measured && (source.fiveX ?? 0) > 0 ? "positive" : "default"}
+            hint="Calls that reached 5x or better."
+          />
+        </div>
+
+        {/*
+          Where those same calls are NOW, on its own line and labelled as such.
+
+          The five figures above are all peak — the best each call ever reached — and peak
+          alone is the exact defect this product shipped once: a source whose every call
+          touched 2x and then went to zero read "win rate 100%, average return 2.00x". Five
+          flattering counts with nothing saying where the calls ended would restore it in a
+          new shape. The heading names the basis; this line supplies the other half.
+        */}
+        {measured && (
+          <p className="mt-4 border-t border-[color:var(--rule)] pt-3 t-label text-dim">
+            Where they are now:{" "}
+            <span className={source.currentWinRate != null && source.currentWinRate >= 50 ? "text-up" : "text-ink"}>
+              {source.currentWinRate == null ? "—" : `${source.currentWinRate.toFixed(1)}% still above entry`}
+            </span>
+            {source.currentlyDown50 != null && (
+              <>
+                {" · "}
+                <span className={source.currentlyDown50 > 0 ? "text-down" : "text-ink"}>
+                  {source.currentlyDown50} down 50%+
+                </span>
+              </>
+            )}
+            {source.medianCurrentX != null && <> · median {Number(source.medianCurrentX).toFixed(2)}x</>}
+          </p>
+        )}
       </div>
 
       <div className="p-5">

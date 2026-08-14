@@ -462,15 +462,25 @@ for (const surface of SURFACES) {
       }
     }
     if (surface.name === "discord-marketplace") {
-      for (const needle of ["Hit rate (peak)", "Up now", "Median peak", "Median now"]) {
-        if (!shows(needle)) failures.push(`marketplace card is missing the "${needle}" metric`);
-      }
-      // The measured source's peak figures flatter it and its current figures do not. Both
-      // must be on the card, or the pairing this exists for is not actually rendered.
+      // The card now shows the OUTCOME DISTRIBUTION — hit rate and the −50/+50/2x/5x+ buckets
+      // — rather than four statistics about the same calls. The buckets are peak-based, so
+      // what this gate protects is unchanged and its wording is not: a flattering peak figure
+      // must never appear without where those calls actually ended.
+      //
+      // Asserted on VALUES, not labels. The fixture's measured source has 5/3/4/2 in the
+      // buckets and sits at 33.3% up-now against a 72.2% peak, so a card that shows the peak
+      // side alone fails here however the columns are renamed.
       if (!shows("72.2%")) failures.push("peak hit rate 72.2% is not rendered");
-      if (!shows("33.3%")) failures.push("current up-now rate 33.3% is not rendered");
-      if (!shows("1.42x")) failures.push("median peak 1.42x is not rendered");
-      if (!shows("0.71x")) failures.push("median now 0.71x is not rendered");
+      if (!shows("33.3%")) failures.push("current up-now rate 33.3% is not rendered — peak figures must never appear alone");
+      for (const [count, bucket] of [["5", "−50%"], ["3", "+50%"], ["4", "2x"], ["2", "5x+"]]) {
+        if (!shows(count)) failures.push(`marketplace card is missing the ${bucket} bucket count`);
+      }
+      // The basis has to be stated, since every bucket is peak and nothing else says so.
+      if (!shows("Best each call reached")) {
+        failures.push("the distribution does not say it is measured at each call's peak");
+      }
+      // And the period it covers, because the same buckets mean different things over 1D/7D/30D.
+      if (!shows("last 7 days")) failures.push("the distribution does not name the period it covers");
       // The unmeasured source must say so rather than show zeros.
       if (!/Tracking started|No eligible calls yet/.test(measured.text)) {
         failures.push("a source with no measured calls does not say it is still tracking");
