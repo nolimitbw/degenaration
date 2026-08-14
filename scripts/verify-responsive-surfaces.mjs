@@ -218,12 +218,20 @@ const MEASURE = `(() => {
       const lr = label ? label.getBoundingClientRect() : null;
       const h = Math.max(Math.round(r.height), lr ? Math.round(lr.height) : 0);
       const w = Math.max(Math.round(r.width), lr ? Math.round(lr.width) : 0);
+      // WCAG 2.5.5 exempts a target that is INLINE IN A SENTENCE: a link inside a paragraph
+      // cannot be 44px tall without breaking the line box around it, and enlarging it would
+      // damage the prose it lives in. The exception is deliberately narrow — an anchor whose
+      // parent is a <p> or <li> and which sits among text, never a standalone control that
+      // merely happens to be short.
+      const inlineInProse = el.tagName === 'A'
+        && ['P', 'LI', 'DD', 'SPAN'].includes(el.parentElement?.tagName || '')
+        && (el.parentElement?.textContent || '').trim().length > (el.textContent || '').trim().length + 20;
       const labelledBy = el.getAttribute('aria-labelledby');
       const labelledText = labelledBy
         ? labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || '').join(' ')
         : '';
       const accessibleName = (el.getAttribute('aria-label') || labelledText || el.textContent || label?.innerText || '').trim();
-      return { w, h, accessibleName, what: (accessibleName || el.tagName).slice(0, 40) };
+      return { w, h, inlineInProse, accessibleName, what: (accessibleName || el.tagName).slice(0, 40) };
     })
     .filter((t) => t.w > 0 && t.h > 0);
   return {
@@ -232,7 +240,7 @@ const MEASURE = `(() => {
     overflowing,
     // Both dimensions: the header nav button was 21px WIDE at 44px tall, and a
     // height-only filter passed it.
-    small: targets.filter((t) => Math.min(t.w, t.h) < 44).slice(0, 8),
+    small: targets.filter((t) => !t.inlineInProse && Math.min(t.w, t.h) < 44).slice(0, 8),
     unnamed: targets.filter((t) => !t.accessibleName).map((t) => t.what).slice(0, 8),
     text: document.body.innerText.slice(0, 40000)
   };
@@ -275,7 +283,7 @@ const DRAWER = `(async () => {
     opened: true,
     links: targets.length,
     overflows: Math.round(rect.right) > document.documentElement.clientWidth + 1,
-    small: targets.filter((t) => Math.min(t.w, t.h) < 44).slice(0, 8),
+    small: targets.filter((t) => !t.inlineInProse && Math.min(t.w, t.h) < 44).slice(0, 8),
     unnamed: targets.filter((t) => !t.what).length
   };
 })()`;
@@ -329,7 +337,17 @@ const SURFACES = [
    * source owner reads before deciding anything. A broken layout here is expensive in a way a
    * broken internal screen is not.
    */
-  { route: "/docs", name: "docs", ready: "document.body.innerText.includes('Fees and revenue')" },
+  { route: "/docs", name: "docs", ready: "document.body.innerText.includes('Execution')" },
+  /**
+   * Each documentation page is its own route with its own layout — a split bar, a control
+   * matrix, a stage pipeline, a worked example. Auditing only the index would leave the pages
+   * an investor actually reads unmeasured, and they carry the densest structures in the
+   * product. These four cover every distinct layout shape.
+   */
+  { route: "/docs/fees", name: "docs-fees", ready: "document.body.innerText.includes('Platform fee')" },
+  { route: "/docs/risk-controls", name: "docs-risk", ready: "document.body.innerText.includes('Token safety')" },
+  { route: "/docs/how-it-works", name: "docs-pipeline", ready: "document.body.innerText.includes('A call is posted')" },
+  { route: "/docs/roadmap", name: "docs-roadmap", ready: "document.body.innerText.includes('DegenAration token')" },
   { route: "/bots", name: "bots-overview", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: "/bots/discord", name: "discord-marketplace", ready: "document.body.innerText.includes('Alpha Desk')" },
   { route: `/bots/discord/${SOURCE_MEASURED.id}`, name: "discord-source-detail", ready: "document.body.innerText.includes('Alpha Desk')" },
