@@ -57,6 +57,49 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    /**
+     * Discover every channel of an already-approved server before scanning.
+     *
+     * The scanner only polled channels a human had registered by hand, so a server whose
+     * calls live in more than one channel — or that moved them — went silent with no error:
+     * "nobody registered that channel" and "that channel is quiet" look identical from here.
+     * Observed live: #alpha-futures active 2 hours ago and invisible, while the registered
+     * #sol-alpha had been silent for 46.
+     *
+     * The approval boundary does not move. bot_autoregister_guild_channels refuses unless the
+     * guild ALREADY has an approved source, so this can only widen a server whose owner
+     * already asked to be listed — which is what they mean by adding the bot to their server.
+     *
+     * Best-effort and before the scan: a discovery failure must not stop the calls that the
+     * known channels are producing right now.
+     */
+    let discovered = 0;
+    let skipped = 0;
+    try {
+      const known = await bridge("approved_channels", {});
+      const guilds = [...new Set((Array.isArray(known) ? known : [])
+        .map((channel: any) => channel?.guild_id).filter(Boolean))];
+      for (const guildId of guilds) {
+        const response = await fetchWithTimeout(
+          `https://discord.com/api/v10/guilds/${guildId}/channels`,
+          { headers: { authorization: `Bot ${token}` }, cache: "no-store" }, 8_000
+        );
+        if (!response.ok) continue;
+        const list = await response.json().catch(() => []);
+        const text = (Array.isArray(list) ? list : [])
+          // 0 = GUILD_TEXT, 5 = GUILD_ANNOUNCEMENT. Voice, categories and forums carry no
+          // message history to poll on this endpoint.
+          .filter((channel: any) => channel?.type === 0 || channel?.type === 5)
+          .map((channel: any) => ({ id: channel.id, name: channel.name }));
+        if (!text.length) continue;
+        const result = await bridge("autoregister_guild_channels", {
+          p_guild_id: guildId,
+          p_channels: text
+        });
+        discovered += Number(result?.added || 0);
+      }
+    } catch { /* discovery is best-effort; the scan below still runs */ }
+
     const channels = await bridge("approved_channels", {});
     const rows = Array.isArray(channels) ? channels : [];
     const results = new Map<string, { channelId: string; scanned: number; accepted: number; rejected: number; completed: boolean; hasMore: boolean }>();
@@ -78,23 +121,44 @@ export async function GET(req: NextRequest) {
         const total = results.get(channel.channel_id)!;
         if (!total.hasMore) continue;
         let state = states.get(channel.channel_id) || {};
-        const pageResult = await scanDiscordHistoryPage({
-          channel,
-          state,
-          token,
-          ingest: (payload: Record<string, unknown>) => ingest(req.nextUrl.origin, payload),
-          saveState: async (channelId: string, next: Record<string, unknown>) => {
-            state = await bridge("update_backfill_state", {
-              p_channel_id: channelId,
-              p_newest_message_id: next.newestMessageId || null,
-              p_oldest_message_id: next.oldestMessageId || null,
-              p_completed: next.completed === true,
-              p_messages_scanned: next.messagesScanned || 0,
-              p_last_error: next.lastError || null
-            });
-            states.set(channelId, state);
-          }
-        });
+        /**
+         * One unreadable channel must never stop the others.
+         *
+         * scanDiscordHistoryPage throws on any non-ok Discord response, and that propagated
+         * out of this loop and returned 502 for the whole run. It was survivable only while
+         * every registered channel was hand-picked and readable; the moment discovery added a
+         * private channel — #priv, #moderator-only, a ticket — a single 403 "Missing Access"
+         * silenced EVERY source. Which is precisely the failure mode this scanner exists to
+         * avoid, and it would have arrived with the first server that has a locked channel.
+         *
+         * The channel is marked done for this run so it is not retried in the page loop, and
+         * the reason is recorded on its state rather than thrown away.
+         */
+        let pageResult;
+        try {
+          pageResult = await scanDiscordHistoryPage({
+            channel,
+            state,
+            token,
+            ingest: (payload: Record<string, unknown>) => ingest(req.nextUrl.origin, payload),
+            saveState: async (channelId: string, next: Record<string, unknown>) => {
+              state = await bridge("update_backfill_state", {
+                p_channel_id: channelId,
+                p_newest_message_id: next.newestMessageId || null,
+                p_oldest_message_id: next.oldestMessageId || null,
+                p_completed: next.completed === true,
+                p_messages_scanned: next.messagesScanned || 0,
+                p_last_error: next.lastError || null
+              });
+              states.set(channelId, state);
+            }
+          });
+        } catch (error) {
+          total.hasMore = false;
+          (total as any).error = String((error as Error)?.message || error).slice(0, 120);
+          skipped += 1;
+          continue;
+        }
         total.scanned += pageResult.scanned;
         total.accepted += pageResult.accepted;
         total.rejected += pageResult.rejected;
@@ -141,24 +205,35 @@ export async function GET(req: NextRequest) {
           // Forward polling only. `completed` is what flips scanDiscordHistoryPage from
           // paging `before` the oldest to fetching `after` the newest.
           if (!total.completed) continue;
+          // Same isolation as the archive loop. A private channel throwing here would end the
+          // live sweep for every source, and this loop is the real-time path — the one that
+          // decides whether a call lands in seconds or not at all.
+          if ((total as any).error) continue;
           let state = states.get(channel.channel_id) || {};
-          const pageResult = await scanDiscordHistoryPage({
-            channel,
-            state,
-            token,
-            ingest: (payload: Record<string, unknown>) => ingest(req.nextUrl.origin, payload),
-            saveState: async (channelId: string, next: Record<string, unknown>) => {
-              state = await bridge("update_backfill_state", {
-                p_channel_id: channelId,
-                p_newest_message_id: next.newestMessageId || null,
-                p_oldest_message_id: next.oldestMessageId || null,
-                p_completed: next.completed === true,
-                p_messages_scanned: next.messagesScanned || 0,
-                p_last_error: next.lastError || null
-              });
-              states.set(channelId, state);
-            }
-          });
+          let pageResult;
+          try {
+            pageResult = await scanDiscordHistoryPage({
+              channel,
+              state,
+              token,
+              ingest: (payload: Record<string, unknown>) => ingest(req.nextUrl.origin, payload),
+              saveState: async (channelId: string, next: Record<string, unknown>) => {
+                state = await bridge("update_backfill_state", {
+                  p_channel_id: channelId,
+                  p_newest_message_id: next.newestMessageId || null,
+                  p_oldest_message_id: next.oldestMessageId || null,
+                  p_completed: next.completed === true,
+                  p_messages_scanned: next.messagesScanned || 0,
+                  p_last_error: next.lastError || null
+                });
+                states.set(channelId, state);
+              }
+            });
+          } catch (error) {
+            (total as any).error = String((error as Error)?.message || error).slice(0, 120);
+            skipped += 1;
+            continue;
+          }
           total.scanned += pageResult.scanned;
           total.accepted += pageResult.accepted;
           total.rejected += pageResult.rejected;
@@ -167,7 +242,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, live, sweeps, channels: [...results.values()] },
+      { ok: true, live, sweeps, discovered, skipped, channels: [...results.values()] },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {

@@ -42,6 +42,13 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
     // BELOW the entry — impossible, and the buckets are ranges over exactly that ratio.
     params: ["p_secret", "p_call_id", "p_price_usd", "p_market_cap_usd", "p_liquidity_usd", "p_peak_price_usd"]
   },
+  // Channel discovery for an ALREADY-approved guild. The RPC refuses unless that guild has
+  // an approved, non-removed source, so this can only widen a server whose owner asked to be
+  // listed — it can never create a source or approve anything.
+  autoregister_guild_channels: {
+    rpc: "bot_autoregister_guild_channels",
+    params: ["p_secret", "p_guild_id", "p_channels"]
+  },
   ingest_call: {
     rpc: "bot_ingest_discord_call",
     params: [
