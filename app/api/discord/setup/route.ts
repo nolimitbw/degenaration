@@ -85,11 +85,83 @@ export async function GET(req: NextRequest) {
       .map((i: any) => ({
         name: i?.application?.name ?? i?.name ?? null,
         applicationId: i?.application?.id ?? null,
-        botUsername: i?.application?.bot?.username ?? null
+        botUsername: i?.application?.bot?.username ?? null,
+        // Needed to remove one: the integration has its own id, which is not the app id.
+        integrationId: i?.id ?? null,
+        guildId: guild.id
       }));
   }
 
   return NextResponse.json({ ok: true, guilds: report }, { headers: { "Cache-Control": "no-store" } });
+}
+
+/**
+ * Remove another application from the guilds this bot is in.
+ *
+ * Requested explicitly by the owner: "remove the de generation pr, we only need 1 bot".
+ * Deleting a guild integration is how a bot is removed from a server, and it needs MANAGE_GUILD
+ * — which this bot has in the DegenAration guild, since reading integrations already succeeded
+ * there.
+ *
+ * Two guards, because this reaches into someone's Discord server and removes something:
+ *   - it will only act on an application id passed in explicitly, never a default;
+ *   - it verifies the integration's NAME matches what the caller expects before deleting, so a
+ *     mistyped id cannot silently remove a different bot. Discord ids are 18-19 digits and
+ *     nothing about them is memorable enough to trust unverified.
+ *
+ * It refuses to remove THIS application, which would otherwise be a one-request way to
+ * disconnect the product from every server it serves.
+ */
+export async function DELETE(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) return NextResponse.json({ error: "DISCORD_BOT_TOKEN is not set" }, { status: 503 });
+
+  const applicationId = req.nextUrl.searchParams.get("applicationId");
+  const expectedName = req.nextUrl.searchParams.get("name");
+  if (!applicationId || !/^\d{15,25}$/.test(applicationId)) {
+    return NextResponse.json({ error: "applicationId is required" }, { status: 400 });
+  }
+  if (!expectedName) {
+    return NextResponse.json({ error: "name is required, and must match the installed integration" }, { status: 400 });
+  }
+
+  const auth = { authorization: `Bot ${token}` };
+  const selfResponse = await fetchWithTimeout("https://discord.com/api/v10/applications/@me", { headers: auth, cache: "no-store" }, 8_000);
+  const self = selfResponse.ok ? await selfResponse.json().catch(() => null) : null;
+  if (self?.id === applicationId) {
+    return NextResponse.json({ error: "refusing to remove this application from its own guilds" }, { status: 400 });
+  }
+
+  const guildsResponse = await fetchWithTimeout("https://discord.com/api/v10/users/@me/guilds", { headers: auth, cache: "no-store" }, 8_000);
+  const guilds = guildsResponse.ok ? await guildsResponse.json().catch(() => []) : [];
+  const removed: Record<string, unknown> = {};
+
+  for (const guild of Array.isArray(guilds) ? guilds : []) {
+    if (!guild?.id) continue;
+    const listing = await fetchWithTimeout(`https://discord.com/api/v10/guilds/${guild.id}/integrations`, { headers: auth, cache: "no-store" }, 8_000);
+    if (!listing.ok) { removed[guild.name || guild.id] = { skipped: `integrations ${listing.status}` }; continue; }
+    const integrations = await listing.json().catch(() => []);
+    const match = (Array.isArray(integrations) ? integrations : [])
+      .find((i: any) => i?.application?.id === applicationId);
+    if (!match) { removed[guild.name || guild.id] = { skipped: "not installed here" }; continue; }
+
+    const actualName = match?.application?.name ?? match?.name ?? "";
+    if (actualName !== expectedName) {
+      removed[guild.name || guild.id] = { refused: `name mismatch: installed as "${actualName}"` };
+      continue;
+    }
+
+    const response = await fetchWithTimeout(
+      `https://discord.com/api/v10/guilds/${guild.id}/integrations/${match.id}`,
+      { method: "DELETE", headers: auth, cache: "no-store" }, 12_000
+    );
+    removed[guild.name || guild.id] = response.ok
+      ? { removed: actualName }
+      : { failed: response.status, detail: (await response.text().catch(() => "")).slice(0, 200) };
+  }
+
+  return NextResponse.json({ ok: true, applicationId, guilds: removed }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
