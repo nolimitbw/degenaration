@@ -51,6 +51,47 @@ function isAuthorized(req: NextRequest) {
   return timingSafeEqual(a, b);
 }
 
+/**
+ * Which applications are installed in each guild, and which of them own a `/connect`.
+ *
+ * Two bots in the same server can both register a command with the same name; Discord shows
+ * both and the user picks blind. That is what "De Generation PR used /connect discord — the
+ * application did not respond" is: a different application's broken copy of our command.
+ * Naming the other one is the only way to remove the right thing.
+ */
+export async function GET(req: NextRequest) {
+  if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const token = process.env.DISCORD_BOT_TOKEN;
+  if (!token) return NextResponse.json({ error: "DISCORD_BOT_TOKEN is not set" }, { status: 503 });
+  const auth = { authorization: `Bot ${token}` };
+
+  const guildsResponse = await fetchWithTimeout("https://discord.com/api/v10/users/@me/guilds", { headers: auth, cache: "no-store" }, 8_000);
+  const guilds = guildsResponse.ok ? await guildsResponse.json().catch(() => []) : [];
+  const report: Record<string, unknown> = {};
+
+  for (const guild of Array.isArray(guilds) ? guilds : []) {
+    if (!guild?.id) continue;
+    const response = await fetchWithTimeout(
+      `https://discord.com/api/v10/guilds/${guild.id}/integrations`,
+      { headers: auth, cache: "no-store" }, 8_000
+    );
+    if (!response.ok) {
+      report[guild.name || guild.id] = { error: `integrations ${response.status}` };
+      continue;
+    }
+    const integrations = await response.json().catch(() => []);
+    report[guild.name || guild.id] = (Array.isArray(integrations) ? integrations : [])
+      .filter((i: any) => i?.type === "discord" || i?.application)
+      .map((i: any) => ({
+        name: i?.application?.name ?? i?.name ?? null,
+        applicationId: i?.application?.id ?? null,
+        botUsername: i?.application?.bot?.username ?? null
+      }));
+  }
+
+  return NextResponse.json({ ok: true, guilds: report }, { headers: { "Cache-Control": "no-store" } });
+}
+
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const token = process.env.DISCORD_BOT_TOKEN;
