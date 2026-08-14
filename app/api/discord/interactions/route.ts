@@ -119,6 +119,18 @@ export async function POST(req: NextRequest) {
   // 1 = PING. Discord sends this when the endpoint URL is saved and periodically after.
   if (body?.type === 1) return NextResponse.json({ type: 1 });
 
+  /**
+   * 3 = MESSAGE_COMPONENT — the owner picked a channel from the /register menu.
+   *
+   * `data.values` for a channel select carries the chosen ids. It is verified again inside
+   * finishRegistration rather than trusted: this is a separate signed request from the client,
+   * and a component id is not proof of who is clicking it.
+   */
+  if (body?.type === 3 && body?.data?.custom_id === "degen-register-channel") {
+    const chosen = Array.isArray(body?.data?.values) ? body.data.values[0] : null;
+    return await finishRegistration(body, typeof chosen === "string" ? chosen : null);
+  }
+
   // 2 = APPLICATION_COMMAND.
   if (body?.type !== 2) return NextResponse.json({ type: 4, data: { content: "Unsupported interaction.", flags: 64 } });
 
@@ -165,10 +177,69 @@ export async function POST(req: NextRequest) {
    * Mirrors registerCallChannel in server/bot/index.js: manager permission required, the
    * channel is taken from where the command was run, and approval stays manual.
    */
+  /**
+   * `/register` asks WHICH channel, rather than assuming the one it was typed in.
+   *
+   * Taking the current channel silently is how a server ends up monitoring #general because
+   * that is where the owner happened to run the command. Discord has a native channel picker
+   * (component type 8) which is filtered to text channels and shows only what the user can
+   * already see, so the choice is explicit and cannot name a channel they do not have.
+   *
+   * The registration itself happens on the follow-up component interaction below.
+   */
   if (name === "register") {
     const guildId = body?.guild_id;
-    const channelId = body?.channel_id;
-    if (!guildId || !channelId) return ephemeral("Run /register inside the channel where calls are posted.");
+    if (!guildId) return ephemeral("Run /register inside the server you want to connect.");
+
+    let permissions = BigInt(0);
+    try { permissions = BigInt(body?.member?.permissions ?? "0"); } catch { permissions = BigInt(0); }
+    if ((permissions & MANAGE_GUILD) !== MANAGE_GUILD) {
+      return ephemeral("Only a server manager can register a call channel.");
+    }
+
+    return NextResponse.json({
+      type: 4,
+      data: {
+        content: "Choose the channel where you post Solana calls. Only that channel is monitored.",
+        flags: 64,
+        components: [{
+          type: 1,
+          components: [{
+            type: 8,               // CHANNEL_SELECT
+            custom_id: "degen-register-channel",
+            channel_types: [0, 5], // text and announcement; nothing that cannot hold messages
+            placeholder: "Select your calls channel",
+            min_values: 1,
+            max_values: 1
+          }]
+        }]
+      }
+    });
+  }
+
+  if (name === "help") {
+    return ephemeral(
+      "DegenAration commands:\n" +
+      "/register — choose the channel where you post calls\n" +
+      "/connect discord — link this server to your DegenAration account"
+    );
+  }
+
+  return ephemeral("That command is not handled here yet.");
+}
+
+/**
+ * Complete a registration once the owner has chosen a channel.
+ *
+ * Separate from the command so the permission check happens again here rather than being
+ * inherited: a component interaction is a fresh request from the client and its permissions
+ * must be verified on their own, not assumed from the command that produced the menu.
+ */
+async function finishRegistration(body: any, selectedChannelId: string | null) {
+  {
+    const guildId = body?.guild_id;
+    const channelId = selectedChannelId;
+    if (!guildId || !channelId) return ephemeral("That channel could not be read. Try /register again.");
 
     let permissions = BigInt(0);
     try { permissions = BigInt(body?.member?.permissions ?? "0"); } catch { permissions = BigInt(0); }
@@ -209,14 +280,4 @@ export async function POST(req: NextRequest) {
       return ephemeral("Could not register right now — try again shortly.");
     }
   }
-
-  if (name === "help") {
-    return ephemeral(
-      "DegenAration commands:\n" +
-      "/register — submit this channel as a call source for review\n" +
-      "/connect discord — link this server to your DegenAration account"
-    );
-  }
-
-  return ephemeral("That command is not handled here yet.");
 }

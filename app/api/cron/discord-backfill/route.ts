@@ -58,47 +58,20 @@ export async function GET(req: NextRequest) {
 
   try {
     /**
-     * Discover every channel of an already-approved server before scanning.
+     * NO channel discovery.
      *
-     * The scanner only polled channels a human had registered by hand, so a server whose
-     * calls live in more than one channel — or that moved them — went silent with no error:
-     * "nobody registered that channel" and "that channel is quiet" look identical from here.
-     * Observed live: #alpha-futures active 2 hours ago and invisible, while the registered
-     * #sol-alpha had been silent for 46.
+     * A previous revision enumerated every channel of an approved guild and registered them
+     * all. The owner's specification is explicit and is the better design: the channel chosen
+     * during /register is the only one monitored. A server's calls channel is a deliberate
+     * choice, and scanning #general or #all-discussion would journal every address anyone
+     * pastes in conversation as if the owner had called it — which is worse than missing a
+     * call, because it is a fabricated call attributed to them.
      *
-     * The approval boundary does not move. bot_autoregister_guild_channels refuses unless the
-     * guild ALREADY has an approved source, so this can only widen a server whose owner
-     * already asked to be listed — which is what they mean by adding the bot to their server.
-     *
-     * Best-effort and before the scan: a discovery failure must not stop the calls that the
-     * known channels are producing right now.
+     * bot_autoregister_guild_channels remains in the schema, unused and unreachable from the
+     * bridge, and its rows were removed. The per-channel error isolation added alongside it
+     * stays: it was a real fault independent of discovery.
      */
-    let discovered = 0;
     let skipped = 0;
-    try {
-      const known = await bridge("approved_channels", {});
-      const guilds = [...new Set((Array.isArray(known) ? known : [])
-        .map((channel: any) => channel?.guild_id).filter(Boolean))];
-      for (const guildId of guilds) {
-        const response = await fetchWithTimeout(
-          `https://discord.com/api/v10/guilds/${guildId}/channels`,
-          { headers: { authorization: `Bot ${token}` }, cache: "no-store" }, 8_000
-        );
-        if (!response.ok) continue;
-        const list = await response.json().catch(() => []);
-        const text = (Array.isArray(list) ? list : [])
-          // 0 = GUILD_TEXT, 5 = GUILD_ANNOUNCEMENT. Voice, categories and forums carry no
-          // message history to poll on this endpoint.
-          .filter((channel: any) => channel?.type === 0 || channel?.type === 5)
-          .map((channel: any) => ({ id: channel.id, name: channel.name }));
-        if (!text.length) continue;
-        const result = await bridge("autoregister_guild_channels", {
-          p_guild_id: guildId,
-          p_channels: text
-        });
-        discovered += Number(result?.added || 0);
-      }
-    } catch { /* discovery is best-effort; the scan below still runs */ }
 
     const channels = await bridge("approved_channels", {});
     const rows = Array.isArray(channels) ? channels : [];
@@ -242,7 +215,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { ok: true, live, sweeps, discovered, skipped, channels: [...results.values()] },
+      { ok: true, live, sweeps, skipped, channels: [...results.values()] },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
