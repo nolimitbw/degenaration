@@ -5,9 +5,31 @@ import { validateBotPayload } from "@/lib/server/bot-validation";
 import { feeAccountReadiness } from "@/lib/server/fee-account";
 import { automationReadiness } from "@/lib/server/automation-readiness";
 import { plannedCapital } from "@/lib/planned-capital";
+import { spendableLamports } from "@/lib/withdrawal";
 // Plain CommonJS modules so the same table is testable in the synchronous server runner.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { evaluateReadiness } = require("@/lib/bot-readiness");
+
+const SOL_RPC_FALLBACK = "https://solana-rpc.publicnode.com";
+
+async function walletBalanceLamports(address: string): Promise<bigint | null> {
+  const rpc = process.env.SOLANA_RPC_URL || process.env.MAINNET_RPC || SOL_RPC_FALLBACK;
+  try {
+    const response = await fetch(rpc, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [address] })
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const value = data?.result?.value;
+    if (value == null || !Number.isSafeInteger(Number(value))) return null;
+    return BigInt(Number(value));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The server-side readiness transaction behind `RUN`.
@@ -54,10 +76,15 @@ export async function POST(req: NextRequest) {
 
   const sourceGroupId = typeof (raw as any)?.sourceGroupId === "string" ? (raw as any).sourceGroupId : null;
   const botId = typeof (raw as any)?.id === "string" ? (raw as any).id : null;
-  const [state, liveness, runFacts] = await Promise.all([
-    callPrivyRpc<{ spendableLamports?: string }>("app_user_withdrawable_state", {
+  const [state, balance, liveness, runFacts] = await Promise.all([
+    callPrivyRpc<{
+      spendableLamports?: string;
+      lockedLamports?: string;
+      pendingWithdrawalLamports?: string;
+    }>("app_user_withdrawable_state", {
       p_privy_user_id: user.privyUserId
     }),
+    walletOwned && parsed.walletAddress ? walletBalanceLamports(parsed.walletAddress) : Promise.resolve(null),
     callPrivyRpc<{ live?: boolean; reason?: string | null; executionMode?: string | null }>(
       "app_worker_liveness",
       {}
@@ -89,6 +116,21 @@ export async function POST(req: NextRequest) {
 
   const [fee, release] = await Promise.all([feeAccountReadiness(), automationReadiness()]);
 
+  let availableLamports: string | undefined;
+  if (state.ok && typeof state.data?.spendableLamports === "string") {
+    availableLamports = state.data.spendableLamports;
+  } else if (state.ok && balance != null) {
+    try {
+      availableLamports = spendableLamports({
+        balanceLamports: balance,
+        lockedLamports: BigInt(String(state.data?.lockedLamports ?? "0")),
+        pendingWithdrawalLamports: BigInt(String(state.data?.pendingWithdrawalLamports ?? "0"))
+      }).toString();
+    } catch {
+      availableLamports = undefined;
+    }
+  }
+
   const verdict = evaluateReadiness({
     authenticated: true,
     configurationValid,
@@ -109,7 +151,7 @@ export async function POST(req: NextRequest) {
       ? runFacts.data?.dailyBudgetAvailable
       : true,
     requiredLamports,
-    availableLamports: state.ok ? state.data?.spendableLamports : undefined,
+    availableLamports,
     killSwitch: config.killSwitch === true,
     platformEntriesPaused: false,
     // Fail closed on an unreadable liveness answer: `live` stays undefined and the check fails.
