@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePrivy, useIdentityToken } from "@privy-io/react-auth";
-import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { useSignTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { getBase58Decoder } from "@solana/kit";
 import {
   ArrowDownToLine,
@@ -617,7 +617,7 @@ function lamportsToSolText(value: bigint, digits = 4) {
 function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClose }: { wallet: string; walletId: string; getAccessToken: () => Promise<string | null>; identityToken: string | null; onClose: () => void }) {
   const toast = useToast();
   const { wallets, ready: walletsReady } = useWallets();
-  const { signAndSendTransaction } = useSignAndSendTransaction();
+  const { signTransaction } = useSignTransaction();
   const privyWallet = wallets.find((w) => w.address === wallet);
 
   const [availability, setAvailability] = useState<WithdrawAvailability | null>(null);
@@ -657,20 +657,52 @@ function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClos
     if (!privyWallet) { setError("Sign in with the wallet that holds these funds to withdraw."); return; }
 
     setBusy(true);
+    let withdrawalId = "";
+    let recordedSignature = "";
     try {
-      const built = await productFetch<{ transaction: string; amountLamports: string }>(
+      const built = await productFetch<{ transaction: string; amountLamports: string; withdrawalId: string; lastValidBlockHeight: number }>(
         "/api/product/portfolio/withdraw",
         { getAccessToken, identityToken },
         { method: "POST", body: JSON.stringify({ from: wallet, walletId, to: destination.trim(), amountLamports: lamports.toString() }) }
       );
+      withdrawalId = built.withdrawalId;
       const raw = Uint8Array.from(atob(built.transaction), (c) => c.charCodeAt(0));
-      const receipt = await signAndSendTransaction({ transaction: raw, wallet: privyWallet, chain: "solana:mainnet" });
-      const sig = getBase58Decoder().decode(receipt.signature);
-      setSignature(sig);
+      const signed = await signTransaction({ transaction: raw, wallet: privyWallet, chain: "solana:mainnet" });
+      const web3 = await import("@solana/web3.js");
+      const signedTransaction = web3.Transaction.from(signed.signedTransaction);
+      if (!signedTransaction.signature) throw new Error("The wallet did not sign the withdrawal.");
+      recordedSignature = getBase58Decoder().decode(signedTransaction.signature);
+
+      // Persist the signature before broadcast. If the browser closes or confirmation
+      // polling times out after send, reconciliation can still recover the transfer and
+      // the user is never invited to submit the same withdrawal twice.
+      await productFetch(
+        "/api/product/portfolio/withdraw/signature",
+        { getAccessToken, identityToken },
+        { method: "POST", body: JSON.stringify({ withdrawalId, txSignature: recordedSignature }) }
+      );
+
+      const connection = new web3.Connection("https://solana-rpc.publicnode.com", "confirmed");
+      const sentSignature = await connection.sendRawTransaction(signed.signedTransaction, { skipPreflight: false });
+      if (sentSignature !== recordedSignature) throw new Error("The network returned an unexpected transaction signature.");
+      setSignature(recordedSignature);
       toast("Withdrawal submitted");
       load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Withdrawal could not be completed.");
+      // Signing is separated from sending. It is safe to release only an unsigned intent;
+      // once a signature exists it must remain pending for chain reconciliation.
+      if (withdrawalId && !recordedSignature) {
+        try {
+          await productFetch(
+            "/api/product/portfolio/withdraw",
+            { getAccessToken, identityToken },
+            { method: "DELETE", body: JSON.stringify({ withdrawalId }) }
+          );
+        } catch { /* The original actionable signer error remains primary. */ }
+      }
+      setError(recordedSignature
+        ? "Withdrawal signed and recorded. Check its status before trying again."
+        : reason instanceof Error ? reason.message : "Withdrawal could not be completed.");
     } finally {
       setBusy(false);
     }
