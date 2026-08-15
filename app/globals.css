@@ -600,14 +600,36 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 .degen-home ::selection { background: rgb(var(--gold-rgb) / 0.9); color: #17110c; }
 .degen-home .text-haze { color: var(--haze); }
 
-.home-hero { position: relative; }
-.home-hero::before {
-  content: "";
-  position: absolute;
-  inset: 6rem 0 auto;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(var(--gold-rgb) / .48), transparent);
+.home-hero-shell { position: relative; }
+.home-poster { box-shadow: 0 30px 90px -62px rgb(var(--gold-rgb) / .55); }
+.home-poster-title {
+  font-size: clamp(3.9rem, 8vw, 8.4rem);
+  line-height: .82;
+  letter-spacing: -.075em;
 }
+.home-section-title {
+  font-size: clamp(2.45rem, 5vw, 5.4rem);
+  line-height: .92;
+  letter-spacing: -.055em;
+}
+.home-cta-title {
+  font-size: clamp(3rem, 7.5vw, 7.5rem);
+  line-height: .88;
+  letter-spacing: -.065em;
+}
+.home-rocket-image { object-position: 58% center; filter: saturate(.5) sepia(.28) contrast(1.08); }
+.home-rocket-grade {
+  background:
+    linear-gradient(90deg, rgb(var(--panel-rgb) / .55), transparent 38%),
+    linear-gradient(180deg, transparent 55%, rgb(var(--void-rgb) / .5)),
+    rgb(var(--gold-rgb) / .08);
+}
+.home-ticker { overflow: hidden; }
+.home-ticker-track { display: flex; width: max-content; animation: degen-ticker 30s linear infinite; }
+.home-ticker-track span { padding-right: 3rem; white-space: nowrap; }
+.home-product-zone { background: rgb(var(--panel-rgb) / .5); }
+.home-product-card { box-shadow: inset 0 1px rgb(255 255 255 / .025); }
+@keyframes degen-ticker { to { transform: translateX(-50%); } }
 .home-chart-grid {
   background-image: linear-gradient(rgb(var(--edge-rgb) / .5) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--edge-rgb) / .5) 1px, transparent 1px);
   background-size: 48px 48px;
@@ -617,6 +639,12 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+@media (max-width: 639px) {
+  .home-poster-title { font-size: clamp(3.6rem, 19vw, 5.4rem); }
+  .home-section-title { font-size: clamp(2.7rem, 14vw, 4.2rem); }
+  .home-cta-title { font-size: clamp(3.1rem, 15vw, 5rem); }
 }
 
 /* Full-page launch art stays crisp without an enlarged, low-resolution video crop. */
