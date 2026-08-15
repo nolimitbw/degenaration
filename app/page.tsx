@@ -1,7 +1,6 @@
 import Nav from "@/components/Nav";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
-import LiveMarketTerminal from "@/components/LiveMarketTerminal";
 import Link from "next/link";
 import { ArrowUpRight, Bot, ChartNoAxesCombined, ListChecks, Radar, ShieldCheck, WalletCards } from "lucide-react";
 
@@ -19,7 +18,6 @@ const PRODUCTS = [
 export default function Home() {
   return <div className="degen-home" id="top"><Nav /><main id="main-content" tabIndex={-1}>
     <Hero />
-    <section className="border-y border-edge bg-panel/45 py-14" aria-label="Live market preview"><div className="mx-auto max-w-7xl px-5"><LiveMarketTerminal /></div></section>
     <section id="how-it-works" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-20 sm:py-28">
       <div className="max-w-2xl"><p className="ui-label text-gold-400">How it works</p><h2 className="home-section-title mt-4 font-bold text-ink">A straight path from signal to strategy.</h2></div>
       <div className="mt-12 divide-y divide-edge border-y border-edge">{STEPS.map(({ icon: Icon, title, copy }, index) => <div key={title} className="grid gap-4 py-7 sm:grid-cols-[48px_48px_1fr] sm:items-center sm:gap-6"><span className="font-mono text-xs text-dim">0{index + 1}</span><Icon aria-hidden="true" size={22} className="text-gold-400" /><div className="grid gap-2 md:grid-cols-[.55fr_1fr] md:items-center md:gap-8"><h3 className="text-lg font-semibold text-ink">{title}</h3><p className="text-sm leading-6 text-dim">{copy}</p></div></div>)}</div>
