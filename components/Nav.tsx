@@ -9,7 +9,8 @@ const LINKS = [
   { label: "How it works", href: "/#how-it-works" },
   { label: "Bots", href: "/bots" },
   { label: "Affiliate", href: "/affiliate" },
-  { label: "Portfolio", href: "/portfolio" }
+  { label: "Portfolio", href: "/portfolio" },
+  { label: "Docs", href: "/docs" }
 ];
 
 export default function Nav() {
@@ -28,10 +29,10 @@ export default function Nav() {
       initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-      className="sticky inset-x-0 top-0 z-[70] bg-void/90 px-4 pt-3 backdrop-blur-xl sm:px-5"
+      className="sticky inset-x-0 top-0 z-[70] border-b border-edge bg-void/90 backdrop-blur-xl"
     >
       <motion.nav
-        className={`mx-auto flex h-16 max-w-[1440px] items-center gap-2 border border-edge bg-panel/95 px-4 transition-shadow duration-300 sm:px-5 ${scrolled ? "shadow-[0_16px_34px_-20px_rgba(0,0,0,.95)]" : ""}`}
+        className={`mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 transition-shadow duration-300 ${scrolled ? "shadow-[0_12px_30px_-24px_rgba(0,0,0,.9)]" : ""}`}
       >
         <Link href="#top" className={`transition-all ${scrolled ? "text-base" : "text-lg"}`}>
           <Logo />
@@ -68,7 +69,7 @@ export default function Nav() {
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute inset-x-4 top-[76px] border border-edge bg-panel p-3 shadow-2xl md:hidden"
+          className="absolute inset-x-4 top-16 border border-edge bg-panel p-3 shadow-2xl md:hidden"
         >
           {LINKS.map((l) => (
             <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className="block rounded-md px-4 py-3 text-sm text-dim hover:bg-edge/40 hover:text-ink">

@@ -5,9 +5,8 @@
  * code-generated CSS and inline SVG — no bitmap that would blur on large screens, no
  * animation, no layout shift. It is fixed, behind all content, and inert to pointers.
  *
- * Deliberately restrained: the grid sits near 2% opacity and the signal curves near 5%,
- * so tables and charts stay the focus. If you can clearly "see the background" on a
- * data screen, it is too strong.
+ * Deliberately restrained: a soft vignette and light grain add depth without a visible
+ * pattern competing with product content.
  */
 export default function DegenBackdrop() {
   return (
@@ -19,19 +18,6 @@ export default function DegenBackdrop() {
           background:
             "radial-gradient(900px 600px at 12% 0%, rgba(194,148,99,0.055), transparent 70%)," +
             "radial-gradient(1100px 700px at 55% 8%, rgba(194,148,99,0.028), transparent 72%)"
-        }}
-      />
-
-      {/* Technical grid at 56px. Kept under 2.5% so it reads as texture, not pattern. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(194,148,99,0.022) 1px, transparent 1px)," +
-            "linear-gradient(90deg, rgba(194,148,99,0.022) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(1200px 800px at 50% 0%, #000 55%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(1200px 800px at 50% 0%, #000 55%, transparent 100%)"
         }}
       />
 
