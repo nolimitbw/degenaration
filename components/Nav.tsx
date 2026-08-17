@@ -34,7 +34,9 @@ export default function Nav() {
       <motion.nav
         className={`mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 transition-shadow duration-300 ${scrolled ? "shadow-[0_12px_30px_-24px_rgba(0,0,0,.9)]" : ""}`}
       >
-        <Link href="#top" className={`transition-all ${scrolled ? "text-base" : "text-lg"}`}>
+        {/* min-h-11: the brand link measured 40px tall on a phone, under the 44px minimum.
+            It is the first control on the page, so it is the first one to get this right. */}
+        <Link href="#top" className={`inline-flex min-h-11 items-center transition-all ${scrolled ? "text-base" : "text-lg"}`}>
           <Logo />
         </Link>
 

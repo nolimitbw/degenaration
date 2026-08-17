@@ -351,7 +351,10 @@ const SURFACES = [
    * text — a weak readiness check once let this harness measure the not-found page at four
    * widths while reporting a real surface's name.
    */
-  { route: "/", name: "landing", ready: "document.body.innerText.includes('From Discord call to')" },
+  // Matches a real section heading on the landing page, not merely "some text rendered".
+  // A weak predicate is how this audit once measured the 404 page for four widths while
+  // reporting a surface name — so the string must be one only this page can produce.
+  { route: "/", name: "landing", ready: "document.body.innerText.includes('A straight path from signal to strategy')" },
   /**
    * The documentation. Long-form prose with a sticky contents rail and a timeline — the two
    * shapes most likely to overflow a phone — and it is the page an investor or a prospective
