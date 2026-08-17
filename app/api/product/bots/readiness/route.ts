@@ -5,6 +5,7 @@ import { validateBotPayload } from "@/lib/server/bot-validation";
 import { feeAccountReadiness } from "@/lib/server/fee-account";
 import { automationReadiness } from "@/lib/server/automation-readiness";
 import { plannedCapital } from "@/lib/planned-capital";
+import { spendableFor } from "@/lib/server/wallet-balance";
 // Plain CommonJS modules so the same table is testable in the synchronous server runner.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { evaluateReadiness } = require("@/lib/bot-readiness");
@@ -55,7 +56,8 @@ export async function POST(req: NextRequest) {
   const sourceGroupId = typeof (raw as any)?.sourceGroupId === "string" ? (raw as any).sourceGroupId : null;
   const botId = typeof (raw as any)?.id === "string" ? (raw as any).id : null;
   const [state, liveness, runFacts] = await Promise.all([
-    callPrivyRpc<{ spendableLamports?: string }>("app_user_withdrawable_state", {
+    // The real shape. It returns HOLDS, not a balance — see lib/server/wallet-balance.ts.
+    callPrivyRpc<{ lockedLamports?: string; pendingWithdrawalLamports?: string }>("app_user_withdrawable_state", {
       p_privy_user_id: user.privyUserId
     }),
     callPrivyRpc<{ live?: boolean; reason?: string | null; executionMode?: string | null }>(
@@ -87,7 +89,27 @@ export async function POST(req: NextRequest) {
         })
   ]);
 
-  const [fee, release] = await Promise.all([feeAccountReadiness(), automationReadiness()]);
+  /**
+   * Spendable balance.
+   *
+   * This used to read `state.data?.spendableLamports` — a key `app_user_withdrawable_state`
+   * has never returned and cannot: it is a Postgres function, and the balance is on Solana.
+   * It returns the HOLDS (locked, pending) only. So the value was always undefined, the
+   * capital check always answered "Your available balance could not be read", and RUN was
+   * blocked for every user at every balance — while the builder displayed a real wallet
+   * balance on the same screen, because the builder reads the chain.
+   *
+   * Spendable is now derived the same way the withdraw screen derives it, through one shared
+   * reader, so the two money surfaces cannot drift apart again. Still undefined when the
+   * chain genuinely cannot be read, which is the one case the message was written for.
+   */
+  const [fee, release, availableLamports] = await Promise.all([
+    feeAccountReadiness(),
+    automationReadiness(),
+    parsed && "walletAddress" in parsed && parsed.walletAddress
+      ? spendableFor(parsed.walletAddress, state)
+      : Promise.resolve(undefined)
+  ]);
 
   const verdict = evaluateReadiness({
     authenticated: true,
@@ -109,7 +131,7 @@ export async function POST(req: NextRequest) {
       ? runFacts.data?.dailyBudgetAvailable
       : true,
     requiredLamports,
-    availableLamports: state.ok ? state.data?.spendableLamports : undefined,
+    availableLamports,
     killSwitch: config.killSwitch === true,
     platformEntriesPaused: false,
     // Fail closed on an unreadable liveness answer: `live` stays undefined and the check fails.

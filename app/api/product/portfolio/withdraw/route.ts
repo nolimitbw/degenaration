@@ -8,6 +8,7 @@ import {
   spendableLamports,
   validateWithdrawal
 } from "@/lib/withdrawal";
+import { walletBalanceLamports } from "@/lib/server/wallet-balance";
 
 /**
  * POST /api/product/portfolio/withdraw
@@ -25,26 +26,11 @@ import {
  * requesting a transaction.
  */
 
-const SOL_RPC_FALLBACK = "https://solana-rpc.publicnode.com";
-
-async function walletBalanceLamports(address: string): Promise<bigint | null> {
-  const rpc = process.env.SOLANA_RPC_URL || SOL_RPC_FALLBACK;
-  try {
-    const response = await fetch(rpc, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      cache: "no-store",
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [address] })
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const value = data?.result?.value;
-    if (value == null || !Number.isFinite(Number(value))) return null;
-    return BigInt(Math.floor(Number(value)));
-  } catch {
-    return null;
-  }
-}
+// One balance reader, shared with the bot readiness route. This file used to carry its own
+// single-provider copy; the readiness route had no copy at all and read a key off an RPC that
+// never returns one, so the two money surfaces disagreed on the same screen. Sharing the
+// reader is what makes that impossible rather than merely fixed once.
+// It also gains provider failover here, which the local copy did not have.
 
 /** Authoritative committed capital. Never trust a client-supplied figure (§12.5). */
 async function committedLamports(
@@ -217,7 +203,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const web3 = await import("@solana/web3.js");
-    const connection = new web3.Connection(process.env.SOLANA_RPC_URL || SOL_RPC_FALLBACK);
+    const connection = new web3.Connection(
+      process.env.SOLANA_RPC_URL || process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com"
+    );
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     const transaction = new web3.Transaction({
       feePayer: new web3.PublicKey(from),

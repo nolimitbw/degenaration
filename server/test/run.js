@@ -3807,6 +3807,40 @@ console.log("price selection");
     assert.strictEqual(verdict.failedCheck, null);
   });
 
+  test("the readiness route sources the balance from the chain, not from the holds RPC", () => {
+    // The live defect, and the reason it survived: the pure table below was always correct.
+    //
+    // The route fed it `state.data.spendableLamports` read off app_user_withdrawable_state —
+    // a key that function has never returned and cannot, being a Postgres function while the
+    // balance is on Solana. It returns lockedLamports, inFlightIntents and
+    // pendingWithdrawalLamports. So availableLamports was permanently undefined, the capital
+    // check permanently answered "could not be read", and RUN was blocked for EVERY user at
+    // EVERY balance — while the builder printed a real wallet balance on the same screen,
+    // because the builder reads the chain.
+    //
+    // A unit test of evaluateReadiness cannot see that; the fact never arrives. So this asserts
+    // the wiring instead: no source file may read spendableLamports off that RPC again.
+    const fs = require("node:fs");
+    const route = fs.readFileSync(
+      require("node:path").join(__dirname, "../../app/api/product/bots/readiness/route.ts"), "utf8");
+    const code = route.split("\n").filter((line) => !line.trim().startsWith("*") && !line.trim().startsWith("//"));
+    assert.ok(
+      !code.some((line) => /state(\.data)?\??\.\s*(data\??\.)?spendableLamports/.test(line)),
+      "readiness must not read spendableLamports off app_user_withdrawable_state"
+    );
+    assert.ok(
+      code.some((line) => line.includes("spendableFor(")),
+      "readiness must derive spendable from the shared on-chain reader"
+    );
+
+    // And the table's own half: a balance that IS supplied clears the capital check.
+    const funded = evaluateReadiness({ ...READY, requiredLamports: "60000000", availableLamports: "106131962" });
+    assert.strictEqual(funded.ready, true, "0.106 SOL covers a 0.06 SOL requirement");
+    const unknown = evaluateReadiness({ ...READY, availableLamports: undefined });
+    assert.match(unknown.reason, /could not be read/,
+      "the message stays for the one case it was written for — an unreadable chain");
+  });
+
   test("each blocker produces its OWN reason, not a shared sentence", () => {
     // The assertion that matters. Six different faults, six different messages.
     const reasons = new Set();
