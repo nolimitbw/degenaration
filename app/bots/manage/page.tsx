@@ -249,9 +249,26 @@ export default function BotManagerPage() {
                                   <Play size={14} />
                                 </button>
                               )}
-                              {bot.kind === "kol" && bot.status !== "archived" && (
-                                <button type="button" onClick={() => saveBot(bot, "draft", true)} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink" aria-label={`Duplicate ${bot.name}`} title="Duplicate as draft"><Copy size={14} /></button>
-                              )}
+                              {/* Offered for BOTH kinds, and offered on archived rows.
+                                  Archiving is permanent, so an archived bot with no duplicate
+                                  action is a dead end: the only way back was to retype every
+                                  setting. It was also hidden exactly when it is most useful,
+                                  and absent entirely for Discord bots — which is the kind most
+                                  people run.
+                                  This does not restore anything. It creates a NEW private
+                                  draft carrying the same configuration, so the terminal
+                                  lifecycle rule is untouched. */}
+                              <button
+                                type="button"
+                                onClick={() => saveBot(bot, "draft", true)}
+                                className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-ink"
+                                aria-label={`Duplicate ${bot.name} as a new draft`}
+                                title={bot.status === "archived"
+                                  ? "Copy these settings into a new bot"
+                                  : "Duplicate as draft"}
+                              >
+                                <Copy size={14} />
+                              </button>
                               {bot.status !== "archived" && (
                                 <button type="button" onClick={() => setArchiveTarget(bot)} disabled={(bot.openTrades || 0) > 0} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-down disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Archive ${bot.name}`} title={(bot.openTrades || 0) > 0 ? "Close positions before archiving" : "Archive"}><Archive size={14} /></button>
                               )}
