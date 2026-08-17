@@ -405,6 +405,17 @@ export const PACKAGE = [
       "wraps auth.uid() in a select so the public positions policy is initialized once per " +
       "statement. No authorization rule or product data changes.",
   },
+  {
+    n: 32,
+    apply: "degenaration-withdrawal-reconciliation.sql",
+    rollback: "32-withdrawal-reconciliation.sql",
+    reapply: [],
+    note:
+      "Adds app_user_reconcile_withdrawal, the network reconciliation app_user_settle_withdrawal " +
+      "refuses to do from a client. Nothing in production ever settled a submitted withdrawal, so " +
+      "a transfer that succeeded on chain held its amount out of the owner's spendable balance " +
+      "forever. Additive; the existing settle guard is untouched.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

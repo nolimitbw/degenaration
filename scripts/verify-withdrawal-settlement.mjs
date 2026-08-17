@@ -219,9 +219,109 @@ for (const role of ["anon", "authenticated"]) {
 }
 results.authorization = "PASS";
 
+// ---- reconciliation against the network -------------------------------------------------
+//
+// app_user_settle_withdrawal REFUSES any non-confirmed outcome for a signed intent, and is
+// right to: a browser knowing its own request failed is not evidence the transfer failed.
+// app_user_reconcile_withdrawal is the reconciliation that guard asks for, called only after
+// the server has read the transaction.
+//
+// Why this matters more than it looks: nothing in production ever settled a submitted
+// withdrawal, and app_user_withdrawable_state counts `submitted` toward pending — so a
+// transfer that SUCCEEDED on chain subtracted its own amount from the owner's spendable
+// balance forever. One live intent held 0.89 SOL that way for three days while the modal
+// told the user they had nothing to withdraw.
+await db.exec(await readFile(`${repo}/supabase/degenaration-withdrawal-reconciliation.sql`, "utf8"));
+await db.exec(await readFile(`${repo}/supabase/degenaration-withdrawal-reconciliation.sql`, "utf8"));
+results.reconcilerRerunSafe = "PASS";
+
+const reconcile = (owner, id, landed, succeeded, error = null) => one(
+  "select public.app_user_reconcile_withdrawal($1::text,$2::text,$3::uuid,$4::boolean,$5::boolean,$6::text) as r",
+  [S, owner, id, landed, succeeded, error]
+).then((r) => r.r);
+
+const spendableHold = async (owner) => BigInt((await one(
+  "select public.app_user_withdrawable_state($1::text,$2::text) as r", [S, owner]
+)).r.pendingWithdrawalLamports);
+
+// A landed, successful transfer confirms and records exactly one movement — the live case.
+// Asserted as a DELTA, because this fixture's earlier sections leave B with holds of their
+// own. A hard-coded total would be asserting the fixture's history rather than this behaviour.
+const holdBefore = await spendableHold(B);
+const landedOk = await newIntent(B, "L".repeat(88), 890000000);
+assert.equal(await spendableHold(B), holdBefore + BigInt(890000000),
+  "a submitted withdrawal holds its amount out of spendable while it is unreconciled");
+const before = (await counts()).movements;
+const okVerdict = await reconcile(B, landedOk.id, true, true);
+assert.equal(okVerdict.ok, true);
+assert.equal(okVerdict.state, "confirmed");
+assert.equal((await counts()).movements, before + 1, "a confirmed transfer records one movement");
+assert.equal(await spendableHold(B), holdBefore, "and stops holding the owner's balance");
+results.landedSuccessConfirmsAndReleases = "PASS";
+
+// Re-running is a no-op. The endpoint calls this on every load.
+const reRun = await reconcile(B, landedOk.id, true, true);
+assert.equal(reRun.duplicate, true, "reconciliation is idempotent");
+assert.equal((await counts()).movements, before + 1, "and writes no second movement");
+results.reconcilerIdempotent = "PASS";
+
+// A transaction that landed and REVERTED moved no money. The hold is released and NOTHING is
+// recorded — recording a movement here would invent a withdrawal that never happened.
+const reverted = await newIntent(B, "R".repeat(88), 250000000);
+const movementsBeforeRevert = (await counts()).movements;
+const revertVerdict = await reconcile(B, reverted.id, true, false, "reverted");
+assert.equal(revertVerdict.state, "failed");
+assert.equal((await counts()).movements, movementsBeforeRevert,
+  "a reverted transfer moved nothing, so it records nothing");
+results.revertedRecordsNoMovement = "PASS";
+
+// A signature absent from the network may still land while its blockhash lives. Freeing the
+// hold early would let the owner spend lamports the chain is about to take.
+const fresh = await newIntent(B, "F".repeat(88), 100000000);
+const tooEarly = await reconcile(B, fresh.id, false, false);
+assert.equal(tooEarly.ok, false);
+assert.equal(tooEarly.status, 409, "an unlanded transfer cannot be expired inside the blockhash window");
+
+await db.query(
+  "update app_private.withdrawal_intents set submitted_at = now() - interval '10 minutes' where id=$1::uuid",
+  [fresh.id]
+);
+const expired = await reconcile(B, fresh.id, false, false);
+assert.equal(expired.state, "expired", "past the window it can never land, so the hold is released");
+results.unlandedWaitsForTheBlockhashWindow = "PASS";
+
+// The old guard is untouched: a client still cannot fail a signed withdrawal on its say-so.
+const stillGuarded = await newIntent(B, "G".repeat(88), 300000000);
+const clientFail = await settle(B, stillGuarded.id, "failed");
+assert.equal(clientFail.ok, false);
+assert.equal(clientFail.status, 409,
+  "app_user_settle_withdrawal still refuses to fail a signed transfer without reading the chain");
+results.settleGuardUnchanged = "PASS";
+
+// Authorization, on the new function too.
+await assert.rejects(
+  () => db.query(
+    "select public.app_user_reconcile_withdrawal('wrong',$1::text,$2::uuid,true,true,null)",
+    [B, stillGuarded.id]),
+  /unauthorized/i
+);
+const crossUser = await reconcile(A, stillGuarded.id, true, true);
+assert.equal(crossUser.status, 404, "one owner cannot reconcile another's withdrawal");
+for (const role of ["anon", "authenticated"]) {
+  await db.exec(`set role ${role}`);
+  await assert.rejects(
+    () => db.query(
+      "select public.app_user_reconcile_withdrawal($1::text,$2::text,$3::uuid,true,true,null)",
+      [S, B, stillGuarded.id]),
+    /permission denied/i, `${role} cannot reconcile a withdrawal`);
+  await db.exec("reset role");
+}
+results.reconcilerAuthorization = "PASS";
+
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",
   ...results,
-  closes: "cash_movements — the last table of the accounting model with no writer"
+  closes: "cash_movements — the last table of the accounting model with no writer, " +
+    "and the submitted withdrawals nothing ever settled"
 }, null, 2));
 await db.close();

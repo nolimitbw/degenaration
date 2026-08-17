@@ -256,8 +256,10 @@ export type Position = {
   priceUsd: number | null; valueUsd: number | null; change24h: number | null; liquidityUsd: number | null;
 };
 export type Portfolio = {
-  address: string; sol: number; solPrice: number; solUsd: number;
-  positions: Position[]; tokenUsd: number; totalUsd: number; count: number;
+  // sol / solUsd / totalUsd are null when no Solana RPC would answer getBalance. Null is not
+  // zero: the interface renders an absent value rather than claiming the wallet is empty.
+  address: string; sol: number | null; solPrice: number; solUsd: number | null;
+  positions: Position[]; tokenUsd: number; totalUsd: number | null; count: number;
 };
 export async function fetchPortfolio(address: string, net?: string): Promise<Portfolio | null> {
   const q = net ? `&net=${net}` : "";

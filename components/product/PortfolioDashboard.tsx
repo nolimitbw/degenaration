@@ -164,9 +164,20 @@ export default function PortfolioDashboard() {
     walletPositions: walletPortfolio?.positions,
     solPriceUsd: walletPortfolio?.solPrice
   });
-  const availableSol = walletPortfolio?.sol ?? 0;
-  const totalUsd = walletPortfolio?.totalUsd ?? 0;
-  const totalSolEquivalent = walletPortfolio?.solPrice ? totalUsd / walletPortfolio.solPrice : availableSol;
+  /**
+   * `?? 0` was the whole bug behind "it doesn't show my real funds".
+   *
+   * When the wallet lookup fails — a rate-limited RPC, a timeout, a network blip — the client
+   * gets null, and coercing that to 0 printed a confident "0.000 SOL / $0.00" for an account
+   * holding several SOL. splitFigure exists precisely so an unknown total renders as an absent
+   * value, and the coercion here destroyed that before splitFigure could ever see it.
+   *
+   * Unknown now stays unknown. Zero means zero.
+   */
+  const availableSol = walletPortfolio?.sol ?? null;
+  const totalUsd = walletPortfolio?.totalUsd ?? null;
+  const totalSolEquivalent =
+    totalUsd != null && walletPortfolio?.solPrice ? totalUsd / walletPortfolio.solPrice : availableSol;
 
   if (!authenticated) {
     return (
@@ -290,7 +301,11 @@ export default function PortfolioDashboard() {
         </div>
 
         <div className="grid gap-px border-t border-edge bg-edge sm:grid-cols-2 xl:grid-cols-5">
-          <BalanceMetric label="Available" value={`${availableSol.toFixed(3)} SOL`} detail="Wallet balance" />
+          <BalanceMetric
+            label="Available"
+            value={availableSol == null ? "—" : `${availableSol.toFixed(3)} SOL`}
+            detail={availableSol == null ? "Balance unavailable — retrying" : "Wallet balance"}
+          />
           <BalanceMetric label="Allocated" value={`${allocated.toFixed(3)} SOL`} detail={`${openPositions.length} open positions`} />
           <BalanceMetric label="Realized PnL" value={`${realized >= 0 ? "+" : ""}${realized.toFixed(3)} SOL`} detail={period.toUpperCase()} tone={realized >= 0 ? "positive" : "negative"} />
           <BalanceMetric
@@ -690,6 +705,24 @@ function WithdrawModal({ wallet, walletId, getAccessToken, identityToken, onClos
     setLoading(true);
     setLoadError("");
     try {
+      /**
+       * Settle anything still marked submitted BEFORE reading availability.
+       *
+       * A withdrawal that succeeded on chain but was never settled keeps counting toward
+       * pendingWithdrawalLamports, which this modal subtracts from spendable — so the user is
+       * shown 0 available and every control disabled while their money is in their wallet.
+       * Reconciling first is what makes the number below true.
+       *
+       * Deliberately awaited rather than fired alongside: run in parallel it would race the
+       * read it exists to correct, and lose about half the time. It is bounded, it is
+       * idempotent, and it is a no-op for the common case of nothing pending.
+       *
+       * Failure is swallowed on purpose. Not being able to reconcile must not stop a user
+       * seeing their balance; the figure may be conservative for one more load, which is the
+       * safe direction, and the next open tries again.
+       */
+      await productFetch("/api/product/portfolio/withdraw/reconcile", { getAccessToken, identityToken }, { method: "POST" })
+        .catch(() => null);
       const data = await productFetch<WithdrawAvailability>(`/api/product/portfolio/withdraw?wallet=${wallet}`, { getAccessToken, identityToken });
       setAvailability(data);
     } catch (reason) {

@@ -100,6 +100,12 @@ const operations: Record<string, string[]> = {
   app_user_settle_withdrawal: [
     "p_secret", "p_privy_user_id", "p_intent_id", "p_outcome", "p_error"
   ],
+  // The network reconciliation app_user_settle_withdrawal deliberately refuses to do on a
+  // client's say-so. Reached only by /api/product/portfolio/withdraw/reconcile, which reads
+  // the transaction first and passes what it saw.
+  app_user_reconcile_withdrawal: [
+    "p_secret", "p_privy_user_id", "p_intent_id", "p_landed", "p_succeeded", "p_error"
+  ],
   app_user_pending_withdrawals: ["p_secret", "p_privy_user_id", "p_older_than_seconds"],
   app_user_list_withdrawals: ["p_secret", "p_privy_user_id", "p_limit"],
   app_user_record_pnl_card: [

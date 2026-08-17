@@ -207,6 +207,26 @@ const MEASURE = `(() => {
     .filter((el) => el.getBoundingClientRect().right > doc.clientWidth + 1)
     .slice(0, 5)
     .map((el) => (el.tagName + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0,2).join('.') : '')).slice(0, 80));
+
+  /**
+   * CLIPPED overflow — content wider than the viewport that is cut off rather than scrollable.
+   *
+   * scrollWidth catches overflow you can scroll to. It cannot catch overflow inside an
+   * ancestor with overflow-x: clip, which is what .degen-home uses: the documentElement stayed
+   * exactly 375px wide while paragraphs were being sliced mid-sentence at the screen edge. The
+   * audit reported clean and the owner found it by looking, which is the wrong way round.
+   *
+   * Measured on ELEMENT WIDTH rather than position, so it names the element that is too wide
+   * instead of the last child pushed off the edge. Text-bearing elements only: a decorative
+   * layer or a deliberate horizontal scroller can legitimately exceed the viewport, but a
+   * paragraph or heading wider than the screen is always a defect.
+   */
+  const TEXTUAL = ['P', 'H1', 'H2', 'H3', 'H4', 'LI', 'DT', 'DD', 'BLOCKQUOTE', 'MAIN', 'ARTICLE'];
+  const clipped = [...document.querySelectorAll(TEXTUAL.join(','))]
+    .map((el) => ({ el, w: Math.round(el.getBoundingClientRect().width) }))
+    .filter(({ el, w }) => w > doc.clientWidth + 1 && (el.textContent || '').trim().length > 0)
+    .slice(0, 6)
+    .map(({ el, w }) => (el.tagName + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0,2).join('.') : '') + ' @' + w + 'px').slice(0, 90));
   const targets = [...document.querySelectorAll('a[href], button, select, input:not([type=hidden]), [role=button]')]
     .filter((el) => el.offsetParent !== null)
     .map((el) => {
@@ -238,6 +258,7 @@ const MEASURE = `(() => {
     scrollWidth: doc.scrollWidth,
     clientWidth: doc.clientWidth,
     overflowing,
+    clipped,
     // Both dimensions: the header nav button was 21px WIDE at 44px tall, and a
     // height-only filter passed it.
     small: targets.filter((t) => !t.inlineInProse && Math.min(t.w, t.h) < 44).slice(0, 8),
@@ -421,6 +442,11 @@ for (const surface of SURFACES) {
         `scrollWidth ${measured.scrollWidth} > clientWidth ${measured.clientWidth}` +
         (measured.overflowing.length ? ` — widest: ${measured.overflowing.join(", ")}` : ""));
     }
+    // Text cut off at the edge rather than scrollable. Invisible to scrollWidth.
+    if (measured.clipped?.length) {
+      failures.push(`${surface.name} @${viewport.name}: ${measured.clipped.length} element(s) wider than the screen and CLIPPED — ` +
+        measured.clipped.join("; "));
+    }
     if (viewport.mobile) {
       const drawer = await page.evaluate(DRAWER);
       if (drawer?.present && !drawer.opened) {
@@ -573,6 +599,11 @@ for (const surface of UNAUTHENTICATED) {
       failures.push(`${surface.name} @${viewport.name}: horizontal overflow, ` +
         `scrollWidth ${measured.scrollWidth} > clientWidth ${measured.clientWidth}` +
         (measured.overflowing.length ? ` — widest: ${measured.overflowing.join(", ")}` : ""));
+    }
+    // Text cut off at the edge rather than scrollable. Invisible to scrollWidth.
+    if (measured.clipped?.length) {
+      failures.push(`${surface.name} @${viewport.name}: ${measured.clipped.length} element(s) wider than the screen and CLIPPED — ` +
+        measured.clipped.join("; "));
     }
     if (viewport.mobile && measured.small.length) {
       failures.push(`${surface.name} @${viewport.name}: ${measured.small.length} tap target(s) under 44px — ` +

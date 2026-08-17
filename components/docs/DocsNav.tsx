@@ -53,7 +53,20 @@ export default function DocsNav() {
   const path = usePathname();
 
   return (
-    <nav aria-label="Documentation" className="lg:sticky lg:top-24 lg:self-start">
+    /**
+     * min-w-0 is load-bearing, not tidying.
+     *
+     * A grid item defaults to min-width:auto, so the track sizes to its widest content. The
+     * chip rail below is `w-max` — intrinsically as wide as every chip laid flat, measured at
+     * 1393px — which stretched this column to 1393 and took `main` and every paragraph in it
+     * along, since both share the single mobile column. The prose was then clipped at the
+     * viewport edge mid-sentence.
+     *
+     * It survived the responsive audit because .degen-home clips overflow rather than
+     * scrolling it, so documentElement.scrollWidth stayed exactly 375 while text was being
+     * cut off. The audit now measures element rects too; see verify-responsive-surfaces.
+     */
+    <nav aria-label="Documentation" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
       {/* Mobile: one horizontal rail. Every destination stays reachable with a thumb without
           a menu to open first. */}
       <div className="-mx-4 overflow-x-auto px-4 lg:hidden">
