@@ -16,7 +16,7 @@ import {
 import AppShell from "@/components/AppShell";
 import { EmptyState, Metric, PageHeader, ProductTabs, Segmented, StatusPill } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import { formatPercentBps, formatSol, formatWhen, productFetch, solToLamports, type KolStrategy } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
 import { NumericTextInput } from "@/components/product/NumericField";
@@ -37,7 +37,6 @@ export default function KolStrategyDetailsPage() {
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
   const walletId = getSolanaWalletId(user) || "";
-  const delegated = hasDelegatedSolanaWallet(user);
   const [period, setPeriod] = useState<Period>("30d");
   const [strategy, setStrategy] = useState<KolStrategy | null | undefined>(undefined);
   const [subscription, setSubscription] = useState<any | null>(null);
@@ -146,8 +145,8 @@ export default function KolStrategyDetailsPage() {
       toast("Confirm the copy settings and fee before activation.", "err");
       return;
     }
-    if (!walletAddress || !walletId || !delegated) {
-      toast("Connect a delegated Solana execution wallet first.", "err");
+    if (!walletAddress || !walletId) {
+      toast("Connect a verified Solana execution wallet first.", "err");
       return;
     }
     setSaving(true);
@@ -250,7 +249,7 @@ export default function KolStrategyDetailsPage() {
               <div className="rounded-md border border-edge bg-void p-3">
                 <p className="field-label">Execution wallet</p>
                 <div className="mt-2 flex items-center gap-2"><WalletCards size={15} className={walletAddress ? "text-gold-400" : "text-dim"} /><span className="truncate font-mono t-label text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</span></div>
-                <p className={`mt-1 t-label ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required"}</p>
+                <p className={`mt-1 t-label ${walletAddress ? "text-up" : "text-gold-400"}`}>{walletAddress ? "Verified execution wallet" : "Wallet required"}</p>
               </div>
               <CopyField label="Buy amount" value={buyAmount} onChange={setBuyAmount} suffix="SOL" step={0.1} />
               <CopyField label="Maximum capital" value={maximumCapital} onChange={setMaximumCapital} suffix="SOL" step={0.5} />
@@ -266,8 +265,8 @@ export default function KolStrategyDetailsPage() {
               <label className="flex items-start gap-2 t-label leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I reviewed this strategy, its fee, and my worst-case capital limit.</label>
               {/* The same two actions as the builder, for the same reason: this page carried a
                   permanently disabled button whose label came from a frozen constant, so a user
-                  with no delegated wallet and a user waiting on the fee account read the
-                  identical sentence. RUN asks the server and reports the one check that failed. */}
+                  with a local wallet-state mismatch and a user waiting on the fee account read
+                  the identical sentence. RUN asks the server and reports the one check that failed. */}
               {readiness && (
                 <p role={readiness.ready ? "status" : "alert"} className={`rounded-md border px-3 py-2 t-label leading-5 ${readiness.ready ? "border-up/30 bg-up/5 text-up" : "border-down/35 bg-down/5 text-down"}`}>
                   {readiness.ready ? "Every readiness check passes." : readiness.reason}

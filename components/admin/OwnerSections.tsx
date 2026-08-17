@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
+import { getBase58Decoder } from "@solana/kit";
 import {
   Activity,
   Bot,
@@ -16,6 +19,7 @@ import {
 } from "lucide-react";
 import { EmptyState, StatusPill } from "@/components/product/Primitives";
 import { safeDiscordInvite } from "@/lib/external-url";
+import { getSolanaAddress } from "@/lib/solanaWallet";
 import type {
   AdminAction,
   AdminData,
@@ -727,6 +731,11 @@ function FeeAccountPanel({ data, fetchJson }: {
   data: AdminData;
   fetchJson: <T>(path: string, init?: RequestInit) => Promise<T>;
 }) {
+  const { authenticated, user } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
+  const embeddedAddress = getSolanaAddress(user);
+  const embeddedWallet = wallets.find((wallet) => wallet.address === embeddedAddress);
   const fee = (data.summary as Record<string, any>)?.feeAccount;
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -736,8 +745,22 @@ function FeeAccountPanel({ data, fetchJson }: {
     setCreating(true);
     setResult(null);
     try {
+      if (authenticated && embeddedAddress && !walletsReady) {
+        throw new Error("Your wallet is still loading. Try again in a moment.");
+      }
+      if (authenticated && embeddedAddress && embeddedWallet) {
+        const payload = await fetchJson<{ transaction: string; account: string }>("/api/admin/fee-account", {
+          method: "POST",
+          body: JSON.stringify({ payer: embeddedAddress })
+        });
+        const transaction = Uint8Array.from(atob(payload.transaction), (char) => char.charCodeAt(0));
+        const sent = await signAndSendTransaction({ transaction, wallet: embeddedWallet, chain: "solana:mainnet" });
+        const signature = getBase58Decoder().decode(sent.signature);
+        setResult(`Fee account transaction sent: ${signature}`);
+        return;
+      }
       const provider = (window as unknown as { solana?: PhantomFeeProvider }).solana;
-      if (!provider?.isPhantom) throw new Error("Open Phantom with a wallet that can pay the one-time account rent.");
+      if (!provider?.isPhantom) throw new Error("Connect your embedded wallet or open Phantom to pay the one-time account rent.");
       await provider.connect();
       const payer = provider.publicKey?.toBase58();
       if (!payer) throw new Error("Connect a Phantom wallet to pay the one-time account rent.");

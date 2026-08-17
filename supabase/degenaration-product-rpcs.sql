@@ -419,37 +419,72 @@ begin
     v_stop_bps := abs(coalesce((v_config #>> '{stopLoss,stopBps}')::numeric, 4000));
     v_slippage_bps := coalesce(nullif(v_config->>'slippageBps', '')::numeric, 300);
 
-    insert into public.subscriptions (
-      privy_user_id, group_id, size_sol, tp1, tp1_sell, tp2, tp2_sell,
-      stop_loss, slippage_bps, daily_cap_sol, enabled, user_pubkey, wallet_id,
-      bot_profile_id, config_version_id, channel_id, status, extended_config, updated_at
-    ) values (
-      p_privy_user_id, v_source_group_id, v_buy_lamports / 1000000000,
-      1 + (v_tp1_bps / 10000), round(v_tp1_sell / 100),
-      1 + (v_tp2_bps / 10000), round(v_tp2_sell / 100),
-      round(v_stop_bps / 100), round(v_slippage_bps), v_daily_cap_lamports / 1000000000,
-      v_status = 'active', v_wallet_address, v_privy_wallet_id,
-      v_bot.id, v_version.id, nullif(v_config->>'channelId', ''),
-      v_status, v_config, now()
-    )
-    on conflict (privy_user_id, group_id) where privy_user_id is not null do update
-    set size_sol = excluded.size_sol,
-        tp1 = excluded.tp1,
-        tp1_sell = excluded.tp1_sell,
-        tp2 = excluded.tp2,
-        tp2_sell = excluded.tp2_sell,
-        stop_loss = excluded.stop_loss,
-        slippage_bps = excluded.slippage_bps,
-        daily_cap_sol = excluded.daily_cap_sol,
-        enabled = excluded.enabled,
-        user_pubkey = excluded.user_pubkey,
-        wallet_id = excluded.wallet_id,
-        bot_profile_id = excluded.bot_profile_id,
-        config_version_id = excluded.config_version_id,
-        channel_id = excluded.channel_id,
-        status = excluded.status,
-        extended_config = excluded.extended_config,
-        updated_at = now();
+    -- Update by immutable bot identity first because this row is protected by two
+    -- independent unique indexes:
+    -- (privy_user_id, group_id) and bot_profile_id. An INSERT ... ON CONFLICT that
+    -- names only one arbiter can fail on the other even when both identify this same
+    -- subscription. Bot identity must win over source because editing a draft may
+    -- change its Discord source; looking up only the new source would miss the old
+    -- subscription and then collide on bot_profile_id.
+    update public.subscriptions
+    set group_id = v_source_group_id,
+        size_sol = v_buy_lamports / 1000000000,
+        tp1 = 1 + (v_tp1_bps / 10000),
+        tp1_sell = round(v_tp1_sell / 100),
+        tp2 = 1 + (v_tp2_bps / 10000),
+        tp2_sell = round(v_tp2_sell / 100),
+        stop_loss = round(v_stop_bps / 100),
+        slippage_bps = round(v_slippage_bps),
+        daily_cap_sol = v_daily_cap_lamports / 1000000000,
+        enabled = v_status = 'active',
+        user_pubkey = v_wallet_address,
+        wallet_id = v_privy_wallet_id,
+        bot_profile_id = v_bot.id,
+        config_version_id = v_version.id,
+        channel_id = nullif(v_config->>'channelId', ''),
+        status = v_status,
+        extended_config = v_config,
+        updated_at = now()
+    where bot_profile_id = v_bot.id;
+
+    if not found then
+      update public.subscriptions
+      set size_sol = v_buy_lamports / 1000000000,
+          tp1 = 1 + (v_tp1_bps / 10000),
+          tp1_sell = round(v_tp1_sell / 100),
+          tp2 = 1 + (v_tp2_bps / 10000),
+          tp2_sell = round(v_tp2_sell / 100),
+          stop_loss = round(v_stop_bps / 100),
+          slippage_bps = round(v_slippage_bps),
+          daily_cap_sol = v_daily_cap_lamports / 1000000000,
+          enabled = v_status = 'active',
+          user_pubkey = v_wallet_address,
+          wallet_id = v_privy_wallet_id,
+          bot_profile_id = v_bot.id,
+          config_version_id = v_version.id,
+          channel_id = nullif(v_config->>'channelId', ''),
+          status = v_status,
+          extended_config = v_config,
+          updated_at = now()
+      where privy_user_id = p_privy_user_id
+        and group_id = v_source_group_id;
+    end if;
+
+    if not found then
+      insert into public.subscriptions (
+        privy_user_id, group_id, size_sol, tp1, tp1_sell, tp2, tp2_sell,
+        stop_loss, slippage_bps, daily_cap_sol, enabled, user_pubkey, wallet_id,
+        bot_profile_id, config_version_id, channel_id, status, extended_config, updated_at
+      ) values (
+        p_privy_user_id, v_source_group_id, v_buy_lamports / 1000000000,
+        1 + (v_tp1_bps / 10000), round(v_tp1_sell / 100),
+        1 + (v_tp2_bps / 10000), round(v_tp2_sell / 100),
+        round(v_stop_bps / 100), round(v_slippage_bps), v_daily_cap_lamports / 1000000000,
+        v_status = 'active', v_wallet_address, v_privy_wallet_id,
+        v_bot.id, v_version.id, nullif(v_config->>'channelId', ''),
+        v_status, v_config, now()
+      );
+    end if;
   else
     v_slug := lower(regexp_replace(v_name, '[^a-zA-Z0-9]+', '-', 'g'));
     v_slug := trim(both '-' from v_slug);

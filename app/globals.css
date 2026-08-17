@@ -463,7 +463,6 @@ html[data-theme="light"] .app-shell {
   --warning-rgb: 137 90 47;
   --info-rgb: 79 99 111;
   color-scheme: light;
-  background-image: linear-gradient(rgba(23,26,23,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(23,26,23,.018) 1px, transparent 1px);
 }
 
 html[data-theme="light"] .degen-backdrop svg,
@@ -497,12 +496,7 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
 }
 
 .grid-bg {
-  background-image:
-    linear-gradient(rgb(var(--gold-rgb) / 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--gold-rgb) / 0.06) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
+  background: transparent;
 }
 
 .text-glow-gold { text-shadow: 0 0 18px rgb(var(--gold-rgb) / 0.45); }
@@ -594,29 +588,26 @@ html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
   color: var(--ink);
   overflow-x: clip;
   background: var(--void);
-  background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
-  background-size: 40px 40px;
 }
 .degen-home ::selection { background: rgb(var(--gold-rgb) / 0.9); color: #17110c; }
 .degen-home .text-haze { color: var(--haze); }
 
-.home-hero { position: relative; }
-.home-hero::before {
-  content: "";
-  position: absolute;
-  inset: 6rem 0 auto;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(var(--gold-rgb) / .48), transparent);
-}
-.home-chart-grid {
-  background-image: linear-gradient(rgb(var(--edge-rgb) / .5) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--edge-rgb) / .5) 1px, transparent 1px);
-  background-size: 48px 48px;
+.home-hero-title { font-size: clamp(3.6rem, 7.6vw, 7.8rem); line-height: .88; letter-spacing: -.065em; }
+.home-section-title {
+  font-size: clamp(2.15rem, 4.5vw, 4.6rem);
+  line-height: .98;
+  letter-spacing: -.045em;
 }
 .home-band { background: rgb(var(--panel-rgb) / .42); }
 .terminal-preview { border-radius: 6px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+@media (max-width: 639px) {
+  .home-hero-title { font-size: clamp(3.35rem, 17vw, 5rem); }
+  .home-section-title { font-size: clamp(2.35rem, 11vw, 3.6rem); }
 }
 
 /* Full-page launch art stays crisp without an enlarged, low-resolution video crop. */

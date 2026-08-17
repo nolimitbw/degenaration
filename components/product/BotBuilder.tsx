@@ -17,7 +17,7 @@ import {
   X
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import {
   formatPercentBps,
   formatSol,
@@ -170,7 +170,6 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
   const walletId = getSolanaWalletId(user) || "";
-  const delegated = hasDelegatedSolanaWallet(user);
 
   const [name, setName] = useState(kind === "discord" ? "Discord call bot" : "Volatility strategy");
   const [description, setDescription] = useState("");
@@ -483,7 +482,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (takeProfitEnabled && (enabledTpLevels.length === 0 || enabledTpLevels.some((level) => level.targetBps <= 0 || level.sellBps <= 0))) return "Take-profit targets and allocations must be positive.";
     if (takeProfitEnabled && enabledTpLevels.some((level, index) => index > 0 && level.targetBps <= enabledTpLevels[index - 1].targetBps)) return "Take-profit targets must increase from one level to the next.";
     if (stopLossEnabled && (stopBps <= 0 || stopBps > 10000)) return "Stop loss must be between 0.01% and 100%.";
-    if (kind === "kol" && dcaEnabled) {
+    if (dcaEnabled) {
       if (dcaLevels.length < 1 || dcaLevels.some((level) => level.dropBps <= 0 || level.buyAmountSol <= 0)) return "DCA levels need a positive drop and buy amount.";
       if (dcaLevels.some((level, index) => index > 0 && level.dropBps <= dcaLevels[index - 1].dropBps)) return "DCA drops must increase from one level to the next.";
       if (buyAmountSol + dcaCapital > maximumCapitalSol) return "Entry plus DCA capital exceeds the maximum.";
@@ -621,7 +620,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         lookbackMinutes: Math.round(lookbackMinutes),
         stalePriceBehavior: "reject"
       } : null,
-      dca: kind === "kol" ? {
+      dca: {
         enabled: dcaEnabled,
         // An off level is persisted as ABSENT, the same rule the take-profit levels follow:
         // leaving a disabled level in the list behind a flag nothing checks is how a switched-
@@ -629,7 +628,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         levels: dcaLevels.filter((level) => level.enabled),
         expirationMinutes: Math.round(dcaExpirationMinutes),
         maximumEntries: dcaLevels.filter((level) => level.enabled).length
-      } : { enabled: false, levels: [] },
+      },
       scanner: {
         preset,
         autoRefreshMinutes: Math.round(autoRefreshMinutes),
@@ -723,10 +722,6 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       toast("Connect a verified Solana execution wallet first.", "err");
       return;
     }
-    if (status === "active" && !delegated) {
-      toast("Enable delegated 24/7 trading in Wallet before activation.", "err");
-      return;
-    }
     setSaving(true);
     try {
       await productFetch("/api/product/bots", { getAccessToken, identityToken }, {
@@ -812,7 +807,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <div className="min-w-0">
                 <p className="field-label">Selected wallet</p>
                 <p className="mt-2 truncate font-mono t-body text-ink">{walletAddress || "Not connected"}</p>
-                <p className={`mt-1 t-label ${delegated ? "text-up" : "text-gold-400"}`}>{delegated ? "Delegated execution enabled" : "Delegation required to activate"}</p>
+                <p className={`mt-1 t-label ${walletAddress ? "text-up" : "text-gold-400"}`}>{walletAddress ? "Verified execution wallet" : "Wallet required to activate"}</p>
               </div>
               {!walletAddress && (
                 <button
@@ -1122,13 +1117,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </div>
             </FormSection>
           )}
-          {kind === "kol" && (
-            <FormSection
-              title="Dollar-cost averaging"
+          <FormSection
+            title="Dollar-cost averaging"
             pending={pendingFor("dca")}
-              description="Optional staged entries after a deeper drop."
-              summary={dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(2)} SOL` : "Off"}
-            >
+            description="Optional staged entries after a deeper drop."
+            summary={dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(2)} SOL` : "Off"}
+          >
               <Toggle label="Enable DCA" detail="Add bounded buys after deeper price drops." checked={dcaEnabled} onChange={setDcaEnabled} />
               {dcaEnabled && (
                 <>
@@ -1161,8 +1155,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   </div>
                 </>
               )}
-            </FormSection>
-          )}
+          </FormSection>
           <FormSection
             title="Security filters"
             pending={pendingFor("safety")}

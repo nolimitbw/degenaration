@@ -132,7 +132,7 @@ export function validateBotPayload(raw: unknown) {
   ) {
     return { error: "invalid stop loss" } as const;
   }
-  const dcaCapital = kind === "kol" ? dcaCapitalLamports(config.dca) : BigInt(0);
+  const dcaCapital = dcaCapitalLamports(config.dca);
   if (dcaCapital == null) return { error: "invalid DCA levels" } as const;
   if ((buyAmount + dcaCapital) * BigInt(maxOpenTrades!) > maximumCapital) {
     return { error: "maximum capital does not cover configured entries" } as const;

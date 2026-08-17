@@ -231,3 +231,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: sanitizeError(e), retryable: true }, { status: 502 });
   }
 }
+
+/** Release an intent only when signing never produced a transaction signature. */
+export async function DELETE(req: NextRequest) {
+  const limited = await distributedRateLimit(req, { limit: 10, windowSeconds: 60, failClosed: true });
+  if (limited) return limited;
+  const user = await requirePrivyUser(req);
+  if (!user.ok) return user.response;
+
+  let body: any;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: "bad json" }, { status: 400 });
+  }
+  const withdrawalId = String(body?.withdrawalId || "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(withdrawalId)) {
+    return NextResponse.json({ error: "invalid withdrawal id" }, { status: 400 });
+  }
+
+  const result = await callPrivyRpc<{ state?: string }>("app_user_settle_withdrawal", {
+    p_privy_user_id: user.privyUserId,
+    p_intent_id: withdrawalId,
+    p_outcome: "failed",
+    p_error: "Wallet signing did not produce a transaction signature"
+  });
+  if (!result.ok) {
+    return NextResponse.json({ error: "Withdrawal status is temporarily unavailable.", retryable: true }, { status: 503 });
+  }
+  return NextResponse.json({ ok: true, state: result.data?.state || "failed" });
+}

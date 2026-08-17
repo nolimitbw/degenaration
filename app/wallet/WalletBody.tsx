@@ -1,18 +1,13 @@
 "use client";
-import dynamic from "next/dynamic";
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getNet } from "@/lib/net";
 import { usePrivy } from "@privy-io/react-auth";
-import { getMyProfile, saveProfileLimits, fetchBalance } from "@/lib/queries";
+import { fetchBalance } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
-// Heavy signing panels load after the deposit/balance UI paints.
-const SwapPanel = dynamic(() => import("@/components/SwapPanel"), { ssr: false, loading: () => <div className="h-40 animate-pulse rounded-lg border border-edge bg-panel/40" /> });
-const AutoTrade = dynamic(() => import("@/components/AutoTrade"), { ssr: false, loading: () => <div className="h-40 animate-pulse rounded-lg border border-edge bg-panel/40" /> });
-
-// Privy-dependent wallet hub (deposit, limits, auto-trade, swap). Lazily loaded by page.tsx.
+// Privy-dependent funding hub. Bot-level limits and execution controls live in the builders.
 export default function WalletBody() {
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const toast = useToast();
@@ -22,16 +17,6 @@ export default function WalletBody() {
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [maxTrade, setMaxTrade] = useState(0.5);
-  const [dailyCap, setDailyCap] = useState(2);
-  const [savedLimits, setSavedLimits] = useState(false);
-
-  useEffect(() => {
-    if (!authenticated) return;
-    getAccessToken().then((token) => getMyProfile(token)).then((p) => {
-      if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); }
-    }).catch(() => {});
-  }, [address, authenticated, getAccessToken]);
 
   async function loadBalance() {
     if (!address) return;
@@ -50,24 +35,13 @@ export default function WalletBody() {
   useEffect(() => { loadBalance(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [address]);
 
   const copy = () => { if (!address) return; navigator.clipboard?.writeText(address); setCopied(true); toast("Address copied"); setTimeout(() => setCopied(false), 1500); };
-  async function saveLimits() {
-    if (!Number.isFinite(maxTrade) || maxTrade <= 0) { toast("Max per trade must be above 0 SOL", "err"); return; }
-    if (!Number.isFinite(dailyCap) || dailyCap < maxTrade) { toast("Daily cap must be at least max per trade", "err"); return; }
-    const { error } = await saveProfileLimits(
-      { max_trade_sol: maxTrade, daily_cap_sol: dailyCap, wallet_address: address },
-      await getAccessToken()
-    );
-    if (error) { toast("Could not save — sign in first", "err"); return; }
-    setSavedLimits(true); toast("Trade limits saved"); setTimeout(() => setSavedLimits(false), 1500);
-  }
-
   if (!authenticated || !address) {
     return (
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
         <h1 className="t-title font-bold">Connect your wallet</h1>
         <p className="mt-2 t-body text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
         <button onClick={login} className="mt-6 w-full rounded-md bg-gold-400 py-3 font-bold text-[#17110c] shadow-gold transition hover:brightness-110">Connect wallet</button>
-        <p className="mt-3 t-label text-dim">Wallet keys remain with your wallet provider. Delegated access is optional and revocable.</p>
+        <p className="mt-3 t-label text-dim">Wallet keys remain with your wallet provider.</p>
       </div>
     );
   }
@@ -77,7 +51,7 @@ export default function WalletBody() {
   return (
     <>
       <h1 className="t-display font-bold">Wallet</h1>
-      <p className="mt-1 t-body text-dim">Fund your automation wallet and manage spending limits.</p>
+      <p className="mt-1 t-body text-dim">Fund the wallet your bots use for automated trades.</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -95,8 +69,7 @@ export default function WalletBody() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="gradient-border rounded-lg border border-edge p-5">
+        <div className="gradient-border h-fit rounded-lg border border-edge p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="t-label uppercase text-dim">Balance</p>
@@ -108,23 +81,6 @@ export default function WalletBody() {
                 {balanceLoading ? "Checking" : "Refresh"}
               </button>
             </div>
-          </div>
-          <div className="gradient-border rounded-lg border border-edge p-5">
-            <h2 className="font-bold">Automation limits</h2>
-            <p className="mt-1 t-label text-dim">These caps apply to every automated trade.</p>
-            <label className="mt-4 block">
-              <span className="ui-label flex justify-between"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
-              <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-gold-400" />
-            </label>
-            <label className="mt-4 block">
-              <span className="ui-label flex justify-between"><span>Daily spend cap</span><span className="text-ink">{dailyCap} SOL</span></span>
-              <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-gold-400" />
-            </label>
-            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110">{savedLimits ? <span className="inline-flex items-center justify-center gap-2"><Check size={14} aria-hidden="true" /> Saved</span> : "Save limits"}</button>
-            
-          </div>
-          <AutoTrade />
-          <SwapPanel />
         </div>
       </div>
     </>

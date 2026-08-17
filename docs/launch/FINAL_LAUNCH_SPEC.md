@@ -1,6 +1,6 @@
-# DegenAration — Claude Code Lead + Codex Review Final Senior-Quality Launch Remediation Prompt
+# DegenAration — Codex-Led Senior-Quality Launch Remediation Specification
 
-> **Use this as one normal Claude Code task from the repository root. Do not use `/goal`, do not start with a plan-only response, and do not split this into repeated chat prompts. Claude Code is the primary implementer. Codex is an optional independent reviewer when usage is available.**
+> **Codex is the primary coder, product designer, implementation owner, and release coordinator. Use this as one continuous implementation task from the repository root. Do not stop at a plan when safe implementation work remains. Other agents are optional assistants or independent reviewers only when the owner explicitly assigns them work.**
 >
 > The current product already contains most of the required features. This task is a focused launch remediation: preserve working functionality, fix the confirmed defects, replace the weak AI-looking interface with an original senior-designed product UI, complete live withdrawals, correct fee accounting, restore Discord/KOL performance journaling, remove duplicate Discord commands, and verify the entire public launch path.
 >
@@ -8,15 +8,15 @@
 
 ---
 
-## 0. Claude Code and Codex teammate protocol
+## 0. Codex ownership and assistant protocol
 
-Claude Code and Codex do not share hidden reasoning or session memory automatically. Their reliable connection is the same Git repository, the same canonical specification, committed checkpoints, tests, and explicit handoff files. Treat the repository—not either agent's chat history—as the source of truth.
+Codex and any optional assistant do not share hidden reasoning or session memory automatically. Their reliable connection is the same Git repository, this canonical specification, committed checkpoints, tests, and explicit handoff files. Treat the repository—not any agent's chat history—as the source of truth.
 
 ### Primary ownership
 
-- **Claude Code is the primary implementation agent for this remediation.** It owns repository audit, coding, migrations, UI refinement, testing, and final evidence.
-- **Codex is the secondary independent reviewer when available.** It should review committed diffs, run checks, identify missed requirements, and write findings without independently redesigning the product or starting a competing implementation.
-- If Codex is unavailable because of usage limits, Claude Code must continue and use its own specialized subagents for independent review. Codex availability must never block implementation.
+- **Codex is the primary implementation and design agent.** It owns repository audit, architecture, coding, migrations, senior UI/UX direction, testing, browser verification, release evidence, and delivery.
+- **Claude Code or another agent is optional support only.** It may perform a separately assigned implementation slice or independent review, but it does not direct or override Codex-owned work.
+- If Codex is temporarily unavailable, another agent may preserve state or complete work only when the owner explicitly assigns it. All such work must be handed back through the repository coordination files.
 
 ### Shared-source-of-truth files
 
@@ -35,21 +35,21 @@ docs/coordination/OPEN_BLOCKERS.md
 Rules:
 
 1. `docs/launch/FINAL_LAUNCH_SPEC.md` is the canonical product and acceptance specification.
-2. `CLAUDE.md` is the concise Claude Code instruction entry point and must import or reference the canonical specification.
-3. `AGENTS.md` is the concise Codex instruction entry point and must reference the same canonical specification.
+2. `AGENTS.md` is the primary Codex instruction entry point and must reference the canonical specification.
+3. `CLAUDE.md` is the optional assistant entry point and must defer ownership to Codex while referencing the same specification.
 4. `docs/coordination/IMPLEMENTATION_STATUS.md` tracks each requirement as `NOT STARTED`, `IN PROGRESS`, `PASS`, `PARTIAL`, `FAIL`, or `BLOCKED`, with evidence paths.
 5. `docs/coordination/AI_HANDOFF.md` records the current branch, last verified commit, active work area, migrations, commands run, and the exact next action.
-6. `docs/coordination/CODEX_REVIEW.md` is written by Codex or by Claude's independent reviewer. Findings must include severity, file/line evidence, reproduction steps, and expected behavior. Claude resolves each item with a commit and evidence.
+6. `docs/coordination/CODEX_REVIEW.md` contains independent review findings. Findings must include severity, file/line evidence, reproduction steps, and expected behavior. Codex resolves, rejects, or marks each item blocked with evidence.
 7. `docs/coordination/OPEN_BLOCKERS.md` contains only genuine external blockers such as missing credentials, unavailable provider access, or an irreversible business decision.
 8. Do not use chat claims as completion evidence. Use commits, tests, screenshots, database assertions, and these files.
 
 ### Git and workspace safety
 
 - Never allow Claude Code and Codex to edit the same working tree at the same time.
-- Claude Code should work on a dedicated branch such as `claude/degenaration-launch-remediation`.
-- Codex should review a committed checkpoint in read-only mode or in a separate Git worktree/branch such as `codex/degenaration-review`.
-- Codex must not overwrite Claude's uncommitted work.
-- Claude must not silently discard Codex findings. Resolve, reject with evidence, or mark blocked.
+- Codex implementation branches use the `codex/` prefix.
+- Any optional assistant must work in a separate worktree and branch.
+- No agent may overwrite another agent's uncommitted work.
+- Codex must resolve, reject with evidence, or mark independent findings blocked.
 - Use small, coherent commits after each verified vertical slice. Do not create one giant unreviewable commit.
 - Before changing a file, check whether another agent has an active ownership note for that area in `AI_HANDOFF.md`.
 
@@ -57,8 +57,8 @@ Rules:
 
 - Do not ask the other agent to repeat the same audit.
 - Do not alternate agents on every minor edit.
-- Claude implements a coherent vertical slice, validates it, commits it, then Codex reviews the committed result.
-- Claude fixes verified findings once and reruns only the affected checks, followed by the final full release suite.
+- Codex implements coherent vertical slices, validates them, and records evidence.
+- An optional reviewer may inspect a committed checkpoint; Codex resolves verified findings and reruns affected checks, followed by the final full release suite.
 - When agents disagree, the canonical specification, financial invariants, security requirements, tests, and observed runtime behavior decide—not stylistic preference.
 
 ### Recommended review roles inside Claude Code
@@ -76,14 +76,14 @@ Each subagent must be read-oriented by default, return concise evidence, and avo
 
 ### Required division of work
 
-1. Claude Code performs the initial focused audit and records baseline failures.
-2. Claude Code implements financial correctness and withdrawals.
-3. Claude Code repairs Discord/KOL performance journaling and Discord commands.
-4. Claude Code performs the senior UI and copy remediation.
-5. Claude Code runs targeted tests and commits each vertical slice.
-6. Codex, when available, performs an independent diff and release review against the canonical specification and writes `CODEX_REVIEW.md`.
-7. Claude Code resolves verified findings and runs the complete release suite.
-8. Claude Code produces the final evidence report. Codex review is supporting evidence, not a substitute for tests.
+1. Codex performs the focused audit and records baseline failures.
+2. Codex implements financial correctness and withdrawals.
+3. Codex repairs Discord/KOL performance journaling and Discord commands.
+4. Codex owns senior UI, interaction design, design-system, and copy remediation.
+5. Codex runs targeted tests and records each verified vertical slice.
+6. An optional independent reviewer may review committed checkpoints and write `CODEX_REVIEW.md`.
+7. Codex resolves verified findings and runs the complete release suite.
+8. Codex produces the final evidence report. Review is supporting evidence, not a substitute for tests.
 
 ---
 
@@ -205,7 +205,8 @@ Read these files before modifying product behavior:
 Mandatory rules:
 
 - Preserve working functionality and make targeted, reversible changes.
-- Claude Code is the primary implementer; Codex is an independent reviewer of committed checkpoints.
+- Codex is the primary coder, product designer, implementation owner, and release coordinator.
+- Claude Code is an optional assistant or independent reviewer only when explicitly assigned by the owner.
 - Never let two agents edit the same working tree concurrently.
 - Normal-user navigation is Bots, Affiliate, and Portfolio only.
 - Use the existing DegenAration logo and the approved black, gold, and white design system.
@@ -1879,11 +1880,11 @@ Do not fill the final message with implementation commentary. Do not claim perfe
 
 ---
 
-## 26A. Claude Code run mode
+## 26A. Codex run mode
 
-Execute this as one normal Claude Code implementation task. Do not use a looping skill, do not repeatedly ask for permission to continue, and do not stop after producing a plan. Keep the user-facing progress messages concise.
+Execute this as one continuous Codex implementation task. Do not repeatedly ask for permission when safe in-scope work remains, and do not stop after producing a plan. Keep user-facing progress messages concise.
 
-Use Claude's subagents only for focused independent review, not to duplicate the main implementation. Use Codex only after a committed checkpoint is ready for review. If Codex usage is exhausted, continue without waiting and record `Codex review unavailable due to usage limit` in the coordination report.
+Use optional assistants only for focused, separately owned work or independent review, never to duplicate Codex's active implementation. If an assistant is unavailable, Codex continues without waiting and records only genuine external blockers in the coordination report.
 
 Do not use `--dangerously-skip-permissions`. Request approval for genuinely sensitive operations. Never provide or request a funded production wallet seed/private key. Automated tests must not spend mainnet funds.
 

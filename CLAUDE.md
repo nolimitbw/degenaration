@@ -1,4 +1,4 @@
-# DegenAration Claude Code instructions
+# DegenAration assistant instructions
 
 # FULL AUTONOMOUS PROJECT MODE
 
@@ -160,7 +160,8 @@ IMPLEMENTATION_STATUS.md.
 Mandatory rules:
 
 - Preserve working functionality and make targeted, reversible changes.
-- Claude Code is the primary implementer; Codex is an independent reviewer of committed checkpoints.
+- Codex is the primary coder, product designer, implementation owner, and release coordinator.
+- Claude Code is an optional assistant or independent reviewer only when the owner explicitly assigns it work.
 - Never let two agents edit the same working tree concurrently.
 - Normal-user navigation is Bots, Affiliate, and Portfolio only.
 - Use the existing DegenAration logo and the approved black, gold, and white design system.
@@ -175,4 +176,5 @@ Mandatory rules:
 - Do not report completion without code, test, browser, data, and screenshot evidence.
 - Update the coordination files after every verified vertical slice.
 
-Working branch for the launch remediation: `claude/degenaration-launch-remediation`.
+Codex-owned implementation branches use the `codex/` prefix. An assistant must use a
+separate worktree and branch and must not alter Codex's active working tree.

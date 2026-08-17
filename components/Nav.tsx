@@ -6,9 +6,11 @@ import Logo from "@/components/Logo";
 import { Menu, X } from "lucide-react";
 
 const LINKS = [
+  { label: "How it works", href: "/#how-it-works" },
   { label: "Bots", href: "/bots" },
   { label: "Affiliate", href: "/affiliate" },
-  { label: "Portfolio", href: "/portfolio" }
+  { label: "Portfolio", href: "/portfolio" },
+  { label: "Docs", href: "/docs" }
 ];
 
 export default function Nav() {

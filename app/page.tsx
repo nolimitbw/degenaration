@@ -1,137 +1,28 @@
+import Nav from "@/components/Nav";
+import Hero from "@/components/Hero";
+import Footer from "@/components/Footer";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
-import HeroStage from "@/components/landing/HeroStage";
-import HowItWorks from "@/components/landing/HowItWorks";
-import Logo from "@/components/Logo";
-import { getLandingStats } from "@/lib/server/landing";
+import { ArrowUpRight, Bot, ChartNoAxesCombined, ListChecks, Radar, ShieldCheck, WalletCards } from "lucide-react";
 
-export const dynamic = "force-dynamic";
-
-/**
- * The public landing page, rebuilt to the owner's reference frames.
- *
- * The stage carries its own navigation, so the shared <Nav /> is deliberately not rendered
- * here — two navs stacked was the first thing that broke when this was assembled.
- *
- * The "Built on" row replaces the reference's customer-logo cloud. We have no customers to
- * name, and a row of borrowed logos implying otherwise is the exact kind of fabricated social
- * proof the rules forbid. These are integrations we genuinely run against, set as wordmarks
- * rather than guessed SVG paths, which also keeps us clear of anyone's brand guidelines.
- */
-
-/**
- * Real integrations, with the vendors' real marks. `scripts/fetch-builton-logos.mjs` downloads
- * them into public/logos.
- *
- * DexScreener is deliberately absent. We do use it for pricing, but it publishes no SVG mark
- * and blocks scraping, and one redrawn logo beside five official ones looks worse than five —
- * a hand-approximated trademark is both visibly wrong and not ours to draw.
- */
-const BUILT_ON = [
-  { name: "Solana", file: "solana.svg" },
-  { name: "Jupiter", file: "jupiter.svg" },
-  { name: "Privy", file: "privy.svg" },
-  { name: "Discord", file: "discord.svg" },
-  { name: "Supabase", file: "supabase.svg" }
+const STEPS = [
+  { icon: Radar, title: "Choose a signal", copy: "Start with a reviewed Discord source or a live KOL market strategy." },
+  { icon: ListChecks, title: "Set the rules", copy: "Define entry size, take profit, stop loss, and the capital you are willing to use." },
+  { icon: ShieldCheck, title: "Run with limits", copy: "Activate after readiness checks, then review every execution and outcome." }
+];
+const PRODUCTS = [
+  { icon: Bot, title: "Bots", copy: "Build and manage your automated strategies.", href: "/bots" },
+  { icon: ChartNoAxesCombined, title: "Affiliate", copy: "Track referrals, commissions, and payouts.", href: "/affiliate" },
+  { icon: WalletCards, title: "Portfolio", copy: "Review positions, executions, fees, and PnL.", href: "/portfolio" }
 ];
 
-export default async function Home() {
-  const stats = await getLandingStats();
-
-  return (
-    <div className="degen-home min-h-dvh" id="top">
-      <main id="main-content" tabIndex={-1}>
-        <HeroStage stats={stats} />
-
-        <section aria-labelledby="built-on" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
-          <h2 id="built-on" className="ui-label text-center">
-            Built on
-          </h2>
-          <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-10 gap-y-6 sm:gap-x-16">
-            {BUILT_ON.map(({ name, file }) => (
-              <li key={name} className="flex items-center gap-2.5">
-                {/* The vendors' own marks, downloaded once into public/logos and committed, so
-                    the page makes no external request and does not depend on anyone's CDN.
-                    Monochrome and dimmed to sit as one row rather than six brand colours
-                    fighting each other and the gold. */}
-                <img
-                  src={`/logos/${file}`}
-                  alt=""
-                  width={22}
-                  height={22}
-                  className="h-[22px] w-[22px] opacity-60 [filter:brightness(0)_invert(1)]"
-                />
-                <span className="t-body font-medium tracking-tight text-[color:var(--text-muted)]">{name}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <HowItWorks stats={stats} />
-
-        {/* No live market panel. It showed a token chart and a manual buy preview on a product
-            that has no manual trading — the one thing on the page a visitor could not actually
-            do. A landing page demonstrating a feature that does not exist is the most expensive
-            kind of clutter. */}
-
-        <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 sm:pb-28">
-          <div className="relative isolate overflow-hidden rounded-2xl border border-edge px-6 py-14 text-center sm:px-10 sm:py-20">
-            <div aria-hidden="true" className="stage-bloom" />
-            <div className="relative z-10">
-              <h2 className="mx-auto max-w-2xl text-[1.9rem] font-semibold leading-[1.08] tracking-[-0.02em] text-ink sm:text-5xl">
-                Start with one server
-              </h2>
-              <p className="mx-auto mt-4 max-w-lg t-body leading-7 text-dim">
-                Set your limits, keep your keys, and watch what a source actually does before you
-                raise your size.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                <Link
-                  href="/bots/discord"
-                  className="inline-flex min-h-12 items-center gap-2 rounded-full bg-gold-400 px-6 py-3 t-body font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200"
-                >
-                  Browse Discord sources <ArrowUpRight aria-hidden="true" size={17} />
-                </Link>
-                <Link
-                  href="/portfolio"
-                  className="inline-flex min-h-12 items-center rounded-full border border-edge px-6 py-3 t-body font-medium text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
-                >
-                  Open the app
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer className="border-t border-edge">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <Logo />
-          <nav aria-label="Footer">
-            <ul className="flex flex-wrap items-center gap-x-7 gap-y-3">
-              {[
-                ["Bots", "/bots"],
-                ["Affiliate", "/affiliate"],
-                ["Portfolio", "/portfolio"],
-                ["Docs", "/docs"],
-                ["Risk", "/risk"]
-              ].map(([label, href]) => (
-                <li key={href}>
-                  {/* min-w-11 as well as min-h-11: "Bots" is ~30px wide, and the audit
-                      measures the SMALLER dimension. Height alone left three of these four
-                      links failing at 390px. */}
-                  <Link
-                    href={href}
-                    className="inline-flex min-h-11 min-w-11 items-center justify-center t-meta text-dim transition-colors duration-150 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-      </footer>
-    </div>
-  );
+export default function Home() {
+  return <div className="degen-home" id="top"><Nav /><main id="main-content" tabIndex={-1}>
+    <Hero />
+    <section id="how-it-works" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-20 sm:py-28">
+      <div className="max-w-2xl"><p className="ui-label text-gold-400">How it works</p><h2 className="home-section-title mt-4 font-bold text-ink">A straight path from signal to strategy.</h2></div>
+      <div className="mt-12 divide-y divide-edge border-y border-edge">{STEPS.map(({ icon: Icon, title, copy }, index) => <div key={title} className="grid gap-4 py-7 sm:grid-cols-[48px_48px_1fr] sm:items-center sm:gap-6"><span className="font-mono text-xs text-dim">0{index + 1}</span><Icon aria-hidden="true" size={22} className="text-gold-400" /><div className="grid gap-2 md:grid-cols-[.55fr_1fr] md:items-center md:gap-8"><h3 className="text-lg font-semibold text-ink">{title}</h3><p className="text-sm leading-6 text-dim">{copy}</p></div></div>)}</div>
+    </section>
+    <section id="platform" className="border-y border-edge bg-panel/35"><div className="mx-auto grid max-w-7xl divide-y divide-edge px-5 md:grid-cols-3 md:divide-x md:divide-y-0">{PRODUCTS.map(({ icon: Icon, title, copy, href }) => <Link key={title} href={href} className="group py-9 md:px-8 md:first:pl-0 md:last:pr-0"><div className="flex items-center justify-between"><Icon aria-hidden="true" size={20} className="text-gold-400" /><ArrowUpRight aria-hidden="true" size={16} className="text-dim transition group-hover:text-ink" /></div><h2 className="mt-7 text-xl font-semibold text-ink">{title}</h2><p className="mt-2 text-sm leading-6 text-dim">{copy}</p></Link>)}</div></section>
+    <section className="mx-auto max-w-7xl px-5 py-20 sm:py-24"><p className="ui-label text-gold-400">Automation with evidence</p><div className="mt-4 grid gap-8 lg:grid-cols-[1fr_.8fr] lg:items-end"><h2 className="home-section-title max-w-3xl font-bold text-ink">Every signal keeps its risk controls and trading record.</h2><div><p className="text-sm leading-7 text-dim">Source performance, bot versions, route estimates, and portfolio history stay connected. Missing market evidence stops an entry instead of guessing.</p><Link href="/bots" className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-ink">Configure a bot <ArrowUpRight aria-hidden="true" size={16} /></Link></div></div></section>
+  </main><Footer /></div>;
 }
