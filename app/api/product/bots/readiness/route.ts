@@ -103,13 +103,28 @@ export async function POST(req: NextRequest) {
    * reader, so the two money surfaces cannot drift apart again. Still undefined when the
    * chain genuinely cannot be read, which is the one case the message was written for.
    */
-  const [fee, release, availableLamports] = await Promise.all([
+  const [fee, release, availableLamports, stored] = await Promise.all([
     feeAccountReadiness(),
     automationReadiness(),
     parsed && "walletAddress" in parsed && parsed.walletAddress
       ? spendableFor(parsed.walletAddress, state)
-      : Promise.resolve(undefined)
+      : Promise.resolve(undefined),
+    // The STORED lifecycle state, which the submitted payload cannot report: it carries the
+    // status the user is trying to reach, not the one the row is in. Only fetched when
+    // editing an existing bot; a new bot has no stored state to conflict with.
+    botId
+      ? callPrivyRpc<{ bot?: { status?: string } | null; status?: string }>("app_user_get_bot", {
+          p_privy_user_id: user.privyUserId,
+          p_bot_id: botId
+        })
+      : Promise.resolve({ ok: true as const, data: null })
   ]);
+
+  // Unreadable stays undefined rather than defaulting to a state — the check only fails on a
+  // bot known to be archived, so an unavailable read cannot invent a blocker.
+  const storedStatus = stored.ok
+    ? (stored.data?.bot?.status ?? stored.data?.status ?? undefined)
+    : undefined;
 
   const verdict = evaluateReadiness({
     authenticated: true,
@@ -132,6 +147,7 @@ export async function POST(req: NextRequest) {
       : true,
     requiredLamports,
     availableLamports,
+    storedStatus,
     killSwitch: config.killSwitch === true,
     platformEntriesPaused: false,
     // Fail closed on an unreadable liveness answer: `live` stays undefined and the check fails.

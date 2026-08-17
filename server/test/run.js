@@ -3841,6 +3841,26 @@ console.log("price selection");
       "the message stays for the one case it was written for — an unreadable chain");
   });
 
+  test("an archived bot is refused by readiness, not by a mislabelled outage", () => {
+    // What the owner hit: the panel said "Every readiness check passes" and State: Ready for
+    // a bot the database can never activate — enforce_bot_lifecycle raises "archived bot
+    // cannot be restored". RUN then failed, and the bridge flattened that deliberate refusal
+    // into 502, which the client renders as "temporarily unavailable, try again shortly".
+    // A permanent refusal was telling the user to keep retrying.
+    const archived = evaluateReadiness({ ...READY, storedStatus: "archived" });
+    assert.strictEqual(archived.ready, false);
+    assert.match(archived.reason, /archived/i, "the reason must name the actual cause");
+    assert.match(archived.reason, /create a new bot/i, "and say what to do instead");
+    assert.doesNotMatch(archived.reason, /try again|temporarily/i,
+      "never invite a retry that cannot succeed");
+
+    // A new bot has no stored state, and a paused or active one is editable as before.
+    for (const status of [undefined, "draft", "paused", "active", "stopping"]) {
+      assert.strictEqual(evaluateReadiness({ ...READY, storedStatus: status }).ready, true,
+        `storedStatus=${status} must not block`);
+    }
+  });
+
   test("each blocker produces its OWN reason, not a shared sentence", () => {
     // The assertion that matters. Six different faults, six different messages.
     const reasons = new Set();
