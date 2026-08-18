@@ -57,6 +57,13 @@ function pickNewCalls(calls, seen) {
  * The trade ledger row and the position are written by engine/settlement.js once the
  * signature is confirmed, not here — see the submission comment below.
  */
+/**
+ * How old a call may be and still be entered. Ten minutes: long enough to survive a restart,
+ * a redeploy or a provider stall, short enough that nobody wakes up holding a position opened
+ * against yesterday's call. Override with CALL_MAX_AGE_SECONDS.
+ */
+const MAX_CALL_AGE_MS = Math.max(30, Number(process.env.CALL_MAX_AGE_SECONDS) || 600) * 1000;
+
 function startCallWatcher(deps, pollMs = 8000) {
   const { loadPendingCalls, loadGroupSubscribers, claimCallExecution, finishCallExecution, submitCallExecution, completeCall, markCallExecuted, signAndSend, onEvent = () => {},
     // Resolves a subscriber's own safety filters. Defaults to "no builder config", which
@@ -72,13 +79,39 @@ function startCallWatcher(deps, pollMs = 8000) {
     try { calls = await loadPendingCalls(); } catch (e) { onEvent({ type: "LOAD_ERROR", error: e.message }); }
 
     for (const c of pickNewCalls(calls, seen)) {
-      // safety gate before mirroring anyone in
-      let check; try { check = await rugCheck(c.mint); } catch { check = { ok: false, reasons: ["check failed"] }; }
-      if (!check.ok) {
-        onEvent({ type: "SKIP", mint: c.mint, reasons: check.reasons });
+      /**
+       * A call older than the window is not a signal any more, it is history.
+       *
+       * There is no platform gate in front of this any more, and that makes the bound load
+       * bearing rather than tidy: the old gate rejected everything, so a backlog was harmless
+       * by accident. Now, a worker that restarts after an outage would open a position on
+       * every call it missed, at once, at prices hours past the one that was called.
+       *
+       * Stale calls are marked done rather than left pending, because they will never become
+       * fresh and re-reading them every eight seconds forever is its own defect.
+       */
+      const ageMs = c.called_at ? Date.now() - Date.parse(c.called_at) : 0;
+      if (Number.isFinite(ageMs) && ageMs > MAX_CALL_AGE_MS) {
+        onEvent({ type: "STALE", call: c.id, mint: c.mint, ageSeconds: Math.round(ageMs / 1000) });
         try { await markCallExecuted(c.id); seen.add(c.id); } catch { /* retry next tick */ }
         continue;
       }
+
+      /**
+       * Evidence, not a verdict.
+       *
+       * rugCheck used to be a platform veto and refused every call this product ever received
+       * — 2,309 ingested, 2,309 consumed, 0 traded — because its $10,000 liquidity floor sits
+       * far above the $1,700-$3,300 the owner's own callers post. It now only gathers the
+       * facts each subscriber's OWN filters are judged against, a few lines below.
+       *
+       * A provider failure yields null evidence and is NOT a rejection. The old code turned a
+       * timeout into "unsafe" and then marked the call executed, so a network blip burned a
+       * call exactly as a rug would, permanently and with nothing written down.
+       */
+      let check;
+      try { check = await rugCheck(c.mint); }
+      catch (e) { onEvent({ type: "EVIDENCE_ERROR", call: c.id, mint: c.mint, error: e.message }); check = { evidence: {} }; }
 
       let subs = [];
       try { subs = await loadGroupSubscribers(c.group_id); }

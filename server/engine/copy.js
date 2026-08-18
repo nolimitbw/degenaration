@@ -69,10 +69,13 @@ function startCopyWatcher(deps, pollMs = 10000) {
       if (!prev || !primed) continue; // first pass just primes baselines, never mirrors
 
       for (const mint of detectBuys(prev, curr)) {
-        // Baseline platform gate, and the evidence each subscriber's own filters are then
-        // evaluated against — so the per-subscriber check costs no extra round trip.
-        let check; try { check = await rugCheck(mint); } catch { check = { ok: false, reasons: ["check failed"] }; }
-        if (!check.ok) { onEvent({ type: "SKIP", wallet: w.address, mint, reasons: check.reasons }); continue; }
+        // Evidence for each subscriber's own filters, gathered once per mint. There is no
+        // platform gate here any more — same reason as the Discord path: a floor the platform
+        // picks is a strategy opinion, and whoever chose to mirror this wallet already made it.
+        // A provider failure yields null evidence rather than a refusal.
+        let check;
+        try { check = await rugCheck(mint); }
+        catch (e) { onEvent({ type: "EVIDENCE_ERROR", wallet: w.address, mint, error: e.message }); check = { evidence: {} }; }
 
         const key = dedupeKey(w.address, mint, curr[mint]);
         let subs = [];

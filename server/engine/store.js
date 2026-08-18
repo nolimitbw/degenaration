@@ -190,7 +190,10 @@ const recordCopy = recordTrade;
 const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}`, { daily_spent: totalSol });
 
 // ---- discord call execution ----
-const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50", true);
+// called_at is selected because the watcher REFUSES a stale call. Omitted, the freshness
+// bound reads undefined, computes an age of zero, and silently never fires — a guard that
+// looks present and protects nothing.
+const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at,called_at&order=called_at.desc&limit=50", true);
 const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
 const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&kill_switch=eq.false&group_id=eq.${groupId}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent,bot_profile_id,config_version_id,extended_config,subscriber_config_version_id,subscriber_config_snapshot`, true);
 const claimCallExecution = (callId, subscriptionId) => sbRpc("worker_claim_call_execution", {

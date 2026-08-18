@@ -906,20 +906,61 @@ test("every reason names the filter, so a rejection is explainable", () => {
   for (const reason of r.reasons) assert.ok(reason.length > 10);
 });
 
-console.log("rugcheck thresholds");
-const MIN_LIQ = 10000, MAX_SCORE = 60;
-function verdict({ liq, score, mintAuth, freezeAuth }) {
-  const reasons = [];
-  if (liq < MIN_LIQ) reasons.push("low liquidity");
-  if (score > MAX_SCORE) reasons.push("high risk score");
-  if (mintAuth) reasons.push("mint authority");
-  if (freezeAuth) reasons.push("freeze authority");
-  return { ok: reasons.length === 0, reasons };
+console.log("the platform refuses nothing on its own");
+//
+// This block used to define its own `verdict()` reimplementing the thresholds and assert
+// against THAT. It passed whatever rugcheck.js did — including through the removal of the
+// entire gate — so it proved only that the test agreed with itself. It now reads the shipped
+// source, which is the thing that actually decides.
+//
+// The defect it failed to catch: a $10,000 liquidity floor rejected all 2,309 calls this
+// product ever received. The owner's callers post at $1,700-$3,300.
+{
+  // Comments are stripped before matching. The header of rugcheck.js DESCRIBES the floor and
+  // the risk score it no longer applies, and a naive search hit that prose and reported the
+  // gate as still present — a check that fails on its own documentation is a check nobody will
+  // keep. Only executable text is examined.
+  const gate = require("node:fs").readFileSync(
+    require("node:path").join(__dirname, "../engine/rugcheck.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .split("\n").map((line) => line.replace(/\/\/.*$/, "")).join("\n");
+
+  test("no platform liquidity floor, risk score, or authority veto survives", () => {
+    for (const [pattern, what] of [
+      [/MIN_LIQUIDITY_USD/, "a liquidity floor"],
+      [/api\.rugcheck\.xyz/, "a third-party risk score"],
+      [/score_normalised/, "a third-party risk score"],
+      [/no trading pair found/, "a route veto"],
+      [/could not verify mint\/freeze/, "an authority veto"],
+      [/mint authority NOT revoked/, "an authority veto"],
+      [/freeze authority NOT revoked/, "an authority veto"]
+    ]) {
+      assert.doesNotMatch(gate, pattern,
+        `${what} is back in rugcheck.js; the platform must not refuse a call its owner accepted`);
+    }
+  });
+
+  test("the only reasons rugCheck can produce come from a configured filter", () => {
+    // rugCheck is async and this runner is synchronous by design, so the function itself is
+    // not directly callable here (same constraint recorded for the PnL card). What IS testable
+    // is the property that matters: every push into `reasons` originates from evaluateSafety,
+    // so there is no path by which the platform contributes one.
+    const pushes = [...gate.matchAll(/reasons\.push\(([^)]*)\)/g)].map((m) => m[1].trim());
+    assert.deepStrictEqual(pushes, ["...configured.reasons"],
+      "rugCheck must push nothing into reasons except the subscriber's own configured verdict");
+    assert.match(gate, /ok: reasons\.length === 0/, "and ok must be decided by those reasons alone");
+  });
+
+  test("a subscriber's OWN filter still refuses, because that one they chose", () => {
+    // Removing the platform gate must not remove the user's. evaluateSafety is the path a
+    // configured filter takes, and rugCheck feeds it the same evidence.
+    const refused = evaluateSafety({
+      pair: pairFixture({ liquidity: { usd: 2000 } }),
+      safety: range("liquidityUsd", { min: 10000, max: 0 })
+    });
+    assert.strictEqual(refused.ok, false, "a filter the user turned on must still bite");
+  });
 }
-test("passes a clean token", () => assert.strictEqual(verdict({ liq: 50000, score: 20, mintAuth: false, freezeAuth: false }).ok, true));
-test("fails low liquidity", () => assert.strictEqual(verdict({ liq: 500, score: 10, mintAuth: false, freezeAuth: false }).ok, false));
-test("fails unrevoked mint authority", () => assert.strictEqual(verdict({ liq: 50000, score: 10, mintAuth: true, freezeAuth: false }).ok, false));
-test("fails high risk score", () => assert.strictEqual(verdict({ liq: 50000, score: 90, mintAuth: false, freezeAuth: false }).ok, false));
 
 console.log("limit orders");
 const { evaluateLimit } = require("../engine/limits");
