@@ -922,6 +922,36 @@ test("every reason names the filter, so a rejection is explainable", () => {
   for (const reason of r.reasons) assert.ok(reason.length > 10);
 });
 
+console.log("marketplace outcome buckets reconcile");
+{
+  // The owner read "83.3% hit rate, 0, 2, 2, 0" above "12 measured calls" and said it was not
+  // accurate. It was not: the card shows four outcome buckets and the data has five, so the
+  // eight calls that peaked between -50% and +50% appeared nowhere and the row could not be
+  // added up. The card now names the remainder, derived by subtraction.
+  const remainder = (source) =>
+    (source.measuredCalls ?? 0) -
+    ((source.down50 ?? 0) + (source.plus50 ?? 0) + (source.twoX ?? 0) + (source.fiveX ?? 0));
+
+  test("the unshown middle bucket accounts for every measured call", () => {
+    // The owner's real figures, from the production card.
+    assert.strictEqual(remainder({ measuredCalls: 12, down50: 0, plus50: 2, twoX: 2, fiveX: 0 }), 8);
+    // A source whose every call is in a named bucket has no remainder to mention.
+    assert.strictEqual(remainder({ measuredCalls: 4, down50: 1, plus50: 1, twoX: 1, fiveX: 1 }), 0);
+    // Absent counts must not produce a negative or NaN remainder, which would render as
+    // "-3 peaked between" or "NaN peaked between" on a public card.
+    assert.strictEqual(remainder({ measuredCalls: 0 }), 0);
+    assert.strictEqual(remainder({}), 0);
+  });
+
+  test("the remainder is never shown when it would be negative", () => {
+    // Buckets that overcount would otherwise print a negative sentence. The card only renders
+    // the clause when the remainder is positive; this pins that rule.
+    const shown = (source) => remainder(source) > 0;
+    assert.strictEqual(shown({ measuredCalls: 2, down50: 3 }), false);
+    assert.strictEqual(shown({ measuredCalls: 12, down50: 0, plus50: 2, twoX: 2, fiveX: 0 }), true);
+  });
+}
+
 console.log("the platform refuses nothing on its own");
 //
 // This block used to define its own `verdict()` reimplementing the thresholds and assert

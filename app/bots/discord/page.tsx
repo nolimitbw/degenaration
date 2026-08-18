@@ -280,7 +280,25 @@ function SourceCard({ source, minimumSampleSize, period }: { source: DiscordSour
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-edge pt-4">
           <div className="min-w-0">
             {measured ? (
-              <p className="t-label text-dim">{source.measuredCalls} measured calls in this period</p>
+              /**
+               * The row above shows four outcome buckets, and the data has five. Calls that
+               * peaked between -50% and +50% -- the ones that went nowhere -- had no cell, so
+               * the numbers could not be reconciled: 12 measured against 0 + 2 + 2 + 0 on
+               * screen, with eight calls invisible. A reader checking the arithmetic concluded
+               * the card was wrong, which is the correct conclusion to draw from what it showed.
+               *
+               * The middle bucket is named here rather than given a sixth column, because the
+               * five columns are the ones asked for and "went nowhere" is context, not a
+               * headline. Derived by subtraction so it can never disagree with the row.
+               */
+              <p className="t-label text-dim">
+                {source.measuredCalls} measured calls in this period
+                {(() => {
+                  const shown = (source.down50 ?? 0) + (source.plus50 ?? 0) + (source.twoX ?? 0) + (source.fiveX ?? 0);
+                  const flat = (source.measuredCalls ?? 0) - shown;
+                  return flat > 0 ? ` · ${flat} peaked between −50% and +50%` : "";
+                })()}
+              </p>
             ) : (
               <p
                 className="t-label text-dim"
