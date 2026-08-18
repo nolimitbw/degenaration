@@ -82,7 +82,8 @@ for (const file of [
   "degenaration-subscription-channel-scope.sql",
   "degenaration-exit-reason.sql",
   "degenaration-freeze-after-stop.sql",
-  "degenaration-auto-reentry.sql"
+  "degenaration-auto-reentry.sql",
+  "degenaration-daily-trade-count.sql"
 ]) {
   await db.exec(await sql(file));
 }
@@ -91,6 +92,7 @@ await db.exec(await sql("degenaration-bot-entry-limits.sql"));
 await db.exec(await sql("degenaration-subscription-channel-scope.sql"));
 await db.exec(await sql("degenaration-freeze-after-stop.sql"));
 await db.exec(await sql("degenaration-auto-reentry.sql"));
+await db.exec(await sql("degenaration-daily-trade-count.sql"));
 results.rerunSafe = "PASS";
 
 const one = async (text, params = []) => (await db.query(text, params)).rows[0];
@@ -744,6 +746,93 @@ const skipped = (subId) => all(
   results.dailyCapPreserved = "PASS";
 }
 
+// ── 13. the daily TRADE COUNT, which the spend cap cannot express ───────────────────────────
+//
+// A budget bounds how MUCH the bot spends, never how OFTEN it enters: 1 SOL at a 0.02 margin
+// is fifty entries and every one is inside the cap. This is the owner's rule — "max trade daily
+// is 10, it stops at the 11th and starts again tomorrow".
+{
+  const sub = await subscription(
+    { buyAmountLamports: SOL / 100, maxOpenTrades: 50, maxTradesPerDay: 3 },
+    { sizeSol: 0.01, dailyCapSol: 100 }
+  );
+  const verdicts = [];
+  for (let i = 0; i < 4; i += 1) {
+    const c = await call(`TRADES-${i}`);
+    verdicts.push((await claim(c.id, sub.id)).ok);
+  }
+  assert.deepEqual(verdicts, [true, true, true, false],
+    "the fourth entry must be refused by a cap of three, with the spend cap nowhere near its limit");
+  assert.equal((await skipped(sub.id))[0].error, "daily trade limit reached",
+    "and the journal must name the limit that stopped it, not a generic failure");
+  const counted = await one("select daily_trades from public.subscriptions where id=$1::uuid", [sub.id]);
+  assert.equal(Number(counted.daily_trades), 3, "only claimed entries count");
+  results.dailyTradeCountRefuses = "PASS";
+
+  // Rolling into the next trading day resets it. Backdating daily_spent_on is exactly what a
+  // 06:00 rollover does to the stored row.
+  await db.query(
+    "update public.subscriptions set daily_spent_on = daily_spent_on - 1 where id=$1::uuid", [sub.id]
+  );
+  const tomorrow = await call("TRADES-NEXTDAY");
+  assert.equal((await claim(tomorrow.id, sub.id)).ok, true, "a new trading day restores the allowance");
+  const afterRollover = await one("select daily_trades from public.subscriptions where id=$1::uuid", [sub.id]);
+  assert.equal(Number(afterRollover.daily_trades), 1, "and the count restarts at one rather than accumulating");
+  results.dailyTradeCountResets = "PASS";
+}
+
+// ── 14. the count keeps accruing while the switch is off ────────────────────────────────────
+//
+// Same rule the spend cap already follows: switching the limit back on must not hand the bot a
+// fresh day's allowance it has already used.
+{
+  const sub = await subscription(
+    { buyAmountLamports: SOL / 100, maxOpenTrades: 50, maxTradesPerDay: 1, limits: { maxTradesPerDay: false } },
+    { sizeSol: 0.01, dailyCapSol: 100 }
+  );
+  for (let i = 0; i < 3; i += 1) {
+    const c = await call(`TRADESOFF-${i}`);
+    assert.equal((await claim(c.id, sub.id)).ok, true, "an off switch refuses nothing");
+  }
+  const row = await one("select daily_trades from public.subscriptions where id=$1::uuid", [sub.id]);
+  assert.equal(Number(row.daily_trades), 3, "entries must still be counted while the limit is off");
+  results.dailyTradeCountAccruesWhileOff = "PASS";
+}
+
+// ── 15. an unset count is not a count of zero ───────────────────────────────────────────────
+//
+// Absent means the owner never set one. Reading it as zero would refuse every entry on every
+// bot saved before this migration.
+{
+  const sub = await subscription({ buyAmountLamports: SOL / 100, maxOpenTrades: 50 }, { sizeSol: 0.01, dailyCapSol: 100 });
+  const c = await call("TRADES-UNSET");
+  assert.equal((await claim(c.id, sub.id)).ok, true, "a bot with no configured count must still trade");
+  results.absentTradeCountIsNotZero = "PASS";
+}
+
+// ── CONTROL: the IMMEDIATE predecessor does not enforce the trade count ─────────────────────
+//
+// Sharper than the broad control below. degenaration-auto-reentry.sql is the body migration 33
+// replaces, and it is otherwise identical — same channel scope, same freeze, same re-entry. So
+// this isolates the one thing 33 adds: reinstall it and the fourth entry goes straight through.
+// Without this the four properties above prove only that the new function agrees with itself.
+{
+  await db.exec(await sql("degenaration-auto-reentry.sql"));
+  const sub = await subscription(
+    { buyAmountLamports: SOL / 100, maxOpenTrades: 50, maxTradesPerDay: 3 },
+    { sizeSol: 0.01, dailyCapSol: 100 }
+  );
+  const verdicts = [];
+  for (let i = 0; i < 4; i += 1) {
+    const c = await call(`TRADECONTROL-${i}`);
+    verdicts.push((await claim(c.id, sub.id)).ok);
+  }
+  assert.deepEqual(verdicts, [true, true, true, true],
+    "CONTROL FAILED: the predecessor should ignore maxTradesPerDay entirely");
+  results.controlProvesTradeCountIsNew = "PASS";
+  await db.exec(await sql("degenaration-daily-trade-count.sql"));
+}
+
 // ── CONTROL: the previous body allows everything this suite refuses ─────────────────────────
 //
 // Without this, the suite proves only that the new function agrees with itself. Reinstalling
@@ -762,6 +851,7 @@ const skipped = (subId) => all(
   results.controlRunReproducesDefect = "PASS";
   // Leave the fixture on the migration under test.
   await db.exec(await sql("degenaration-bot-entry-limits.sql"));
+  await db.exec(await sql("degenaration-daily-trade-count.sql"));
 }
 
 console.log(JSON.stringify({

@@ -108,7 +108,11 @@ export function validateBotPayload(raw: unknown) {
     ["autoRetryCount", 0, 10],
     ["limitRetryCount", 0, 10],
     ["quoteExpirationSeconds", 5, 300],
-    ["cooldownSeconds", 0, 604_800]
+    ["cooldownSeconds", 0, 604_800],
+    // Entries per trading day, which runs 06:00 -> 06:00 America/New_York. Required and
+    // bounded like every other cap: the claim reads it from the stored configuration, and a
+    // missing value there means "no limit", so it must not be possible to save without one.
+    ["maxTradesPerDay", 1, 500]
   ] as const) {
     const value = boundedInteger(config[field], min, max);
     if (value == null) {

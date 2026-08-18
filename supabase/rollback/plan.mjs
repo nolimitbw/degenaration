@@ -416,6 +416,18 @@ export const PACKAGE = [
       "a transfer that succeeded on chain held its amount out of the owner's spendable balance " +
       "forever. Additive; the existing settle guard is untouched.",
   },
+  {
+    n: 33,
+    apply: "degenaration-daily-trade-count.sql",
+    rollback: "33-daily-trade-count.sql",
+    reapply: ["degenaration-bot-entry-limits.sql"],
+    note:
+      "Adds a daily trade COUNT beside the existing daily spend cap, enforced in " +
+      "worker_claim_call_execution where every other entry limit already is, and moves the " +
+      "trading day for BOTH from UTC midnight to 06:00 America/New_York so the two daily " +
+      "limits share one window. Rolling back restores an uncapped trade count and a UTC day; " +
+      "it refuses while a subscription has entries counted in the open window.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [

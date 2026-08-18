@@ -3032,6 +3032,35 @@ console.log("price selection");
     assert.strictEqual(plan.totalWithReserveLamports, 2000000000n + 15890880n);
   });
 
+  test("linked capital limits satisfy the server's invariants at every margin", () => {
+    // The trap this design exists to avoid. Maximum capital and per-token exposure moved
+    // behind Advanced. Left at their old fixed defaults (3 SOL and 1 SOL), raising Margin
+    // above 1 SOL fails the save with "capital limits are inconsistent" — naming two fields
+    // the user cannot see, on a screen that shows neither.
+    //
+    // The builder derives them instead: per-token = one position's commitment, maximum =
+    // that times the open-trade cap. This asserts the derivation satisfies exactly what
+    // lib/server/bot-validation.ts checks, across the whole range the form accepts.
+    for (const buyAmountSol of [0.01, 0.02, 0.5, 1, 2, 7.5, 100]) {
+      for (const maxOpenTrades of [1, 3, 10, 100]) {
+        for (const dcaConfig of [{ enabled: false, levels: [] }, dca(0.25, 0.25)]) {
+          const perPosition = plannedCapital({ buyAmountSol, maxOpenTrades: 1, dca: dcaConfig });
+          const perToken = perPosition.perPositionLamports;
+          const maximum = perToken * BigInt(maxOpenTrades);
+          const buy = BigInt(Math.round(buyAmountSol * 1e9));
+          const label = `${buyAmountSol} SOL x ${maxOpenTrades}${dcaConfig.enabled ? " +dca" : ""}`;
+
+          assert.ok(buy <= perToken, `buyAmount <= perTokenExposure must hold (${label})`);
+          assert.ok(perToken <= maximum, `perTokenExposure <= maximumCapital must hold (${label})`);
+          // bot-validation.ts:137 — (buyAmount + dcaCapital) * maxOpenTrades <= maximumCapital
+          const dcaLamports = perPosition.perPositionLamports - buy;
+          assert.ok((buy + dcaLamports) * BigInt(maxOpenTrades) <= maximum,
+            `maximum capital must cover every configured entry (${label})`);
+        }
+      }
+    }
+  });
+
   test("take profit and stop loss commit no capital to open a position", () => {
     const base = { buyAmountSol: 0.05, maxOpenTrades: 10, dca: dca(0.25, 0.25) };
     const withExits = plannedCapital({

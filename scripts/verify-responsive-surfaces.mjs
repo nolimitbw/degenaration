@@ -389,9 +389,9 @@ const SURFACES = [
   // divider — so a regression that flattens the two groups back into one list fails here rather
   // than passing because the page still renders something.
   { route: "/bots/discord/new", name: "discord-builder",
-    ready: "document.body.innerText.includes('Margin amount per trade') && document.body.innerText.includes('Advanced settings')" },
+    ready: "document.body.innerText.includes('Margin amount per trade') && document.body.innerText.includes('Max trades daily')" },
   { route: "/bots/kol/new", name: "kol-builder",
-    ready: "document.body.innerText.includes('Buy amount') && document.body.innerText.includes('Optional settings')" },
+    ready: "document.body.innerText.includes('Buy amount') && document.body.innerText.includes('Take profit')" },
   // The public source profile. Its "Latest calls" table gained call price, market cap and
   // liquidity, taking it to nine columns — the exact shape that overflows a 390px page if the
   // scroll container is wrong.

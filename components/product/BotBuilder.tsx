@@ -144,7 +144,26 @@ const ENGINE_EVALUABLE_FLAGS = ["latinNameSymbol", "mintAuthorityRevoked", "free
 // honest answer to "I asked for this and you cannot check it".
 const DEFAULT_ON_RANGES = new Set<string>(["liquidityUsd", "marketCapUsd"]);
 
+/**
+ * Safety checks are OFF by default, by the owner's decision, behind one master switch.
+ *
+ * `defaultFilters()` / `defaultFlags()` are the OFF state — every check disabled. `armedFilters()`
+ * / `armedFlags()` are what the master switch turns on, and they deliberately arm only the five
+ * evaluable checks rather than all 36: an enabled filter with no wired provider is fail-closed
+ * and would refuse every trade, so arming everything would present itself as protection and
+ * behave as a total stop. `verify:default-filters-tradeable` enforces that boundary.
+ *
+ * What off means, plainly: the bot buys whatever the channel posts. A honeypot gets bought, and
+ * a stop loss cannot exit a token that cannot be sold. One switch reverses it.
+ */
 function defaultFilters() {
+  return Object.fromEntries(FILTERS.map((filter) => [
+    filter.key,
+    { enabled: false, min: filter.min, max: filter.max }
+  ])) as Record<string, FilterValue>;
+}
+
+function armedFilters() {
   return Object.fromEntries(FILTERS.map((filter) => [
     filter.key,
     { enabled: DEFAULT_ON_RANGES.has(filter.key) && ENGINE_EVALUABLE_RANGES.includes(filter.key), min: filter.min, max: filter.max }
@@ -156,6 +175,10 @@ function defaultFilters() {
 const OPT_IN_FLAGS = new Set<string>(["dexPaid"]);
 
 function defaultFlags() {
+  return Object.fromEntries(FLAG_FILTERS.map(([key]) => [key, false])) as Record<string, boolean>;
+}
+
+function armedFlags() {
   return Object.fromEntries(
     FLAG_FILTERS.map(([key]) => [key, ENGINE_EVALUABLE_FLAGS.includes(key) && !OPT_IN_FLAGS.has(key)])
   ) as Record<string, boolean>;
@@ -183,6 +206,28 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [dailyLossSol, setDailyLossSol] = useState(1);
   const [perTokenSol, setPerTokenSol] = useState(1);
   const [maxOpenTrades, setMaxOpenTrades] = useState(3);
+  /**
+   * Entries per trading day, which runs 06:00 -> 06:00 America/New_York.
+   *
+   * Distinct from the daily SOL cap beside it: a bot with a 1 SOL budget and a 0.02 margin can
+   * take fifty entries and stay inside that cap. Enforced in the claim by
+   * supabase/degenaration-daily-trade-count.sql, where every other entry limit already is —
+   * ten calls in one tick would each read "0 trades today" if this were checked in the worker.
+   */
+  const [maxTradesPerDay, setMaxTradesPerDay] = useState(10);
+  /**
+   * Whether the user has taken manual control of the two capital limits.
+   *
+   * Both moved behind Advanced, and the server enforces
+   * `buyAmount <= perTokenExposure <= maximumCapital` regardless of what is on screen. Left at
+   * fixed defaults, raising Margin above 1 SOL would fail the save with "capital limits are
+   * inconsistent" pointing at fields the user cannot see.
+   *
+   * So they FOLLOW the visible fields until the user edits them, and are pinned from then on.
+   * Auto-raising a value the user typed would quietly weaken a limit they chose, which is why
+   * this is linked-until-touched rather than a clamp.
+   */
+  const [capitalPinned, setCapitalPinned] = useState(false);
   const [entryMode, setEntryMode] = useState<"market" | "limit">("market");
   const [slippageBps, setSlippageBps] = useState(300);
   const [priorityStrategy, setPriorityStrategy] = useState<"auto" | "economy" | "fast">("auto");
@@ -225,7 +270,8 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     dailyLoss: true,
     perTokenExposure: true,
     cooldown: true,
-    priorityFee: true
+    priorityFee: true,
+    maxTradesPerDay: true
   });
   const setLimit = (key: keyof typeof limits, on: boolean) =>
     setLimits((current) => ({ ...current, [key]: on }));
@@ -351,6 +397,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         setDailyLossSol(numberOr(config.dailyLossLimitLamports, 1_000_000_000) / 1e9);
         setPerTokenSol(numberOr(config.perTokenExposureLamports, 1_000_000_000) / 1e9);
         setMaxOpenTrades(numberOr(config.maxOpenTrades, 3));
+        // The form must hold a number even when the bot has no cap; the switch below carries
+        // "no limit" for a bot saved before this control existed.
+        setMaxTradesPerDay(numberOr(config.maxTradesPerDay, 10));
+        // A saved bot's capital limits are the owner's, not ours to recompute. Pinned unless
+        // the whole config is absent, so editing an existing bot never silently rewrites a
+        // limit its positions were opened under.
+        setCapitalPinned(config.maximumCapitalLamports != null || config.perTokenExposureLamports != null);
         setEntryMode(config.entryMode === "limit" ? "limit" : "market");
         setSlippageBps(numberOr(config.slippageBps, 300));
         setPriorityStrategy(config.priorityFeeStrategy || "auto");
@@ -386,6 +439,12 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
           perTokenExposure: config.limits?.perTokenExposure !== false,
           cooldown: config.limits?.cooldown !== false,
           priorityFee: config.limits?.priorityFee !== false,
+          // The one that must default OFF rather than ON. A bot saved before the daily trade
+          // count existed has no cap on entries per day, and the claim reads an absent value
+          // as "no limit". The form has to hold a number — the validator requires one — so the
+          // switch is what carries "no limit" through. Defaulting it on would impose a cap of
+          // 10 the owner never chose, the first time they opened the editor.
+          maxTradesPerDay: config.maxTradesPerDay != null && config.limits?.maxTradesPerDay !== false,
           ...(config.limits && typeof config.limits === "object" ? {} : current)
         }));
         setAutoEntry(config.autoEntry !== false);
@@ -434,11 +493,32 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const tpAllocationBps = takeProfitEnabled
     ? tpLevels.filter((level) => level.enabled).reduce((total, level) => total + level.sellBps, 0)
     : 0;
+  /**
+   * The two capital limits, linked to the visible fields until the user pins them.
+   *
+   * The server enforces `buyAmount <= perTokenExposure <= maximumCapital` and
+   * `(buyAmount + dca) * maxOpenTrades <= maximumCapital` whether or not those fields are on
+   * screen (lib/server/bot-validation.ts). Both now live behind Advanced, so leaving them at
+   * fixed defaults would fail a save the moment Margin went above 1 SOL — naming fields the
+   * user cannot see, which is the defect class this codebase keeps hitting.
+   *
+   * One position's commitment is entry + every enabled DCA leg, which plannedCapital already
+   * computes; recomputing it here would be a second implementation that drifts.
+   */
+  const perPositionSol = plannedCapital({
+    buyAmountSol,
+    maxOpenTrades: 1,
+    dca: { enabled: dcaEnabled, levels: dcaLevels }
+  }).perPositionSol;
+  const effectivePerTokenSol = capitalPinned ? perTokenSol : perPositionSol;
+  const effectiveCapitalSol = capitalPinned
+    ? maximumCapitalSol
+    : perPositionSol * Math.max(1, Math.floor(maxOpenTrades));
   const capitalPlan = plannedCapital({
     buyAmountSol,
     maxOpenTrades,
     dca: { enabled: dcaEnabled, levels: dcaLevels },
-    perTokenExposureSol: perTokenSol
+    perTokenExposureSol: effectivePerTokenSol
   });
   const dcaCapital = capitalPlan.dcaSol;
   const requiredCapital = capitalPlan.plannedSol;
@@ -465,16 +545,17 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (kind === "discord" && !sourceId) return "Select an approved Discord source.";
     if (!(buyAmountSol > 0 && buyAmountSol <= 100)) return "Buy amount must be between 0 and 100 SOL.";
     if (maxOpenTrades < 1 || maxOpenTrades > 100) return "Maximum open trades must be 1 to 100.";
-    if (limits.maximumCapital && maximumCapitalSol < requiredCapital) {
+    if (limits.maximumCapital && effectiveCapitalSol < requiredCapital) {
       return `Maximum capital must cover at least ${lamportsToSol(capitalPlan.plannedLamports)} SOL.`;
     }
-    if (dailyLossSol <= 0 || dailyLossSol < buyAmountSol) return "Max funds per day must cover at least one trade.";
+    if (dailyLossSol <= 0 || dailyLossSol < buyAmountSol) return "Max margin daily must cover at least one trade.";
+    if (limits.maxTradesPerDay && (maxTradesPerDay < 1 || maxTradesPerDay > 500)) return "Max trades daily must be 1 to 500.";
     // The per-token limit is measured against what ONE POSITION plans to commit, not against
     // the bare entry. A limit that covers the entry but not the entry plus its DCA legs leaves
     // every position half-built: the entry claims, then the first leg that crosses the limit is
     // refused. The shipped defaults produced exactly that — 0.50 per token, 0.55 per position.
     if (exposureError) return exposureError;
-    if (limits.perTokenExposure && limits.maximumCapital && perTokenSol > maximumCapitalSol) {
+    if (limits.perTokenExposure && limits.maximumCapital && effectivePerTokenSol > effectiveCapitalSol) {
       return "Per-token exposure must remain inside maximum capital.";
     }
     const enabledTpLevels = tpLevels.filter((level) => level.enabled);
@@ -485,7 +566,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (dcaEnabled) {
       if (dcaLevels.length < 1 || dcaLevels.some((level) => level.dropBps <= 0 || level.buyAmountSol <= 0)) return "DCA levels need a positive drop and buy amount.";
       if (dcaLevels.some((level, index) => index > 0 && level.dropBps <= dcaLevels[index - 1].dropBps)) return "DCA drops must increase from one level to the next.";
-      if (buyAmountSol + dcaCapital > maximumCapitalSol) return "Entry plus DCA capital exceeds the maximum.";
+      if (buyAmountSol + dcaCapital > effectiveCapitalSol) return "Entry plus DCA capital exceeds the maximum.";
     }
     const invalidRange = FILTERS.find((definition) => {
       const value = filters[definition.key];
@@ -494,7 +575,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (invalidRange) return `${invalidRange.label} minimum cannot exceed its maximum.`;
     if (slippageBps < 1 || slippageBps > 2000) return "Slippage must be between 0.01% and 20%.";
     return null;
-  }, [buyAmountSol, capitalPlan, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, exposureError, filters, kind, limits, maxOpenTrades, maximumCapitalSol, name, perTokenSol, requiredCapital, slippageBps, sourceId, stopBps, stopLossEnabled, takeProfitEnabled, tpAllocationBps, tpLevels]);
+  }, [buyAmountSol, capitalPlan, dailyLossSol, dcaCapital, dcaEnabled, dcaLevels, effectiveCapitalSol, effectivePerTokenSol, exposureError, filters, kind, limits, maxOpenTrades, maxTradesPerDay, name, requiredCapital, slippageBps, sourceId, stopBps, stopLossEnabled, takeProfitEnabled, tpAllocationBps, tpLevels]);
 
   function updateTp(index: number, patch: Partial<TpLevel>) {
     setTpLevels((current) => current.map((level, levelIndex) => levelIndex === index ? { ...level, ...patch } : level));
@@ -578,13 +659,15 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
         dailyLoss: kind === "discord" ? true : limits.dailyLoss,
         perTokenExposure: limits.perTokenExposure,
         cooldown: limits.cooldown,
-        priorityFee: limits.priorityFee
+        priorityFee: limits.priorityFee,
+        maxTradesPerDay: limits.maxTradesPerDay
       },
       buyAmountLamports: solToLamports(buyAmountSol),
-      maximumCapitalLamports: solToLamports(maximumCapitalSol),
+      maximumCapitalLamports: solToLamports(effectiveCapitalSol),
       dailyLossLimitLamports: solToLamports(dailyLossSol),
-      perTokenExposureLamports: solToLamports(perTokenSol),
+      perTokenExposureLamports: solToLamports(effectivePerTokenSol),
       maxOpenTrades,
+      maxTradesPerDay: Math.round(maxTradesPerDay),
       entryMode,
       slippageBps: Math.round(slippageBps),
       priorityFeeStrategy: priorityStrategy,
@@ -898,13 +981,31 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
             {kind === "discord" && (
               <>
-                <NumberField label="Max funds per day" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
-                <p className="t-label leading-5 text-dim">Once this budget is used, new entries wait for the next UTC reset. Exits continue.</p>
+                <NumberField label="Max margin daily" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
+                {/* Two daily caps, one window. A budget alone does not bound how OFTEN the bot
+                    enters: 1 SOL at a 0.02 margin is fifty entries. */}
+                <LimitField label="Max trades daily" on={limits.maxTradesPerDay} onToggle={(on) => setLimit("maxTradesPerDay", on)}>
+                  <NumberField
+                    label="Max trades daily"
+                    hideLabel
+                    value={maxTradesPerDay}
+                    onChange={(value) => setMaxTradesPerDay(Math.round(value))}
+                    unit="trades"
+                    step={1}
+                    min={1}
+                    max={500}
+                    disabled={!limits.maxTradesPerDay}
+                  />
+                </LimitField>
+                <p className="t-label leading-5 text-dim">
+                  Both reset at 6:00 AM New York time. Once either is used, new entries wait for
+                  the next reset. Exits continue.
+                </p>
                 <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
                   <SourceStat label="Wallet available" value={walletAvailableLamports == null ? "Unavailable" : `${lamportsToSol(BigInt(walletAvailableLamports))} SOL`} />
                   <SourceStat label="Estimated max exposure" value={`${lamportsToSol(
-                    limits.maximumCapital && capitalPlan.plannedLamports > BigInt(Math.round(maximumCapitalSol * 1e9))
-                      ? BigInt(Math.round(maximumCapitalSol * 1e9))
+                    limits.maximumCapital && capitalPlan.plannedLamports > BigInt(Math.round(effectiveCapitalSol * 1e9))
+                      ? BigInt(Math.round(effectiveCapitalSol * 1e9))
                       : capitalPlan.plannedLamports
                   )} SOL`} />
                 </div>
@@ -914,13 +1015,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
                 <span>
                   <span className="block t-label font-medium text-ink">Exposure limits</span>
-                  <span className="mt-0.5 block t-label text-dim">{maximumCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {perTokenSol.toFixed(2)} SOL per token</span>
+                  <span className="mt-0.5 block t-label text-dim">{effectiveCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {effectivePerTokenSol.toFixed(2)} SOL per token</span>
                 </span>
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
               <div className="grid gap-4 border-t border-edge p-3 sm:grid-cols-2">
                 <LimitField label="Maximum capital" on={limits.maximumCapital} onToggle={(on) => setLimit("maximumCapital", on)}>
-                  <NumberField label="Maximum capital" hideLabel value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} />
+                  <NumberField label="Maximum capital" hideLabel value={effectiveCapitalSol} onChange={(value) => { setCapitalPinned(true); setPerTokenSol(effectivePerTokenSol); setMaximumCapitalSol(value); }} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} />
                 </LimitField>
                 <LimitField label="Maximum open trades" on={limits.maxOpenTrades} onToggle={(on) => setLimit("maxOpenTrades", on)}>
                   <NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} />
@@ -929,7 +1030,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   <NumberField label="Daily loss limit" hideLabel value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.dailyLoss} />
                 </LimitField>
                 <LimitField label="Per-token exposure" on={limits.perTokenExposure} onToggle={(on) => setLimit("perTokenExposure", on)}>
-                  <NumberField label="Per-token exposure" hideLabel value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} />
+                  <NumberField label="Per-token exposure" hideLabel value={effectivePerTokenSol} onChange={(value) => { setCapitalPinned(true); setMaximumCapitalSol(effectiveCapitalSol); setPerTokenSol(value); }} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} />
                 </LimitField>
               </div>
             </details>}
@@ -971,8 +1072,86 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               checked={takeProfitEnabled}
               onChange={setTakeProfitEnabled}
             />
-            {kind === "discord" && takeProfitEnabled && (
-              <NumberField label="Target profit" value={(tpLevels[0]?.targetBps || 10000) / 100} onChange={(value) => updateTp(0, { targetBps: Math.round(value * 100), sellBps: 10000, enabled: true })} unit="%" step={1} min={0.01} max={1000} />
+            {/* Discord had one fixed target and no way to add a second, so a user who wanted to
+                sell half at 2x and the rest at 5x could not express it. Same level model as KOL,
+                without the per-level trailing column — trailing is one switch for the whole plan
+                and lives in Advanced.
+                Rows appear as they are added: one level to start, "Add TP" reveals TP 2, then
+                TP 3, up to the server's cap of five (levelsValid, bot-validation.ts). */}
+            {kind === "discord" && (
+              <>
+                <div className={`divide-y divide-edge rounded-md border border-edge ${takeProfitEnabled ? "" : "opacity-45"}`}>
+                  {tpLevels.map((level, index) => (
+                    <div key={index} className="grid gap-3 p-3 sm:grid-cols-[64px_repeat(2,minmax(0,1fr))_44px] sm:items-end">
+                      <span className="flex min-h-11 items-center font-mono t-label text-dim sm:min-h-0 sm:self-center">TP {index + 1}</span>
+                      <label>
+                        <span className="field-label">Target gain</span>
+                        <span className="mt-1.5 block">
+                          <CompactNumber
+                            ariaLabel={`TP ${index + 1} target gain`}
+                            value={level.targetBps / 100}
+                            onChange={(value) => updateTp(index, { targetBps: Math.round(value * 100), enabled: true })}
+                            suffix="%"
+                            disabled={!takeProfitEnabled}
+                          />
+                        </span>
+                      </label>
+                      <label>
+                        <span className="field-label">Sell allocation</span>
+                        <span className="mt-1.5 block">
+                          <CompactNumber
+                            ariaLabel={`TP ${index + 1} sell allocation`}
+                            value={level.sellBps / 100}
+                            onChange={(value) => updateTp(index, { sellBps: Math.round(value * 100), enabled: true })}
+                            suffix="%"
+                            disabled={!takeProfitEnabled}
+                          />
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setTpLevels((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                        disabled={tpLevels.length === 1}
+                        className="grid h-11 w-11 place-items-center rounded-md text-dim hover:bg-down/10 hover:text-down disabled:opacity-30"
+                        aria-label={`Remove TP ${index + 1}`}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTpLevels((current) => {
+                    if (current.length >= 5) return current;
+                    // A new level must arrive VALID: the server rejects a zero allocation and
+                    // rejects a total above 100%, so it takes whatever is unallocated, and when
+                    // nothing is left it splits the last level rather than adding an
+                    // unsaveable row the user has to repair before the form will submit.
+                    const allocated = current.reduce((total, level) => total + level.sellBps, 0);
+                    const spare = 10000 - allocated;
+                    const next = [...current];
+                    let sellBps = spare;
+                    if (spare < 100) {
+                      const last = next.length - 1;
+                      const half = Math.floor(next[last].sellBps / 2);
+                      next[last] = { ...next[last], sellBps: next[last].sellBps - half };
+                      sellBps = half;
+                    }
+                    return [...next, {
+                      // Strictly increasing targets are required; +100% clears the last one.
+                      targetBps: Math.max(...current.map((level) => level.targetBps)) + 10000,
+                      sellBps: Math.max(100, sellBps),
+                      trailingBps: 0,
+                      enabled: true
+                    }];
+                  })}
+                  disabled={!takeProfitEnabled || tpLevels.length >= 5}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink disabled:opacity-40"
+                >
+                  <Plus size={14} /> Add TP
+                </button>
+              </>
             )}
             {kind === "kol" && <div className={`divide-y divide-edge rounded-md border border-edge ${takeProfitEnabled ? "" : "opacity-45"}`}>
               {tpLevels.map((level, index) => (
@@ -1048,25 +1227,65 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               onChange={setAutoReentry}
             />
           </FormSection>
+
+          {/* The whole 36-check safety system as ONE switch, on the main screen.
+              Off by default. On arms the five checks the engine can actually evaluate, not all
+              36 — an enabled filter with no wired provider is fail-closed and would refuse every
+              trade, which presents as protection and behaves as a total stop. The individual
+              filters stay editable in Advanced for anyone who wants them. */}
+          <FormSection
+            title="Safety checks"
+            pending={pendingFor("safety")}
+            description="Refuse a call that fails basic token checks."
+            defaultOpen
+            summary={enabledSafetyCount > 0 ? `${enabledSafetyCount} of ${totalSafetyCount} on` : "Off"}
+          >
+            <Toggle
+              label="Safety checks"
+              detail="Mint authority revoked, freeze authority revoked, a liquidity floor and a market-cap floor."
+              checked={enabledSafetyCount > 0}
+              onChange={(on) => {
+                setFilters(on ? armedFilters() : defaultFilters());
+                setFlags(on ? armedFlags() : defaultFlags());
+              }}
+            />
+            {enabledSafetyCount === 0 && (
+              <InlineError>
+                With safety checks off this bot buys whatever the channel posts. A token that
+                cannot be sold will not be caught, and a stop loss cannot exit one.
+              </InlineError>
+            )}
+          </FormSection>
           {/* Section 4: everything below is real, persisted, and mostly enforced — it is
               collapsed because a beginner should not have to answer sixty questions to place
               their first trade, not because any of it is decorative. */}
           <SectionGroup
-            title={kind === "discord" ? "Advanced settings" : "Optional settings"}
+            title="Advanced"
             description={kind === "discord" ? "Exposure limits, exit details, safety filters, routing and retries." : "Entry triggers, staged buys, safety filters, routing and retries."}
-            count={kind === "kol" ? "4 sections" : "4 sections"}
+            count={kind === "discord" ? "5 sections" : "4 sections"}
           >
           {kind === "discord" && (
-            <FormSection title="Automation and exposure" description="Controls preserved for existing bots." summary={`${maximumCapitalSol.toFixed(2)} SOL cap · ${maxOpenTrades} open`}>
+            <FormSection title="Automation and exposure" description="Controls preserved for existing bots." summary={`${effectiveCapitalSol.toFixed(2)} SOL cap · ${maxOpenTrades} open`}>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Toggle label="Automatic entries" detail="Open new positions from this source's calls." checked={autoEntry} onChange={setAutoEntry} compact disabled={killSwitch} />
                 <Toggle label="Automatic exits" detail="Run enabled exits without another signature." checked={autoExit} onChange={setAutoExit} compact disabled={killSwitch} />
                 <Toggle label="Emergency stop" detail="Refuse new entries while open positions keep exiting." checked={killSwitch} onChange={setKillSwitch} compact danger />
               </div>
+              {/* Linked to the margin until touched — see the comment on capitalPinned. The
+                  fields show the value that will actually be saved, so what is on screen and
+                  what the server validates are never two different numbers. Editing either
+                  pins BOTH: once the user is setting capital by hand, silently continuing to
+                  recompute the other one would overwrite a decision they just made. */}
+              {!capitalPinned && (
+                <p className="t-label leading-5 text-dim">
+                  Maximum capital and per-token exposure follow your margin. Change either to set
+                  them yourself.
+                </p>
+              )}
               <div className="grid gap-4 sm:grid-cols-3">
-                <LimitField label="Maximum capital" on={limits.maximumCapital} onToggle={(on) => setLimit("maximumCapital", on)}><NumberField label="Maximum capital" hideLabel value={maximumCapitalSol} onChange={setMaximumCapitalSol} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} /></LimitField>
+                <LimitField label="Maximum capital" on={limits.maximumCapital} onToggle={(on) => setLimit("maximumCapital", on)}><NumberField label="Maximum capital" hideLabel value={effectiveCapitalSol} onChange={(value) => { setCapitalPinned(true); setPerTokenSol(effectivePerTokenSol); setMaximumCapitalSol(value); }} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} /></LimitField>
                 <LimitField label="Maximum open trades" on={limits.maxOpenTrades} onToggle={(on) => setLimit("maxOpenTrades", on)}><NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} /></LimitField>
-                <LimitField label="Per-token exposure" on={limits.perTokenExposure} onToggle={(on) => setLimit("perTokenExposure", on)}><NumberField label="Per-token exposure" hideLabel value={perTokenSol} onChange={setPerTokenSol} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} /></LimitField>
+                <LimitField label="Per-token exposure" on={limits.perTokenExposure} onToggle={(on) => setLimit("perTokenExposure", on)}><NumberField label="Per-token exposure" hideLabel value={effectivePerTokenSol} onChange={(value) => { setCapitalPinned(true); setMaximumCapitalSol(effectiveCapitalSol); setPerTokenSol(value); }} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} /></LimitField>
               </div>
             </FormSection>
           )}
@@ -1242,23 +1461,33 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <p className="ui-label mt-1">This is what will be saved</p>
           </header>
           <dl className="divide-y divide-[color:var(--rule)] px-5">
-            <SummaryRow label="Product" value={kind === "discord" ? "Discord Bot" : "KOL Bot"} />
+            {/* One row per SETTING the user can see, in the order they meet them, plus the two
+                figures they cannot derive themselves: what this can deploy at once, and what it
+                costs. Product, Network, Maximum capital, Open trades and Slippage moved out —
+                a panel headed "this is what will be saved" that restates six things the user
+                did not choose buries the four they did. All of them are still in Advanced and
+                in the confirmation dialog. */}
             <SummaryRow label="Source" value={kind === "discord" ? source?.name || "Not selected" : preset} />
-            <SummaryRow label="Network" value={AUTOMATED_MAINNET_RELEASE.label} />
             <SummaryRow label="Wallet" value={walletAddress ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}` : "Not connected"} />
             <SummaryRow label={kind === "discord" ? "Margin per trade" : "Buy amount"} value={`${buyAmountSol.toFixed(3)} SOL`} />
-            {kind === "discord" && <SummaryRow label="Max funds per day" value={`${dailyLossSol.toFixed(3)} SOL`} />}
-            <SummaryRow label="Maximum capital" value={`${maximumCapitalSol.toFixed(3)} SOL`} />
-            <SummaryRow label="Open trades" value={String(maxOpenTrades)} />
-            <SummaryRow label="Take profit" value={takeProfitEnabled ? `+${((tpLevels[0]?.targetBps || 0) / 100).toFixed(2)}%` : "Off"} />
+            {kind === "discord" && <SummaryRow label="Max margin daily" value={`${dailyLossSol.toFixed(3)} SOL`} />}
+            {kind === "discord" && <SummaryRow label="Max trades daily" value={limits.maxTradesPerDay ? String(maxTradesPerDay) : "No limit"} />}
+            <SummaryRow
+              label="Take profit"
+              value={takeProfitEnabled
+                ? tpLevels.length > 1
+                  ? `${tpLevels.length} levels · +${((tpLevels[0]?.targetBps || 0) / 100).toFixed(2)}% first`
+                  : `+${((tpLevels[0]?.targetBps || 0) / 100).toFixed(2)}%`
+                : "Off"}
+            />
             <SummaryRow label="Stop loss" value={stopLossEnabled ? `-${(stopBps / 100).toFixed(2)}%` : "Off"} />
             {kind === "discord" && <SummaryRow label="Re-entry" value={autoReentry ? "On" : "Off"} />}
-            <SummaryRow label="Slippage" value={`${(slippageBps / 100).toFixed(2)}%`} />
+            <SummaryRow label="Safety checks" value={enabledSafetyCount > 0 ? `${enabledSafetyCount} on` : "Off"} />
             <SummaryRow
               label="Maximum exposure"
               value={`${lamportsToSol(
-                limits.maximumCapital && capitalPlan.perPositionLamports * BigInt(capitalPlan.positions) > BigInt(Math.round(maximumCapitalSol * 1e9))
-                  ? BigInt(Math.round(maximumCapitalSol * 1e9))
+                limits.maximumCapital && capitalPlan.perPositionLamports * BigInt(capitalPlan.positions) > BigInt(Math.round(effectiveCapitalSol * 1e9))
+                  ? BigInt(Math.round(effectiveCapitalSol * 1e9))
                   : capitalPlan.plannedLamports
               )} SOL`}
               hint="The most this bot can have deployed at once: entry plus enabled DCA, times maximum open trades, capped by maximum capital. This omitted DCA before, so it could read lower than the minimum capital shown above it."
@@ -1440,7 +1669,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   title: "Buy settings",
                   items: [
                     ["Entry", `${buyAmountSol} SOL · ${entryMode} · ${maxOpenTrades} maximum trades`],
-                    ["Capital", `${maximumCapitalSol} SOL maximum · ${dailyLossSol} SOL max funds per day · ${perTokenSol} SOL per token`],
+                    ["Capital", `${effectiveCapitalSol} SOL maximum · ${dailyLossSol} SOL max margin daily · ${limits.maxTradesPerDay ? `${maxTradesPerDay} trades daily · ` : ""}${effectivePerTokenSol} SOL per token`],
                     ...(kind === "kol" ? [
                       ["Trigger", `-${priceDropBps / 100}% from ${referenceMode === "recent-ath" ? "recent ATH" : "moving average"} over ${lookbackMinutes} minutes`],
                       ["DCA", dcaEnabled ? `${dcaLevels.length} levels · ${dcaCapital.toFixed(3)} SOL per trade` : "Off"]
