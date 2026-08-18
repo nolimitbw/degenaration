@@ -922,6 +922,51 @@ test("every reason names the filter, so a rejection is explainable", () => {
   for (const reason of r.reasons) assert.ok(reason.length > 10);
 });
 
+console.log("live sweep is labelled live, archive stays archive");
+{
+  const { buildIngestPayload } = require("../../lib/server/discord-rest-backfill");
+  const { isHistorical } = require("../../lib/discord-ingest");
+  const channel = { guild_id: "1", channel_id: "2", channel_name: "calls" };
+  const parsed = { mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", confidence: "address" };
+  const at = (msAgo) => ({ id: "9", timestamp: new Date(Date.now() - msAgo).toISOString(), author: {} });
+
+  test("a call caught seconds after posting is not labelled history", () => {
+    // The defect: ONE builder served both directions and stamped everything `history:`, so a
+    // call caught two seconds after posting was labelled archive. fan_out_on_parse skips any
+    // signal whose event_version starts with `history:` — which is why signal_deliveries sat
+    // at zero across 2,309 calls. Not a broken join; a guard doing exactly what it says.
+    const payload = buildIngestPayload({ channel, message: at(2_000), parsed, archiveWalk: false });
+    assert.strictEqual(payload.eventVersion, "original");
+    assert.ok(!payload.eventVersion.startsWith("history:"), "fan-out must not skip a live call");
+  });
+
+  test("an archive page is still history, so it carries no invented baseline", () => {
+    const payload = buildIngestPayload({ channel, message: at(2_000), parsed, archiveWalk: true });
+    assert.ok(payload.eventVersion.startsWith("history:"),
+      "the archive walk must stay historical even when a message happens to be recent");
+    assert.strictEqual(isHistorical(payload.eventVersion), false,
+      "…and the age rule still governs pricing independently of the label");
+  });
+
+  test("a forward sweep catching up after an outage is history again", () => {
+    // The catch-up case: the scanner was down, and the message it now finds is hours old. It
+    // arrived on the forward sweep but is not a live call, and must not be priced as one.
+    const payload = buildIngestPayload({ channel, message: at(3 * 60 * 60 * 1000), parsed, archiveWalk: false });
+    assert.ok(payload.eventVersion.startsWith("history:"));
+    assert.strictEqual(isHistorical(payload.eventVersion), true);
+  });
+
+  test("the age rule has one definition, not two", () => {
+    // buildIngestPayload asks isHistorical rather than carrying its own window. If someone
+    // reintroduces a local constant these drift, and the label stops matching the pricing.
+    const source = require("node:fs").readFileSync(
+      require("node:path").join(__dirname, "../../lib/server/discord-rest-backfill.js"), "utf8");
+    assert.match(source, /isHistorical\(historyVersion\)/, "must ask the shared rule");
+    assert.doesNotMatch(source, /LIVE_CAPTURE_WINDOW|5 \* 60 \* 1000/,
+      "must not define its own live window");
+  });
+}
+
 console.log("marketplace outcome buckets reconcile");
 {
   // The owner read "83.3% hit rate, 0, 2, 2, 0" above "12 measured calls" and said it was not
