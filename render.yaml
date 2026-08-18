@@ -65,7 +65,11 @@ services:
     rootDir: server/bot
     buildCommand: npm ci
     startCommand: npm start
-    healthCheckPath: /health
+    # LIVENESS, not readiness. Pointed at /health, a missing DISCORD_BOT_TOKEN failed the
+    # deploy health check rather than merely stopping the bot connecting — so Render kept the
+    # previous build and this service sat on an 11 Aug commit, discarding every push since.
+    # /live answers 200 whenever the process is up; /health still reports the truth in its body.
+    healthCheckPath: /live
     autoDeploy: true
     envVars:
       - key: NODE_VERSION

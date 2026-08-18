@@ -643,6 +643,29 @@ client.on("error", (error) => console.error("[bot] client error:", error?.messag
 // listener, command publication and approved-channel refresh are all current. Process-up alone
 // is not scanner health: a bot can keep running after its Discord session or source map failed.
 http.createServer((req, res) => {
+  /**
+   * LIVENESS, separate from readiness, and the reason this listener has never deployed.
+   *
+   * render.yaml pointed healthCheckPath at /health, and /health answers 503 whenever Discord
+   * is not ready. So a missing DISCORD_BOT_TOKEN did not merely stop the bot connecting — it
+   * failed the deploy health check, Render kept the previous build, and the service froze on
+   * a commit from 11 Aug reporting "starting" ever since. Every push after that, including the
+   * fixes in this branch, was built and discarded.
+   *
+   * A configuration fault became an undeployable service, and the two are indistinguishable
+   * from outside: "503 starting" is what you see whether the token is wrong, the build is
+   * broken, or Discord is down.
+   *
+   * /live answers 200 whenever the process is running, and is what the platform checks.
+   * Readiness is still reported honestly in /health's body and status code for anyone — human
+   * or monitor — asking whether the bot is actually working. Deploys can now land, and the
+   * body says what is wrong.
+   */
+  if (req.url === "/live") {
+    res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+    res.end(JSON.stringify({ alive: true, build: BOT_BUILD, discordReady: client.isReady() }));
+    return;
+  }
   if (req.url !== "/" && !req.url?.startsWith("/health")) {
     res.writeHead(404, { "content-type": "application/json" });
     res.end(JSON.stringify({ error: "not found" }));
@@ -662,4 +685,14 @@ http.createServer((req, res) => {
   res.end(JSON.stringify(health.body));
 }).listen(HEALTH_PORT, HEALTH_HOST, () => console.log(`[bot] health listening on ${HEALTH_HOST}:${HEALTH_PORT}`));
 
-client.login(process.env.DISCORD_BOT_TOKEN);
+if (!process.env.DISCORD_BOT_TOKEN) {
+  // Named, not swallowed. Without this the process starts, serves /health, reports "starting"
+  // forever, and gives no clue which of a dozen faults it is.
+  console.error("[bot] DISCORD_BOT_TOKEN is not set — this listener cannot connect to Discord. " +
+    "The process stays up and /live answers 200 so the deploy can land; /health will keep " +
+    "reporting discord.ready=false until the token is set.");
+} else {
+  client.login(process.env.DISCORD_BOT_TOKEN).catch((error) => {
+    console.error("[bot] Discord login failed:", error?.message || error);
+  });
+}
