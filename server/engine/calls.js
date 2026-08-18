@@ -17,12 +17,46 @@
  * claimCallExecution is unique per (call, subscription), so a call seen twice is
  * executed once.
  */
-const { buyToken } = require("./jupiter");
+const { buyToken: jupiterBuyToken, SOL_MINT } = require("./jupiter");
 
 // Pure, testable: calls that are executable and not yet handled this run.
 // A call is executable if it has a mint + group and has not been executed.
 function pickNewCalls(calls, seen) {
   return (calls || []).filter((c) => c && c.id && c.mint && c.group_id && !c.executed_at && !seen.has(c.id));
+}
+
+
+/**
+ * Turn a confirmed entry into a durable position.
+ *
+ * The amount sold at exit must be what the wallet actually received, so it comes from
+ * the CONFIRMED transaction rather than the quote — slippage means those differ, and
+ * quoting a sell for tokens that are not there fails on-chain.
+ *
+ * The cost basis is likewise the real one: SOL actually spent, priced in USD, over
+ * tokens actually received. That is what the subscriber's 2x is measured against, not
+ * the price the Discord message happened to be posted at.
+ */
+async function openPositionForFill({ call, claim, sig, deps }) {
+  const { verifyFill, getPrice, openPosition } = deps;
+  if (!openPosition) return { ok: false, error: "position store unavailable" };
+
+  const fill = verifyFill ? await verifyFill({ signature: sig, userPubkey: claim.user_pubkey, mint: call.mint, side: "buy" }) : null;
+  if (!fill?.ok || !fill.tokenAmountRaw || !(fill.tokenAmount > 0)) {
+    return { ok: false, error: fill?.error || "entry fill could not be confirmed" };
+  }
+
+  let entryPriceUsd = null;
+  try {
+    const solPrice = getPrice ? await getPrice(SOL_MINT) : null;
+    if (solPrice > 0 && claim.size_sol > 0) entryPriceUsd = (claim.size_sol * solPrice) / fill.tokenAmount;
+  } catch { /* fall through to the call's recorded price */ }
+  if (!(entryPriceUsd > 0)) entryPriceUsd = Number(call.called_price_usd) > 0 ? Number(call.called_price_usd) : null;
+  if (!(entryPriceUsd > 0)) return { ok: false, error: "no entry price to measure exits against" };
+
+  const result = await openPosition(call.id, claim.subscription_id, call.mint, entryPriceUsd, fill.tokenAmountRaw, sig);
+  if (!result?.ok) return { ok: false, error: result?.error || "could not open position" };
+  return { ok: true, id: result.id };
 }
 
 /**
@@ -38,7 +72,7 @@ function pickNewCalls(calls, seen) {
  *  recordCopy(evt) / onEvent(evt)
  */
 async function executeCall(call, deps) {
-  const { loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, signAndSend, recordCopy = async () => {}, onEvent = () => {} } = deps;
+  const { loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, signAndSend, recordCopy = async () => {}, onEvent = () => {}, buyToken = jupiterBuyToken } = deps;
 
   let subs = [];
   try { subs = await loadGroupSubscribers(call.group_id); }
@@ -64,6 +98,17 @@ async function executeCall(call, deps) {
         onEvent({ type: "RECORD_ERROR", call: call.id, subscription: s.id, sig, error: e.message });
       }
       onEvent({ type: "CALL_BUY", group: call.group_id, mint: call.mint, user: claim.user_pubkey, sig });
+
+      // Open the position so the exit engine can honour this subscriber's TP/SL. A buy
+      // that never becomes a position is a trade with no way out, so a failure here is
+      // loud rather than swallowed.
+      try {
+        const opened = await openPositionForFill({ call, claim, sig, deps });
+        if (!opened.ok) onEvent({ type: "POSITION_OPEN_FAILED", call: call.id, subscription: s.id, sig, error: opened.error });
+        else onEvent({ type: "POSITION_OPEN", call: call.id, position: opened.id, mint: call.mint });
+      } catch (e) {
+        onEvent({ type: "POSITION_OPEN_FAILED", call: call.id, subscription: s.id, sig, error: e.message });
+      }
     } catch (e) {
       if (!sig) {
         try { await finishCallExecution(call.id, s.id, claim.claim_token, "failed", null, e.message); }
@@ -110,4 +155,4 @@ function startCallWatcher(deps, pollMs = 8000) {
   tick();
 }
 
-module.exports = { pickNewCalls, executeCall, startCallWatcher };
+module.exports = { pickNewCalls, openPositionForFill, executeCall, startCallWatcher };

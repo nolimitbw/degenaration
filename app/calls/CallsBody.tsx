@@ -182,7 +182,20 @@ export default function CallsBody() {
                 <div>
                   <SectionTitle title="Entry controls" description="Atomic source and wallet limits are checked before each claim." />
                   <div className="mt-3 grid gap-3 sm:grid-cols-3"><NumberField label="Size per call" suffix="SOL" value={cfg.size} step={0.1} min={0.1} onChange={(value) => set(activeGroup.id, { size: value })} /><NumberField label="Source daily cap" suffix="SOL" value={cfg.dailyCap} step={0.5} min={0.5} onChange={(value) => set(activeGroup.id, { dailyCap: value })} /><NumberField label="Max slippage" suffix="%" value={cfg.slippage} step={0.5} min={0.5} max={20} onChange={(value) => set(activeGroup.id, { slippage: value })} /></div>
-                  <p className="mt-3 rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-[10px] text-dim">Entry execution only. Automated take-profit and stop-loss exits remain unavailable until persistent position reconciliation is verified.</p>
+                </div>
+
+                <div>
+                  <SectionTitle title="Exit ladder" description="Sold automatically when the position reaches these levels." />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <NumberField label="Take profit 1" suffix="X" value={cfg.tp1} step={0.5} min={1.01} max={1000} onChange={(value) => set(activeGroup.id, { tp1: value })} />
+                    <NumberField label="Sell at TP1" suffix="%" value={cfg.tp1sell} step={5} min={1} max={100} onChange={(value) => set(activeGroup.id, { tp1sell: value })} />
+                    <NumberField label="Stop loss" suffix="% DOWN" value={cfg.sl} step={5} min={1} max={99} onChange={(value) => set(activeGroup.id, { sl: value })} />
+                    <NumberField label="Take profit 2" suffix="X" value={cfg.tp2} step={1} min={1.01} max={1000} onChange={(value) => set(activeGroup.id, { tp2: value })} />
+                    <NumberField label="Sell at TP2" suffix="%" value={cfg.tp2sell} step={5} min={0} max={100} onChange={(value) => set(activeGroup.id, { tp2sell: value })} />
+                  </div>
+                  <p className="mt-3 rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-[10px] leading-5 text-dim">
+                    TP1 and TP2 are multiples of your entry ({cfg.tp1}x sells {cfg.tp1sell}% of the position, {cfg.tp2}x sells {cfg.tp2sell}%). The stop-loss sells everything left at -{cfg.sl}%. Exits run on the 24/7 engine and need delegated trading enabled — if the engine is paused, nothing sells.
+                  </p>
                 </div>
 
                 <div>

@@ -18,6 +18,8 @@ const { startCopyWatcher } = require("./engine/copy");
 const { startCallWatcher } = require("./engine/calls");
 const { createCallDispatcher } = require("./engine/call-stream");
 const { startPerformanceScanner } = require("./engine/performance");
+const { startMonitor } = require("./engine/monitor");
+const { verifySwapTransaction } = require("../lib/server/trade-verification");
 const signer = require("./engine/signer");
 const store = require("./engine/store");
 
@@ -36,6 +38,21 @@ const state = { events: 0, errors: 0, lastEventAt: null, lastError: null };
 async function signAndSend(base64Tx, walletId) {
   if (!SIGNING_READY) throw new Error("delegated signing OFF (watch-only) — set DELEGATED_SIGNING=on after devnet verification");
   return signer.signAndSend(base64Tx, walletId, NET);
+}
+
+/**
+ * Confirm what an entry actually filled, from the chain rather than the quote. The exit
+ * engine sells this amount, so a guess here becomes a failed sell later.
+ */
+async function verifyFill({ signature, userPubkey, mint, side }) {
+  return verifySwapTransaction({
+    rpcUrl: process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com",
+    signature,
+    userPubkey,
+    mint,
+    side,
+    feeAccount: process.env.PLATFORM_FEE_ACCOUNT || null
+  });
 }
 
 function log(tag) {
@@ -149,7 +166,9 @@ if (SIGNING_READY) {
     loadGroupSubscribers: store.loadGroupSubscribers,
     claimCallExecution: store.claimCallExecution, finishCallExecution: store.finishCallExecution,
     completeCall: store.completeCall, markCallExecuted: store.markCallExecuted, signAndSend,
-    recordCopy: store.recordCopy, onEvent: log("call"), seen: dispatchSeen
+    recordCopy: store.recordCopy, onEvent: log("call"), seen: dispatchSeen,
+    // Turning a confirmed entry into a position the exit engine can act on.
+    openPosition: store.openPosition, getPrice, verifyFill
   };
 
   // Primary trigger: the site pushes each journaled call to POST /dispatch.
@@ -158,6 +177,19 @@ if (SIGNING_READY) {
 
   // Backstop for anything the push missed.
   startCallWatcher(callDeps);
+
+  // Exits. Without this the engine buys and never sells: a subscriber's take-profit and
+  // stop-loss would be collected, stored and displayed while nothing ever acted on them.
+  startMonitor({
+    loadOpenPositions: store.loadOpenPositions,
+    getPrice,
+    claimPositionExit: store.claimPositionExit,
+    finishPositionExit: store.finishPositionExit,
+    touchPosition: store.touchPosition,
+    signAndSend,
+    recordTrade: store.recordTrade,
+    onEvent: log("exit")
+  });
 }
 
 // Wallet-diff copy detection needs its own explicit gate until transaction cursors are durable.

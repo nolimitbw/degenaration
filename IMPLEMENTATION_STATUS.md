@@ -31,11 +31,11 @@ Status meanings:
 | Shared scanner adapter registry | FAIL | Provider endpoints are not a versioned registry |
 | Fail-closed shared security filters | FAIL | Not implemented |
 | Durable order/execution claims | PARTIAL | Limit and Discord entry claims exist; full lifecycle absent |
-| Durable TP/SL reconciliation | BLOCKED | Worker and persistent exit lifecycle incomplete |
+| Durable TP/SL reconciliation | PARTIAL | Implemented and verified: positions open from the CONFIRMED fill, each exit leg is claim-protected, a failed exit retries, a signed-but-unpersisted exit is never retried, a missing price skips rather than dumps. Mutation-tested. NOT yet proven on a live network — devnet run required before mainnet |
 | Distributed rate limiting and job queue | FAIL | Process-local limiter remains |
 | Affiliate analytics and referrals | PARTIAL | Assigned Discord links only |
 | Payout ledger and request workflow | FAIL | Not implemented |
-| Portfolio positions and net PnL | PARTIAL | On-chain holdings and recorded trades only |
+| Portfolio positions and net PnL | PARTIAL | Call entries now open durable `positions` rows with entry basis and exit ladder; net PnL view still outstanding |
 | Deposit/withdrawal history | FAIL | Not implemented |
 | Original high-resolution PnL cards | FAIL | Not implemented |
 | Complete admin operations console | PARTIAL | Applications, channels, summary, commissions only |

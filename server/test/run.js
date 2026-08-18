@@ -278,6 +278,157 @@ test("skips a call the worker already executed", async () => {
   assert.strictEqual(loads, 1);
 });
 
+console.log("exit thresholds");
+const { dueExits, runExitTick } = require("../engine/monitor");
+// tp1/tp2 are stored as price MULTIPLES (2 = 2x); stop_loss as a percent DROP (40 = 0.6x).
+const POS = { id: "p1", mint: "M", entry_price_usd: 1, amount_raw: 1000, tp1: 2, tp1_sell: 50, tp2: 5, tp2_sell: 25, stop_loss: 40, filled_tp1: false, filled_tp2: false };
+test("no exit is due while the price sits between the stop and TP1", () => {
+  assert.deepStrictEqual(dueExits(POS, 1.5), []);
+  assert.deepStrictEqual(dueExits(POS, 0.7), []);
+});
+test("TP1 is due at 2x and TP2 only at 5x", () => {
+  assert.deepStrictEqual(dueExits(POS, 2).map((x) => x.leg), ["tp1"]);
+  assert.deepStrictEqual(dueExits(POS, 5).map((x) => x.leg), ["tp1", "tp2"]);
+});
+test("an already-filled leg is never due again", () => {
+  assert.deepStrictEqual(dueExits({ ...POS, filled_tp1: true }, 5).map((x) => x.leg), ["tp2"]);
+  assert.deepStrictEqual(dueExits({ ...POS, filled_tp1: true, filled_tp2: true }, 9), []);
+});
+test("stop-loss fires at -40%", () => {
+  assert.deepStrictEqual(dueExits(POS, 0.6).map((x) => x.leg), ["sl"]);
+  assert.deepStrictEqual(dueExits(POS, 0.1).map((x) => x.leg), ["sl"]);
+});
+test("a stop-loss takes the whole position out rather than a partial on the way down", () => {
+  // A tp1 at or below 1x (a legacy row, or a hand-edited one) is the only way a position
+  // can be past a take-profit and past its stop at the same time. The stop must win.
+  const brokenLadder = { ...POS, tp1: 0.5 };
+  assert.deepStrictEqual(dueExits(brokenLadder, 0.6).map((x) => x.leg), ["sl"]);
+});
+test("a multiple is never read off a missing or zero entry price", () => {
+  assert.deepStrictEqual(dueExits({ ...POS, entry_price_usd: 0 }, 5), []);
+  assert.deepStrictEqual(dueExits({ ...POS, entry_price_usd: null }, 0.01), []);
+});
+test("an emptied position has nothing left to exit", () => {
+  assert.deepStrictEqual(dueExits({ ...POS, amount_raw: 0 }, 0.1), []);
+});
+
+console.log("exit engine");
+function exitHarness(overrides = {}) {
+  const calls = { claims: [], quotes: [], sells: [], finishes: [] };
+  const deps = {
+    loadOpenPositions: async () => [{ ...POS }],
+    getPrice: async () => 2,
+    claimPositionExit: async (id, leg, multiple) => {
+      calls.claims.push({ id, leg, multiple });
+      return { ok: true, claim_token: "tok", mint: "M", amount_raw: 500, user_pubkey: "U", wallet_id: "W", slippage_bps: 300 };
+    },
+    finishPositionExit: async (id, leg, token, status, sig, error) => {
+      calls.finishes.push({ leg, status, sig, error });
+      return { ok: true };
+    },
+    touchPosition: async () => {},
+    sellToken: async (mint, amount) => { calls.quotes.push({ mint, amount }); return { tx: "TX" }; },
+    signAndSend: async () => { calls.sells.push("sent"); return "SIG"; },
+    recordTrade: async () => {},
+    onEvent: () => {},
+    ...overrides
+  };
+  return { calls, deps };
+}
+test("a missing price skips the position instead of dumping it", async () => {
+  const { calls, deps } = exitHarness({ getPrice: async () => null });
+  await runExitTick(deps);
+  assert.strictEqual(calls.claims.length, 0, "a price outage must never trigger a stop-loss");
+  assert.strictEqual(calls.sells.length, 0);
+});
+test("a refused claim does not sell", async () => {
+  const { calls, deps } = exitHarness({ claimPositionExit: async () => ({ ok: false, error: "exit already claimed" }) });
+  await runExitTick(deps);
+  assert.strictEqual(calls.sells.length, 0);
+});
+test("a failed send releases the claim so the next tick can retry", async () => {
+  const { calls, deps } = exitHarness({ signAndSend: async () => { throw new Error("rpc timeout"); } });
+  await runExitTick(deps);
+  assert.strictEqual(calls.quotes.length, 1, "the sell must actually have been quoted");
+  assert.deepStrictEqual(calls.finishes.map((f) => f.status), ["failed"]);
+});
+test("the exit sells the claimed amount, not the whole position", async () => {
+  const { calls, deps } = exitHarness();
+  await runExitTick(deps);
+  assert.deepStrictEqual(calls.quotes, [{ mint: "M", amount: 500 }]);
+});
+test("a send that returned a signature is NOT released for retry", async () => {
+  // The sell may have landed; releasing the claim would let the next tick sell the same
+  // tokens again. Record the attempt BEFORE throwing, so a stray release is visible.
+  const { calls, deps } = exitHarness({
+    finishPositionExit: async (id, leg, token, status) => {
+      calls.finishes.push({ leg, status });
+      throw new Error("db down");
+    }
+  });
+  await runExitTick(deps);
+  assert.strictEqual(calls.sells.length, 1, "the sell was sent");
+  assert.deepStrictEqual(
+    calls.finishes.map((f) => f.status),
+    ["succeeded"],
+    "only the success write may be attempted — a 'failed' release here would risk a double-sell"
+  );
+});
+test("a load failure is survived rather than thrown", async () => {
+  const { deps } = exitHarness({ loadOpenPositions: async () => { throw new Error("supabase down"); } });
+  await runExitTick(deps); // must not reject
+});
+
+console.log("entry becomes a position");
+const { openPositionForFill } = require("../engine/calls");
+const CALL = { id: "c1", mint: "M", called_price_usd: 1 };
+const CLAIM = { subscription_id: "s1", user_pubkey: "U", size_sol: 1 };
+test("an unconfirmed fill never opens a position", async () => {
+  const result = await openPositionForFill({
+    call: CALL, claim: CLAIM, sig: "SIG",
+    deps: { openPosition: async () => ({ ok: true }), verifyFill: async () => ({ ok: false, error: "not confirmed" }) }
+  });
+  assert.strictEqual(result.ok, false);
+  assert.match(result.error, /not confirmed/);
+});
+test("the position is sized by the CONFIRMED raw fill, not the quote", async () => {
+  let recorded = null;
+  await openPositionForFill({
+    call: CALL, claim: CLAIM, sig: "SIG",
+    deps: {
+      verifyFill: async () => ({ ok: true, tokenAmount: 500, tokenAmountRaw: "500000000" }),
+      getPrice: async () => 100, // SOL at $100
+      openPosition: async (callId, subId, mint, entry, raw, sig) => { recorded = { entry, raw, sig }; return { ok: true, id: "p1" }; }
+    }
+  });
+  assert.strictEqual(recorded.raw, "500000000");
+  // 1 SOL at $100 buying 500 tokens => a real cost basis of $0.20, not the call's $1.
+  assert.strictEqual(recorded.entry, 0.2);
+});
+test("falls back to the call price when SOL pricing is unavailable", async () => {
+  let recorded = null;
+  await openPositionForFill({
+    call: CALL, claim: CLAIM, sig: "SIG",
+    deps: {
+      verifyFill: async () => ({ ok: true, tokenAmount: 500, tokenAmountRaw: "500000000" }),
+      getPrice: async () => { throw new Error("feed down"); },
+      openPosition: async (c, s, m, entry) => { recorded = entry; return { ok: true, id: "p1" }; }
+    }
+  });
+  assert.strictEqual(recorded, 1);
+});
+test("with no entry price at all, the position is refused rather than opened blind", async () => {
+  const result = await openPositionForFill({
+    call: { id: "c1", mint: "M", called_price_usd: null }, claim: CLAIM, sig: "SIG",
+    deps: {
+      verifyFill: async () => ({ ok: true, tokenAmount: 500, tokenAmountRaw: "500000000" }),
+      getPrice: async () => null,
+      openPosition: async () => ({ ok: true, id: "p1" })
+    }
+  });
+  assert.strictEqual(result.ok, false);
+});
+
 console.log("verified trade ledger");
 const { SOL_MINT, analyzeSwapTransaction } = require("../../lib/server/trade-verification");
 const tradeSignature = "5".repeat(88);

@@ -78,9 +78,9 @@ const recordCopy = recordTrade;
 const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}`, { daily_spent: totalSol });
 
 // ---- discord call execution ----
-const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50", true);
+const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,called_price_usd,executed_at&order=called_at.desc&limit=50", true);
 const loadCallById = async (id) => {
-  const rows = await sbGet(`calls?id=eq.${encodeURIComponent(id)}&select=id,group_id,mint,symbol,executed_at&limit=1`, true);
+  const rows = await sbGet(`calls?id=eq.${encodeURIComponent(id)}&select=id,group_id,mint,symbol,called_price_usd,executed_at&limit=1`, true);
   return (rows || [])[0] || null;
 };
 const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
@@ -119,6 +119,37 @@ const loadPerformanceCalls = (sinceMs = 30 * 86_400_000, limit = 1000) => {
 const loadFreshPerformanceCalls = () => loadPerformanceCalls(86_400_000, 500);
 const updateCallPerformance = (id, update) => sbPatch(`calls?id=eq.${id}`, update);
 
+// ---- position exits (durable take-profit / stop-loss) ----
+// Entries used to be executed and recorded while nothing ever sold: the monitor was
+// never started, held positions in memory, and no code path opened a position row.
+// These are the durable equivalents, all claim-protected like call executions.
+const openPosition = (callId, subscriptionId, mint, entryPriceUsd, amountRaw, entrySig) => sbRpc("worker_open_position", {
+  p_call_id: callId,
+  p_subscription_id: subscriptionId,
+  p_mint: mint,
+  p_entry_price_usd: entryPriceUsd,
+  p_amount_raw: amountRaw,
+  p_entry_sig: entrySig || null
+});
+const loadOpenPositions = (limit = 500) => sbRpc("worker_open_positions", { p_limit: limit });
+const claimPositionExit = (positionId, leg, multiple) => sbRpc("worker_claim_position_exit", {
+  p_position_id: positionId,
+  p_leg: leg,
+  p_multiple: multiple ?? null
+});
+const finishPositionExit = (positionId, leg, claimToken, status, sig, error) => sbRpc("worker_finish_position_exit", {
+  p_position_id: positionId,
+  p_leg: leg,
+  p_claim_token: claimToken,
+  p_status: status,
+  p_sig: sig || null,
+  p_error: error || null
+});
+const touchPosition = (positionId, priceUsd) => sbRpc("worker_touch_position", {
+  p_position_id: positionId,
+  p_price_usd: priceUsd ?? null
+});
+
 // ---- on-chain holdings (for copy detection) ----
 async function getHoldings(address) {
   const res = await fetch(RPC, {
@@ -135,4 +166,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, loadCallById, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, loadFreshPerformanceCalls, updateCallPerformance };
+module.exports = { loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, loadCallById, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, loadFreshPerformanceCalls, updateCallPerformance, openPosition, loadOpenPositions, claimPositionExit, finishPositionExit, touchPosition };
