@@ -861,7 +861,18 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   // Controls this bot kind saves that no execution path reads yet, from the one contract the
   // build gate checks. Rendering them from the same list is what keeps the notice honest:
   // implementing a control and forgetting to update the note fails check:bot-control-contract.
-  const pendingFor = (section: string) => pendingNotice(kind, section);
+  //
+  // Scoped to what this form actually RENDERS. "Saves, but will not trade yet: Dynamic stop"
+  // is a true and useful warning next to a dynamic-stop switch the user just turned on. Beside
+  // a Discord stop-loss section that no longer HAS one, it warns about a default the user never
+  // chose and cannot change — noise dressed as honesty, which is worse than silence because it
+  // spends the reader's attention on nothing.
+  //
+  // Discord's form ends at its six settings, so none of its pending controls are on screen. The
+  // declarations stay in the contract, because the values are still persisted and
+  // check:bot-control-contract must keep seeing them.
+  const RENDERS_PENDING_CONTROLS = kind === "kol";
+  const pendingFor = (section: string) => (RENDERS_PENDING_CONTROLS ? pendingNotice(kind, section) : null);
 
   return (
     <>
@@ -1014,13 +1025,32 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   Both reset at 6:00 AM New York time. Once either is used, new entries wait for
                   the next reset. Exits continue.
                 </p>
-                <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
+                {/* Two different ceilings, both named for what they bound. Showing only the
+                    first invited exactly the question it got: with a 0.02 margin and 5 trades a
+                    day, why does exposure read 0.06? Because it is 3 positions AT ONCE, a
+                    number that now lives behind Advanced. The daily ceiling is the one the
+                    visible settings actually determine, so it is on screen beside it. */}
+                <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-3">
                   <SourceStat label="Wallet available" value={walletAvailableLamports == null ? "Unavailable" : `${lamportsToSol(BigInt(walletAvailableLamports))} SOL`} />
-                  <SourceStat label="Estimated max exposure" value={`${lamportsToSol(
-                    limits.maximumCapital && capitalPlan.plannedLamports > BigInt(Math.round(effectiveCapitalSol * 1e9))
-                      ? BigInt(Math.round(effectiveCapitalSol * 1e9))
-                      : capitalPlan.plannedLamports
-                  )} SOL`} />
+                  <SourceStat
+                    label="Open at once"
+                    value={`${lamportsToSol(
+                      limits.maximumCapital && capitalPlan.plannedLamports > BigInt(Math.round(effectiveCapitalSol * 1e9))
+                        ? BigInt(Math.round(effectiveCapitalSol * 1e9))
+                        : capitalPlan.plannedLamports
+                    )} SOL`}
+                    working={`${buyAmountSol} × ${Math.max(1, Math.floor(maxOpenTrades))} open positions`}
+                  />
+                  <SourceStat
+                    label="Most in a day"
+                    value={`${Math.min(
+                      limits.maxTradesPerDay ? perPositionSol * Math.max(1, Math.floor(maxTradesPerDay)) : Infinity,
+                      limits.dailyLoss ? dailyLossSol : Infinity
+                    ).toFixed(3)} SOL`}
+                    working={limits.maxTradesPerDay
+                      ? `${buyAmountSol} × ${Math.max(1, Math.floor(maxTradesPerDay))} trades, capped by max margin daily`
+                      : "Max margin daily, with no trade count set"}
+                  />
                 </div>
               </>
             )}
@@ -1269,51 +1299,27 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               </InlineError>
             )}
           </FormSection>
-          {/* Section 4: everything below is real, persisted, and mostly enforced — it is
-              collapsed because a beginner should not have to answer sixty questions to place
-              their first trade, not because any of it is decorative. */}
+          {/* ADVANCED IS KOL-ONLY.
+              The Discord builder now ends at its six settings. The drawer held exposure limits,
+              automation toggles, staged buys, thirty-six safety filters, routing, retries and
+              cooldowns — the owner's verdict on seeing it: "very complicated and very hustle to
+              use". Collapsing it was not enough; a drawer that overwhelms when opened still
+              costs the reader the decision of whether to open it.
+
+              Nothing is unwired. buildConfig() still emits every one of those keys from state,
+              so the server receives a complete, valid configuration: 3% slippage, auto priority
+              fee, 2 retries, a 30s quote window, a 15m cooldown, simulation required, DCA off,
+              automatic entries and exits on. The capital limits are derived from the margin
+              (see capitalPinned). Pause and archive stay available in My Bots.
+
+              KOL keeps the drawer: publishing a strategy for other people to copy is a
+              different job from following one channel. */}
+          {kind === "kol" && (
           <SectionGroup
             title="Advanced"
-            description={kind === "discord" ? "Exposure limits, exit details, safety filters, routing and retries." : "Entry triggers, staged buys, safety filters, routing and retries."}
-            count={kind === "discord" ? "5 sections" : "4 sections"}
+            description="Entry triggers, staged buys, safety filters, routing and retries."
+            count="4 sections"
           >
-          {kind === "discord" && (
-            <FormSection title="Automation and exposure" description="Controls preserved for existing bots." summary={`${effectiveCapitalSol.toFixed(2)} SOL cap · ${maxOpenTrades} open`}>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Toggle label="Automatic entries" detail="Open new positions from this source's calls." checked={autoEntry} onChange={setAutoEntry} compact disabled={killSwitch} />
-                <Toggle label="Automatic exits" detail="Run enabled exits without another signature." checked={autoExit} onChange={setAutoExit} compact disabled={killSwitch} />
-                <Toggle label="Emergency stop" detail="Refuse new entries while open positions keep exiting." checked={killSwitch} onChange={setKillSwitch} compact danger />
-              </div>
-              {/* Linked to the margin until touched — see the comment on capitalPinned. The
-                  fields show the value that will actually be saved, so what is on screen and
-                  what the server validates are never two different numbers. Editing either
-                  pins BOTH: once the user is setting capital by hand, silently continuing to
-                  recompute the other one would overwrite a decision they just made. */}
-              {!capitalPinned && (
-                <p className="t-label leading-5 text-dim">
-                  Maximum capital and per-token exposure follow your margin. Change either to set
-                  them yourself.
-                </p>
-              )}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <LimitField label="Maximum capital" on={limits.maximumCapital} onToggle={(on) => setLimit("maximumCapital", on)}><NumberField label="Maximum capital" hideLabel value={effectiveCapitalSol} onChange={(value) => { setCapitalPinned(true); setPerTokenSol(effectivePerTokenSol); setMaximumCapitalSol(value); }} unit="SOL" step={0.5} min={0.1} disabled={!limits.maximumCapital} /></LimitField>
-                <LimitField label="Maximum open trades" on={limits.maxOpenTrades} onToggle={(on) => setLimit("maxOpenTrades", on)}><NumberField label="Maximum open trades" hideLabel value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} unit="trades" step={1} min={1} max={100} disabled={!limits.maxOpenTrades} /></LimitField>
-                <LimitField label="Per-token exposure" on={limits.perTokenExposure} onToggle={(on) => setLimit("perTokenExposure", on)}><NumberField label="Per-token exposure" hideLabel value={effectivePerTokenSol} onChange={(value) => { setCapitalPinned(true); setMaximumCapitalSol(effectiveCapitalSol); setPerTokenSol(value); }} unit="SOL" step={0.1} min={0.01} disabled={!limits.perTokenExposure} /></LimitField>
-              </div>
-            </FormSection>
-          )}
-          {kind === "discord" && (
-            <FormSection title="Exit details" description="Optional staged profit-taking and stop behavior." summary="Advanced exit controls">
-              <div className="grid gap-3 md:grid-cols-2">
-                <Toggle label="Trailing take profit" detail="Trail enabled profit targets after activation." checked={trailingTakeProfit} onChange={setTrailingTakeProfit} disabled={!takeProfitEnabled} />
-                <NumberField label="Stop debounce" value={stopDelaySeconds} onChange={(value) => setStopDelaySeconds(Math.round(value))} unit="sec" step={1} min={0} max={300} disabled={!stopLossEnabled} />
-                <Toggle label="Trailing stop" detail="Move the stop upward with price." checked={trailingStop} onChange={setTrailingStop} disabled={!stopLossEnabled} />
-                <Toggle label="Dynamic stop" detail="Use supported volatility evidence." checked={dynamicStop} onChange={setDynamicStop} disabled={!stopLossEnabled} />
-                <Toggle label="Freeze after stop" detail="Block another entry until cooldown expires." checked={freezeAfterStop} onChange={setFreezeAfterStop} disabled={!stopLossEnabled} />
-                <Toggle label="Emergency exit" detail="Widen bounded slippage if an exit keeps failing." checked={emergencyExit} onChange={setEmergencyExit} />
-              </div>
-            </FormSection>
-          )}
           {kind === "kol" && (
             <FormSection
               title="Entry trigger"
@@ -1459,10 +1465,10 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Toggle label="Transaction simulation" detail="Reject the order when simulation is unavailable or fails." checked={simulationRequired} onChange={setSimulationRequired} />
-              {kind === "discord" && <Toggle label="First call only" detail="Ignore repeat calls for the token during the cooldown." checked={firstCallOnly} onChange={setFirstCallOnly} />}
             </div>
           </FormSection>
           </SectionGroup>
+          )}
         </div>
 
         {/* "Configuration summary" sat in gold above the bot's own name. A panel of the bot's
@@ -1497,14 +1503,28 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             {kind === "discord" && <SummaryRow label="Re-entry" value={autoReentry ? "On" : "Off"} />}
             <SummaryRow label="Safety checks" value={enabledSafetyCount > 0 ? `${enabledSafetyCount} on` : "Off"} />
             <SummaryRow
-              label="Maximum exposure"
+              // "Maximum exposure" read as "the most this bot will ever use", and the owner
+              // reasonably computed 0.02 x 5 trades a day = 0.10 against it. It bounds
+              // something narrower: what is deployed simultaneously. Named for that, with the
+              // daily ceiling as its own row rather than left to be inferred.
+              label="Open at once"
               value={`${lamportsToSol(
                 limits.maximumCapital && capitalPlan.perPositionLamports * BigInt(capitalPlan.positions) > BigInt(Math.round(effectiveCapitalSol * 1e9))
                   ? BigInt(Math.round(effectiveCapitalSol * 1e9))
                   : capitalPlan.plannedLamports
               )} SOL`}
-              hint="The most this bot can have deployed at once: entry plus enabled DCA, times maximum open trades, capped by maximum capital. This omitted DCA before, so it could read lower than the minimum capital shown above it."
+              hint="The most this bot can have deployed at the same moment: entry plus enabled DCA, times maximum open trades, capped by maximum capital. Maximum open trades lives under Advanced. This omitted DCA before, so it could read lower than the minimum capital shown above it."
             />
+            {kind === "discord" && (
+              <SummaryRow
+                label="Most in a day"
+                value={`${Math.min(
+                  limits.maxTradesPerDay ? perPositionSol * Math.max(1, Math.floor(maxTradesPerDay)) : Infinity,
+                  limits.dailyLoss ? dailyLossSol : Infinity
+                ).toFixed(3)} SOL`}
+                hint="Margin times max trades daily, capped by max margin daily. Whichever binds first stops new entries until 6:00 AM New York time."
+              />
+            )}
             {/* One user-facing rate. Listing the creator share as a second row read as
                 2.00% + 0.70% additive, which is exactly what spec 13.2 forbids -- the
                 creator is paid OUT OF the platform fee, not on top of it. */}
@@ -2050,11 +2070,17 @@ function SummaryRow({ label, value, hint }: { label: string; value: string; hint
   );
 }
 
-function SourceStat({ label, value }: { label: string; value: string }) {
+function SourceStat({ label, value, working }: { label: string; value: string; working?: string }) {
   return (
     <div className="bg-void px-4 py-3">
       <p className="field-label">{label}</p>
       <p className="mt-2 font-mono t-label leading-5 text-ink">{value}</p>
+      {/* The working, not just the total. A capital figure with no derivation is unfalsifiable:
+          the owner read "0.06 SOL" beside a 0.02 margin and a 5-trade daily limit and expected
+          0.10, because nothing on the expanded form said the 0.06 comes from a THIRD number —
+          maximum open trades, which now lives behind Advanced. Same reasoning as the KOL
+          minimum-capital box. */}
+      {working && <p className="mt-1 t-label leading-5 text-dim">{working}</p>}
     </div>
   );
 }
