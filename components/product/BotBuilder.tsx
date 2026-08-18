@@ -523,13 +523,37 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     maxOpenTrades: 1,
     dca: { enabled: dcaEnabled, levels: dcaLevels }
   }).perPositionSol;
+  /**
+   * How many positions may be open at the same time.
+   *
+   * It was a fixed 3, settable nowhere the Discord user could see once Advanced was removed —
+   * and it silently overrode a limit they COULD see: with "max trades daily 5", calls four and
+   * five were refused with "maximum open trades reached" while the owner's own settings allowed
+   * them. A hidden number beating a visible one is the defect this screen keeps producing.
+   *
+   * So it follows the daily trade count, and where that is switched off, however many entries
+   * the daily margin affords. Concurrency stops being a separate decision the user never made:
+   * total exposure is already bounded by the two daily caps, which the claim enforces before it
+   * takes anything.
+   *
+   * KOL still edits it directly in Advanced, and an existing bot keeps the value it was saved
+   * with — capitalPinned means its owner has set these by hand.
+   */
+  const derivedMaxOpenTrades = Math.max(1, Math.min(100, Math.floor(
+    limits.maxTradesPerDay && maxTradesPerDay > 0
+      ? maxTradesPerDay
+      : (buyAmountSol > 0 ? dailyLossSol / buyAmountSol : 1)
+  ) || 1));
+  const effectiveMaxOpenTrades = kind === "discord" && !capitalPinned
+    ? derivedMaxOpenTrades
+    : Math.max(1, Math.floor(maxOpenTrades));
   const effectivePerTokenSol = capitalPinned ? perTokenSol : perPositionSol;
   const effectiveCapitalSol = capitalPinned
     ? maximumCapitalSol
-    : perPositionSol * Math.max(1, Math.floor(maxOpenTrades));
+    : perPositionSol * effectiveMaxOpenTrades;
   const capitalPlan = plannedCapital({
     buyAmountSol,
-    maxOpenTrades,
+    maxOpenTrades: effectiveMaxOpenTrades,
     dca: { enabled: dcaEnabled, levels: dcaLevels },
     perTokenExposureSol: effectivePerTokenSol
   });
@@ -557,7 +581,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (!name.trim() || name.trim().length > 80) return "Bot name must be 1 to 80 characters.";
     if (kind === "discord" && !sourceId) return "Select an approved Discord source.";
     if (!(buyAmountSol > 0 && buyAmountSol <= 100)) return "Buy amount must be between 0 and 100 SOL.";
-    if (maxOpenTrades < 1 || maxOpenTrades > 100) return "Maximum open trades must be 1 to 100.";
+    if (effectiveMaxOpenTrades < 1 || effectiveMaxOpenTrades > 100) return "Maximum open trades must be 1 to 100.";
     if (limits.maximumCapital && effectiveCapitalSol < requiredCapital) {
       return `Maximum capital must cover at least ${lamportsToSol(capitalPlan.plannedLamports)} SOL.`;
     }
@@ -679,7 +703,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
       maximumCapitalLamports: solToLamports(effectiveCapitalSol),
       dailyLossLimitLamports: solToLamports(dailyLossSol),
       perTokenExposureLamports: solToLamports(effectivePerTokenSol),
-      maxOpenTrades,
+      maxOpenTrades: effectiveMaxOpenTrades,
       maxTradesPerDay: Math.round(maxTradesPerDay),
       entryMode,
       slippageBps: Math.round(slippageBps),
@@ -981,7 +1005,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             title={kind === "discord" ? "Margin amount per trade" : "Buy amount"}
             pending={pendingFor("funding")}
             description="How much this bot spends per entry."
-            summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${maxOpenTrades} open max`}
+            summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${effectiveMaxOpenTrades} open max`}
             defaultOpen
           >
             {kind === "kol" && <div className="grid gap-3 sm:grid-cols-3">
@@ -1025,31 +1049,23 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                   Both reset at 6:00 AM New York time. Once either is used, new entries wait for
                   the next reset. Exits continue.
                 </p>
-                {/* Two different ceilings, both named for what they bound. Showing only the
-                    first invited exactly the question it got: with a 0.02 margin and 5 trades a
-                    day, why does exposure read 0.06? Because it is 3 positions AT ONCE, a
-                    number that now lives behind Advanced. The daily ceiling is the one the
-                    visible settings actually determine, so it is on screen beside it. */}
-                <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-3">
+                {/* ONE exposure figure. Concurrency follows the daily trade count now, so
+                    "open at once" and "most in a day" are the same number — two rows carrying
+                    one fact is exactly the density this screen is being cut down to remove.
+                    It shows its working because a capital figure with no derivation is
+                    unfalsifiable: the owner read 0.06 beside a 0.02 margin and 5 trades and
+                    correctly could not get there. */}
+                <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2">
                   <SourceStat label="Wallet available" value={walletAvailableLamports == null ? "Unavailable" : `${lamportsToSol(BigInt(walletAvailableLamports))} SOL`} />
                   <SourceStat
-                    label="Open at once"
-                    value={`${lamportsToSol(
-                      limits.maximumCapital && capitalPlan.plannedLamports > BigInt(Math.round(effectiveCapitalSol * 1e9))
-                        ? BigInt(Math.round(effectiveCapitalSol * 1e9))
-                        : capitalPlan.plannedLamports
-                    )} SOL`}
-                    working={`${buyAmountSol} × ${Math.max(1, Math.floor(maxOpenTrades))} open positions`}
-                  />
-                  <SourceStat
-                    label="Most in a day"
+                    label="Most at risk"
                     value={`${Math.min(
-                      limits.maxTradesPerDay ? perPositionSol * Math.max(1, Math.floor(maxTradesPerDay)) : Infinity,
+                      perPositionSol * effectiveMaxOpenTrades,
                       limits.dailyLoss ? dailyLossSol : Infinity
                     ).toFixed(3)} SOL`}
-                    working={limits.maxTradesPerDay
-                      ? `${buyAmountSol} × ${Math.max(1, Math.floor(maxTradesPerDay))} trades, capped by max margin daily`
-                      : "Max margin daily, with no trade count set"}
+                    working={`${buyAmountSol} × ${effectiveMaxOpenTrades} trades${
+                      perPositionSol * effectiveMaxOpenTrades > dailyLossSol && limits.dailyLoss
+                        ? ", capped by max margin daily" : ""}`}
                   />
                 </div>
               </>
@@ -1058,7 +1074,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
               <summary className="flex min-h-11 list-none items-center justify-between gap-3 px-3">
                 <span>
                   <span className="block t-label font-medium text-ink">Exposure limits</span>
-                  <span className="mt-0.5 block t-label text-dim">{effectiveCapitalSol.toFixed(2)} SOL cap · {maxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {effectivePerTokenSol.toFixed(2)} SOL per token</span>
+                  <span className="mt-0.5 block t-label text-dim">{effectiveCapitalSol.toFixed(2)} SOL cap · {effectiveMaxOpenTrades} open · {dailyLossSol.toFixed(2)} SOL daily · {effectivePerTokenSol.toFixed(2)} SOL per token</span>
                 </span>
                 <ChevronDown aria-hidden="true" size={15} className="text-dim transition group-open:rotate-180" />
               </summary>
@@ -1502,29 +1518,17 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             <SummaryRow label="Stop loss" value={stopLossEnabled ? `-${(stopBps / 100).toFixed(2)}%` : "Off"} />
             {kind === "discord" && <SummaryRow label="Re-entry" value={autoReentry ? "On" : "Off"} />}
             <SummaryRow label="Safety checks" value={enabledSafetyCount > 0 ? `${enabledSafetyCount} on` : "Off"} />
+            {/* One row, for the same reason as the stat above. "Maximum exposure" read as
+                "the most this bot will ever use" and invited 0.02 x 5 = 0.10 against a figure
+                that meant something narrower. */}
             <SummaryRow
-              // "Maximum exposure" read as "the most this bot will ever use", and the owner
-              // reasonably computed 0.02 x 5 trades a day = 0.10 against it. It bounds
-              // something narrower: what is deployed simultaneously. Named for that, with the
-              // daily ceiling as its own row rather than left to be inferred.
-              label="Open at once"
-              value={`${lamportsToSol(
-                limits.maximumCapital && capitalPlan.perPositionLamports * BigInt(capitalPlan.positions) > BigInt(Math.round(effectiveCapitalSol * 1e9))
-                  ? BigInt(Math.round(effectiveCapitalSol * 1e9))
-                  : capitalPlan.plannedLamports
-              )} SOL`}
-              hint="The most this bot can have deployed at the same moment: entry plus enabled DCA, times maximum open trades, capped by maximum capital. Maximum open trades lives under Advanced. This omitted DCA before, so it could read lower than the minimum capital shown above it."
+              label="Most at risk"
+              value={`${Math.min(
+                perPositionSol * effectiveMaxOpenTrades,
+                limits.dailyLoss ? dailyLossSol : Infinity
+              ).toFixed(3)} SOL`}
+              hint="Margin times the number of trades allowed in a day, capped by max margin daily. Both reset at 6:00 AM New York time; whichever binds first stops new entries until then."
             />
-            {kind === "discord" && (
-              <SummaryRow
-                label="Most in a day"
-                value={`${Math.min(
-                  limits.maxTradesPerDay ? perPositionSol * Math.max(1, Math.floor(maxTradesPerDay)) : Infinity,
-                  limits.dailyLoss ? dailyLossSol : Infinity
-                ).toFixed(3)} SOL`}
-                hint="Margin times max trades daily, capped by max margin daily. Whichever binds first stops new entries until 6:00 AM New York time."
-              />
-            )}
             {/* One user-facing rate. Listing the creator share as a second row read as
                 2.00% + 0.70% additive, which is exactly what spec 13.2 forbids -- the
                 creator is paid OUT OF the platform fee, not on top of it. */}
@@ -1701,7 +1705,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 {
                   title: "Buy settings",
                   items: [
-                    ["Entry", `${buyAmountSol} SOL · ${entryMode} · ${maxOpenTrades} maximum trades`],
+                    ["Entry", `${buyAmountSol} SOL · ${entryMode} · ${effectiveMaxOpenTrades} maximum trades`],
                     ["Capital", `${effectiveCapitalSol} SOL maximum · ${dailyLossSol} SOL max margin daily · ${limits.maxTradesPerDay ? `${maxTradesPerDay} trades daily · ` : ""}${effectivePerTokenSol} SOL per token`],
                     ...(kind === "kol" ? [
                       ["Trigger", `-${priceDropBps / 100}% from ${referenceMode === "recent-ath" ? "recent ATH" : "moving average"} over ${lookbackMinutes} minutes`],

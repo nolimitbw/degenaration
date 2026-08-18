@@ -3032,6 +3032,33 @@ console.log("price selection");
     assert.strictEqual(plan.totalWithReserveLamports, 2000000000n + 15890880n);
   });
 
+  test("concurrency follows the daily trade count, so a hidden cap cannot refuse an allowed trade", () => {
+    // The owner asked "what is this 3 open position?" — and it was a fixed default, settable
+    // nowhere they could see. It silently overrode a limit they COULD see: with max trades
+    // daily 5, calls four and five were refused with "maximum open trades reached" while their
+    // own settings allowed them.
+    //
+    // The builder now derives it. This asserts the property that makes the refusal impossible:
+    // whatever the daily trade count allows, the concurrency cap is at least as large, so it is
+    // never the binding constraint on a trade the daily limits permit.
+    const derive = (trades, dailyMarginSol, marginSol) => Math.max(1, Math.min(100, Math.floor(
+      trades > 0 ? trades : (marginSol > 0 ? dailyMarginSol / marginSol : 1)
+    ) || 1));
+
+    for (const [trades, dailyMargin, margin] of [
+      [5, 0.1, 0.02], [10, 1, 0.5], [1, 0.05, 0.05], [500, 100, 0.02], [3, 0.06, 0.02]
+    ]) {
+      const open = derive(trades, dailyMargin, margin);
+      assert.ok(open >= Math.min(trades, 100),
+        `${trades} trades/day must not be throttled to ${open} concurrent`);
+      assert.ok(open >= 1 && open <= 100, "and must stay inside what the server accepts");
+    }
+
+    // With the count switched off it falls back to what the daily margin affords, never zero.
+    assert.strictEqual(derive(0, 0.1, 0.02), 5, "0.1 SOL a day at a 0.02 margin is five entries");
+    assert.strictEqual(derive(0, 0.01, 0.02), 1, "a margin larger than the daily budget still allows one");
+  });
+
   test("a hidden staged-buy default cannot make the visible margin mean double", () => {
     // The defect this caught, live. DCA defaulted ON with two 0.25 SOL levels, so a builder
     // showing "Margin amount per trade 0.5 SOL" committed 1.0 SOL per position and reported
