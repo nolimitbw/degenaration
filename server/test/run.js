@@ -108,6 +108,22 @@ test("refuses two links pointing at different mints", () => {
   const r = parseMessage({ content: `https://pump.fun/coin/${MINT_A} and https://birdeye.so/token/${MINT_B}` });
   assert.strictEqual(r.rejected, "ambiguous-links");
 });
+test("a refusal names the addresses that conflicted, not just how many", () => {
+  // Three of the owner's last seven messages were refused as ambiguous, and the only record
+  // was the word "ambiguous" — so "which two addresses?", the one question that leads
+  // anywhere, could not be answered from stored data at all. The listener resolves against
+  // these, so they are load-bearing rather than diagnostic decoration.
+  const byAddress = parseMessage({ content: MINT_A, embeds: [{ description: MINT_B }] });
+  assert.deepStrictEqual(byAddress.addresses, [MINT_A, MINT_B]);
+  const byLink = parseMessage({ content: `https://pump.fun/coin/${MINT_A} and https://birdeye.so/token/${MINT_B}` });
+  assert.strictEqual(byLink.addresses.length, 2);
+  assert.ok(byLink.addresses.includes(MINT_A) && byLink.addresses.includes(MINT_B));
+});
+test("an unambiguous message carries no candidate list to resolve", () => {
+  const r = parseMessage({ content: MINT_A });
+  assert.strictEqual(r.mint, MINT_A);
+  assert.strictEqual(r.addresses, undefined, "resolution must never run on a clear call");
+});
 test("falls back to the replied-to message when the reply itself carries nothing", () => {
   const r = parseMessage({ content: "aped", referencedMessage: { content: MINT_A } });
   assert.strictEqual(r.mint, MINT_A);

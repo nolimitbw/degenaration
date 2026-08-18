@@ -108,6 +108,16 @@ function createMessageHandlers({
   log = () => {},
   noteFreshness = () => {},
   ingested = new IngestedMessages(),
+  /**
+   * Decides which of several candidate addresses is the tradable token, or null.
+   *
+   * Injected, and defaulting to "resolve nothing", because the alternative is a NETWORK CALL
+   * deciding a test outcome. verify:discord-replay drives these exact handlers over stored
+   * events and asserts a two-address message is refused; with the lookup wired in ambiently
+   * that assertion passed or failed on whether DexScreener answered, which is not a property
+   * of the code under test. server/bot/index.js supplies the real one.
+   */
+  resolveTradable = async () => null,
   onLegacyRegister = null,
   onError = (scope, error) => console.error(`[bot] ${scope} failed:`, error?.message)
 }) {
@@ -187,6 +197,33 @@ function createMessageHandlers({
   }
 
   /**
+   * Which of several candidate addresses is the token?
+   *
+   * The parser refuses when a tier yields more than one distinct address, and it is right to
+   * refuse on the evidence it has: a wallet pasted beside a mint must never be bought, and the
+   * parser is pure text and cannot tell them apart.
+   *
+   * But most of the time that is not a real ambiguity, only an unresolved one. Three of the
+   * owner's last seven messages were refused this way while the channel was posting ordinary
+   * calls, and a refusal is now the last thing standing between a call and a trade.
+   *
+   * So ask the market. Exactly one candidate being a tradable Solana token is not a guess, it
+   * is the answer — a wallet address has no pair, and neither does a pool id or a transaction
+   * signature. Two tradable candidates IS genuine ambiguity and stays refused; the owner's
+   * "no guards" applies to which tokens are worth buying, not to buying the wrong one.
+   *
+   * DexScreener is already the price source for every accepted call, so this adds no new
+   * dependency. A provider failure resolves nothing and leaves the refusal in place.
+   */
+  async function resolveAmbiguous(addresses) {
+    if (!Array.isArray(addresses) || addresses.length < 2 || addresses.length > 8) return null;
+    const resolved = await resolveTradable(addresses);
+    // Only an address the message actually offered. A resolver returning anything else is a
+    // bug, and accepting it would buy a token nobody called.
+    return addresses.includes(resolved) ? resolved : null;
+  }
+
+  /**
    * Ingest one detected call and report what happened either way.
    *
    * A rejection is logged rather than dropped silently. "We saw two addresses and refused to
@@ -195,11 +232,26 @@ function createMessageHandlers({
    */
   async function handleDetectedCall({ msg, group, parsed, eventType, eventVersion, editedAt }) {
     if (parsed?.rejected) {
+      // One last attempt to answer the question rather than refuse it. Only when exactly one
+      // candidate turns out to be a real tradable token; anything else keeps the refusal.
+      const resolved = await resolveAmbiguous(parsed.addresses).catch(() => null);
+      if (resolved) {
+        counters.resolvedAmbiguous = (counters.resolvedAmbiguous || 0) + 1;
+        log("call.resolved", {
+          channelId: msg.channel.id, messageId: msg.id,
+          group: group.groupName || group.groupId,
+          parserReason: parsed.rejected, candidates: parsed.candidates, mint: resolved
+        });
+        parsed = { mint: resolved, confidence: "resolved-tradable", candidateType: "mint" };
+      }
+    }
+    if (parsed?.rejected) {
       counters.refusedAmbiguous += 1;
       const rejectionReason = "ambiguous_mint";
       log("call.rejected", {
         channelId: msg.channel.id, messageId: msg.id, group: group.groupName || group.groupId,
-        reason: rejectionReason, parserReason: parsed.rejected, candidates: parsed.candidates, eventType
+        reason: rejectionReason, parserReason: parsed.rejected, candidates: parsed.candidates,
+        addresses: Array.isArray(parsed.addresses) ? parsed.addresses : undefined, eventType
       });
       try {
         return await ingestEvent({
@@ -211,6 +263,10 @@ function createMessageHandlers({
           group,
           call: null,
           rejectionReason,
+          // What actually conflicted. The log line below has carried this all along; the
+          // stored record did not, which is why a refusal could be seen in Render's logs and
+          // nowhere the owner can reach.
+          ambiguousAddresses: Array.isArray(parsed.addresses) ? parsed.addresses : [],
           eventType,
           eventVersion,
           editedAt

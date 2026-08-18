@@ -46,6 +46,31 @@ const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5)
 // ordering for a constant is a footgun for whoever moves this code next.
 const PROFILE_SYNC_MS = Number(process.env.BOT_PROFILE_SYNC_MS || 21600000); // 6h
 
+/**
+ * Which of several candidate addresses is the tradable token, or null when that is not
+ * knowable. Exactly one candidate having a Solana market is not a guess — a wallet address,
+ * a pool id and a transaction signature all have none.
+ *
+ * DexScreener is already the price source for every accepted call, so this adds no new
+ * dependency. A provider failure resolves nothing and the parser's refusal stands.
+ */
+async function resolveTradable(addresses) {
+  const tradable = [];
+  for (const address of addresses) {
+    const payload = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`, {
+      signal: AbortSignal.timeout(6_000)
+    }).then((r) => r.json()).catch(() => null);
+    const pairs = Array.isArray(payload?.pairs) ? payload.pairs : [];
+    // baseToken, not either side: a quote-side match would make wSOL or USDC "tradable" for
+    // every call that happens to mention them.
+    if (pairs.some((pair) => pair?.chainId === "solana" && pair?.baseToken?.address === address)) {
+      tradable.push(address);
+    }
+    if (tradable.length > 1) return null; // genuinely ambiguous; stop paying for lookups
+  }
+  return tradable.length === 1 ? tradable[0] : null;
+}
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   // Without partials, discord.js drops MESSAGE_UPDATE and MESSAGE_DELETE for any message it
@@ -546,6 +571,7 @@ client.on("interactionCreate", async (interaction) => {
  */
 const listener = createMessageHandlers({
   parseMessage,
+  resolveTradable,
   ingestEvent,
   approvedChannel: (channelId) => approved[channelId],
   selfId: () => client.user?.id || null,
