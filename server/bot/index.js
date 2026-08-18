@@ -12,7 +12,7 @@
  */
 require("dotenv").config();
 const { Client, GatewayIntentBits, PermissionsBitField, SlashCommandBuilder } = require("discord.js");
-const { parseCall } = require("./parser");
+const { parseCall, parseCalls } = require("./parser");
 const { loadApprovedChannels, registerChannel, getGuildStatus } = require("./store");
 
 const INGEST_URL = process.env.INGEST_URL;              // e.g. https://degenaration.vercel.app/api/ingest-call
@@ -97,15 +97,60 @@ async function relayCall({ caller, channelName, group, call }) {
   }
 }
 
-async function ingestCall({ channelId, channelName, messageId, caller, group, call }) {
+// A 5xx means the site is briefly unavailable — the call is still real, so retry.
+// A 4xx is a permanent verdict (not approved, duplicate message) — do not retry.
+const RETRY_DELAYS_MS = [250, 1000, 3000];
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function postIngest(payload) {
   if (!INGEST_URL || !BOT_SECRET) throw new Error("INGEST_URL / BOT_SHARED_SECRET not set");
-  const response = await fetch(INGEST_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-bot-secret": BOT_SECRET },
-    body: JSON.stringify({ channelId, channelName, mint: call.mint, messageId, caller, confidence: call.confidence })
+  let lastError = "ingest failed";
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+    if (attempt > 0) await sleep(RETRY_DELAYS_MS[attempt - 1]);
+    let response;
+    try {
+      response = await fetch(INGEST_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-bot-secret": BOT_SECRET },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      lastError = e.message;
+      continue;
+    }
+    if (response.ok) return;
+    lastError = `ingest rejected (${response.status})`;
+    if (response.status < 500 && response.status !== 429) throw new Error(lastError);
+  }
+  throw new Error(lastError);
+}
+
+async function ingestCall({ channelId, channelName, messageId, caller, group, call, eventType = "create", eventVersion = "original", editedAt = null }) {
+  await postIngest({
+    channelId,
+    channelName,
+    mint: call.mint,
+    messageId,
+    caller,
+    confidence: call.confidence,
+    eventType,
+    eventVersion,
+    editedAt
   });
-  if (!response.ok) throw new Error(`ingest rejected (${response.status})`);
-  await relayCall({ caller, channelName, group, call });
+  if (eventType === "create") await relayCall({ caller, channelName, group, call });
+}
+
+/**
+ * Ingest every mint in one message without blocking the gateway. Reading the next
+ * Discord message must never wait on our own HTTP round-trip.
+ */
+function ingestCallsInBackground({ calls, channelId, channelName, messageId, caller, group, eventType, editedAt }) {
+  for (const [index, call] of calls.entries()) {
+    // event_version makes each (message, mint) pair a distinct, dedupable event upstream.
+    const eventVersion = eventType === "create" ? `original:${index}` : `${eventType}:${Date.parse(editedAt || "") || Date.now()}:${index}`;
+    ingestCall({ channelId, channelName, messageId, caller, group, call, eventType, eventVersion, editedAt })
+      .catch((e) => console.error(`[bot] ingest failed (${call.mint}):`, e.message));
+  }
 }
 
 async function registerCallChannel({ guild, channel, member, permissions, user, reply }) {
@@ -249,22 +294,47 @@ client.on("messageCreate", async (msg) => {
   const group = approved[msg.channel.id];
   if (!group) return;
 
+  // Every Solana mint in an approved channel is a call — no filtering, no scoring.
+  const calls = parseCalls(msg.content);
+  if (!calls.length) return;
+  console.log(`[call] ${group.groupName || group.groupId}: ${calls.map((c) => `${c.mint} (${c.confidence})`).join(", ")}`);
+
+  ingestCallsInBackground({
+    calls,
+    channelId: msg.channel.id,
+    channelName: msg.channel.name,
+    messageId: msg.id,
+    caller: callerName(msg),
+    group,
+    eventType: "create"
+  });
+});
+
+// An edited message can reveal a mint that was not in the original text. The ingest
+// RPC versions edits separately, so a genuinely new mint still becomes a journaled call.
+client.on("messageUpdate", async (_before, after) => {
+  const msg = after?.partial ? await after.fetch().catch(() => null) : after;
+  if (!msg || msg.author?.bot || !msg.guild) return;
+
+  const group = approved[msg.channel?.id];
+  if (!group) return;
+
+  // Edits supersede the message's earlier call upstream, which is single-mint
+  // semantics — so an edit carries only the leading mint. Multi-mint fan-out is
+  // the messageCreate path's job.
   const call = parseCall(msg.content);
   if (!call) return;
-  console.log(`[call] ${group.groupName || group.groupId}: ${call.mint} (${call.confidence})`);
 
-  try {
-    await ingestCall({
-      channelId: msg.channel.id,
-      channelName: msg.channel.name,
-      messageId: msg.id,
-      caller: callerName(msg),
-      group,
-      call
-    });
-  } catch (e) {
-    console.error("[bot] ingest failed:", e.message);
-  }
+  ingestCallsInBackground({
+    calls: [call],
+    channelId: msg.channel.id,
+    channelName: msg.channel.name,
+    messageId: msg.id,
+    caller: callerName(msg),
+    group,
+    eventType: "edit",
+    editedAt: (msg.editedAt || new Date()).toISOString()
+  });
 });
 
 client.login(process.env.DISCORD_BOT_TOKEN);

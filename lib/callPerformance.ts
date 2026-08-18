@@ -12,7 +12,27 @@ export type PerformanceCall = {
   called_price_usd?: number | string | null;
   peak_price_usd?: number | string | null;
   latest_price_usd?: number | string | null;
+  trough_price_usd?: number | string | null;
+  // Write-once milestone stamps set by the worker's performance scanner. They record
+  // what a call actually did, for every call, whether or not anybody copied it.
+  hit_down_50_at?: string | null;
+  hit_up_50_at?: string | null;
+  hit_2x_at?: string | null;
+  hit_5x_at?: string | null;
+  outcome?: "open" | "win" | "loss" | null;
 };
+
+export const MILESTONES = [
+  { key: "hit_up_50_at", label: "+50%", tone: "up" },
+  { key: "hit_2x_at", label: "2x", tone: "up" },
+  { key: "hit_5x_at", label: "5x", tone: "up" },
+  { key: "hit_down_50_at", label: "-50%", tone: "down" }
+] as const;
+
+/** The milestones a call has actually reached, in order. */
+export function reachedMilestones(call: PerformanceCall) {
+  return MILESTONES.filter(({ key }) => Boolean(call[key]));
+}
 
 const positive = (value: unknown) => {
   const number = Number(value);
@@ -47,6 +67,16 @@ export type SourceMetrics = {
   medianPeakX: number | null;
   bestPeakX: number | null;
   latestCallAt: string | null;
+  // Journaled outcomes. `winRate` is over SETTLED calls only — an open call has not
+  // proved anything yet, and counting it either way would misstate the record.
+  wins: number;
+  losses: number;
+  openCalls: number;
+  winRate: number | null;
+  up50: number;
+  x2: number;
+  x5: number;
+  down50: number;
 };
 
 export function sourceMetrics(calls: PerformanceCall[]): SourceMetrics {
@@ -60,9 +90,23 @@ export function sourceMetrics(calls: PerformanceCall[]): SourceMetrics {
     return !latest || call.called_at > latest ? call.called_at : latest;
   }, null);
 
+  const count = (key: "hit_up_50_at" | "hit_2x_at" | "hit_5x_at" | "hit_down_50_at") =>
+    calls.filter((call) => Boolean(call[key])).length;
+  const wins = calls.filter((call) => call.outcome === "win").length;
+  const losses = calls.filter((call) => call.outcome === "loss").length;
+  const settled = wins + losses;
+
   return {
     calls: calls.length,
     measuredCalls: multiples.length,
+    wins,
+    losses,
+    openCalls: calls.length - settled,
+    winRate: settled ? (wins / settled) * 100 : null,
+    up50: count("hit_up_50_at"),
+    x2: count("hit_2x_at"),
+    x5: count("hit_5x_at"),
+    down50: count("hit_down_50_at"),
     hitRate: multiples.length ? multiples.filter((value) => value >= 2).length / multiples.length * 100 : null,
     avgPeakX: multiples.length ? multiples.reduce((sum, value) => sum + value, 0) / multiples.length : null,
     medianPeakX: median,

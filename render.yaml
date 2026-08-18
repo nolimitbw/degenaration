@@ -31,3 +31,34 @@ services:
         sync: false
       - key: PLATFORM_FEE_ACCOUNT
         sync: false
+      # Authenticates the site's POST /dispatch push (same secret the bot uses).
+      - key: BOT_SHARED_SECRET
+        sync: false
+
+  - type: worker
+    name: degenaration-discord-bot
+    runtime: node
+    plan: free
+    rootDir: server/bot
+    buildCommand: npm ci
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: INGEST_URL
+        sync: false
+      - key: BOT_SHARED_SECRET
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: RELAY_CHANNEL_ID
+        sync: false
+      - key: CHANNELS_REFRESH_MS
+        value: "30000"

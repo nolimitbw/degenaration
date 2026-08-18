@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { peakMultiple, sourceMetrics, type PerformanceCall } from "@/lib/callPerformance";
+import { currentMultiple, peakMultiple, sourceMetrics, type PerformanceCall } from "@/lib/callPerformance";
 import { rateLimit } from "@/lib/server/guard";
 
 // GET /api/calls?tf=1h|1d|7d|30d -> { calls, groups, callers } ranked by real recorded performance
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   const since = tfMs[tf] ? new Date(now - tfMs[tf]).toISOString() : new Date(now - 86400000).toISOString();
 
   const primary = await supa.from("calls")
-    .select("id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd,called_at")
+    .select("id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd,trough_price_usd,hit_down_50_at,hit_up_50_at,hit_2x_at,hit_5x_at,outcome,called_at")
     .gte("called_at", since)
     .order("called_at", { ascending: false }).limit(200);
   const fallback = primary.error ? await supa.from("calls")
@@ -30,7 +30,8 @@ export async function GET(req: NextRequest) {
 
   const calls = (((fallback?.data ?? primary.data ?? []) as unknown) as PerformanceCall[]).map((c) => ({
     ...c,
-    peakX: peakMultiple(c)
+    peakX: peakMultiple(c),
+    nowX: currentMultiple(c)
   }));
 
   // aggregate by group and caller
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
       return {
         name, calls: metrics.calls, measuredCalls: metrics.measuredCalls, hitRate: metrics.hitRate ?? 0,
         avgX: metrics.avgPeakX ?? 0, bestX: metrics.bestPeakX ?? 0,
+        winRate: metrics.winRate, wins: metrics.wins, losses: metrics.losses, openCalls: metrics.openCalls,
+        up50: metrics.up50, x2: metrics.x2, x5: metrics.x5, down50: metrics.down50,
         points: (metrics.avgPeakX ?? 0) * 10 + (metrics.hitRate ?? 0) / 10
       };
     }).sort((a, b) => b.points - a.points);

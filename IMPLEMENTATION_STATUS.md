@@ -1,6 +1,6 @@
 # DegenAration Implementation Status
 
-Updated: 2026-07-26
+Updated: 2026-08-18
 
 Status meanings:
 
@@ -16,6 +16,11 @@ Status meanings:
 | Normal navigation limited to three sections | FAIL | Current shell exposes legacy routes |
 | Verified database-backed admin role | PARTIAL | Signed Privy identity email guard exists; DB role absent |
 | Discord registration and approval | PASS | `/register`, bridges, live channel rows |
+| Every mint in a registered channel becomes a call | PASS | `server/bot/parser.js` `parseCalls`, per-mint event versions, `supabase/degenaration-multi-mint-calls.sql` |
+| Journal-first ingestion (no pre-trade scanning) | PASS | `app/api/ingest-call/route.ts` records then enriches via `bot_enrich_call_pricing` |
+| Push-triggered execution (no poll delay) | PARTIAL | `server/engine/call-stream.js` + worker `POST /dispatch`; end-to-end unverified until `WORKER_DISPATCH_URL` and signing secrets exist |
+| Per-call outcome journal (-50%/+50%/2x/5x) | PARTIAL | `server/engine/performance.js` milestones + `source_call_stats`; migration not yet applied to the live project |
+| Per-subscription copy filters | PARTIAL | `supabase/degenaration-subscription-filters.sql` enforced inside the claim; migration not yet applied |
 | Discord marketplace | PARTIAL | Approved source cards and measured performance exist |
 | Versioned Discord bot builder | FAIL | Entry-only subscription profile |
 | Discord creator commission at 70 bps | FAIL | No creator commission ledger |

@@ -35,6 +35,16 @@ async function quoteToken(mint, fetcher = fetch) {
   }
 }
 
+// Journaled outcomes, in multiples of the entry price. Up legs are measured against the
+// call's peak, the down leg against its trough — so a call is credited with what it
+// actually did, not with where it happens to sit at scan time.
+const MILESTONES = [
+  { column: "hit_up_50_at", multiple: 1.5, direction: "up" },
+  { column: "hit_2x_at", multiple: 2, direction: "up" },
+  { column: "hit_5x_at", multiple: 5, direction: "up" },
+  { column: "hit_down_50_at", multiple: 0.5, direction: "down" }
+];
+
 function performanceUpdate(call, quote, now = new Date().toISOString()) {
   const update = { last_scanned_at: now };
   const entryPrice = numberOrNull(call.called_price_usd);
@@ -42,15 +52,42 @@ function performanceUpdate(call, quote, now = new Date().toISOString()) {
   const entryMcap = numberOrNull(call.called_mcap);
   const currentMcap = numberOrNull(quote?.marketCap);
 
+  let peakPrice = numberOrNull(call.peak_price_usd) || entryPrice || null;
+  let troughPrice = numberOrNull(call.trough_price_usd) || entryPrice || null;
+
   if (currentPrice) {
     update.latest_price_usd = currentPrice;
-    update.peak_price_usd = Math.max(numberOrNull(call.peak_price_usd) || entryPrice || 0, currentPrice);
+    peakPrice = Math.max(peakPrice || 0, currentPrice);
+    troughPrice = Math.min(troughPrice || currentPrice, currentPrice);
+    update.peak_price_usd = peakPrice;
+    update.trough_price_usd = troughPrice;
   }
   if (currentMcap) {
     update.latest_mcap = currentMcap;
     update.peak_mcap = Math.max(numberOrNull(call.peak_mcap) || entryMcap || 0, currentMcap);
   }
   if (numberOrNull(quote?.liquidityUsd)) update.latest_liquidity_usd = quote.liquidityUsd;
+
+  // Without an entry price there is nothing to measure against yet — the call stays open
+  // and enrichment or a later scan will backfill it.
+  if (!entryPrice) return update;
+
+  for (const { column, multiple, direction } of MILESTONES) {
+    if (call[column]) continue; // write-once: a milestone reached is never un-reached
+    const reached = direction === "up"
+      ? peakPrice && peakPrice >= entryPrice * multiple
+      : troughPrice && troughPrice <= entryPrice * multiple;
+    if (reached) update[column] = now;
+  }
+
+  // Settled on whichever leg came first; still 'open' until one of them does.
+  const wonAt = call.hit_up_50_at || update.hit_up_50_at || null;
+  const lostAt = call.hit_down_50_at || update.hit_down_50_at || null;
+  if (wonAt && lostAt) update.outcome = Date.parse(wonAt) <= Date.parse(lostAt) ? "win" : "loss";
+  else if (wonAt) update.outcome = "win";
+  else if (lostAt) update.outcome = "loss";
+  else if (!call.outcome) update.outcome = "open";
+
   return update;
 }
 

@@ -1,11 +1,25 @@
 // Minimal zero-dependency test runner for the Degenaration server logic.
 const assert = require("assert");
-const { parseCall } = require("../bot/parser");
+const { parseCall, parseCalls, MAX_CALLS_PER_MESSAGE } = require("../bot/parser");
 
 let pass = 0, fail = 0;
+// Async tests are queued and awaited at the end. Without this an async assertion
+// failure would surface as an unhandled rejection and still be counted as a pass.
+const pending = [];
 function test(name, fn) {
-  try { fn(); pass++; console.log("  ✓ " + name); }
-  catch (e) { fail++; console.log("  ✗ " + name + " — " + e.message); }
+  let result;
+  try { result = fn(); }
+  catch (e) { fail++; console.log("  ✗ " + name + " — " + e.message); return; }
+
+  if (result && typeof result.then === "function") {
+    pending.push(result.then(
+      () => { pass++; console.log("  ✓ " + name + " (async)"); },
+      (e) => { fail++; console.log("  ✗ " + name + " — " + e.message); }
+    ));
+    return;
+  }
+  pass++;
+  console.log("  ✓ " + name);
 }
 
 console.log("parser");
@@ -32,9 +46,38 @@ test("ignores empty / oversized input", () => {
   assert.strictEqual(parseCall(""), null);
   assert.strictEqual(parseCall("x".repeat(3000)), null);
 });
-test("does not misfire on two addresses (ambiguous)", () => {
+// Product rule: EVERY Solana mint posted in a registered channel is a call. A message
+// naming two mints is two calls, not an ambiguity to discard.
+test("returns every mint in a multi-token message", () => {
   const two = "a 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU b 6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP";
-  assert.strictEqual(parseCall(two), null);
+  const calls = parseCalls(two);
+  assert.strictEqual(calls.length, 2);
+  assert.deepStrictEqual(calls.map((c) => c.mint), [
+    "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    "6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP"
+  ]);
+});
+test("collapses a repeated mint to one call at its highest confidence", () => {
+  const mint = "6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP";
+  const calls = parseCalls(`${mint} chart: pump.fun/coin/${mint}`);
+  assert.strictEqual(calls.length, 1);
+  assert.strictEqual(calls[0].confidence, "high");
+});
+test("caps how many calls one message can produce", () => {
+  const mints = [
+    "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    "6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP",
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "So11111111111111111111111111111111111111112",
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+  ].join(" ");
+  assert.strictEqual(parseCalls(mints).length, MAX_CALLS_PER_MESSAGE);
+});
+test("parseCall still returns the leading mint for single-call callers", () => {
+  const two = "a 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU b 6dNUKef4vjbxWnPeGCTk9nu6y2CybnrKGCB6Ke2ApUMP";
+  assert.strictEqual(parseCall(two).mint, "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU");
 });
 
 console.log("fee math (configured platform fee)");
@@ -150,6 +193,91 @@ test("preserves the peak while recording a lower current price", () => {
   assert.strictEqual(update.last_scanned_at, "2026-07-12T00:00:00.000Z");
 });
 
+console.log("call outcome milestones");
+const NOW = "2026-07-12T00:00:00.000Z";
+test("stamps every up milestone the peak has cleared", () => {
+  const update = performanceUpdate({ called_price_usd: 1 }, { priceUsd: 5 }, NOW);
+  assert.strictEqual(update.hit_up_50_at, NOW);
+  assert.strictEqual(update.hit_2x_at, NOW);
+  assert.strictEqual(update.hit_5x_at, NOW);
+  assert.strictEqual(update.outcome, "win");
+});
+test("a milestone already reached is never re-stamped or cleared", () => {
+  const earlier = "2026-07-01T00:00:00.000Z";
+  // Round-tripped all the way back to entry — the 2x it already ran still stands.
+  const update = performanceUpdate(
+    { called_price_usd: 1, peak_price_usd: 2.5, hit_up_50_at: earlier, hit_2x_at: earlier, outcome: "win" },
+    { priceUsd: 1 },
+    NOW
+  );
+  assert.strictEqual(update.hit_2x_at, undefined);
+  assert.strictEqual(update.hit_up_50_at, undefined);
+  assert.strictEqual(update.peak_price_usd, 2.5);
+  assert.strictEqual(update.outcome, "win");
+});
+test("halving from entry settles the call as a loss", () => {
+  const update = performanceUpdate({ called_price_usd: 1 }, { priceUsd: 0.4 }, NOW);
+  assert.strictEqual(update.hit_down_50_at, NOW);
+  assert.strictEqual(update.trough_price_usd, 0.4);
+  assert.strictEqual(update.outcome, "loss");
+  assert.strictEqual(update.hit_up_50_at, undefined);
+});
+test("a call that ran up before dumping keeps the win it earned first", () => {
+  const won = "2026-07-02T00:00:00.000Z";
+  const update = performanceUpdate(
+    { called_price_usd: 1, peak_price_usd: 2, hit_up_50_at: won, hit_2x_at: won },
+    { priceUsd: 0.3 },
+    NOW
+  );
+  assert.strictEqual(update.hit_down_50_at, NOW);
+  assert.strictEqual(update.outcome, "win"); // the +50% leg came first
+});
+test("an unpriced call stays open instead of being scored", () => {
+  const update = performanceUpdate({ called_price_usd: null }, { priceUsd: 0.5 }, NOW);
+  assert.strictEqual(update.outcome, undefined);
+  assert.strictEqual(update.hit_down_50_at, undefined);
+  assert.strictEqual(update.latest_price_usd, 0.5);
+});
+
+console.log("push dispatch");
+const { createCallDispatcher } = require("../engine/call-stream");
+test("executes a pushed call once, even when pushed twice", async () => {
+  const claimed = [];
+  const call = { id: "c1", group_id: "g1", mint: "M".repeat(44), executed_at: null };
+  const deps = {
+    loadCallById: async () => call,
+    loadGroupSubscribers: async () => [{ id: "s1" }],
+    // Mirrors the real RPC: unique per (call, subscription), so the second attempt loses.
+    claimCallExecution: async (callId, subId) => {
+      const key = `${callId}:${subId}`;
+      if (claimed.includes(key)) return { ok: false, error: "execution already claimed", status: 409 };
+      claimed.push(key);
+      return { ok: false, error: "delegated wallet unavailable", status: 422 };
+    },
+    finishCallExecution: async () => ({ ok: true }),
+    completeCall: async () => ({ ok: true }),
+    signAndSend: async () => { throw new Error("signing must not be reached in this test"); }
+  };
+  const dispatch = createCallDispatcher(deps);
+  await Promise.all([dispatch("c1"), dispatch("c1")]);
+  await dispatch("c1");
+  assert.deepStrictEqual(claimed, ["c1:s1"]);
+});
+test("skips a call the worker already executed", async () => {
+  let loads = 0;
+  const dispatch = createCallDispatcher({
+    loadCallById: async () => { loads += 1; return { id: "c2", group_id: "g1", mint: "M", executed_at: NOW }; },
+    loadGroupSubscribers: async () => { throw new Error("must not fan out an executed call"); },
+    claimCallExecution: async () => ({ ok: false }),
+    finishCallExecution: async () => ({ ok: true }),
+    completeCall: async () => ({ ok: true }),
+    signAndSend: async () => null
+  });
+  assert.strictEqual((await dispatch("c2")).status, "already executed");
+  assert.strictEqual((await dispatch("c2")).status, "already handled");
+  assert.strictEqual(loads, 1);
+});
+
 console.log("verified trade ledger");
 const { SOL_MINT, analyzeSwapTransaction } = require("../../lib/server/trade-verification");
 const tradeSignature = "5".repeat(88);
@@ -263,6 +391,8 @@ test("maps only the declared Solana networks", () => {
   assert.strictEqual(resolveCaip2("mainnet"), CAIP2.mainnet);
 });
 
-console.log("");
-console.log(`${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+Promise.all(pending).then(() => {
+  console.log("");
+  console.log(`${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+});

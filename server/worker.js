@@ -11,10 +11,12 @@
  */
 require("dotenv").config();
 const http = require("http");
+const { timingSafeEqual, createHash } = require("crypto");
 const { getPrice } = require("./engine/prices");
 const { startLimitWatcher } = require("./engine/limits");
 const { startCopyWatcher } = require("./engine/copy");
 const { startCallWatcher } = require("./engine/calls");
+const { createCallDispatcher } = require("./engine/call-stream");
 const { startPerformanceScanner } = require("./engine/performance");
 const signer = require("./engine/signer");
 const store = require("./engine/store");
@@ -69,23 +71,69 @@ if (SIGNING_READY) {
 
 console.log(`[worker] starting — signing ${SIGNING_READY ? "ENABLED" : "DISABLED (watch-only)"}`);
 
-http.createServer((req, res) => {
-  if (req.url !== "/" && req.url !== "/health") {
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(JSON.stringify({ error: "not found" }));
+// Calls the site has just journaled are pushed here so execution happens on the call
+// rather than on the next poll tick. Shared with the poll backstop below.
+const dispatchSeen = new Set();
+let dispatchCall = null;
+
+const BOT_SECRET = process.env.BOT_SHARED_SECRET || "";
+function dispatchAuthorized(req) {
+  const supplied = req.headers["x-bot-secret"];
+  if (!BOT_SECRET || typeof supplied !== "string" || !supplied) return false;
+  const digest = (value) => createHash("sha256").update(value).digest();
+  return timingSafeEqual(digest(BOT_SECRET), digest(supplied));
+}
+
+function readJsonBody(req, limitBytes = 4096) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > limitBytes) { reject(new Error("body too large")); req.destroy(); return; }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); }
+      catch { reject(new Error("bad json")); }
+    });
+    req.on("error", reject);
+  });
+}
+
+const sendJson = (res, status, body) => {
+  res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
+  res.end(JSON.stringify(body));
+};
+
+http.createServer(async (req, res) => {
+  if (req.method === "POST" && req.url === "/dispatch") {
+    if (!dispatchAuthorized(req)) return sendJson(res, 401, { error: "unauthorized" });
+    if (!dispatchCall) return sendJson(res, 503, { error: "call execution is not running" });
+    let body;
+    try { body = await readJsonBody(req); }
+    catch (e) { return sendJson(res, 400, { error: e.message }); }
+    const callId = typeof body?.callId === "string" ? body.callId : null;
+    if (!callId) return sendJson(res, 400, { error: "call id required" });
+    // Acknowledge immediately — the site must never wait on our Jupiter round-trips.
+    sendJson(res, 202, { accepted: true, callId });
+    dispatchCall(callId).catch((e) => console.error("[worker] dispatch failed:", e.message));
     return;
   }
-  res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-  res.end(JSON.stringify({
+
+  if (req.url !== "/" && req.url !== "/health") return sendJson(res, 404, { error: "not found" });
+
+  sendJson(res, 200, {
     status: "ok",
     mode: SIGNING_READY ? "live" : "watch-only",
     signingEnabled: SIGNING_READY,
     copyTradingEnabled: COPY_TRADING_READY,
+    callDispatchEnabled: Boolean(dispatchCall && BOT_SECRET),
     network: NET,
     feeEnabled: Boolean(process.env.PLATFORM_FEE_ACCOUNT),
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
     ...state
-  }));
+  });
 }).listen(PORT, "0.0.0.0", () => console.log(`[worker] health listening on :${PORT}`));
 
 if (SIGNING_READY) {
@@ -96,12 +144,20 @@ if (SIGNING_READY) {
   });
 
   // Discord group calls -> mirror to each group's subscribers.
-  startCallWatcher({
-    loadPendingCalls: store.loadPendingCalls, loadGroupSubscribers: store.loadGroupSubscribers,
+  const callDeps = {
+    loadPendingCalls: store.loadPendingCalls, loadCallById: store.loadCallById,
+    loadGroupSubscribers: store.loadGroupSubscribers,
     claimCallExecution: store.claimCallExecution, finishCallExecution: store.finishCallExecution,
     completeCall: store.completeCall, markCallExecuted: store.markCallExecuted, signAndSend,
-    recordCopy: store.recordCopy, onEvent: log("call")
-  });
+    recordCopy: store.recordCopy, onEvent: log("call"), seen: dispatchSeen
+  };
+
+  // Primary trigger: the site pushes each journaled call to POST /dispatch.
+  dispatchCall = createCallDispatcher(callDeps);
+  if (!BOT_SECRET) console.warn("[worker] BOT_SHARED_SECRET not set — push dispatch disabled, falling back to the poll");
+
+  // Backstop for anything the push missed.
+  startCallWatcher(callDeps);
 }
 
 // Wallet-diff copy detection needs its own explicit gate until transaction cursors are durable.
@@ -113,9 +169,16 @@ if (COPY_TRADING_READY) {
   });
 }
 
-// This scanner measures source accuracy independently of whether anyone copied a call.
+// These scanners measure source accuracy independently of whether anyone copied a call.
+// Young calls move fastest, so they get a tight loop; the 30-day tail gets a slow one.
+startPerformanceScanner({
+  loadPerformanceCalls: store.loadFreshPerformanceCalls,
+  updateCallPerformance: store.updateCallPerformance,
+  onEvent: log("performance")
+}, 30_000);
+
 startPerformanceScanner({
   loadPerformanceCalls: store.loadPerformanceCalls,
   updateCallPerformance: store.updateCallPerformance,
-  onEvent: log("performance")
-});
+  onEvent: log("performance-tail")
+}, 900_000);

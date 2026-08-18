@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { createHash } from "node:crypto";
 import { rateLimit, isMint, fetchWithTimeout } from "@/lib/server/guard";
 import { botBridgeHeaders, getBotBridgeUrl } from "@/lib/server/bot-rpc";
@@ -11,40 +12,6 @@ const positive = (value: unknown) => {
   return Number.isFinite(number) && number > 0 ? number : null;
 };
 const EVENT_TYPES = new Set(["create", "edit", "delete"]);
-const TOKEN_PROGRAMS = new Set([
-  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-  "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-]);
-
-async function verifySolanaMint(mint: string) {
-  const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-  try {
-    const response = await fetchWithTimeout(rpcUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      cache: "no-store",
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: "degenaration-mint-validation",
-        method: "getAccountInfo",
-        params: [mint, { encoding: "jsonParsed", commitment: "confirmed" }]
-      })
-    }, 7_000);
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || payload?.error) return { ok: false as const, unavailable: true };
-    const account = payload?.result?.value;
-    return {
-      ok: Boolean(
-        account &&
-        TOKEN_PROGRAMS.has(account.owner) &&
-        account.data?.parsed?.type === "mint"
-      ),
-      unavailable: false
-    };
-  } catch {
-    return { ok: false as const, unavailable: true };
-  }
-}
 
 function confidenceBps(value: unknown) {
   if (value === "slash-command") return 10_000;
@@ -54,22 +21,97 @@ function confidenceBps(value: unknown) {
 }
 
 /**
+ * Best-effort price snapshot. Never on the request's critical path: a call is
+ * journaled first and enriched afterwards, so a slow or down price feed can delay
+ * the numbers but never the call itself.
+ */
+async function quoteMint(mint: string) {
+  try {
+    const px = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" }).then((r) => r.json());
+    const pair = (px?.pairs ?? [])
+      .filter((item: any) => item?.chainId === "solana" && item?.baseToken?.address === mint)
+      .sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+    if (!pair) return null;
+    return {
+      symbol: cleanText(pair.baseToken?.symbol, 24),
+      calledMcap: positive(pair.marketCap) ?? positive(pair.fdv),
+      calledPrice: positive(pair.priceUsd),
+      calledLiquidity: positive(pair.liquidity?.usd)
+    };
+  } catch {
+    return null;
+  }
+}
+
+// How long the trade push waits for the entry-price snapshot. Past this the call is
+// dispatched regardless — an unpriced call still gets executed, just without the
+// optional liquidity/mcap filters being able to judge it.
+const ENRICH_HEAD_START_MS = 1_500;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function enrichCall(bridgeUrl: string, secret: string, callId: string, mint: string) {
+  const quote = await quoteMint(mint);
+  if (!quote) return;
+  try {
+    await fetchWithTimeout(bridgeUrl, {
+      method: "POST",
+      headers: botBridgeHeaders,
+      body: JSON.stringify({
+        operation: "enrich_call",
+        p_secret: secret,
+        p_call_id: callId,
+        p_symbol: quote.symbol,
+        p_called_mcap: quote.calledMcap,
+        p_called_price_usd: quote.calledPrice,
+        p_called_liquidity_usd: quote.calledLiquidity
+      })
+    }, 8_000);
+  } catch {
+    // The performance scanner backfills pricing on its next pass.
+  }
+}
+
+/**
+ * Tell the 24/7 worker to execute this call now. Without it the worker still picks the
+ * call up on its next poll, so a failure here costs latency, not the trade.
+ */
+async function dispatchToWorker(callId: string) {
+  const url = process.env.WORKER_DISPATCH_URL;
+  const secret = process.env.BOT_SHARED_SECRET;
+  if (!url || !secret) return;
+  try {
+    await fetchWithTimeout(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-bot-secret": secret },
+      body: JSON.stringify({ callId })
+    }, 5_000);
+  } catch {
+    // Poll backstop covers it.
+  }
+}
+
+/**
  * POST /api/ingest-call  — the Discord bot posts detected calls here.
  * Auth: header `x-bot-secret` must equal BOT_SHARED_SECRET.
- * Flow: verify the channel is an APPROVED call channel -> record the call (dedup by
- * messageId) -> the 24/7 worker then mirrors it to that group's subscribers.
- * Uses a secret-checked Supabase RPC so the Vercel deployment does not need a
- * broad service-role key for bot ingestion.
+ *
+ * JOURNAL FIRST. Every mint posted in an approved channel is a call and is recorded
+ * the moment it arrives — there is no pre-trade scanning, mint verification, or price
+ * lookup standing between the Discord message and the journal row. The record goes in,
+ * the bot gets its 200, and price enrichment runs afterwards via `after()`.
+ *
+ * What stays on the critical path is integrity, not judgement: the shared bot secret,
+ * Discord snowflake shape, base58 mint shape, rate limits, and the RPC's own approval
+ * and dedup checks.
  */
 export async function POST(req: NextRequest) {
-  const limited = rateLimit(req, { limit: 120, windowMs: 60_000 });
+  const limited = rateLimit(req, { limit: 600, windowMs: 60_000 });
   if (limited) return limited;
 
   if (!isBotRequest(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const distributed = await distributedRateLimit(req, {
-    limit: 120,
+    limit: 600,
     windowSeconds: 60,
     scope: "discord:ingest-signal",
     subject: "discord-bot",
@@ -94,33 +136,14 @@ export async function POST(req: NextRequest) {
   if (eventType !== "delete" && !isMint(mint)) {
     return NextResponse.json({ error: "invalid mint" }, { status: 400 });
   }
-  if (eventType !== "delete") {
-    const validation = await verifySolanaMint(mint);
-    if (validation.unavailable) return NextResponse.json({ error: "mint validation temporarily unavailable" }, { status: 503 });
-    if (!validation.ok) return NextResponse.json({ error: "address is not a Solana token mint" }, { status: 422 });
-  }
-
-  // 1. Enrich with live price data before sending the normalized call to Supabase.
-  let symbol: string | null = null, calledMcap: number | null = null, calledPrice: number | null = null, calledLiquidity: number | null = null;
-  if (eventType !== "delete") try {
-    const px = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, { cache: "no-store" }).then((r) => r.json());
-    const pair = (px?.pairs ?? [])
-      .filter((item: any) => item?.chainId === "solana" && item?.baseToken?.address === mint)
-      .sort((a: any, b: any) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
-    if (pair) {
-      symbol = cleanText(pair.baseToken?.symbol, 24);
-      calledMcap = positive(pair.marketCap) ?? positive(pair.fdv);
-      calledPrice = positive(pair.priceUsd);
-      calledLiquidity = positive(pair.liquidity?.usd);
-    }
-  } catch { /* enrichment is best-effort */ }
 
   const contentHash = createHash("sha256")
     .update([channelId, messageId, eventVersion, eventType, mint || ""].join(":"))
     .digest("hex");
 
-  // 2. Record the call through a security-definer RPC. The RPC verifies the bot
-  // secret again, checks the channel is approved, and dedups by Discord message.
+  // 1. Record the call through a security-definer RPC. The RPC verifies the bot
+  // secret again, checks the channel is approved, and dedups by Discord event.
+  let data: any;
   try {
     const res = await fetchWithTimeout(bridgeUrl, {
       method: "POST",
@@ -131,10 +154,10 @@ export async function POST(req: NextRequest) {
         p_channel_id: channelId,
         p_channel_name: cleanText(channelName, 100),
         p_mint: mint,
-        p_symbol: symbol,
-        p_called_mcap: calledMcap,
-        p_called_price_usd: calledPrice,
-        p_called_liquidity_usd: calledLiquidity,
+        p_symbol: null,
+        p_called_mcap: null,
+        p_called_price_usd: null,
+        p_called_liquidity_usd: null,
         p_message_id: cleanText(messageId, 64),
         p_caller: cleanText(caller, 100),
         p_confidence: cleanText(confidence, 32),
@@ -146,13 +169,26 @@ export async function POST(req: NextRequest) {
         p_content_hash: contentHash
       })
     });
-    const data = await res.json().catch(() => null);
+    data = await res.json().catch(() => null);
     if (!res.ok) return NextResponse.json({ error: "record failed", status: res.status }, { status: 502 });
     if (data?.ok === false) {
       return NextResponse.json({ error: data.error || "record failed" }, { status: data.status || 400 });
     }
-    return NextResponse.json(data);
   } catch {
     return NextResponse.json({ error: "record failed" }, { status: 502 });
   }
+
+  // 2. Enrich the recorded row, then push the call to the worker — both after the
+  // response is sent, so the bot is never held up.
+  const callId = typeof data?.id === "string" ? data.id : null;
+  if (callId && data?.accepted && eventType !== "delete") {
+    after(async () => {
+      // Subscriber filters (min liquidity, max mcap) read these numbers, so give the
+      // snapshot a short head start — but never let a slow feed hold up the trade.
+      await Promise.race([enrichCall(bridgeUrl, secret, callId, mint), sleep(ENRICH_HEAD_START_MS)]);
+      await dispatchToWorker(callId);
+    });
+  }
+
+  return NextResponse.json(data);
 }

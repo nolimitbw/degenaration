@@ -19,6 +19,15 @@ export type CallSourceMetrics = {
   medianPeakX: number | null;
   bestPeakX: number | null;
   latestCallAt: string | null;
+  // Journaled record: every call this source made is scored, copied or not.
+  wins: number;
+  losses: number;
+  openCalls: number;
+  winRate: number | null;
+  up50: number;
+  x2: number;
+  x5: number;
+  down50: number;
 };
 
 export type CallSource = {
@@ -39,6 +48,8 @@ export type CallSource = {
     calledAt: string | null;
     peakX: number | null;
     currentX: number | null;
+    outcome: "open" | "win" | "loss";
+    milestones: string[];
   }>;
 };
 
@@ -88,6 +99,13 @@ export type Subscription = {
   tp2: number; tp2_sell: number; stop_loss: number; slippage_bps: number;
   daily_cap_sol: number; enabled: boolean;
   user_pubkey?: string; wallet_id?: string;
+  // Optional per-source copy filters. Null / 0 means no filter: take every call.
+  min_liquidity_usd?: number | null;
+  max_mcap_usd?: number | null;
+  cooldown_seconds?: number | null;
+  skip_duplicate_mints?: boolean | null;
+  max_open_positions?: number | null;
+  max_calls_per_day?: number | null;
 };
 
 function bearer(token?: string | null): Record<string, string> {
@@ -107,7 +125,7 @@ export async function getMySubscriptions(token?: string | null): Promise<Subscri
   }
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("group_id,size_sol,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,daily_cap_sol,enabled");
+    .select("group_id,size_sol,tp1,tp1_sell,tp2,tp2_sell,stop_loss,slippage_bps,daily_cap_sol,enabled,min_liquidity_usd,max_mcap_usd,cooldown_seconds,skip_duplicate_mints,max_open_positions,max_calls_per_day");
   if (error) return [];
   return data ?? [];
 }

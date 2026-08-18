@@ -8,8 +8,18 @@ import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import { useAutomationStatus } from "@/lib/useAutomationStatus";
 
-type Settings = { size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number };
-const DEFAULTS: Settings = { size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2 };
+type Settings = {
+  size: number; tp1: number; tp1sell: number; tp2: number; tp2sell: number; sl: number; slippage: number; dailyCap: number;
+  // Copy filters. 0 means "no filter" for every numeric one — take every call this source makes.
+  minLiquidity: number; maxMcap: number; cooldown: number; maxOpen: number; maxPerDay: number; skipDuplicates: boolean;
+};
+const DEFAULTS: Settings = {
+  size: 0.5, tp1: 2, tp1sell: 50, tp2: 5, tp2sell: 25, sl: 40, slippage: 3, dailyCap: 2,
+  minLiquidity: 0, maxMcap: 0, cooldown: 0, maxOpen: 0, maxPerDay: 0, skipDuplicates: true
+};
+
+// 0 is how the form spells "no limit"; the API wants null for that.
+const limitOrNull = (value: number) => Number.isFinite(value) && value > 0 ? value : null;
 
 function settingsError(cfg: Settings) {
   if (!Number.isFinite(cfg.size) || cfg.size <= 0 || cfg.size > 100) return "Size must be between 0 and 100 SOL.";
@@ -21,6 +31,11 @@ function settingsError(cfg: Settings) {
   if (cfg.tp1sell + cfg.tp2sell > 100) return "TP sells cannot add above 100%.";
   if (!Number.isFinite(cfg.sl) || cfg.sl <= 0 || cfg.sl > 100) return "Stop-loss must be 1% to 100%.";
   if (!Number.isFinite(cfg.slippage) || cfg.slippage <= 0 || cfg.slippage > 20) return "Slippage must be between 0.01% and 20%.";
+  if (cfg.minLiquidity < 0 || cfg.minLiquidity > 100_000_000) return "Minimum liquidity must be between 0 and 100,000,000 USD.";
+  if (cfg.maxMcap < 0) return "Maximum market cap cannot be negative.";
+  if (cfg.cooldown < 0 || cfg.cooldown > 86_400) return "Cooldown must be between 0 and 86,400 seconds.";
+  if (cfg.maxOpen < 0 || cfg.maxOpen > 500) return "Max open positions must be between 0 and 500.";
+  if (cfg.maxPerDay < 0 || cfg.maxPerDay > 1000) return "Max calls per day must be between 0 and 1000.";
   return null;
 }
 
@@ -63,7 +78,13 @@ export default function CallsBody() {
     const { error } = await saveSubscription({
       group_id: id, size_sol: payloadSettings.size, tp1: payloadSettings.tp1, tp1_sell: payloadSettings.tp1sell,
       tp2: payloadSettings.tp2, tp2_sell: payloadSettings.tp2sell, stop_loss: payloadSettings.sl, slippage_bps: Math.round(payloadSettings.slippage * 100),
-      daily_cap_sol: payloadSettings.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId
+      daily_cap_sol: payloadSettings.dailyCap, enabled: on, user_pubkey: pubkey, wallet_id: walletId,
+      min_liquidity_usd: limitOrNull(payloadSettings.minLiquidity),
+      max_mcap_usd: limitOrNull(payloadSettings.maxMcap),
+      cooldown_seconds: Math.max(0, Math.round(payloadSettings.cooldown)),
+      max_open_positions: limitOrNull(payloadSettings.maxOpen),
+      max_calls_per_day: limitOrNull(payloadSettings.maxPerDay),
+      skip_duplicate_mints: payloadSettings.skipDuplicates
     }, token, await getIdentityToken());
     setSaving(null);
     if (error) {
@@ -107,7 +128,13 @@ export default function CallsBody() {
         saved[s.group_id] = {
           size: s.size_sol, tp1: s.tp1, tp1sell: s.tp1_sell,
           tp2: s.tp2, tp2sell: s.tp2_sell, sl: s.stop_loss,
-          slippage: s.slippage_bps / 100, dailyCap: s.daily_cap_sol
+          slippage: s.slippage_bps / 100, dailyCap: s.daily_cap_sol,
+          minLiquidity: s.min_liquidity_usd ?? 0,
+          maxMcap: s.max_mcap_usd ?? 0,
+          cooldown: s.cooldown_seconds ?? 0,
+          maxOpen: s.max_open_positions ?? 0,
+          maxPerDay: s.max_calls_per_day ?? 0,
+          skipDuplicates: s.skip_duplicate_mints !== false
         };
       }
       if (Object.keys(saved).length) setSettings(saved);
@@ -155,8 +182,32 @@ export default function CallsBody() {
                 <div>
                   <SectionTitle title="Entry controls" description="Atomic source and wallet limits are checked before each claim." />
                   <div className="mt-3 grid gap-3 sm:grid-cols-3"><NumberField label="Size per call" suffix="SOL" value={cfg.size} step={0.1} min={0.1} onChange={(value) => set(activeGroup.id, { size: value })} /><NumberField label="Source daily cap" suffix="SOL" value={cfg.dailyCap} step={0.5} min={0.5} onChange={(value) => set(activeGroup.id, { dailyCap: value })} /><NumberField label="Max slippage" suffix="%" value={cfg.slippage} step={0.5} min={0.5} max={20} onChange={(value) => set(activeGroup.id, { slippage: value })} /></div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">{["Rug screening", "Mint authority", "Liquidity check"].map((item) => <div key={item} className="flex min-h-9 items-center gap-2 rounded-md border border-edge bg-void px-3 text-[10px] text-ink"><Check size={12} className="text-up" />{item}</div>)}</div>
                   <p className="mt-3 rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-[10px] text-dim">Entry execution only. Automated take-profit and stop-loss exits remain unavailable until persistent position reconciliation is verified.</p>
+                </div>
+
+                <div>
+                  <SectionTitle title="Call filters" description="Your own rules. Leave a field at 0 to take every call." />
+                  <p className="mt-3 rounded-md border border-edge bg-void px-3 py-2.5 font-mono text-[10px] text-dim">
+                    This source&apos;s calls reach your wallet the moment they are posted — the platform does not screen tokens on your behalf. These filters are the only thing that skips a call, and every skip is recorded with its reason.
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <NumberField label="Min liquidity" suffix="USD" value={cfg.minLiquidity} step={1000} min={0} max={100000000} onChange={(value) => set(activeGroup.id, { minLiquidity: value })} />
+                    <NumberField label="Max market cap" suffix="USD" value={cfg.maxMcap} step={10000} min={0} max={1000000000} onChange={(value) => set(activeGroup.id, { maxMcap: value })} />
+                    <NumberField label="Cooldown" suffix="SEC" value={cfg.cooldown} step={15} min={0} max={86400} onChange={(value) => set(activeGroup.id, { cooldown: value })} />
+                    <NumberField label="Max open positions" suffix="POS" value={cfg.maxOpen} step={1} min={0} max={500} onChange={(value) => set(activeGroup.id, { maxOpen: value })} />
+                    <NumberField label="Max calls per day" suffix="CALLS" value={cfg.maxPerDay} step={1} min={0} max={1000} onChange={(value) => set(activeGroup.id, { maxPerDay: value })} />
+                    <button
+                      type="button"
+                      onClick={() => set(activeGroup.id, { skipDuplicates: !cfg.skipDuplicates })}
+                      aria-pressed={cfg.skipDuplicates}
+                      className="flex min-h-11 items-center justify-between gap-2 self-end rounded-md border border-edge bg-void px-3 text-left text-[10px] text-ink transition hover:border-toxic/60"
+                    >
+                      <span className="font-mono uppercase text-dim">Skip repeat tokens</span>
+                      <span className={`inline-flex items-center gap-1.5 font-mono uppercase ${cfg.skipDuplicates ? "text-up" : "text-dim"}`}>
+                        {cfg.skipDuplicates && <Check size={12} />}{cfg.skipDuplicates ? "On" : "Off"}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -167,10 +218,27 @@ export default function CallsBody() {
           <aside className="bg-void/35">
             <div className="border-b border-edge p-4">
               <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[9px] uppercase text-toxic">Source intelligence</p><h2 className="mt-1 text-base font-bold">Approved Discord servers</h2></div><div className="flex gap-1">{(["7d", "30d", "all"] as const).map((value) => <button key={value} onClick={() => { setTimeframe(value); loadSources(value); }} className={`min-h-8 rounded-md px-2.5 font-mono text-[9px] uppercase transition ${timeframe === value ? "bg-toxic text-[#17110c]" : "border border-edge text-dim hover:text-ink"}`}>{value}</button>)}</div></div>
-              {activeGroup && <div className="mt-4 grid grid-cols-5 gap-px bg-edge">{[["Calls", activeGroup.metrics.calls], ["Measured", activeGroup.metrics.measuredCalls], ["2x rate", activeGroup.metrics.hitRate == null ? "--" : `${activeGroup.metrics.hitRate.toFixed(0)}%`], ["Avg peak", activeGroup.metrics.avgPeakX == null ? "--" : `${activeGroup.metrics.avgPeakX.toFixed(2)}x`], ["Best", activeGroup.metrics.bestPeakX == null ? "--" : `${activeGroup.metrics.bestPeakX.toFixed(1)}x`]].map(([label, value]) => <div key={label} className="bg-panel px-2 py-3 text-center"><p className="font-mono text-sm font-bold text-ink">{value}</p><p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p></div>)}</div>}
+              {activeGroup && <>
+                <div className="mt-4 grid grid-cols-5 gap-px bg-edge">{[["Calls", activeGroup.metrics.calls], ["Win rate", activeGroup.metrics.winRate == null ? "--" : `${activeGroup.metrics.winRate.toFixed(0)}%`], ["Open", activeGroup.metrics.openCalls], ["Avg peak", activeGroup.metrics.avgPeakX == null ? "--" : `${activeGroup.metrics.avgPeakX.toFixed(2)}x`], ["Best", activeGroup.metrics.bestPeakX == null ? "--" : `${activeGroup.metrics.bestPeakX.toFixed(1)}x`]].map(([label, value]) => <div key={label} className="bg-panel px-2 py-3 text-center"><p className="font-mono text-sm font-bold text-ink">{value}</p><p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p></div>)}</div>
+                <div className="mt-px grid grid-cols-4 gap-px bg-edge">{([["+50%", activeGroup.metrics.up50, "up"], ["2x", activeGroup.metrics.x2, "up"], ["5x", activeGroup.metrics.x5, "up"], ["-50%", activeGroup.metrics.down50, "down"]] as const).map(([label, value, tone]) => <div key={label} className="bg-panel px-2 py-2.5 text-center"><p className={`font-mono text-xs font-bold ${tone === "up" ? "text-up" : "text-down"}`}>{value}</p><p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p></div>)}</div>
+                <p className="mt-2 font-mono text-[9px] leading-4 text-dim">Every call this server posts is journaled and scored, whether or not anyone copied it. Win rate counts settled calls only.</p>
+                {activeGroup.recentCalls.length > 0 && <div className="mt-4 overflow-hidden rounded-md border border-edge">
+                  <p className="border-b border-edge bg-panel px-3 py-2 font-mono text-[9px] uppercase text-dim">Latest calls</p>
+                  <ul className="divide-y divide-edge">{activeGroup.recentCalls.map((call) => <li key={call.id} className="flex items-center justify-between gap-3 bg-panel px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-[11px] text-ink">{call.symbol || (call.mint ? `${call.mint.slice(0, 4)}...${call.mint.slice(-4)}` : "Unknown")}</p>
+                      <p className="mt-0.5 truncate font-mono text-[9px] text-dim">{call.caller || "Unknown caller"}{call.calledAt ? ` · ${new Date(call.calledAt).toLocaleString()}` : ""}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {call.milestones.map((milestone) => <span key={milestone} className={`rounded-full border px-1.5 py-0.5 font-mono text-[8px] ${milestone.startsWith("-") ? "border-down/40 text-down" : "border-up/40 text-up"}`}>{milestone}</span>)}
+                      <span className={`font-mono text-[11px] ${call.currentX == null ? "text-dim" : call.currentX >= 1 ? "text-up" : "text-down"}`}>{call.currentX == null ? "--" : `${call.currentX.toFixed(2)}x`}</span>
+                    </div>
+                  </li>)}</ul>
+                </div>}
+              </>}
               <label className="mt-4 flex min-h-10 items-center gap-2 rounded-md border border-edge bg-panel px-3 focus-within:border-toxic"><Search size={14} className="text-dim" /><input value={sourceSearch} onChange={(event) => setSourceSearch(event.target.value)} placeholder="Search approved sources" className="min-w-0 flex-1 bg-transparent text-xs outline-none" /></label>
             </div>
-            <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">{visibleGroups.map((group) => <button key={group.id} onClick={() => setSelected(group.id)} className={`overflow-hidden rounded-md border bg-panel text-left transition ${selected === group.id ? "border-toxic shadow-toxic" : "border-edge hover:border-toxic/60"}`}><SourceAvatar source={group} size="card" /><div className="p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-bold text-ink">{group.name}</p><p className="mt-1 font-mono text-[9px] text-dim">{group.members ?? "--"} members</p></div>{selected === group.id && <Check size={14} className="shrink-0 text-toxic" />}</div><div className="mt-3 flex items-center justify-between border-t border-edge pt-2 font-mono text-[9px]"><span className="text-dim">{group.metrics.calls} calls</span><span className={group.metrics.hitRate == null ? "text-dim" : "text-up"}>{group.metrics.hitRate == null ? "Measuring" : `${group.metrics.hitRate.toFixed(0)}% hit`}</span></div></div></button>)}</div>
+            <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">{visibleGroups.map((group) => <button key={group.id} onClick={() => setSelected(group.id)} className={`overflow-hidden rounded-md border bg-panel text-left transition ${selected === group.id ? "border-toxic shadow-toxic" : "border-edge hover:border-toxic/60"}`}><SourceAvatar source={group} size="card" /><div className="p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-xs font-bold text-ink">{group.name}</p><p className="mt-1 font-mono text-[9px] text-dim">{group.members ?? "--"} members</p></div>{selected === group.id && <Check size={14} className="shrink-0 text-toxic" />}</div><div className="mt-3 flex items-center justify-between border-t border-edge pt-2 font-mono text-[9px]"><span className="text-dim">{group.metrics.calls} calls</span><span className={group.metrics.winRate == null ? "text-dim" : group.metrics.winRate >= 50 ? "text-up" : "text-down"}>{group.metrics.winRate == null ? "Measuring" : `${group.metrics.winRate.toFixed(0)}% win`}</span></div></div></button>)}</div>
             {!visibleGroups.length && loaded && <p className="p-10 text-center text-xs text-dim">No approved sources match that search.</p>}
             {activeGroup?.publicSlug && <div className="px-4 pb-5"><Link href={`/source/${activeGroup.publicSlug}`} className="inline-flex items-center gap-2 text-xs text-dim transition hover:text-toxic">Open public source profile <ExternalLink size={13} /></Link></div>}
           </aside>

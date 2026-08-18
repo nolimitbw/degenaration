@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { currentMultiple, peakMultiple, sourceMetrics, type PerformanceCall } from "@/lib/callPerformance";
+import { currentMultiple, peakMultiple, reachedMilestones, sourceMetrics, type PerformanceCall } from "@/lib/callPerformance";
 import { UNVERIFIED_DEMO_GROUP_IDS } from "@/lib/callSources";
 import { rateLimit } from "@/lib/server/guard";
 
@@ -16,7 +16,7 @@ function client() {
 function callQuery(supa: NonNullable<ReturnType<typeof client>>, since: string | null, legacy = false) {
   const fields = legacy
     ? "id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,called_at"
-    : "id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd,called_at";
+    : "id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd,trough_price_usd,hit_down_50_at,hit_up_50_at,hit_2x_at,hit_5x_at,outcome,called_at";
   let query = supa.from("calls").select(fields).order("called_at", { ascending: false }).limit(1000);
   if (since) query = query.gte("called_at", since);
   return query;
@@ -71,7 +71,9 @@ export async function GET(req: NextRequest) {
         caller: call.caller,
         calledAt: call.called_at,
         peakX: peakMultiple(call),
-        currentX: currentMultiple(call)
+        currentX: currentMultiple(call),
+        outcome: call.outcome ?? "open",
+        milestones: reachedMilestones(call).map((milestone) => milestone.label)
       }))
     };
   }).sort((a, b) => (b.metrics.avgPeakX ?? 0) - (a.metrics.avgPeakX ?? 0));

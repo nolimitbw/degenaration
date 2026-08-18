@@ -1,6 +1,6 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
-import { currentMultiple, peakMultiple, sourceMetrics, type PerformanceCall } from "@/lib/callPerformance";
+import { currentMultiple, peakMultiple, reachedMilestones, sourceMetrics, type PerformanceCall } from "@/lib/callPerformance";
 
 const SOURCE_KEY = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
@@ -28,6 +28,8 @@ export type PublicSource = {
     calledAt: string | null;
     peakX: number | null;
     currentX: number | null;
+    outcome: "open" | "win" | "loss";
+    milestones: string[];
   }>;
 };
 
@@ -55,7 +57,7 @@ export async function getPublicSource(slug: string): Promise<PublicSource | null
     .maybeSingle();
   if (error || !group?.public_slug || !group?.referral_code) return null;
 
-  const fields = "id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd,called_at";
+  const fields = "id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd,trough_price_usd,hit_down_50_at,hit_up_50_at,hit_2x_at,hit_5x_at,outcome,called_at";
   const legacyFields = "id,group_id,group_name,caller,mint,symbol,called_mcap,peak_mcap,called_at";
   const primary = await supa.from("calls").select(fields).eq("group_id", group.id).order("called_at", { ascending: false }).limit(1000);
   const fallback = primary.error
@@ -86,7 +88,9 @@ export async function getPublicSource(slug: string): Promise<PublicSource | null
       caller: call.caller ?? null,
       calledAt: call.called_at ?? null,
       peakX: peakMultiple(call),
-      currentX: currentMultiple(call)
+      currentX: currentMultiple(call),
+      outcome: call.outcome ?? "open",
+      milestones: reachedMilestones(call).map((milestone) => milestone.label)
     }))
   };
 }
