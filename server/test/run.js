@@ -3032,6 +3032,30 @@ console.log("price selection");
     assert.strictEqual(plan.totalWithReserveLamports, 2000000000n + 15890880n);
   });
 
+  test("a hidden staged-buy default cannot make the visible margin mean double", () => {
+    // The defect this caught, live. DCA defaulted ON with two 0.25 SOL levels, so a builder
+    // showing "Margin amount per trade 0.5 SOL" committed 1.0 SOL per position and reported
+    // "Maximum exposure 3 SOL" for three trades. Tolerable while DCA was a visible section;
+    // dishonest once it moved behind Advanced, because the one number the screen is built
+    // around silently meant half of what it said.
+    //
+    // Asserted as a PROPERTY of the arithmetic rather than of the default: with no staged buys
+    // a position costs exactly the margin. The builder's default is checked beside it.
+    const bare = plannedCapital({ buyAmountSol: 0.5, maxOpenTrades: 3, dca: { enabled: false, levels: [] } });
+    assert.strictEqual(bare.perPositionSol, 0.5, "a position with no staged buys costs the margin");
+    assert.strictEqual(bare.plannedSol, 1.5, "and three of them cost three times it");
+
+    const staged = plannedCapital({ buyAmountSol: 0.5, maxOpenTrades: 3, dca: dca(0.25, 0.25) });
+    assert.strictEqual(staged.perPositionSol, 1, "staged buys DO raise the cost of a position");
+    assert.strictEqual(staged.plannedSol, 3, "which is exactly what made the screen read 3 SOL");
+
+    // The builder must not ship the second shape by default while DCA is hidden.
+    const builder = require("node:fs").readFileSync(
+      require("node:path").join(__dirname, "../../components/product/BotBuilder.tsx"), "utf8");
+    assert.match(builder, /const \[dcaEnabled, setDcaEnabled\] = useState\(false\)/,
+      "DCA must default off while its controls live behind Advanced");
+  });
+
   test("linked capital limits satisfy the server's invariants at every margin", () => {
     // The trap this design exists to avoid. Maximum capital and per-token exposure moved
     // behind Advanced. Left at their old fixed defaults (3 SOL and 1 SOL), raising Margin

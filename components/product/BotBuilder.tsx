@@ -293,7 +293,20 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const [priceDropBps, setPriceDropBps] = useState(1200);
   const [referenceMode, setReferenceMode] = useState<"recent-ath" | "moving-average">("recent-ath");
   const [lookbackMinutes, setLookbackMinutes] = useState(60);
-  const [dcaEnabled, setDcaEnabled] = useState(true);
+  /**
+   * OFF by default, changed when DCA moved behind Advanced.
+   *
+   * It defaulted ON with two 0.25 SOL levels, so a bot showing "Margin amount per trade
+   * 0.5 SOL" actually committed 1.0 SOL to a position — the entry plus two staged buys the
+   * user never saw. That was defensible while DCA was a visible section on the form. It is not
+   * defensible now that the section is behind Advanced: the one number the screen is built
+   * around would mean half of what it says, and the maximum exposure beside it read 3 SOL for a
+   * 0.5 SOL margin across 3 trades.
+   *
+   * The levels are kept, so switching DCA on in Advanced still arrives configured. A saved bot
+   * hydrates from its own config below and is unaffected.
+   */
+  const [dcaEnabled, setDcaEnabled] = useState(false);
   const [dcaLevels, setDcaLevels] = useState<DcaLevel[]>([
     { dropBps: 1000, buyAmountSol: 0.25, enabled: true },
     { dropBps: 2000, buyAmountSol: 0.25, enabled: true }
