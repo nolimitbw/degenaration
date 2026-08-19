@@ -1,26 +1,50 @@
 /**
- * Call parser — extracts a Solana token mint from a Discord call message.
- * SECURITY: message content is UNTRUSTED input. We only ever extract
- * base58 addresses; we never eval or act on any other text.
+ * Call parser — extracts Solana token mints from a Discord call message.
+ *
+ * Product rule (owner, explicit): ANY Solana coin address posted in a registered
+ * channel is a call. A message that names three mints is three calls. We do not
+ * second-guess, score, or filter the caller's intent here — the journal records
+ * everything and the site decides what to do with it.
+ *
+ * SECURITY: message content is UNTRUSTED input. We only ever extract base58
+ * addresses; we never eval or act on any other text.
  */
 const BASE58 = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
 
 // Links we recognize (pump.fun, dexscreener, birdeye, jup.ag)
-const LINK_MINT = /(?:pump\.fun\/(?:coin\/)?|dexscreener\.com\/solana\/|birdeye\.so\/token\/|jup\.ag\/swap\/[A-Za-z0-9]+-)([1-9A-HJ-NP-Za-km-z]{32,44})/;
+const LINK_MINT = /(?:pump\.fun\/(?:coin\/)?|dexscreener\.com\/solana\/|birdeye\.so\/token\/|jup\.ag\/swap\/[A-Za-z0-9]+-)([1-9A-HJ-NP-Za-km-z]{32,44})/g;
 
-function parseCall(text) {
-  if (!text || text.length > 2000) return null;
+// One Discord message can only produce so many calls. Bounds a paste-bomb without
+// dropping a normal multi-token call.
+const MAX_CALLS_PER_MESSAGE = 5;
+const MAX_MESSAGE_LENGTH = 2000;
 
-  // 1) Prefer explicit links — highest confidence
-  const link = text.match(LINK_MINT);
-  if (link) return { mint: link[1], confidence: "high" };
+/**
+ * parseCalls(text) -> [{ mint, confidence }]
+ * Link-wrapped mints rank "high"; bare base58 addresses rank "medium". Order is
+ * links first, then bare addresses in the order they appear. Duplicates collapse
+ * to the highest confidence seen for that mint.
+ */
+function parseCalls(text) {
+  if (!text || typeof text !== "string" || text.length > MAX_MESSAGE_LENGTH) return [];
 
-  // 2) Raw base58 address in message
-  const addrs = text.match(BASE58) || [];
-  // Filter obvious non-mints (wallet flexes etc.) — engine re-validates on-chain anyway
-  if (addrs.length === 1) return { mint: addrs[0], confidence: "medium" };
+  const found = new Map(); // mint -> confidence
 
-  return null; // ticker-only calls ($WIF) are ignored in v1 — too ambiguous, too easy to spoof
+  for (const match of text.matchAll(LINK_MINT)) {
+    found.set(match[1], "high");
+  }
+  for (const mint of text.match(BASE58) || []) {
+    if (!found.has(mint)) found.set(mint, "medium");
+  }
+
+  return [...found.entries()]
+    .slice(0, MAX_CALLS_PER_MESSAGE)
+    .map(([mint, confidence]) => ({ mint, confidence }));
 }
 
-module.exports = { parseCall };
+/** Back-compat single-call helper: the first (highest-confidence) mint, or null. */
+function parseCall(text) {
+  return parseCalls(text)[0] || null;
+}
+
+module.exports = { parseCall, parseCalls, MAX_CALLS_PER_MESSAGE };

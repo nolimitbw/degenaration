@@ -76,14 +76,20 @@ export default async function SourceProfile({ params }: Props) {
             <h2 id="performance-heading" className="text-sm font-bold">All-time recorded performance</h2>
           </div>
           <div className="mt-3 grid overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Recorded calls" value={String(source.metrics.calls)} detail={`${source.metrics.measuredCalls} measured`} />
-            <Stat label="2x hit rate" value={source.metrics.hitRate == null ? "Pending" : `${source.metrics.hitRate.toFixed(0)}%`} detail="Measured calls reaching 2.00x" />
+            <Stat label="Recorded calls" value={String(source.metrics.calls)} detail={`${source.metrics.openCalls} still open`} />
+            <Stat label="Win rate" value={source.metrics.winRate == null ? "Pending" : `${source.metrics.winRate.toFixed(0)}%`} detail={`${source.metrics.wins}W / ${source.metrics.losses}L settled`} />
             <Stat label="Average peak" value={metric(source.metrics.avgPeakX, 2)} detail={`Median ${metric(source.metrics.medianPeakX, 2)}`} />
             <Stat label="Best call" value={metric(source.metrics.bestPeakX, 2)} detail="Peak from recorded entry" accent />
           </div>
+          <div className="mt-px grid overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-4">
+            <Stat label="Ran +50%" value={String(source.metrics.up50)} detail="Calls that reached 1.50x" />
+            <Stat label="Ran 2x" value={String(source.metrics.x2)} detail="Calls that reached 2.00x" />
+            <Stat label="Ran 5x" value={String(source.metrics.x5)} detail="Calls that reached 5.00x" />
+            <Stat label="Fell -50%" value={String(source.metrics.down50)} detail="Calls that halved from entry" />
+          </div>
           <p className="mt-2 flex items-start gap-2 font-mono text-[10px] leading-5 text-dim">
             <ShieldCheck aria-hidden="true" size={14} className="mt-0.5 shrink-0 text-cyber" />
-            Metrics are calculated from calls recorded after approval. Unmeasured calls stay visible and never count as wins.
+            Every call this server posts is journaled and scored from live prices, whether or not anyone copied it. A call counts as a win once it ran +50% from entry and a loss once it fell -50%; win rate is over settled calls only.
           </p>
         </section>
 
@@ -94,7 +100,7 @@ export default async function SourceProfile({ params }: Props) {
               {source.recentCalls.length ? (
                 <table className="w-full min-w-[680px] text-left">
                   <thead className="bg-panel font-mono text-[10px] uppercase text-dim">
-                    <tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Caller</th><th className="px-4 py-3">Called</th><th className="px-4 py-3">Current</th><th className="px-4 py-3">Peak</th><th className="px-4 py-3">Report</th></tr>
+                    <tr><th className="px-4 py-3">Token</th><th className="px-4 py-3">Caller</th><th className="px-4 py-3">Called</th><th className="px-4 py-3">Current</th><th className="px-4 py-3">Peak</th><th className="px-4 py-3">Result</th><th className="px-4 py-3">Report</th></tr>
                   </thead>
                   <tbody>
                     {source.recentCalls.map((call) => (
@@ -104,6 +110,14 @@ export default async function SourceProfile({ params }: Props) {
                         <td className="px-4 py-3 text-dim">{call.calledAt ? new Date(call.calledAt).toLocaleDateString() : "-"}</td>
                         <td className="px-4 py-3">{metric(call.currentX, 2)}</td>
                         <td className="px-4 py-3 font-bold text-up">{metric(call.peakX, 2)}</td>
+                        <td className="px-4 py-3">
+                          <span className="flex flex-wrap items-center gap-1">
+                            <span className={call.outcome === "win" ? "text-up" : call.outcome === "loss" ? "text-down" : "text-dim"}>{call.outcome === "open" ? "Open" : call.outcome === "win" ? "Win" : "Loss"}</span>
+                            {call.milestones.map((milestone) => (
+                              <span key={milestone} className={`rounded-full border px-1.5 py-0.5 text-[9px] ${milestone.startsWith("-") ? "border-down/40 text-down" : "border-up/40 text-up"}`}>{milestone}</span>
+                            ))}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">{call.mint ? <Link href={`/risk/${call.mint}`} className="text-toxic hover:underline">Risk report</Link> : "-"}</td>
                       </tr>
                     ))}

@@ -8,6 +8,36 @@ const strictNumeric = (v: unknown, min: number, max: number) => {
   return Number.isFinite(n) && n >= min && n <= max ? n : null;
 };
 
+/**
+ * Copy filters are the client's own preferences and every one of them is optional.
+ * Absent or blank means "no filter" — take every call this source makes. A value that
+ * IS supplied has to be in range; we never silently coerce a bad number into a limit
+ * that would quietly stop someone's trades.
+ */
+const OPTIONAL_FILTERS = {
+  min_liquidity_usd: [0, 100_000_000],
+  max_mcap_usd: [0, 1_000_000_000_000],
+  cooldown_seconds: [0, 86_400],
+  max_open_positions: [1, 500],
+  max_calls_per_day: [1, 1000]
+} as const;
+
+function readFilters(body: any) {
+  const filters: Record<string, number | boolean | null> = {};
+  for (const [key, [min, max]] of Object.entries(OPTIONAL_FILTERS)) {
+    const raw = body?.[key];
+    if (raw === undefined) continue;
+    if (raw === null || raw === "") { filters[key] = key === "cooldown_seconds" ? 0 : null; continue; }
+    const value = strictNumeric(raw, min, max);
+    if (value === null) return { ok: false as const, key };
+    filters[key] = key === "min_liquidity_usd" || key === "max_mcap_usd" ? value : Math.round(value);
+  }
+  if (body?.skip_duplicate_mints !== undefined) {
+    filters.skip_duplicate_mints = body.skip_duplicate_mints !== false;
+  }
+  return { ok: true as const, filters };
+}
+
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req, { limit: 60, windowMs: 60_000 });
   if (limited) return limited;
@@ -50,7 +80,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid call-copy settings" }, { status: 400 });
   }
 
+  const filters = readFilters(body);
+  if (!filters.ok) {
+    return NextResponse.json({ error: `invalid ${filters.key.replace(/_/g, " ")}` }, { status: 400 });
+  }
+
   const payload = {
+    ...filters.filters,
     privy_user_id: user.privyUserId,
     group_id: groupId,
     size_sol: size,

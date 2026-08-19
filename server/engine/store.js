@@ -78,7 +78,11 @@ const recordCopy = recordTrade;
 const bumpDailySpent = (id, totalSol) => sbPatch(`copy_subscriptions?id=eq.${id}`, { daily_spent: totalSol });
 
 // ---- discord call execution ----
-const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,executed_at&order=called_at.desc&limit=50", true);
+const loadPendingCalls = () => sbGet("calls?executed_at=is.null&group_id=not.is.null&select=id,group_id,mint,symbol,called_price_usd,executed_at&order=called_at.desc&limit=50", true);
+const loadCallById = async (id) => {
+  const rows = await sbGet(`calls?id=eq.${encodeURIComponent(id)}&select=id,group_id,mint,symbol,called_price_usd,executed_at&limit=1`, true);
+  return (rows || [])[0] || null;
+};
 const markCallExecuted = (id) => sbPatch(`calls?id=eq.${id}`, { executed_at: new Date().toISOString() });
 const loadGroupSubscribers = (groupId) => sbGet(`subscriptions?enabled=eq.true&group_id=eq.${groupId}&select=id,privy_user_id,user_pubkey,wallet_id,size_sol,slippage_bps,daily_cap_sol,daily_spent`, true);
 const claimCallExecution = (callId, subscriptionId) => sbRpc("worker_claim_call_execution", {
@@ -96,11 +100,55 @@ const finishCallExecution = (callId, subscriptionId, claimToken, status, sig, er
 const completeCall = (callId) => sbRpc("worker_complete_call", { p_call_id: callId });
 
 // Track calls for 30 days so every source's public score comes from the same live data.
-const loadPerformanceCalls = () => {
-  const since = encodeURIComponent(new Date(Date.now() - 30 * 86_400_000).toISOString());
-  return sbGet(`calls?called_at=gte.${since}&select=id,mint,called_mcap,peak_mcap,latest_mcap,called_price_usd,peak_price_usd,latest_price_usd&order=called_at.desc&limit=1000`);
+// This runs for EVERY journaled call — a source's record does not depend on anyone
+// having copied it.
+const PERFORMANCE_COLUMNS = [
+  "id", "mint", "called_at",
+  "called_mcap", "peak_mcap", "latest_mcap",
+  "called_price_usd", "peak_price_usd", "latest_price_usd", "trough_price_usd",
+  "hit_down_50_at", "hit_up_50_at", "hit_2x_at", "hit_5x_at", "outcome"
+].join(",");
+
+const loadPerformanceCalls = (sinceMs = 30 * 86_400_000, limit = 1000) => {
+  const since = encodeURIComponent(new Date(Date.now() - sinceMs).toISOString());
+  return sbGet(`calls?called_at=gte.${since}&select=${PERFORMANCE_COLUMNS}&order=called_at.desc&limit=${limit}`);
 };
+
+// A memecoin call does most of its moving in the first day, so young calls are swept on
+// a tight loop and the long tail on a slow one.
+const loadFreshPerformanceCalls = () => loadPerformanceCalls(86_400_000, 500);
 const updateCallPerformance = (id, update) => sbPatch(`calls?id=eq.${id}`, update);
+
+// ---- position exits (durable take-profit / stop-loss) ----
+// Entries used to be executed and recorded while nothing ever sold: the monitor was
+// never started, held positions in memory, and no code path opened a position row.
+// These are the durable equivalents, all claim-protected like call executions.
+const openPosition = (callId, subscriptionId, mint, entryPriceUsd, amountRaw, entrySig) => sbRpc("worker_open_position", {
+  p_call_id: callId,
+  p_subscription_id: subscriptionId,
+  p_mint: mint,
+  p_entry_price_usd: entryPriceUsd,
+  p_amount_raw: amountRaw,
+  p_entry_sig: entrySig || null
+});
+const loadOpenPositions = (limit = 500) => sbRpc("worker_open_positions", { p_limit: limit });
+const claimPositionExit = (positionId, leg, multiple) => sbRpc("worker_claim_position_exit", {
+  p_position_id: positionId,
+  p_leg: leg,
+  p_multiple: multiple ?? null
+});
+const finishPositionExit = (positionId, leg, claimToken, status, sig, error) => sbRpc("worker_finish_position_exit", {
+  p_position_id: positionId,
+  p_leg: leg,
+  p_claim_token: claimToken,
+  p_status: status,
+  p_sig: sig || null,
+  p_error: error || null
+});
+const touchPosition = (positionId, priceUsd) => sbRpc("worker_touch_position", {
+  p_position_id: positionId,
+  p_price_usd: priceUsd ?? null
+});
 
 // ---- on-chain holdings (for copy detection) ----
 async function getHoldings(address) {
@@ -118,4 +166,4 @@ async function getHoldings(address) {
   return out;
 }
 
-module.exports = { loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, updateCallPerformance };
+module.exports = { loadOpenOrders, claimLimitOrder, finishLimitOrder, recordTrade, loadTrackedWallets, loadSubscribers, bumpDailySpent, recordCopy, getHoldings, loadPendingCalls, loadCallById, markCallExecuted, loadGroupSubscribers, claimCallExecution, finishCallExecution, completeCall, loadPerformanceCalls, loadFreshPerformanceCalls, updateCallPerformance, openPosition, loadOpenPositions, claimPositionExit, finishPositionExit, touchPosition };

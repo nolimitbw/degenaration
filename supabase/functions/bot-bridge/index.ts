@@ -28,6 +28,13 @@ const operations: Record<string, { rpc: string; params: string[] }> = {
       "p_confidence_bps", "p_content_hash"
     ]
   },
+  enrich_call: {
+    rpc: "bot_enrich_call_pricing",
+    params: [
+      "p_secret", "p_call_id", "p_symbol",
+      "p_called_mcap", "p_called_price_usd", "p_called_liquidity_usd"
+    ]
+  },
   guild_status: {
     rpc: "bot_guild_status",
     params: ["p_secret", "p_guild_id"]
