@@ -152,8 +152,19 @@ if [[ -n "${RENDER_API_KEY:-}" && -n "${RENDER_WORKER_SERVICE_ID:-}" ]]; then
     code=$(render_put_env "BOT_SHARED_SECRET" "$(printf '%s' "$BOT_SHARED_SECRET" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')")
     [[ "$code" =~ ^2 ]] && ok "BOT_SHARED_SECRET set (value not logged)" || warn "BOT_SHARED_SECRET -> HTTP $code"
   fi
-  warn "PLATFORM_FEE_ACCOUNT, MAINNET_RPC and the Privy keys are not set here —"
-  warn "set those in the Render dashboard if they are not already present."
+  # Everything else the worker reads (server/worker.js, engine/signer.js, engine/store.js).
+  # Set from your environment when present; never invented, never echoed.
+  for name in PLATFORM_FEE_ACCOUNT MAINNET_RPC PRIVY_APP_ID PRIVY_APP_SECRET \
+              PRIVY_AUTHORIZATION_KEY SUPABASE_URL SUPABASE_SERVICE_KEY; do
+    value="${!name:-}"
+    if [[ -z "$value" ]]; then
+      warn "$name not in your environment — set it in the Render dashboard if absent there."
+      continue
+    fi
+    code=$(render_put_env "$name" "$(printf '%s' "$value" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')")
+    [[ "$code" =~ ^2 ]] && ok "$name set (value not logged)" || warn "$name -> HTTP $code"
+  done
+  unset value
   warn "WORKER_DISPATCH_URL belongs on the SITE (Vercel), not here. Without it a call"
   warn "still trades, but via the 8s backstop poll instead of the instant push."
 else
@@ -192,6 +203,43 @@ else
     if [[ "$SIGNING" == "True" ]]; then
       ok "DELEGATED_SIGNING is already ON"
     elif [[ -n "${RENDER_API_KEY:-}" && -n "${RENDER_WORKER_SERVICE_ID:-}" ]]; then
+      # Signing ON without these means DELEGATED_SIGNING reads "on", the gate opens,
+      # and every buy then fails inside Privy — the worst of both states. Check the
+      # service's real env before offering to flip the switch.
+      ENV_JSON=$(curl -sS -H "Authorization: Bearer ${RENDER_API_KEY}" \
+        "https://api.render.com/v1/services/${RENDER_WORKER_SERVICE_ID}/env-vars?limit=100") \
+        || die "could not read the worker's environment from Render"
+      MISSING=$(python3 - "$ENV_JSON" <<'PYEOF'
+import json, sys
+required = ["PRIVY_APP_ID", "PRIVY_APP_SECRET", "PRIVY_AUTHORIZATION_KEY",
+            "MAINNET_RPC", "SUPABASE_URL", "SUPABASE_SERVICE_KEY"]
+try:
+    rows = json.loads(sys.argv[1])
+except Exception:
+    rows = None
+# An error body ({"message": "unauthorized"}) parses as JSON but is not a listing.
+# Treat anything that is not a list as unverifiable rather than as "all missing".
+if not isinstance(rows, list):
+    print("UNREADABLE"); raise SystemExit
+present = set()
+for row in rows:
+    ev = row.get("envVar", row) if isinstance(row, dict) else {}
+    key = ev.get("key") if isinstance(ev, dict) else None
+    if key and str(ev.get("value", "")).strip():
+        present.add(key)
+print(" ".join(n for n in required if n not in present))
+PYEOF
+)
+      if [[ "$MISSING" == "UNREADABLE" ]]; then
+        die "could not read the worker's environment from Render (bad key, or an error body).
+Refusing to enable signing on state I could not verify."
+      elif [[ -n "$MISSING" ]]; then
+        die "the worker is missing: $MISSING
+Signing would turn on and every buy would still fail inside Privy. Set these first."
+      else
+        ok "worker has every variable signing needs"
+      fi
+
       printf '\n\033[33mThis makes the next Discord call spend real client SOL.\033[0m\n'
       read -r -p 'Type LIVE to enable delegated signing: ' confirm
       [[ "$confirm" == "LIVE" ]] || die "not confirmed — signing left OFF"
