@@ -542,6 +542,53 @@ test("maps only the declared Solana networks", () => {
   assert.strictEqual(resolveCaip2("mainnet"), CAIP2.mainnet);
 });
 
+console.log("price feed caching (keeps stop-losses firing under rate limits)");
+const { getPrice } = require("../engine/prices");
+
+test("one fetch serves concurrent callers for the same mint", async () => {
+  let calls = 0;
+  const fetchPrice = async () => { calls += 1; await new Promise((r) => setTimeout(r, 5)); return 2; };
+  // The monitor and both scanners asking at once must not become three requests.
+  const results = await Promise.all([
+    getPrice("CONCUR", { fetchPrice }), getPrice("CONCUR", { fetchPrice }), getPrice("CONCUR", { fetchPrice })
+  ]);
+  assert.deepStrictEqual(results, [2, 2, 2]);
+  assert.strictEqual(calls, 1);
+});
+
+test("a fresh price is reused, a stale one is refetched", async () => {
+  let calls = 0;
+  let clock = 1_000;
+  const fetchPrice = async () => { calls += 1; return 10 + calls; };
+  const opts = () => ({ fetchPrice, ttlMs: 3_000, now: () => clock });
+
+  assert.strictEqual(await getPrice("TTL", opts()), 11);
+  clock += 2_999;
+  assert.strictEqual(await getPrice("TTL", opts()), 11, "still inside the TTL");
+  assert.strictEqual(calls, 1);
+  clock += 2;
+  assert.strictEqual(await getPrice("TTL", opts()), 12, "TTL expired, refetched");
+  assert.strictEqual(calls, 2);
+});
+
+test("a failed lookup is never cached", async () => {
+  let calls = 0;
+  // Caching null would turn a momentary rate-limit into a TTL-long blind spot with no
+  // stop-loss running. The very next tick must be allowed to try again.
+  const fetchPrice = async () => { calls += 1; return calls === 1 ? null : 7; };
+  const opts = { fetchPrice, ttlMs: 60_000, now: () => 500 };
+
+  assert.strictEqual(await getPrice("FAILCACHE", opts), null);
+  assert.strictEqual(await getPrice("FAILCACHE", opts), 7, "retried immediately despite a long TTL");
+  assert.strictEqual(calls, 2);
+});
+
+test("prices are per-mint, never shared", async () => {
+  const fetchPrice = async (mint) => (mint === "PERMINT_A" ? 1 : 100);
+  assert.strictEqual(await getPrice("PERMINT_A", { fetchPrice }), 1);
+  assert.strictEqual(await getPrice("PERMINT_B", { fetchPrice }), 100);
+});
+
 Promise.all(pending).then(() => {
   console.log("");
   console.log(`${pass} passed, ${fail} failed`);
