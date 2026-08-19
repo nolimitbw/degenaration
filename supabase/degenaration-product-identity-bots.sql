@@ -94,8 +94,12 @@ create table if not exists app_private.bot_profiles (
   updated_at timestamptz not null default now(),
   published_at timestamptz,
   archived_at timestamptz,
+  deleted_at timestamptz,
   last_activity_at timestamptz
 );
+
+alter table app_private.bot_profiles
+  add column if not exists deleted_at timestamptz;
 
 create index if not exists bot_profiles_owner_kind_idx
   on app_private.bot_profiles (owner_privy_user_id, kind, status, updated_at desc);

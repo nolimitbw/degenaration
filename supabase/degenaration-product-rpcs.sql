@@ -353,7 +353,9 @@ begin
   else
     select * into v_bot
     from app_private.bot_profiles b
-    where b.id = v_bot_id and b.owner_privy_user_id = p_privy_user_id
+    where b.id = v_bot_id
+      and b.owner_privy_user_id = p_privy_user_id
+      and b.deleted_at is null
     for update;
 
     if not found then
@@ -617,6 +619,7 @@ begin
       limit 1
     ) ps on true
     where b.owner_privy_user_id = p_privy_user_id
+      and b.deleted_at is null
       and (p_kind is null or p_kind = '' or b.kind = lower(p_kind))
   ) x;
 
@@ -666,12 +669,66 @@ begin
   left join app_private.bot_config_versions cv on cv.id = b.current_version_id
   left join app_private.kol_strategies ks on ks.bot_id = b.id
   left join public.approved_groups g on g.id = b.source_group_id
-  where b.id = p_bot_id and b.owner_privy_user_id = p_privy_user_id;
+  where b.id = p_bot_id
+    and b.owner_privy_user_id = p_privy_user_id
+    and b.deleted_at is null;
 
   if v_result is null then
     return jsonb_build_object('ok', false, 'status', 404, 'error', 'bot not found');
   end if;
   return jsonb_build_object('ok', true, 'bot', v_result);
+end;
+$$;
+
+create or replace function public.app_user_delete_bot(
+  p_secret text,
+  p_privy_user_id text,
+  p_bot_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_bot app_private.bot_profiles%rowtype;
+begin
+  if not app_private.admin_secret_ok(p_secret) then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  select * into v_bot
+  from app_private.bot_profiles b
+  where b.id = p_bot_id
+    and b.owner_privy_user_id = p_privy_user_id
+    and b.deleted_at is null
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'status', 404, 'error', 'bot not found');
+  end if;
+  if v_bot.status <> 'archived' then
+    return jsonb_build_object('ok', false, 'status', 409, 'error', 'archive the bot before deleting it');
+  end if;
+  if exists (
+    select 1 from app_private.positions p
+    where p.bot_id = v_bot.id and p.status in ('opening', 'open', 'closing')
+  ) then
+    return jsonb_build_object('ok', false, 'status', 409, 'error', 'close positions before deleting the bot');
+  end if;
+
+  update app_private.bot_profiles
+  set deleted_at = now(), visibility = 'private', last_activity_at = now()
+  where id = v_bot.id;
+
+  insert into app_private.bot_events (
+    bot_id, actor_privy_user_id, event_type, previous_status, next_status, reason
+  ) values (
+    v_bot.id, p_privy_user_id, 'bot.deleted', v_bot.status, v_bot.status,
+    'Removed from user bot manager; immutable history retained'
+  );
+
+  return jsonb_build_object('ok', true, 'deleted', true, 'botId', v_bot.id);
 end;
 $$;
 
@@ -1720,6 +1777,8 @@ revoke execute on function public.app_user_list_bots(text, text, text) from publ
 grant execute on function public.app_user_list_bots(text, text, text) to service_role;
 revoke execute on function public.app_user_get_bot(text, text, uuid) from public, anon, authenticated;
 grant execute on function public.app_user_get_bot(text, text, uuid) to service_role;
+revoke execute on function public.app_user_delete_bot(text, text, uuid) from public, anon, authenticated;
+grant execute on function public.app_user_delete_bot(text, text, uuid) to service_role;
 revoke execute on function public.app_public_list_discord_marketplace(text, text, text, integer) from public, anon, authenticated;
 grant execute on function public.app_public_list_discord_marketplace(text, text, text, integer) to service_role;
 revoke execute on function public.app_public_list_kol_marketplace(text, text, text, integer) from public, anon, authenticated;

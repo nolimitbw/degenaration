@@ -53,6 +53,7 @@ const operations: Record<string, string[]> = {
   app_user_save_mainnet_bot_draft: ["p_secret", "p_privy_user_id", "p_payload"],
   app_user_list_bots: ["p_secret", "p_privy_user_id", "p_kind"],
   app_user_get_bot: ["p_secret", "p_privy_user_id", "p_bot_id"],
+  app_user_delete_bot: ["p_secret", "p_privy_user_id", "p_bot_id"],
   app_user_get_bot_activity: ["p_secret", "p_privy_user_id", "p_bot_id", "p_limit"],
   app_user_bot_run_facts: [
     "p_secret", "p_privy_user_id", "p_bot_id", "p_source_group_id", "p_channel_id",

@@ -61,3 +61,22 @@ export async function POST(req: NextRequest) {
     p_payload: parsed.value
   }));
 }
+
+export async function DELETE(req: NextRequest) {
+  const limited = await distributedRateLimit(req, {
+    limit: 20,
+    windowSeconds: 60,
+    failClosed: true
+  });
+  if (limited) return limited;
+  const user = await requirePrivyUser(req);
+  if (!user.ok) return user.response;
+  const body = await req.json().catch(() => null) as { id?: unknown } | null;
+  if (!body || typeof body.id !== "string" || !UUID_RE.test(body.id)) {
+    return NextResponse.json({ error: "invalid bot id" }, { status: 400 });
+  }
+  return rpcResponse(await callPrivyRpc("app_user_delete_bot", {
+    p_privy_user_id: user.privyUserId,
+    p_bot_id: body.id
+  }));
+}

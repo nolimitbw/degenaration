@@ -207,9 +207,11 @@ await db.exec(`
   revoke execute on function public.app_user_save_bot(text, text, jsonb) from public, anon, authenticated;
   revoke execute on function public.app_user_list_bots(text, text, text) from public, anon, authenticated;
   revoke execute on function public.app_user_get_bot(text, text, uuid) from public, anon, authenticated;
+  revoke execute on function public.app_user_delete_bot(text, text, uuid) from public, anon, authenticated;
   grant execute on function public.app_user_save_bot(text, text, jsonb) to service_role;
   grant execute on function public.app_user_list_bots(text, text, text) to service_role;
   grant execute on function public.app_user_get_bot(text, text, uuid) to service_role;
+  grant execute on function public.app_user_delete_bot(text, text, uuid) to service_role;
 `);
 await db.exec(draftSql);
 await db.exec(attributionSql);
@@ -515,6 +517,36 @@ const kolCopy = await call("app_user_save_mainnet_bot_draft", [
 ]);
 assert.notEqual(kolOne.bot.id, kolCopy.bot.id);
 
+const activeDelete = await call("app_user_delete_bot", [
+  "lifecycle-test-secret", "user-a", liveDiscord.bot.id
+]);
+assert.equal(activeDelete.status, 409);
+assert.match(activeDelete.error, /archive/i);
+
+const deniedDelete = await call("app_user_delete_bot", [
+  "lifecycle-test-secret", "user-b", botId
+]);
+assert.equal(deniedDelete.status, 404);
+
+const deleted = await call("app_user_delete_bot", [
+  "lifecycle-test-secret", "user-a", botId
+]);
+assert.equal(deleted.deleted, true);
+const deletedGet = await call("app_user_get_bot", ["lifecycle-test-secret", "user-a", botId]);
+assert.equal(deletedGet.status, 404);
+const listAfterDelete = await call("app_user_list_bots", ["lifecycle-test-secret", "user-a", "discord"]);
+assert.equal(listAfterDelete.bots.some((bot) => bot.id === botId), false);
+const retainedVersions = await db.query(
+  "select count(*)::integer as count from app_private.bot_config_versions where bot_id = $1",
+  [botId]
+);
+assert.equal(retainedVersions.rows[0].count, 6);
+const deleteEvent = await db.query(
+  "select event_type from app_private.bot_events where bot_id = $1 order by created_at desc limit 1",
+  [botId]
+);
+assert.equal(deleteEvent.rows[0].event_type, "bot.deleted");
+
 const privilegeRows = await db.query(`
   select
     has_function_privilege('anon', 'public.app_user_get_bot(text,text,uuid)', 'execute') as anon_execute,
@@ -537,6 +569,17 @@ assert.deepEqual(activityPrivilegeRows.rows[0], {
   authenticated_execute: false,
   service_execute: true
 });
+const deletePrivilegeRows = await db.query(`
+  select
+    has_function_privilege('anon', 'public.app_user_delete_bot(text,text,uuid)', 'execute') as anon_execute,
+    has_function_privilege('authenticated', 'public.app_user_delete_bot(text,text,uuid)', 'execute') as authenticated_execute,
+    has_function_privilege('service_role', 'public.app_user_delete_bot(text,text,uuid)', 'execute') as service_execute
+`);
+assert.deepEqual(deletePrivilegeRows.rows[0], {
+  anon_execute: false,
+  authenticated_execute: false,
+  service_execute: true
+});
 
 console.log(JSON.stringify({
   engine: "PGlite PostgreSQL",
@@ -546,6 +589,7 @@ console.log(JSON.stringify({
   configurationVersions: 6,
   pauseResumeArchive: "PASS",
   archivedTerminal: "PASS",
+  archivedDeleteAndHistoryRetention: "PASS",
   schemaParity: "PASS",
   openPositionArchiveGuard: "PASS",
   ungroupedPositionBlocksArchive: "PASS",

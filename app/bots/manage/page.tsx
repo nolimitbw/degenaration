@@ -16,6 +16,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Trash2,
   X
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
@@ -46,6 +47,7 @@ export default function BotManagerPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<ProductBot | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProductBot | null>(null);
 
   const load = useCallback(() => {
     if (!authenticated) {
@@ -67,10 +69,14 @@ export default function BotManagerPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!archiveTarget) return;
+    const target = archiveTarget || deleteTarget;
+    if (!target) return;
     const previousOverflow = document.body.style.overflow;
     const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && busy !== archiveTarget.id) setArchiveTarget(null);
+      if (event.key === "Escape" && busy !== target.id) {
+        setArchiveTarget(null);
+        setDeleteTarget(null);
+      }
     };
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", close);
@@ -78,7 +84,7 @@ export default function BotManagerPage() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", close);
     };
-  }, [archiveTarget, busy]);
+  }, [archiveTarget, deleteTarget, busy]);
 
   const counts = useMemo(() => ({
     active: bots?.filter((bot) => bot.status === "active").length || 0,
@@ -111,6 +117,23 @@ export default function BotManagerPage() {
     } catch (reason) {
       toast(reason instanceof Error ? reason.message : "Could not update bot", "err");
       return false;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function deleteBot(bot: ProductBot) {
+    setBusy(bot.id);
+    try {
+      await productFetch("/api/product/bots", { getAccessToken, identityToken }, {
+        method: "DELETE",
+        body: JSON.stringify({ id: bot.id })
+      });
+      setBots((current) => current?.filter((item) => item.id !== bot.id) || []);
+      toast("Bot settings deleted");
+      setDeleteTarget(null);
+    } catch (reason) {
+      toast(reason instanceof Error ? reason.message : "Could not delete bot settings", "err");
     } finally {
       setBusy(null);
     }
@@ -272,6 +295,9 @@ export default function BotManagerPage() {
                               {bot.status !== "archived" && (
                                 <button type="button" onClick={() => setArchiveTarget(bot)} disabled={(bot.openTrades || 0) > 0} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim hover:text-down disabled:cursor-not-allowed disabled:opacity-30" aria-label={`Archive ${bot.name}`} title={(bot.openTrades || 0) > 0 ? "Close positions before archiving" : "Archive"}><Archive size={14} /></button>
                               )}
+                              {bot.status === "archived" && (
+                                <button type="button" onClick={() => setDeleteTarget(bot)} className="grid h-11 w-11 place-items-center rounded-md border border-edge text-dim hover:border-down/60 hover:text-down sm:h-9 sm:w-9" aria-label={`Delete ${bot.name} settings`} title="Delete settings"><Trash2 size={14} /></button>
+                              )}
                             </>
                           )}
                         </div>
@@ -305,6 +331,28 @@ export default function BotManagerPage() {
                 >
                   {busy === archiveTarget.id && <Loader2 size={14} className="animate-spin" />}
                   Archive bot
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && busy !== deleteTarget.id) setDeleteTarget(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="delete-bot-title" className="w-full max-w-lg overflow-hidden rounded-md border border-edge bg-panel shadow-2xl">
+            <header className="flex items-center justify-between gap-4 border-b border-edge p-5">
+              <div><p className="ui-label text-down">Delete settings</p><h2 id="delete-bot-title" className="mt-2 t-title font-semibold text-ink">Delete {deleteTarget.name}?</h2></div>
+              <button type="button" onClick={() => setDeleteTarget(null)} disabled={busy === deleteTarget.id} className="grid h-11 w-11 place-items-center rounded-md border border-edge text-dim disabled:opacity-40 sm:h-9 sm:w-9" aria-label="Close delete confirmation"><X size={16} /></button>
+            </header>
+            <div className="space-y-4 p-5">
+              <p className="t-body leading-6 text-dim">This permanently removes the archived bot and its saved settings from My Bots. Trade and financial history stays recorded.</p>
+              <div className="rounded-md border border-down/30 bg-down/5 p-3 t-label text-dim">This action cannot be undone.</div>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setDeleteTarget(null)} disabled={busy === deleteTarget.id} className="min-h-11 rounded-md border border-edge px-4 t-body font-semibold text-ink disabled:opacity-40">Cancel</button>
+                <button type="button" disabled={busy === deleteTarget.id} onClick={() => deleteBot(deleteTarget)} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-down px-4 t-body font-semibold text-white disabled:opacity-40">
+                  {busy === deleteTarget.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  Delete settings
                 </button>
               </div>
             </div>
