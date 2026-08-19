@@ -135,6 +135,19 @@ with checks as (
     and not exists (select 1 from public.positions p where p.call_id = e.call_id and p.subscription_id = e.subscription_id)
 
   union all
+  select 18, 'Take-profits sized against the opening fill',
+    case when count(*) = 1 then 'PASS' else 'FAIL' end,
+    'positions.opened_amount_raw — without it TP2 sells a share of what TP1 left behind, not of the position'
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'positions' and column_name = 'opened_amount_raw'
+
+  union all
+  select 19, 'Open positions have a recorded opening fill',
+    case when count(*) = 0 then 'PASS' else 'WARN' end,
+    count(*)::text || ' open position(s) with no opened_amount_raw — their take-profits fall back to the remaining balance'
+  from public.positions where status = 'open' and opened_amount_raw is null
+
+  union all
   select 17, 'Calls still awaiting execution',
     case when count(*) < 50 then 'PASS' else 'WARN' end,
     count(*)::text || ' unexecuted call(s) — a large backlog will all fire at once when signing turns on'
