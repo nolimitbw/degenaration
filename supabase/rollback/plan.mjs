@@ -428,6 +428,21 @@ export const PACKAGE = [
       "limits share one window. Rolling back restores an uncapped trade count and a UTC day; " +
       "it refuses while a subscription has entries counted in the open window.",
   },
+  {
+    n: 34,
+    apply: "degenaration-call-daily-cap-release.sql",
+    rollback: "34-call-daily-cap-release.sql",
+    reapply: [],
+    note:
+      "worker_claim_call_execution reserves daily_spent and daily_trades; " +
+      "worker_finish_call_execution never gave them back. Three production executions that " +
+      "failed BEFORE submission — no signature, nothing submitted, zero lamports moved — " +
+      "permanently consumed 0.15 of a 1.00 SOL cap and 3 of 10 daily trades, so a run of " +
+      "failures stops a bot for the day having bought nothing. Releases only on the evidence " +
+      "(tx_signature and submitted_at both null), never on the status word, so a leg already " +
+      "on its way to the chain is never refunded. Same arity, no overload risk. Rolling back " +
+      "restores the leak.",
+  },
 ];
 /** The functions whose arity changes — the reason explicit drops exist at all. */
 export const ARITY_CHANGES = [
