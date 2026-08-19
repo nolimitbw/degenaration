@@ -531,6 +531,53 @@ test("rejects tampered and expired referral captures", () => {
   );
 });
 
+console.log("privy authorization key handling");
+const { normalizeAuthorizationKey, signingConfigProblems, describeSigningError } = require("../engine/signer");
+const AUTH = "wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg";
+
+test("a correct key passes through unchanged", () => {
+  assert.strictEqual(normalizeAuthorizationKey(AUTH), AUTH);
+});
+
+test("restores a prefix lost when pasting from the dashboard", () => {
+  // Privy shows the key with the prefix, but it is easy to copy only the base64 body.
+  // Without it the SDK signs with a key Privy cannot verify and every trade fails.
+  assert.strictEqual(normalizeAuthorizationKey(AUTH.slice("wallet-auth:".length)), AUTH);
+});
+
+test("survives quotes and newlines a shell or .env adds", () => {
+  assert.strictEqual(normalizeAuthorizationKey(`  "${AUTH}"  `), AUTH);
+  assert.strictEqual(normalizeAuthorizationKey(`${AUTH}\n`), AUTH);
+  assert.strictEqual(normalizeAuthorizationKey(`'${AUTH}'`), AUTH);
+});
+
+test("refuses what cannot be a key rather than signing with it", () => {
+  for (const bad of ["", "   ", "wallet-auth:", "your_privy_key_here", null, undefined, 42]) {
+    assert.strictEqual(normalizeAuthorizationKey(bad), null, `should reject ${JSON.stringify(bad)}`);
+  }
+});
+
+test("startup names every missing or unusable signing variable", () => {
+  assert.deepStrictEqual(signingConfigProblems({ PRIVY_APP_ID: "a", PRIVY_APP_SECRET: "b", PRIVY_AUTHORIZATION_KEY: AUTH }), []);
+
+  const none = signingConfigProblems({});
+  assert.strictEqual(none.length, 3);
+
+  // Set but unusable is the dangerous case: presence checks pass, Privy still rejects.
+  const bad = signingConfigProblems({ PRIVY_APP_ID: "a", PRIVY_APP_SECRET: "b", PRIVY_AUTHORIZATION_KEY: "not-a-key" });
+  assert.strictEqual(bad.length, 1);
+  assert.match(bad[0], /not a usable key/);
+});
+
+test("a rejected signature explains what to check", () => {
+  const described = describeSigningError(new Error("No valid authorization signatures were provided."));
+  assert.match(described.message, /PRIVY_AUTHORIZATION_KEY/);
+  assert.match(described.message, /wallet-auth:/);
+  // Unrelated failures must pass through untouched, not be mislabelled as a key problem.
+  const other = new Error("connection reset");
+  assert.strictEqual(describeSigningError(other), other);
+});
+
 console.log("delegated signing network gate");
 const { CAIP2, resolveCaip2 } = require("../engine/signer");
 test("requires an explicit supported signing network", () => {

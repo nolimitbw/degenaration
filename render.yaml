@@ -11,12 +11,16 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.22.0
+      # These three decide whether real client SOL moves, so the live service owns them,
+      # not this file. A blueprint sync re-applies any literal `value:` here, which would
+      # silently switch a trading worker back to devnet and watch-only. `sync: false`
+      # leaves the dashboard value untouched.
       - key: WORKER_NET
-        value: devnet
+        sync: false
       - key: DELEGATED_SIGNING
-        value: "off"
+        sync: false
       - key: COPY_TRADING
-        value: "off"
+        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY
