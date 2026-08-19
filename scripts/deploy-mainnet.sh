@@ -71,8 +71,12 @@ require_cmd() {
 step "Preconditions"
 # ============================================================
 require_cmd psql "Install the PostgreSQL client (e.g. brew install libpq / apt install postgresql-client)."
+# Steps 4 and 6 shell out to these. Failing here beats dying after the migrations
+# have already been applied, with no signing check to show for it.
+require_cmd curl "Install curl."
+require_cmd python3 "Install Python 3 (used to read the worker health JSON)."
 require_env SUPABASE_DB_URL
-ok "psql present, SUPABASE_DB_URL set"
+ok "psql, curl and python3 present; SUPABASE_DB_URL set"
 
 # Fail fast on a bad connection string rather than midway through the migrations.
 psql "$SUPABASE_DB_URL" -qtAc 'select 1' >/dev/null 2>&1 \
@@ -150,6 +154,8 @@ if [[ -n "${RENDER_API_KEY:-}" && -n "${RENDER_WORKER_SERVICE_ID:-}" ]]; then
   fi
   warn "PLATFORM_FEE_ACCOUNT, MAINNET_RPC and the Privy keys are not set here —"
   warn "set those in the Render dashboard if they are not already present."
+  warn "WORKER_DISPATCH_URL belongs on the SITE (Vercel), not here. Without it a call"
+  warn "still trades, but via the 8s backstop poll instead of the instant push."
 else
   warn "skipped — needs RENDER_API_KEY and RENDER_WORKER_SERVICE_ID."
 fi
@@ -162,7 +168,7 @@ PREFLIGHT_OUT=$(psql "$SUPABASE_DB_URL" -qX -f supabase/PREFLIGHT-mainnet.sql) \
   || die "preflight query failed to run"
 echo "$PREFLIGHT_OUT"
 
-FAILS=$(grep -c 'FAIL' <<<"$PREFLIGHT_OUT" || true)
+FAILS=$(grep -c '\[X\] FAIL' <<<"$PREFLIGHT_OUT" || true)
 if (( FAILS > 0 )); then
   die "$FAILS preflight check(s) FAILED (listed at the top above).
 Every FAIL is a client whose trade would misbehave — fix them before enabling signing."
