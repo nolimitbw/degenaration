@@ -77,13 +77,12 @@ if (!new Set(["mainnet", "devnet"]).has(NET)) {
   process.exit(1);
 }
 
-if (SIGNING_READY) {
-  const missing = ["PRIVY_APP_ID", "PRIVY_APP_SECRET", "PRIVY_AUTHORIZATION_KEY"]
-    .filter((name) => !process.env[name]);
-  if (missing.length) {
-    console.error(`[worker] delegated signing requested but missing ${missing.join(", ")}. Exiting.`);
-    process.exit(1);
-  }
+// Presence is not enough: a key that is set but unusable (quotes kept, `wallet-auth:` prefix
+// lost) leaves signing reporting healthy while Privy rejects every trade. Refuse to boot.
+const SIGNING_PROBLEMS = SIGNING_READY ? signer.signingConfigProblems() : [];
+if (SIGNING_PROBLEMS.length) {
+  console.error(`[worker] delegated signing requested but ${SIGNING_PROBLEMS.join("; ")}. Exiting.`);
+  process.exit(1);
 }
 
 console.log(`[worker] starting — signing ${SIGNING_READY ? "ENABLED" : "DISABLED (watch-only)"}`);
