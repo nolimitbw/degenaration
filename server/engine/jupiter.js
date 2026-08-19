@@ -94,10 +94,29 @@ async function feeAccountUsable(feeMint = SOL_MINT) {
   }
 }
 
-/** The fee may only be requested when the verified fee mint belongs to this ExactIn pair. */
+/**
+ * The fee may only be requested when the verified fee mint is this ExactIn swap's OUTPUT.
+ *
+ * On an ExactIn swap Jupiter takes the platform fee in the OUTPUT mint, so the feeAccount must
+ * be an associated token account OF THAT MINT. Accepting `inputMint === FEE_ACCOUNT_MINT` as
+ * well made every BUY request a fee: input wSOL matched, so we sent platformFeeBps together
+ * with the wSOL fee account while Jupiter intended to take the fee in the memecoin being
+ * bought. The program rejected the mismatch with custom error 0x177e (6014) at simulation, so
+ * EVERY buy failed and no position was ever opened.
+ *
+ * This is not fixable by creating fee accounts: the output mint of a buy is whatever token was
+ * just called, so its ATA cannot exist in advance. Charging on the sell leg is the only
+ * coverable side, which is why the fee wallet needs wSOL — "wSOL first (covers every sell)".
+ *
+ * Proven against mainnet before the change: the identical quote and swap simulate clean
+ * (err: null) with no platformFeeBps, and Jupiter reports platformFee.feeMint as the memecoin
+ * when one is requested.
+ *
+ * Net effect: 200 bps on every confirmed SELL leg, nothing on the buy.
+ */
 function feeAppliesToPair(inputMint, outputMint) {
-  return APPLY_FEE && Boolean(FEE_ACCOUNT_MINT)
-    && (inputMint === FEE_ACCOUNT_MINT || outputMint === FEE_ACCOUNT_MINT);
+  void inputMint;
+  return APPLY_FEE && Boolean(FEE_ACCOUNT_MINT) && outputMint === FEE_ACCOUNT_MINT;
 }
 
 async function ensureFeeAccountChecked() {

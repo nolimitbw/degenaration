@@ -386,15 +386,27 @@ test("worker fee uses exact integer lamport arithmetic", () => {
   assert.strictEqual(platformFeeLamports(HUNDRED_SOL), feeModel.bpsOf(HUNDRED_SOL, 200));
   assert.strictEqual(platformFeeLamports(lam(1)), BigInt(0));
 
-  // Jupiter Metis ExactIn accepts a fee account for either pair mint. One initialized wSOL
-  // account therefore covers both SOL -> token buys and token -> SOL sells.
+  // CORRECTED against mainnet 2026-08-19. This block used to assert that "Jupiter Metis
+  // ExactIn accepts a fee account for either pair mint", so one wSOL account covered buys and
+  // sells alike. It does not. On ExactIn the fee is taken in the OUTPUT mint, and the
+  // feeAccount must be an ATA of that mint.
+  //
+  // Because input wSOL matched, every BUY sent platformFeeBps alongside the wSOL fee account
+  // while Jupiter meant to take the fee in the token being bought. The program rejected it
+  // with 0x177e (6014) at simulation, so every buy failed and no position was ever opened.
+  // Proven by simulating the identical swap: clean (err: null) without platformFeeBps, and
+  // Jupiter reports platformFee in the memecoin when one is requested.
+  //
+  // A buy's output mint is whatever was just called, so its ATA cannot exist beforehand. The
+  // sell leg is the only coverable side — hence "wSOL first (covers every sell)".
   const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
   jup.__setFeeAccountUsable(true, jup.SOL_MINT);
-  assert.strictEqual(jup.feeAppliesToPair(jup.SOL_MINT, BONK), true, "buy from wSOL collects the fee");
+  assert.strictEqual(jup.feeAppliesToPair(jup.SOL_MINT, BONK), false,
+    "a BUY must NOT request the fee: the fee would be taken in BONK, and no BONK fee account exists");
   assert.strictEqual(jup.feeAppliesToPair(BONK, jup.SOL_MINT), true, "sell into wSOL collects the fee");
-  assert.strictEqual(jup.feeAppliesToPair(BONK, "USDC"), false, "the account mint must belong to the pair");
+  assert.strictEqual(jup.feeAppliesToPair(BONK, "USDC"), false, "the account mint must be the OUTPUT mint");
   jup.__setFeeAccountUsable(false);
-  assert.strictEqual(jup.feeAppliesToPair(jup.SOL_MINT, BONK), false, "no usable account, no fee");
+  assert.strictEqual(jup.feeAppliesToPair(BONK, jup.SOL_MINT), false, "no usable account, no fee");
   jup.__setFeeAccountUsable(true, jup.SOL_MINT);
   if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
   else delete process.env.PLATFORM_FEE_ACCOUNT;
