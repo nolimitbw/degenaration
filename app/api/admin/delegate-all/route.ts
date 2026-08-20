@@ -112,23 +112,35 @@ export async function POST(req: Request) {
     });
   }
 
+  // Privy refused the raw PATCH with "Missing privy-authorization-signature". That header is
+  // derived from PRIVY_AUTHORIZATION_KEY and the SDK produces it; hand-rolling P-256 request
+  // signing here would be a second implementation of the one thing that must not be subtly
+  // wrong. Use the SDK, and report which method carried it so the next run is not guesswork.
+  let sdk: any = null;
+  let sdkMethod = "none";
+  try {
+    const { PrivyClient } = require("@privy-io/server-auth");
+    const client = new PrivyClient(process.env.PRIVY_APP_ID!, process.env.PRIVY_APP_SECRET!, {
+      walletApi: { authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_KEY }
+    });
+    sdk = client.walletApi;
+    for (const name of ["updateWallet", "update", "addSigners", "addSigner"]) {
+      if (typeof sdk?.[name] === "function") { sdkMethod = name; break; }
+    }
+  } catch (e: any) {
+    return NextResponse.json({ step: "sdk init", error: String(e?.message || e).slice(0, 300) }, { status: 500 });
+  }
+  if (sdkMethod === "none") {
+    const names = sdk ? Object.getOwnPropertyNames(Object.getPrototypeOf(sdk)).filter((n) => typeof sdk[n] === "function") : [];
+    return NextResponse.json({ step: "sdk method", error: "no update method found", available: names }, { status: 500 });
+  }
+
   // ---- add the signer, one wallet at a time so one refusal does not hide the rest ----
   const results: { walletId: string; status: number; ok: boolean; privy?: string }[] = [];
   for (const w of wallets) {
     try {
-      const res = await fetch(`${PRIVY_WALLET_BASE}/wallets/${w.walletId}`, {
-        method: "PATCH",
-        headers: privyHeaders(),
-        body: JSON.stringify({ additional_signers: [{ signer_id: signerId }] }),
-        cache: "no-store"
-      });
-      const body = await res.json().catch(() => null);
-      results.push({
-        walletId: w.walletId,
-        status: res.status,
-        ok: res.ok,
-        privy: res.ok ? undefined : String(body?.error || body?.message || "").slice(0, 240)
-      });
+      await sdk[sdkMethod]({ walletId: w.walletId, additionalSigners: [{ signerId }] });
+      results.push({ walletId: w.walletId, status: 200, ok: true });
     } catch (e: any) {
       results.push({ walletId: w.walletId, status: 0, ok: false, privy: String(e?.message || e).slice(0, 240) });
     }
@@ -137,6 +149,7 @@ export async function POST(req: Request) {
   const succeeded = results.filter((r) => r.ok).length;
   return NextResponse.json({
     signerId,
+    sdkMethod,
     walletsFound: wallets.length,
     succeeded,
     failed: results.length - succeeded,
