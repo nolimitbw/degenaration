@@ -54,6 +54,8 @@ const PROFILE_SYNC_MS = Number(process.env.BOT_PROFILE_SYNC_MS || 21600000); // 
  * DexScreener is already the price source for every accepted call, so this adds no new
  * dependency. A provider failure resolves nothing and the parser's refusal stands.
  */
+const MAX_TRADABLE_PER_MESSAGE = 5;
+
 async function resolveTradable(addresses) {
   const tradable = [];
   for (const address of addresses) {
@@ -66,9 +68,10 @@ async function resolveTradable(addresses) {
     if (pairs.some((pair) => pair?.chainId === "solana" && pair?.baseToken?.address === address)) {
       tradable.push(address);
     }
-    if (tradable.length > 1) return null; // genuinely ambiguous; stop paying for lookups
+    // A message naming more tokens than this is a list, not a call.
+    if (tradable.length >= MAX_TRADABLE_PER_MESSAGE) break;
   }
-  return tradable.length === 1 ? tradable[0] : null;
+  return tradable;
 }
 
 const client = new Client({
@@ -305,9 +308,9 @@ async function postIngest(payload) {
  * journaled here, because "detected but never recorded" is the failure this whole path
  * exists to make visible.
  */
-async function ingestEvent({ guildId, channelId, channelName, messageId, caller, group, call, rejectionReason, eventType = "create", eventVersion, editedAt }) {
+async function ingestEvent({ guildId, channelId, channelName, messageId, caller, group, call, rejectionReason, ambiguousAddresses, eventType = "create", eventVersion, editedAt }) {
   if (!INGEST_URL || !BOT_SECRET) throw new Error("INGEST_URL / BOT_SHARED_SECRET not set");
-  const payload = buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, rejectionReason, eventType, eventVersion, editedAt });
+  const payload = buildIngestPayload({ guildId, channelId, channelName, messageId, caller, call, rejectionReason, ambiguousAddresses, eventType, eventVersion, editedAt });
 
   for (let attempt = 0; attempt < INGEST_ATTEMPTS; attempt += 1) {
     const result = await postIngest(payload);

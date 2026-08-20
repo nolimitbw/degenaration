@@ -99,6 +99,33 @@ function describeShape(msg) {
  * the event arrives: the approved-channel map is refreshed on a timer, and the bot's own id
  * does not exist until the client is ready.
  */
+/**
+ * The event version for the Nth mint of one message.
+ *
+ * The first keeps the message's own version, so a single-mint call stays byte-identical to
+ * before and its calls.message_id does not move. Later mints need a version that survives the
+ * database's left(version, 32) truncation, so the index goes in FRONT: a `history:<ISO>`
+ * version is already exactly 32 characters, and an index appended to the END would be
+ * truncated away — collapsing every mint of that message onto one id and silently dropping
+ * all but the first.
+ */
+function versionForMint(eventVersion, index) {
+  return index === 0 ? eventVersion : `m${index}:${eventVersion}`;
+}
+
+/**
+ * Which of a message's candidate addresses become calls: those the resolver found a real
+ * Solana market for, de-duplicated, and only ones the message actually offered.
+ *
+ * A resolver returning an address the message did not contain is a bug, and acting on it
+ * would buy a token nobody called.
+ */
+function mintsToJournal(addresses, resolved) {
+  const offered = Array.isArray(addresses) ? addresses : [];
+  const list = Array.isArray(resolved) ? resolved : (resolved ? [resolved] : []);
+  return [...new Set(list.filter((address) => offered.includes(address)))];
+}
+
 function createMessageHandlers({
   parseMessage,
   ingestEvent,
@@ -216,12 +243,11 @@ function createMessageHandlers({
    * dependency. A provider failure resolves nothing and leaves the refusal in place.
    */
   async function resolveAmbiguous(addresses) {
-    if (!Array.isArray(addresses) || addresses.length < 2 || addresses.length > 8) return null;
+    if (!Array.isArray(addresses) || addresses.length < 2 || addresses.length > 8) return [];
     const resolved = await resolveTradable(addresses);
-    // Only an address the message actually offered. A resolver returning anything else is a
-    // bug, and accepting it would buy a token nobody called.
-    return addresses.includes(resolved) ? resolved : null;
+    return mintsToJournal(addresses, resolved);
   }
+
 
   /**
    * Ingest one detected call and report what happened either way.
@@ -234,15 +260,34 @@ function createMessageHandlers({
     if (parsed?.rejected) {
       // One last attempt to answer the question rather than refuse it. Only when exactly one
       // candidate turns out to be a real tradable token; anything else keeps the refusal.
-      const resolved = await resolveAmbiguous(parsed.addresses).catch(() => null);
-      if (resolved) {
-        counters.resolvedAmbiguous = (counters.resolvedAmbiguous || 0) + 1;
+      const resolved = await resolveAmbiguous(parsed.addresses).catch(() => []);
+      if (resolved.length) {
+        counters.resolvedAmbiguous = (counters.resolvedAmbiguous || 0) + resolved.length;
         log("call.resolved", {
           channelId: msg.channel.id, messageId: msg.id,
           group: group.groupName || group.groupId,
-          parserReason: parsed.rejected, candidates: parsed.candidates, mint: resolved
+          parserReason: parsed.rejected, candidates: parsed.candidates, mints: resolved
         });
-        parsed = { mint: resolved, confidence: "resolved-tradable", candidateType: "mint" };
+        // Every tradable address the message named becomes its own call. Refusing the whole
+        // message because it named two tokens dropped real calls for 18 hours; picking one of
+        // them would be the guess this code was right to avoid. Journalling both is neither —
+        // it is what the message said. A wallet, pool id or signature has no market and is
+        // still excluded, so nothing that is not a token can be bought here.
+        if (resolved.length > 1) {
+          const outcomes = [];
+          for (let index = 0; index < resolved.length; index += 1) {
+            outcomes.push(await handleDetectedCall({
+              msg,
+              group,
+              parsed: { mint: resolved[index], confidence: "resolved-tradable", candidateType: "mint" },
+              eventType,
+              eventVersion: versionForMint(eventVersion, index),
+              editedAt
+            }));
+          }
+          return outcomes[0] ?? null;
+        }
+        parsed = { mint: resolved[0], confidence: "resolved-tradable", candidateType: "mint" };
       }
     }
     if (parsed?.rejected) {
@@ -509,4 +554,4 @@ function createMessageHandlers({
   };
 }
 
-module.exports = { createMessageHandlers, IngestedMessages, callerName, describeShape, INGESTED_LIMIT };
+module.exports = { createMessageHandlers, IngestedMessages, callerName, describeShape, INGESTED_LIMIT, versionForMint, mintsToJournal };

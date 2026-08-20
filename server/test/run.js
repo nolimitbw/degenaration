@@ -4124,5 +4124,46 @@ console.log("price selection");
 }
 
 console.log("");
+console.log("multi-mint Discord calls");
+{
+  const { versionForMint, mintsToJournal } = require("../bot/handlers");
+  const MINT_A = "Fw9LotRCnRPR5KWGD1GKuU6Y93E4xA8ngDds4S3Gpump";
+  const MINT_B = "6hosezP1x4Ng4zgYZtDFx58e6VBnFmnQ4ojyX32wpump";
+  const WALLET = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";
+
+  test("every tradable address in one message becomes its own call", () => {
+    // Refusing the whole message because it named two tokens dropped real calls for 18 hours.
+    assert.deepStrictEqual(mintsToJournal([MINT_A, MINT_B], [MINT_A, MINT_B]), [MINT_A, MINT_B]);
+  });
+
+  test("an address with no market is never journalled", () => {
+    // A wallet, pool id or transaction signature has no pair, so it cannot be bought here.
+    assert.deepStrictEqual(mintsToJournal([MINT_A, WALLET], [MINT_A]), [MINT_A]);
+    assert.deepStrictEqual(mintsToJournal([MINT_A, WALLET], []), []);
+  });
+
+  test("a resolver cannot introduce an address the message never offered", () => {
+    assert.deepStrictEqual(mintsToJournal([MINT_A], [MINT_B]), []);
+  });
+
+  test("a repeated address is one call, not two", () => {
+    assert.deepStrictEqual(mintsToJournal([MINT_A, MINT_A], [MINT_A, MINT_A]), [MINT_A]);
+  });
+
+  test("the first mint keeps the message's own event version", () => {
+    // calls.message_id is derived from this, so moving it would orphan every existing row.
+    assert.strictEqual(versionForMint("original", 0), "original");
+    assert.strictEqual(versionForMint("history:2026-08-19T22:23:56.917Z", 0), "history:2026-08-19T22:23:56.917Z");
+  });
+
+  test("later mints stay distinct after the database truncates the version to 32 characters", () => {
+    const version = "history:2026-08-19T22:23:56.917Z";
+    assert.strictEqual(version.length, 32, "this is the real shape of a history version");
+    const ids = [0, 1, 2].map((i) => versionForMint(version, i).slice(0, 32));
+    assert.strictEqual(new Set(ids).size, 3,
+      "an index appended at the END would be truncated away and every mint would collide");
+  });
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
