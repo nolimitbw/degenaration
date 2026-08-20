@@ -39,8 +39,13 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
     const seenKey = `degen.delegate.asked.${address}`;
     try { if (window.localStorage.getItem(seenKey)) return; } catch { /* private mode */ }
     prompted.current = true;
-    try { window.localStorage.setItem(seenKey, "1"); } catch { /* private mode */ }
-    void enable();
+    // Mark it asked only AFTER the prompt actually ran. Setting it first meant a throw before
+    // Privy's dialog appeared — not ready yet, no embedded wallet yet — burned the single
+    // attempt, and the user was never asked again on any page. That is the whole feature
+    // failing silently, which is the failure mode this session has hit too many times.
+    void enable()
+      .then(() => { try { window.localStorage.setItem(seenKey, "1"); } catch { /* private mode */ } })
+      .catch(() => { prompted.current = false; });
   }, [authenticated, address, delegated, busy]);
 
   if (!authenticated || !address) return null;
@@ -50,7 +55,7 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
   async function enable() {
     setBusy(true);
     try { await delegateWallet({ address: address!, chainType: "solana" }); toast("Delegated access enabled. Review engine status and limits before activating orders."); }
-    catch (e: any) { toast(e.message || "Could not enable delegated access", "err"); }
+    catch (e: any) { toast(e.message || "Could not enable delegated access", "err"); setBusy(false); throw e; }
     setBusy(false);
   }
   async function disable() {
