@@ -24,7 +24,7 @@ export const LAMPORTS = LAMPORTS_PER_SOL;
  * VERIFY THIS AGAINST JUPITER'S CURRENT DOCS BEFORE GOING LIVE. `npm run probe:jupiter`
  * checks reachability and a real quote.
  */
-const QUOTE_API = optionalEnv("JUPITER_API_URL")?.replace(/\/+$/, "") ?? "https://lite-api.jup.ag/swap/v1";
+const quoteApi = () => optionalEnv("JUPITER_API_URL")?.replace(/\/+$/, "") ?? "https://lite-api.jup.ag/swap/v1";
 const HTTP_TIMEOUT_MS = 12_000;
 
 export type QuoteResult = {
@@ -76,7 +76,7 @@ export async function getQuote(input: {
   });
 
   const quote = await getJson<{ outAmount?: string; inAmount?: string; priceImpactPct?: string }>(
-    `${QUOTE_API}/quote?${params.toString()}`
+    `${quoteApi()}/quote?${params.toString()}`
   );
   if (!quote?.outAmount || !quote.inAmount) return null;
 
@@ -110,7 +110,7 @@ export async function executeSwap(input: {
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS);
   let swapResponse: { swapTransaction?: string } | null = null;
   try {
-    const res = await fetch(`${QUOTE_API}/swap`, {
+    const res = await fetch(`${quoteApi()}/swap`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -172,10 +172,16 @@ export async function getSolBalance(address: string, conn?: Connection): Promise
   }
 }
 
+/**
+ * Price feed base. Configurable for the same reasons as the swap API: the provider can
+ * move, a paid tier may be needed for rate limits, and tests point it at a local stub.
+ */
+const priceApi = () => optionalEnv("PRICE_API_URL")?.replace(/\/+$/, "") ?? "https://api.dexscreener.com";
+
 /** Best-effort USD price for a mint, used for entry marks and exit evaluation. */
 export async function getPriceUsd(mint: string): Promise<number | null> {
   const data = await getJson<{ pairs?: { chainId?: string; baseToken?: { address?: string }; priceUsd?: string; liquidity?: { usd?: number } }[] }>(
-    `https://api.dexscreener.com/latest/dex/tokens/${mint}`
+    `${priceApi()}/latest/dex/tokens/${mint}`
   );
   const pair = (data?.pairs ?? [])
     .filter((item) => item?.chainId === "solana" && item?.baseToken?.address === mint)

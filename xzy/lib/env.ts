@@ -17,7 +17,11 @@ export type EnvName =
   | "SOLANA_RPC_URL"
   | "TRADING_MODE"
   | "CRON_SECRET"
-  | "JUPITER_API_URL";
+  | "JUPITER_API_URL"
+  | "PRICE_API_URL"
+  | "PLATFORM_FEE_ACCOUNT"
+  | "PLATFORM_FEE_BPS"
+  | "CHANNEL_FEE_SHARE_BPS";
 
 export function optionalEnv(name: EnvName): string | null {
   const value = process.env[name];

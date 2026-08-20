@@ -1,8 +1,6 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/monitor",
-      "schedule": "* * * * *"
-    }
+    { "path": "/api/cron/monitor", "schedule": "* * * * *" },
+    { "path": "/api/cron/scanner", "schedule": "*/15 * * * *" }
   ]
 }

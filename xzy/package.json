@@ -11,7 +11,8 @@
     "test": "node --test --experimental-strip-types \"test/*.test.ts\"",
     "check": "npm run typecheck && npm run test && npm run build",
     "webhook:set": "node --experimental-strip-types scripts/set-webhook.ts",
-    "probe:jupiter": "node --experimental-strip-types probe.ts"
+    "probe:jupiter": "node --experimental-strip-types probe.ts",
+    "preflight": "node --experimental-strip-types scripts/preflight.ts"
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.4",

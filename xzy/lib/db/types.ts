@@ -12,6 +12,12 @@ export type Channel = {
   member_count: number | null;
   listed_at: string;
   approved_at: string | null;
+  calls_measured?: number | null;
+  wins?: number | null;
+  avg_peak_x?: string | null;
+  median_peak_x?: string | null;
+  best_peak_x?: string | null;
+  stats_updated_at?: string | null;
 };
 
 export type Call = {

@@ -13,56 +13,46 @@ other product.
 
 ## Status
 
-**Trading is implemented and unverified against live APIs.** Read that twice before
-funding anything.
+**Trading is implemented. The live Jupiter endpoint is still unverified.** Read that twice
+before funding anything.
 
-Working and tested:
+Working and tested (117 tests):
 
-- Telegram webhook receiver, channel listing by bot promotion, call extraction and
-  journalling with database-level idempotency.
+- Telegram webhook, channel listing by bot promotion, call extraction, journalling with
+  database-level idempotency.
 - Mini App `initData` HMAC verification — the app's entire auth boundary.
 - Custodial wallets, AES-256-GCM encrypted at rest.
 - Copy engine: per-trade size, daily ceiling, duplicate-call protection, spend reserved
   before the buy and refunded on failure.
-- Exit engine: multi-level take-profit ladders and stop loss, evaluated every minute.
-- Mini App: wallet, channel marketplace, copy configuration, positions.
+- Exit engine: multi-level take-profit ladders and stop loss.
+- **Full trade loop against a stub Jupiter**: buy, ladder up through two take-profits,
+  collapse through the stop, close out. Exercises the real execute and monitor code.
+- Channel scoring: peak tracking and per-channel median / best / hit-rate.
+- Admin review screen for approving listed channels.
+- Chat trading: `/wallet`, `/positions` with sell buttons, `/buy`, `/sell`.
+- Fee ledger: platform cut per trade with a channel revenue share.
 
-87 tests cover the decision logic — ladders, caps, dedup, failure handling.
+**Unverified:** the Jupiter swap integration has never run against the real API — the
+environment this was built in blocks Jupiter and Dexscreener at the network level.
+`npm run probe:jupiter` is the gate that must pass before `TRADING_MODE=live`. Jupiter has
+relocated this endpoint before, so confirm `JUPITER_API_URL` against their current docs.
 
-**Not verified:** the Jupiter swap integration has never run against the real API, because
-the environment it was built in blocks those hosts. `npm run probe:jupiter` is the check
-that must pass before `TRADING_MODE=live` is set. Jupiter has moved this endpoint before,
-so confirm `JUPITER_API_URL` against their current docs.
-
-**Not built:** fee accrual, the performance scanner that measures each channel's track
-record (channels show "not measured yet" rather than an invented number), manual buy/sell
-from chat, and position history beyond the last 50.
+**Not built:** paying accrued fees out (they accrue; sending them is manual), position
+reconciliation against on-chain state, per-channel filters like minimum liquidity.
 
 ### Simulation vs live
 
-`TRADING_MODE` defaults to simulation. In that mode routes, prices, and sizes are real —
-only the transaction submission is skipped — so the whole path can be exercised without
-moving funds. Setting it to `live` is what makes the engine spend actual SOL.
+`TRADING_MODE` defaults to simulation. Routes, prices, and sizes are real — only the
+transaction submission is skipped — so the whole path runs without moving funds. Setting
+it to `live` is what makes the engine spend actual SOL.
 
-## How a channel gets listed
+### Before you deploy
 
-A Telegram bot cannot read a channel it has not been added to — there is no API for it.
-So listing is an opt-in action by the channel's owner:
+```bash
+npm run preflight
+```
 
-1. The owner opens their channel's settings → Administrators → Add Administrator, and
-   adds the bot. No permissions need enabling; reading posts is enough.
-2. Telegram sends `my_chat_member`. That update names the promoter, which is the
-   ownership proof — no separate verification code is needed.
-3. The channel is listed as `pending`.
-4. An admin approves it. Only then do its posts become recorded calls.
-
-**Listing is not approval, and approval is not endorsement.** A channel's own claims
-about its record are never displayed. Ranking comes from calls we measured ourselves;
-a channel we have not measured shows as unmeasured, never as zero.
-
-Scraping channels that have not opted in (via an MTProto userbot) is deliberately not
-implemented. It breaks Telegram's terms, gets accounts banned, and the session file is
-equivalent to an account password.
+Reports every missing or misconfigured environment variable, and what breaks without it.
 
 ## How copying works
 

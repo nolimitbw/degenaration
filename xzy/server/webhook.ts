@@ -46,6 +46,16 @@ export type WebhookDeps = {
    * fails must never cost us the record of what was called.
    */
   dispatchCopy(input: { callId: string; channelId: string; mint: string }): Promise<unknown>;
+  /** Wallet address and balance for a Telegram user, creating the wallet on first use. */
+  getWallet(tgId: string): Promise<{ address: string; balanceSol: number | null } | null>;
+  /** Open positions, newest first, for the chat summary. */
+  listPositions(tgId: string): Promise<
+    { id: string; symbol: string | null; mint: string; amountSol: number; changePct: number | null; remainingPct: number }[]
+  >;
+  /** A manual buy outside any copy subscription. */
+  manualBuy(input: { tgId: string; mint: string; amountSol: number }): Promise<{ ok: boolean; message: string }>;
+  /** A manual sell of a fraction of one position. */
+  manualSell(input: { tgId: string; positionId: string; fraction: number }): Promise<{ ok: boolean; message: string }>;
   miniAppUrl: string;
   now(): Date;
 };
@@ -231,6 +241,83 @@ async function handleCommand(message: TgMessage, deps: WebhookDeps): Promise<Web
     return { kind: "command", detail: "/list" };
   }
 
+  if (command === "/wallet") {
+    const wallet = await deps.getWallet(fromId);
+    if (!wallet) {
+      await deps.sendMessage(chatId, "Could not load your wallet. Open the app once and try again.");
+      return { kind: "command", detail: "/wallet" };
+    }
+    await deps.sendMessage(
+      chatId,
+      [
+        `Balance: <b>${wallet.balanceSol === null ? "unknown" : wallet.balanceSol.toFixed(4)} SOL</b>`,
+        "",
+        "Deposit to:",
+        `<code>${escape(wallet.address)}</code>`
+      ].join("\n"),
+      { replyMarkup: miniAppButton(deps.miniAppUrl) }
+    );
+    return { kind: "command", detail: "/wallet" };
+  }
+
+  if (command === "/positions") {
+    const positions = await deps.listPositions(fromId);
+    if (positions.length === 0) {
+      await deps.sendMessage(chatId, "No open positions.", { replyMarkup: miniAppButton(deps.miniAppUrl) });
+      return { kind: "command", detail: "/positions" };
+    }
+
+    const lines = positions.map((position) => {
+      const label = position.symbol ?? `${position.mint.slice(0, 4)}…${position.mint.slice(-4)}`;
+      // Unknown is an em dash, never 0% — an unpriced position is not a flat one.
+      const change = position.changePct === null
+        ? "—"
+        : `${position.changePct >= 0 ? "+" : ""}${position.changePct.toFixed(1)}%`;
+      return `<b>${escape(label)}</b>  ${change}  ·  ${position.amountSol} SOL in  ·  ${position.remainingPct.toFixed(0)}% held`;
+    });
+
+    // One sell button per position, capped so the keyboard stays usable.
+    const buttons = positions.slice(0, 6).map((position) => [
+      {
+        text: `Sell all ${position.symbol ?? position.mint.slice(0, 4)}`,
+        callback_data: `sell:${position.id}:100`
+      }
+    ]);
+
+    await deps.sendMessage(chatId, ["<b>Open positions</b>", "", ...lines].join("\n"), {
+      replyMarkup: { inline_keyboard: [...buttons, [{ text: "Open Xzy", web_app: { url: deps.miniAppUrl } }]] }
+    });
+    return { kind: "command", detail: "/positions" };
+  }
+
+  if (command === "/buy") {
+    const parts = (message.text ?? "").trim().split(/\s+/);
+    const mint = parts[1];
+    const amount = Number(parts[2]);
+    if (!mint || !Number.isFinite(amount) || amount <= 0) {
+      await deps.sendMessage(chatId, "Usage: <code>/buy &lt;mint&gt; &lt;amount in SOL&gt;</code>\nExample: <code>/buy DezXAZ…B263 0.1</code>");
+      return { kind: "command", detail: "/buy" };
+    }
+    const result = await deps.manualBuy({ tgId: fromId, mint, amountSol: amount });
+    await deps.sendMessage(chatId, result.message);
+    return { kind: "command", detail: "/buy" };
+  }
+
+  if (command === "/sell") {
+    const parts = (message.text ?? "").trim().split(/\s+/);
+    const positionId = parts[1];
+    // Percentage is optional and defaults to the whole position, which is what someone
+    // typing a bare /sell in a hurry means.
+    const percent = parts[2] === undefined ? 100 : Number(parts[2]);
+    if (!positionId || !Number.isFinite(percent) || percent <= 0 || percent > 100) {
+      await deps.sendMessage(chatId, "Usage: <code>/sell &lt;position id&gt; [percent]</code>\nRun /positions to see ids, or use the Sell buttons there.");
+      return { kind: "command", detail: "/sell" };
+    }
+    const result = await deps.manualSell({ tgId: fromId, positionId, fraction: percent / 100 });
+    await deps.sendMessage(chatId, result.message);
+    return { kind: "command", detail: "/sell" };
+  }
+
   if (command === "/help") {
     await deps.sendMessage(
       chatId,
@@ -238,10 +325,14 @@ async function handleCommand(message: TgMessage, deps: WebhookDeps): Promise<Web
         "<b>Xzy commands</b>",
         "",
         "/start — open the app",
+        "/wallet — your address and balance",
+        "/positions — what you are holding, with sell buttons",
+        "/buy &lt;mint&gt; &lt;SOL&gt; — buy manually",
+        "/sell &lt;position id&gt; [percent] — sell manually",
         "/list — list your channel as a call source",
         "/help — this message",
         "",
-        "Everything else lives in the app: wallet, channels you follow, positions, and limits."
+        "Copy settings, take-profit ladders and limits live in the app."
       ].join("\n"),
       { replyMarkup: miniAppButton(deps.miniAppUrl) }
     );
@@ -259,6 +350,23 @@ export async function handleUpdate(update: TgUpdate, deps: WebhookDeps): Promise
     if (update.edited_channel_post) return await handleChannelPost(update.edited_channel_post, true, deps);
 
     if (update.callback_query?.id) {
+      const data = update.callback_query.data ?? "";
+      const fromId = toUserId(update.callback_query.from?.id);
+      const match = /^sell:([0-9a-f-]{36}):(\d{1,3})$/.exec(data);
+
+      if (match && fromId) {
+        const [, positionId, percentRaw] = match as unknown as [string, string, string];
+        const percent = Number(percentRaw);
+        if (percent > 0 && percent <= 100) {
+          // Acknowledge first: Telegram shows a spinner on the button until this returns,
+          // and a swap takes longer than that patience.
+          await deps.answerCallbackQuery(update.callback_query.id, "Selling…");
+          const result = await deps.manualSell({ tgId: fromId, positionId, fraction: percent / 100 });
+          await deps.sendMessage(fromId, result.message);
+          return { kind: "callback", detail: `sell ${percent}%` };
+        }
+      }
+
       await deps.answerCallbackQuery(update.callback_query.id);
       return { kind: "callback" };
     }

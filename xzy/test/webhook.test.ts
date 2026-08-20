@@ -64,6 +64,18 @@ function harness(channel: Channel | null): Harness {
       return { accepted: true, id: `call-${recorded.length}` };
     },
     async upsertUser() {},
+    async getWallet() {
+      return { address: "wallet-address", balanceSol: 1.5 };
+    },
+    async listPositions() {
+      return [];
+    },
+    async manualBuy() {
+      return { ok: true, message: "bought" };
+    },
+    async manualSell() {
+      return { ok: true, message: "sold" };
+    },
     async dispatchCopy(input) {
       dispatched.push(input.callId);
     },
@@ -274,4 +286,139 @@ test("a call from an unapproved channel is never dispatched", async () => {
   const h = harness(approvedChannel({ status: "pending", approved_at: null }));
   await handleUpdate(channelPost(`${BONK}`), h.deps);
   assert.deepEqual(h.dispatched, []);
+});
+
+test("/positions lists holdings with a sell button for each", async () => {
+  const h = harness(null);
+  const deps: WebhookDeps = {
+    ...h.deps,
+    async listPositions() {
+      return [
+        { id: "11111111-1111-1111-1111-111111111111", symbol: "BONK", mint: BONK, amountSol: 0.25, changePct: 42.5, remainingPct: 100 },
+        { id: "22222222-2222-2222-2222-222222222222", symbol: null, mint: WIF, amountSol: 0.1, changePct: null, remainingPct: 50 }
+      ];
+    }
+  };
+
+  const outcome = await handleUpdate(
+    { message: { message_id: 1, chat: { id: 777, type: "private" }, from: { id: 777 }, text: "/positions" } },
+    deps
+  );
+
+  assert.equal(outcome.detail, "/positions");
+  const text = h.sent[0]?.text ?? "";
+  assert.match(text, /BONK/);
+  assert.match(text, /\+42\.5%/);
+  assert.match(text, /—/, "an unpriced position shows a dash, never 0%");
+});
+
+test("/buy rejects a malformed command instead of guessing an amount", async () => {
+  const h = harness(null);
+  let called = false;
+  const deps: WebhookDeps = {
+    ...h.deps,
+    async manualBuy() {
+      called = true;
+      return { ok: true, message: "bought" };
+    }
+  };
+
+  await handleUpdate(
+    { message: { message_id: 1, chat: { id: 777, type: "private" }, from: { id: 777 }, text: "/buy" } },
+    deps
+  );
+  assert.equal(called, false);
+  assert.match(h.sent[0]?.text ?? "", /Usage/);
+
+  await handleUpdate(
+    { message: { message_id: 2, chat: { id: 777, type: "private" }, from: { id: 777 }, text: `/buy ${BONK} -5` } },
+    deps
+  );
+  assert.equal(called, false, "a negative amount must not reach the trade path");
+});
+
+test("/buy passes a well-formed command through", async () => {
+  const h = harness(null);
+  const seen: { mint: string; amountSol: number }[] = [];
+  const deps: WebhookDeps = {
+    ...h.deps,
+    async manualBuy(input) {
+      seen.push({ mint: input.mint, amountSol: input.amountSol });
+      return { ok: true, message: "Bought." };
+    }
+  };
+
+  await handleUpdate(
+    { message: { message_id: 1, chat: { id: 777, type: "private" }, from: { id: 777 }, text: `/buy ${BONK} 0.25` } },
+    deps
+  );
+  assert.deepEqual(seen, [{ mint: BONK, amountSol: 0.25 }]);
+});
+
+test("a Sell button sells that position and reports back", async () => {
+  const h = harness(null);
+  const sells: { positionId: string; fraction: number }[] = [];
+  const deps: WebhookDeps = {
+    ...h.deps,
+    async manualSell(input) {
+      sells.push({ positionId: input.positionId, fraction: input.fraction });
+      return { ok: true, message: "Sold." };
+    }
+  };
+
+  const outcome = await handleUpdate(
+    {
+      callback_query: {
+        id: "cb1",
+        from: { id: 777 },
+        data: "sell:11111111-1111-1111-1111-111111111111:100"
+      }
+    },
+    deps
+  );
+
+  assert.equal(outcome.kind, "callback");
+  assert.deepEqual(sells, [{ positionId: "11111111-1111-1111-1111-111111111111", fraction: 1 }]);
+  assert.equal(h.sent[0]?.text, "Sold.");
+});
+
+test("a malformed callback never reaches the trade path", async () => {
+  const h = harness(null);
+  let called = false;
+  const deps: WebhookDeps = {
+    ...h.deps,
+    async manualSell() {
+      called = true;
+      return { ok: true, message: "sold" };
+    }
+  };
+
+  await handleUpdate({ callback_query: { id: "cb", from: { id: 777 }, data: "sell:not-a-uuid:100" } }, deps);
+  await handleUpdate({ callback_query: { id: "cb", from: { id: 777 }, data: "sell:11111111-1111-1111-1111-111111111111:900" } }, deps);
+  assert.equal(called, false);
+});
+
+test("/sell defaults to the whole position when no percentage is given", async () => {
+  const h = harness(null);
+  const sells: number[] = [];
+  const deps: WebhookDeps = {
+    ...h.deps,
+    async manualSell(input) {
+      sells.push(input.fraction);
+      return { ok: true, message: "Sold." };
+    }
+  };
+
+  await handleUpdate(
+    {
+      message: {
+        message_id: 1,
+        chat: { id: 777, type: "private" },
+        from: { id: 777 },
+        text: "/sell 11111111-1111-1111-1111-111111111111"
+      }
+    },
+    deps
+  );
+  assert.deepEqual(sells, [1]);
 });

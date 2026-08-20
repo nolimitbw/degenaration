@@ -33,6 +33,8 @@ export type CopyDeps = {
     subscriptionId: string;
     userId: string;
     callId: string;
+    /** Which channel earned this trade, for the fee split. */
+    channelId: string;
     mint: string;
     amountSol: number;
     tokensOut: string;
@@ -114,6 +116,7 @@ export async function copyCall(
       subscriptionId: subscriber.subscriptionId,
       userId: subscriber.userId,
       callId: call.id,
+      channelId: call.channelId,
       mint: call.mint,
       amountSol: decision.amountSol,
       tokensOut: result.tokensOut,

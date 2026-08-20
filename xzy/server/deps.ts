@@ -3,6 +3,7 @@ import { sendMessage, answerCallbackQuery } from "../lib/telegram/api.ts";
 import { optionalEnv } from "../lib/env.ts";
 import type { Channel } from "../lib/db/types.ts";
 import { copyCall } from "./copy.ts";
+import { getWalletFor, listPositionsFor, manualBuyFor, manualSellFor } from "./chat-trading.ts";
 import { createCopyDeps } from "./trading-deps.ts";
 import type { WebhookDeps, ListChannelInput, RecordCallInput } from "./webhook.ts";
 
@@ -89,6 +90,10 @@ export function createWebhookDeps(): WebhookDeps {
     markChannelRemoved,
     recordCall,
     upsertUser,
+    getWallet: getWalletFor,
+    listPositions: listPositionsFor,
+    manualBuy: manualBuyFor,
+    manualSell: manualSellFor,
     dispatchCopy: (input) =>
       copyCall({ id: input.callId, channelId: input.channelId, mint: input.mint }, createCopyDeps()),
     miniAppUrl: optionalEnv("PUBLIC_APP_URL") ?? "https://example.invalid",

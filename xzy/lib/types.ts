@@ -7,6 +7,24 @@ export type ChannelRow = {
   title: string | null;
   username: string | null;
   memberCount: number | null;
+  /** All null until the scanner has measured this channel. Never render as zero. */
+  callsMeasured?: number;
+  winRatePct?: number | null;
+  medianPeakX?: number | null;
+  avgPeakX?: number | null;
+  bestPeakX?: number | null;
+};
+
+export type AdminChannel = {
+  id: string;
+  chatId: string;
+  title: string | null;
+  username: string | null;
+  status: string;
+  memberCount: number | null;
+  listedByTgId: string | null;
+  listedAt: string;
+  approvedAt: string | null;
 };
 
 export type TakeProfit = { gainPct: number; sellPct: number; hit?: boolean };

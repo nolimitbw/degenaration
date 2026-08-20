@@ -23,8 +23,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ channels: [], configured: false });
   }
 
-  const rows = await db<Channel[]>(
-    "channels?status=eq.approved&select=id,chat_id,title,username,member_count,approved_at&order=approved_at.desc&limit=100"
+  // Ordered by measured performance, with unmeasured channels last — a channel with no
+  // track record should not outrank one that has earned a place.
+  const rows = await db<(Channel & { median_peak_x: string | null; avg_peak_x: string | null })[]>(
+    "channels?status=eq.approved&select=id,chat_id,title,username,member_count,approved_at,calls_measured,wins,avg_peak_x,median_peak_x,best_peak_x,stats_updated_at" +
+      "&order=median_peak_x.desc.nullslast,approved_at.desc&limit=100"
   );
 
   if (rows === null) {
@@ -33,12 +36,26 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     configured: true,
-    channels: rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      username: row.username,
-      memberCount: row.member_count,
-      approvedAt: row.approved_at
-    }))
+    channels: rows.map((row) => {
+      const measured = Number(row.calls_measured ?? 0);
+      const numeric = (value: unknown) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      };
+      return {
+        id: row.id,
+        title: row.title,
+        username: row.username,
+        memberCount: row.member_count,
+        approvedAt: row.approved_at,
+        // Null everywhere when nothing is measured. The UI renders that as "not measured
+        // yet"; rendering it as 0% would read as a track record of total failure.
+        callsMeasured: measured,
+        winRatePct: measured > 0 ? (Number(row.wins ?? 0) / measured) * 100 : null,
+        medianPeakX: numeric(row.median_peak_x),
+        avgPeakX: numeric(row.avg_peak_x),
+        bestPeakX: numeric(row.best_peak_x)
+      };
+    })
   });
 }

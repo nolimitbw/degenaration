@@ -1,9 +1,12 @@
 import { db } from "../lib/db/client.ts";
 import { sendMessage } from "../lib/telegram/api.ts";
 import { loadKeypair } from "../lib/solana/wallet.ts";
-import { getQuote, executeSwap, getSolBalance, getPriceUsd, connection, WSOL_MINT, LAMPORTS, isLiveTrading } from "../lib/trading/jupiter.ts";
+import { getSolBalance, getPriceUsd } from "../lib/trading/jupiter.ts";
+import { buyToken, sellToken } from "../lib/trading/execute.ts";
 import type { CopyDeps, Subscriber } from "./copy.ts";
 import type { MonitorDeps, OpenPosition } from "./monitor.ts";
+import type { ScannerDeps } from "./scanner.ts";
+import { splitFee, platformFeeBps } from "../lib/trading/fees.ts";
 import type { ExitRules, TakeProfitLevel } from "../lib/trading/rules.ts";
 
 /**
@@ -49,48 +52,13 @@ async function notify(userId: string, message: string) {
   return sendMessage(tgId, message);
 }
 
-/**
- * Buy `amountSol` of `mint`, then mark the entry price.
- *
- * The entry price is read from the quote actually filled rather than from a separate
- * price lookup, so take-profit and stop-loss are measured against what the user really
- * paid — including slippage — instead of an idealised mid price they never got.
- */
 async function buy(input: { subscriber: Subscriber; mint: string; amountSol: number }) {
-  const lamports = BigInt(Math.floor(input.amountSol * LAMPORTS));
-  const quote = await getQuote({
-    inputMint: WSOL_MINT,
-    outputMint: input.mint,
-    amount: lamports,
-    slippageBps: input.subscriber.slippageBps
+  return buyToken({
+    mint: input.mint,
+    amountSol: input.amountSol,
+    slippageBps: input.subscriber.slippageBps,
+    encryptedSecret: input.subscriber.encryptedSecret
   });
-  if (!quote) return { ok: false as const, error: "no route for this token" };
-
-  const tokensOut = Number(quote.outAmount);
-  if (!Number.isFinite(tokensOut) || tokensOut <= 0) return { ok: false as const, error: "route returned nothing" };
-
-  const solPrice = await getPriceUsd(WSOL_MINT);
-  // Price per token in USD, derived from the fill: (SOL in x SOL price) / tokens out.
-  const entryPriceUsd = solPrice ? (input.amountSol * solPrice) / tokensOut : null;
-
-  if (!isLiveTrading()) {
-    return {
-      ok: true as const,
-      signature: `simulated:${Date.now()}`,
-      tokensOut: quote.outAmount,
-      entryPriceUsd
-    };
-  }
-
-  const signer = loadKeypair(input.subscriber.encryptedSecret);
-  // A wallet we cannot decrypt is a hard stop, never a retry: the ciphertext is wrong
-  // or the master key changed, and neither is fixed by trying again.
-  if (!signer) return { ok: false as const, error: "wallet key unavailable" };
-
-  const result = await executeSwap({ quote, signer });
-  if (!result.ok) return { ok: false as const, error: result.error };
-
-  return { ok: true as const, signature: result.signature, tokensOut: result.outAmount, entryPriceUsd };
 }
 
 export function createCopyDeps(): CopyDeps {
@@ -151,7 +119,17 @@ export function createCopyDeps(): CopyDeps {
           status: "open"
         }
       });
-      return rows?.[0] ?? null;
+      const created = rows?.[0] ?? null;
+      if (created) {
+        await accrueFee({
+          positionId: created.id,
+          userId: input.userId,
+          channelId: input.channelId,
+          kind: "entry",
+          tradeSol: input.amountSol
+        });
+      }
+      return created;
     },
 
     recordSpend: (input) =>
@@ -222,36 +200,15 @@ export function createMonitorDeps(): MonitorDeps {
 
     getPriceUsd,
 
-    async sell(input) {
-      const tokens = num(input.position.tokensRemaining);
-      // Sell a slice of the ORIGINAL position, expressed against what is left now.
-      const originalRemaining = input.position.remainingFraction;
-      if (originalRemaining <= 0 || tokens <= 0) return { ok: false as const, error: "nothing left to sell" };
-      const shareOfHolding = Math.min(1, input.fractionOfOriginal / originalRemaining);
-      const amount = BigInt(Math.floor(tokens * shareOfHolding));
-      if (amount <= 0n) return { ok: false as const, error: "sell amount rounds to zero" };
-
-      const quote = await getQuote({
-        inputMint: input.position.mint,
-        outputMint: WSOL_MINT,
-        amount,
-        slippageBps: input.position.slippageBps
-      });
-      if (!quote) return { ok: false as const, error: "no exit route" };
-
-      const solOut = Number(quote.outAmount) / LAMPORTS;
-
-      if (!isLiveTrading()) {
-        return { ok: true as const, signature: `simulated:${Date.now()}`, solOut };
-      }
-
-      const signer = loadKeypair(input.position.encryptedSecret);
-      if (!signer) return { ok: false as const, error: "wallet key unavailable" };
-
-      const result = await executeSwap({ quote, signer, conn: connection() });
-      if (!result.ok) return { ok: false as const, error: result.error };
-      return { ok: true as const, signature: result.signature, solOut };
-    },
+    sell: (input) =>
+      sellToken({
+        mint: input.position.mint,
+        tokensRemaining: input.position.tokensRemaining,
+        remainingFraction: input.position.remainingFraction,
+        fractionOfOriginal: input.fractionOfOriginal,
+        slippageBps: input.position.slippageBps,
+        encryptedSecret: input.position.encryptedSecret
+      }),
 
     async recordExit(input) {
       await db("position_exits", {
@@ -305,4 +262,106 @@ export function createMonitorDeps(): MonitorDeps {
 
     notify
   };
+}
+
+type ScanRow = {
+  id: string;
+  channel_id: string;
+  mint: string;
+  called_price_usd: string | null;
+  peak_price_usd: string | null;
+};
+
+export function createScannerDeps(): ScannerDeps {
+  return {
+    async getCallsToScan(limit) {
+      // Newest first: a fresh call's price is what subscribers are watching right now,
+      // and an old one's peak rarely moves.
+      const rows = await db<ScanRow[]>(
+        `calls?select=id,channel_id,mint,called_price_usd,peak_price_usd&order=called_at.desc&limit=${limit}`
+      );
+      return (rows ?? []).map((row) => ({
+        id: row.id,
+        channelId: row.channel_id,
+        mint: row.mint,
+        calledPriceUsd: row.called_price_usd === null ? null : num(row.called_price_usd) || null,
+        peakPriceUsd: row.peak_price_usd === null ? null : num(row.peak_price_usd) || null
+      }));
+    },
+
+    getPriceUsd,
+
+    updateCallPrices: (input) =>
+      db(`calls?id=eq.${encodeURIComponent(input.callId)}`, {
+        method: "PATCH",
+        body: {
+          latest_price_usd: input.latestPriceUsd,
+          peak_price_usd: input.peakPriceUsd,
+          last_scanned_at: new Date().toISOString()
+        },
+        prefer: "return=minimal"
+      }),
+
+    async getChannelCalls(channelId) {
+      const rows = await db<{ called_price_usd: string | null; peak_price_usd: string | null }[]>(
+        `calls?channel_id=eq.${encodeURIComponent(channelId)}&select=called_price_usd,peak_price_usd&limit=1000`
+      );
+      return (rows ?? []).map((row) => ({
+        calledPriceUsd: row.called_price_usd === null ? null : num(row.called_price_usd) || null,
+        peakPriceUsd: row.peak_price_usd === null ? null : num(row.peak_price_usd) || null
+      }));
+    },
+
+    updateChannelStats: (channelId, stats) =>
+      db(`channels?id=eq.${encodeURIComponent(channelId)}`, {
+        method: "PATCH",
+        body: {
+          calls_measured: stats.callsMeasured,
+          wins: stats.wins,
+          avg_peak_x: stats.avgPeakX,
+          median_peak_x: stats.medianPeakX,
+          best_peak_x: stats.bestPeakX,
+          stats_updated_at: new Date().toISOString()
+        },
+        prefer: "return=minimal"
+      })
+  };
+}
+
+/**
+ * Record what a trade earned.
+ *
+ * Accrual only — nothing is transferred here. Fees become a payable balance the moment a
+ * trade happens, and paying them out is a separate, deliberate step. Recording is
+ * best-effort: a ledger write must never be the reason a user's trade fails.
+ */
+export async function accrueFee(input: {
+  positionId: string | null;
+  userId: string;
+  channelId: string | null;
+  kind: "entry" | "exit";
+  tradeSol: number;
+}) {
+  try {
+    const split = splitFee({ amountSol: input.tradeSol, hasChannel: input.channelId !== null });
+    if (split.totalFeeSol <= 0) return;
+
+    await db("fee_accruals", {
+      method: "POST",
+      body: {
+        position_id: input.positionId,
+        user_id: input.userId,
+        channel_id: input.channelId,
+        kind: input.kind,
+        trade_sol: input.tradeSol,
+        fee_bps: platformFeeBps(),
+        total_fee_sol: split.totalFeeSol,
+        channel_sol: split.channelSol,
+        platform_sol: split.platformSol
+      },
+      prefer: "return=minimal"
+    });
+  } catch {
+    // Intentionally swallowed; see above.
+  }
 }

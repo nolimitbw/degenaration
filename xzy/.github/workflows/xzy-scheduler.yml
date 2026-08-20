@@ -1,0 +1,50 @@
+# Xzy scheduler.
+#
+# Take-profit and stop-loss only fire when something calls the monitor endpoint. Vercel's
+# Hobby plan runs cron once per DAY, which would leave stop-losses unchecked for 24 hours,
+# so this drives it instead.
+#
+# GitHub's shortest cron interval is 5 minutes and it is best-effort under load — fine as
+# a free backstop, not good enough on its own for tight stops. For per-minute checks use
+# an external scheduler (cron-job.org) or Vercel Pro.
+#
+# Secrets needed: XZY_APP_URL (https origin) and XZY_CRON_SECRET.
+name: Xzy scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  # A slow tick must not stack on top of the next one.
+  group: xzy-scheduler
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check exit rules on open positions
+        run: |
+          if [ -z "${{ secrets.XZY_APP_URL }}" ]; then
+            echo "XZY_APP_URL is not set; nothing to call."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/monitor.json -w '%{http_code}' -X POST \
+            "${{ secrets.XZY_APP_URL }}/api/cron/monitor" \
+            -H "authorization: Bearer ${{ secrets.XZY_CRON_SECRET }}")
+          echo "monitor: HTTP $code"
+          cat /tmp/monitor.json
+          test "$code" = "200"
+
+      - name: Update channel track records
+        # Scoring is slower-moving than exits and must never block them, so a failure here
+        # is reported without failing the run.
+        continue-on-error: true
+        run: |
+          code=$(curl -sS -o /tmp/scanner.json -w '%{http_code}' -X POST \
+            "${{ secrets.XZY_APP_URL }}/api/cron/scanner" \
+            -H "authorization: Bearer ${{ secrets.XZY_CRON_SECRET }}")
+          echo "scanner: HTTP $code"
+          cat /tmp/scanner.json

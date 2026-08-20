@@ -127,8 +127,10 @@ create index if not exists subscriptions_channel_idx on public.subscriptions (ch
 create table if not exists public.positions (
   id                uuid primary key default gen_random_uuid(),
   user_id           uuid not null references public.users (id) on delete cascade,
-  subscription_id   uuid not null references public.subscriptions (id) on delete cascade,
-  call_id           uuid not null references public.calls (id) on delete cascade,
+  -- Nullable: a manual /buy has no subscription and no call behind it. Copied positions
+  -- always carry both, which the unique index below still enforces for them.
+  subscription_id   uuid references public.subscriptions (id) on delete cascade,
+  call_id           uuid references public.calls (id) on delete cascade,
   mint              text not null,
   symbol            text,
   status            text not null default 'open',
@@ -147,9 +149,13 @@ create table if not exists public.positions (
   opened_at         timestamptz not null default now(),
   closed_at         timestamptz,
   constraint positions_status_valid check (status in ('open', 'closed', 'failed')),
-  -- One position per call per subscription: the guard against a redelivered call
-  -- being bought twice.
-  unique (subscription_id, call_id)
+  -- One position per call per subscription: the guard against a redelivered call being
+  -- bought twice. Postgres treats NULLs as distinct here, so manual buys are unaffected.
+  unique (subscription_id, call_id),
+  -- A copied position must carry both halves of that key, or the guard silently lapses.
+  constraint positions_copy_has_both check (
+    (subscription_id is null and call_id is null) or (subscription_id is not null and call_id is not null)
+  )
 );
 
 create index if not exists positions_open_idx on public.positions (status, opened_at) where status = 'open';
@@ -192,3 +198,54 @@ alter table public.subscriptions  enable row level security;
 alter table public.positions      enable row level security;
 alter table public.position_exits enable row level security;
 alter table public.daily_spend    enable row level security;
+
+-- ============================================================
+-- Channel scoring
+-- ============================================================
+
+-- Rolling performance, recomputed by the scanner. Stored rather than aggregated on read
+-- so the marketplace list stays one cheap query as the call journal grows.
+alter table public.channels
+  add column if not exists calls_measured   integer not null default 0,
+  add column if not exists wins             integer not null default 0,
+  add column if not exists avg_peak_x       numeric,
+  add column if not exists median_peak_x    numeric,
+  add column if not exists best_peak_x      numeric,
+  add column if not exists stats_updated_at timestamptz;
+
+-- A call counts as measured only once we have both a price at call time and a peak
+-- since. Anything else is unmeasured and must never be shown as a zero.
+create index if not exists calls_measurable_idx
+  on public.calls (channel_id)
+  where called_price_usd is not null;
+
+-- ============================================================
+-- Fees
+-- ============================================================
+
+-- Append-only fee ledger. Every accrual is a row, so what is owed to a channel is a sum
+-- over this table rather than a running total that a failed write could desynchronise.
+create table if not exists public.fee_accruals (
+  id            uuid primary key default gen_random_uuid(),
+  position_id   uuid references public.positions (id) on delete set null,
+  user_id       uuid references public.users (id) on delete set null,
+  -- Null for a manual trade: no caller earned anything.
+  channel_id    uuid references public.channels (id) on delete set null,
+  kind          text not null,
+  trade_sol     numeric not null,
+  fee_bps       integer not null,
+  total_fee_sol numeric not null,
+  channel_sol   numeric not null default 0,
+  platform_sol  numeric not null default 0,
+  paid_out      boolean not null default false,
+  created_at    timestamptz not null default now(),
+  constraint fee_accruals_kind_valid check (kind in ('entry', 'exit')),
+  constraint fee_accruals_non_negative check (total_fee_sol >= 0 and channel_sol >= 0 and platform_sol >= 0),
+  -- The split must always reconstruct the total; a mismatch means money was invented.
+  constraint fee_accruals_split_balances check (abs((channel_sol + platform_sol) - total_fee_sol) < 0.000001)
+);
+
+create index if not exists fee_accruals_channel_idx on public.fee_accruals (channel_id, paid_out);
+create index if not exists fee_accruals_user_idx on public.fee_accruals (user_id, created_at desc);
+
+alter table public.fee_accruals enable row level security;

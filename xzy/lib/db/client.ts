@@ -1,4 +1,4 @@
-import { requireEnv } from "../env.ts";
+import { optionalEnv } from "../env.ts";
 
 /**
  * Supabase PostgREST access using the service key.
@@ -18,8 +18,13 @@ type QueryOptions = {
 };
 
 export async function db<T>(path: string, options: QueryOptions = {}): Promise<T | null> {
-  const url = requireEnv("SUPABASE_URL").replace(/\/+$/, "");
-  const key = requireEnv("SUPABASE_SERVICE_KEY");
+  // Missing configuration is reported the same way as any other failure: null. Throwing
+  // here surfaced as an unexplained 500 in every route, when what callers already handle
+  // correctly is "no data" -> 503 with a message someone can act on.
+  const rawUrl = optionalEnv("SUPABASE_URL");
+  const key = optionalEnv("SUPABASE_SERVICE_KEY");
+  if (!rawUrl || !key) return null;
+  const url = rawUrl.replace(/\/+$/, "");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
