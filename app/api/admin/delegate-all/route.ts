@@ -103,6 +103,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ step: "list users", error: String(e?.message || e).slice(0, 300) }, { status: 502 });
   }
 
+  // Why is delegateWallet not opening a dialog? The answer is in what Privy records about the
+  // account: an EXTERNAL wallet cannot be delegated at all, and a wallet already delegated
+  // needs no prompt. Return the fields that decide it rather than guessing from the browser.
+  const inspect = (url.searchParams.get("inspect") || "").trim();
+  if (inspect) {
+    const q = new URL(`${PRIVY_AUTH_BASE}/users`);
+    q.searchParams.set("limit", "100");
+    const res = await fetch(q, { headers: privyHeaders(), cache: "no-store" });
+    const body = await res.json().catch(() => null);
+    const hits: any[] = [];
+    for (const user of body?.data || []) {
+      for (const a of user?.linked_accounts || []) {
+        if (a?.address === inspect || a?.id === inspect) {
+          hits.push({
+            type: a.type, chain_type: a.chain_type, id: a.id, address: a.address,
+            wallet_client_type: a.wallet_client_type, connector_type: a.connector_type,
+            delegated: a.delegated, imported: a.imported, recovery_method: a.recovery_method
+          });
+        }
+      }
+    }
+    return NextResponse.json({ inspect, matches: hits });
+  }
+
   if (dryRun) {
     return NextResponse.json({
       dryRun: true,
