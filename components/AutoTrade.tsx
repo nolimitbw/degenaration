@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import { usePrivy, useDelegatedActions } from "@privy-io/react-auth";
 import { useToast } from "@/components/Toast";
@@ -11,7 +11,7 @@ import { automationLabel, useAutomationStatus } from "@/lib/useAutomationStatus"
  * Solana wallet so the server worker can request signatures while the user is offline.
  * Application controls are enforced by the worker and database, not by the delegation itself.
  */
-export default function AutoTrade() {
+export default function AutoTrade({ headless = false }: { headless?: boolean } = {}) {
   const { user, authenticated } = usePrivy();
   const { delegateWallet, revokeWallets } = useDelegatedActions();
   const toast = useToast();
@@ -23,7 +23,29 @@ export default function AutoTrade() {
     (a: any) => a.type === "wallet" && a.chainType === "solana" && a.delegated
   );
 
+  // Ask ONCE per wallet, automatically, instead of leaving it as a control to find.
+  //
+  // Privy will not let the server sign for a wallet until its owner has delegated to the app's
+  // authorization key, and that consent is deliberately the user's to give — it cannot be set
+  // from our side for a wallet that already exists. What we can remove is the hunting: prompt
+  // on arrival so the user only has to approve.
+  //
+  // Once per address, remembered across reloads, because re-opening a wallet dialog on every
+  // page view is worse than the problem it solves. Declining leaves the card below to do it
+  // later.
+  const prompted = useRef(false);
+  useEffect(() => {
+    if (!authenticated || !address || delegated || busy || prompted.current) return;
+    const seenKey = `degen.delegate.asked.${address}`;
+    try { if (window.localStorage.getItem(seenKey)) return; } catch { /* private mode */ }
+    prompted.current = true;
+    try { window.localStorage.setItem(seenKey, "1"); } catch { /* private mode */ }
+    void enable();
+  }, [authenticated, address, delegated, busy]);
+
   if (!authenticated || !address) return null;
+  // Mounted app-wide purely to run the prompt above; the card itself belongs on /wallet.
+  if (headless) return null;
 
   async function enable() {
     setBusy(true);

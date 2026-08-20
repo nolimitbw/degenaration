@@ -24,6 +24,7 @@ import WalletRegistration from "@/components/WalletRegistration";
 import { useReadiness } from "@/components/product/Readiness";
 import { useIsAdmin } from "@/lib/admin";
 import { type ThemePreference, useTheme } from "@/components/ThemeProvider";
+import AutoTrade from "@/components/AutoTrade";
 
 const WalletButton = dynamic(() => import("@/components/WalletButton"), {
   ssr: false,
@@ -227,6 +228,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell min-h-screen lg:flex">
       <ReferralCaptureCompletion />
       <WalletRegistration />
+      {/*
+        Renders nothing. It is here so the delegated-access prompt runs wherever a signed-in
+        user lands, not only if they happen to open /wallet. Without delegation the server
+        cannot sign, so every copied call is claimed and then lost at the signer.
+      */}
+      <AutoTrade headless />
 
       {/* The rail carries three destinations and the account. It had also carried a
           "Workspace" heading above a three-item list, and a bordered card restating
