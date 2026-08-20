@@ -1461,13 +1461,28 @@ test("maps only the declared Solana networks", () => {
     }
   });
 
+  test("worker refuses to boot on a key that is set but cannot sign", () => {
+    // The production failure this guards: signing reported enabled, and every entry failed
+    // with Privy's "No valid authorization signatures were provided". A presence check
+    // passed that key. Refusing at boot makes the fault one message instead of every trade.
+    const r = run({
+      DELEGATED_SIGNING: "on", PORT: "18792",
+      PRIVY_APP_ID: "x", PRIVY_APP_SECRET: "y", PRIVY_AUTHORIZATION_KEY: "z"
+    });
+    assert.match(r.stderr || "", /not a usable key/);
+    assert.doesNotMatch(r.stdout || "", /signing ENABLED/);
+  });
+
   test("worker boots with signing on and starts the exit path", () => {
     // Spawned rather than unit-tested: the guard's value is that it controls the PROCESS.
     // The worker runs forever, so it is killed by the timeout — status is null, and what
     // matters is that it never printed the refusal and did start.
     const r = run({
       DELEGATED_SIGNING: "on", PORT: "18791",
-      PRIVY_APP_ID: "x", PRIVY_APP_SECRET: "y", PRIVY_AUTHORIZATION_KEY: "z"
+      // A well-formed key. "z" used to be enough because the guard only checked presence;
+      // it now checks the key can actually sign, which is what Privy rejects trades on.
+      PRIVY_APP_ID: "x", PRIVY_APP_SECRET: "y",
+      PRIVY_AUTHORIZATION_KEY: "wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg"
     }, 6000);
     assert.doesNotMatch(r.stderr || "", /REFUSING TO START/);
     assert.match(r.stdout || "", /signing ENABLED/);
@@ -4162,6 +4177,51 @@ console.log("multi-mint Discord calls");
     const ids = [0, 1, 2].map((i) => versionForMint(version, i).slice(0, 32));
     assert.strictEqual(new Set(ids).size, 3,
       "an index appended at the END would be truncated away and every mint would collide");
+  });
+}
+
+console.log("privy authorization key");
+{
+  const sg = require("../engine/signer");
+  const KEY = "wallet-auth:MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg";
+
+  test("a correct key passes through unchanged", () => {
+    assert.strictEqual(sg.normalizeAuthorizationKey(KEY), KEY);
+  });
+
+  test("a prefix lost when copying from the dashboard is restored", () => {
+    // Privy shows the key WITH the prefix, but the body is what gets selected. Without it the
+    // SDK signs with a key Privy cannot verify and every trade fails.
+    assert.strictEqual(sg.normalizeAuthorizationKey(KEY.slice("wallet-auth:".length)), KEY);
+  });
+
+  test("quotes and newlines from a shell or .env are stripped", () => {
+    assert.strictEqual(sg.normalizeAuthorizationKey(`  "${KEY}"  `), KEY);
+    assert.strictEqual(sg.normalizeAuthorizationKey(`'${KEY}'`), KEY);
+  });
+
+  test("anything that cannot be a key is refused rather than signed with", () => {
+    for (const bad of ["", "   ", "wallet-auth:", "your_key_here", null, undefined, 42]) {
+      assert.strictEqual(sg.normalizeAuthorizationKey(bad), null, `should reject ${JSON.stringify(bad)}`);
+    }
+  });
+
+  test("startup names a key that is set but unusable", () => {
+    assert.deepStrictEqual(
+      sg.signingConfigProblems({ PRIVY_APP_ID: "a", PRIVY_APP_SECRET: "b", PRIVY_AUTHORIZATION_KEY: KEY }), []);
+    assert.strictEqual(sg.signingConfigProblems({}).length, 3);
+    // The dangerous case: present, so a presence check passes, and Privy still rejects it.
+    const bad = sg.signingConfigProblems({ PRIVY_APP_ID: "a", PRIVY_APP_SECRET: "b", PRIVY_AUTHORIZATION_KEY: "not-a-key" });
+    assert.strictEqual(bad.length, 1);
+    assert.match(bad[0], /not a usable key/);
+  });
+
+  test("a rejected signature explains what to check, and other errors are untouched", () => {
+    const described = sg.describeSigningError(new Error("No valid authorization signatures were provided."));
+    assert.match(described.message, /PRIVY_AUTHORIZATION_KEY/);
+    assert.match(described.message, /wallet-auth:/);
+    const other = new Error("connection reset");
+    assert.strictEqual(sg.describeSigningError(other), other);
   });
 }
 

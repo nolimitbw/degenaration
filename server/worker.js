@@ -71,11 +71,13 @@ if (!new Set(["mainnet", "devnet"]).has(NET)) {
   process.exit(1);
 }
 
+// Presence is not enough. On 2026-08-19 07:56 UTC a live entry failed with Privy's "No valid
+// authorization signatures were provided" while this check passed: the key was set, and
+// unusable. Refuse to boot on a key that cannot sign rather than fail every trade with it.
 if (SIGNING_READY) {
-  const missing = ["PRIVY_APP_ID", "PRIVY_APP_SECRET", "PRIVY_AUTHORIZATION_KEY"]
-    .filter((name) => !process.env[name]);
-  if (missing.length) {
-    console.error(`[worker] delegated signing requested but missing ${missing.join(", ")}. Exiting.`);
+  const problems = signer.signingConfigProblems();
+  if (problems.length) {
+    console.error(`[worker] delegated signing requested but ${problems.join("; ")}. Exiting.`);
     process.exit(1);
   }
 }

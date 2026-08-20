@@ -20,12 +20,75 @@ const CAIP2 = {
   devnet: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
 };
 
+const AUTH_KEY_PREFIX = "wallet-auth:";
+
+/**
+ * Accept the authorization key in the shapes people actually paste, and reject what cannot
+ * work.
+ *
+ * Production execution 2026-08-19 07:56 UTC failed with Privy's "No valid authorization
+ * signatures were provided". The SDK signs with whatever it is given, so a value that is
+ * merely present but subtly wrong — quotes kept from a shell export, a newline from a .env
+ * file, or only the base64 body copied without the `wallet-auth:` prefix the dashboard shows
+ * — produces a signature Privy cannot verify. Every trade then fails while the worker
+ * reports signing enabled, which is the least diagnosable state available.
+ *
+ * Returns the canonical `wallet-auth:...` string, or null when there is nothing usable.
+ */
+function normalizeAuthorizationKey(raw) {
+  if (typeof raw !== "string") return null;
+  let key = raw.trim().replace(/^['"]|['"]$/g, "").trim();
+  key = key.replace(/\\n/g, "").replace(/\s+/g, "");
+  if (!key) return null;
+  if (key.startsWith(AUTH_KEY_PREFIX)) {
+    const body = key.slice(AUTH_KEY_PREFIX.length);
+    return body ? AUTH_KEY_PREFIX + body : null;
+  }
+  // A bare PKCS#8 key: DER-encoded EC private keys base64 to something starting MIG/MII.
+  if (/^MI[A-Za-z0-9+/=]+$/.test(key)) return AUTH_KEY_PREFIX + key;
+  return null;
+}
+
+/**
+ * What must be true before this worker can sign. Presence is not enough — a key that is set
+ * but unusable passes a presence check and fails every trade.
+ */
+function signingConfigProblems(env = process.env) {
+  const problems = [];
+  if (!String(env.PRIVY_APP_ID || "").trim()) problems.push("PRIVY_APP_ID is not set");
+  if (!String(env.PRIVY_APP_SECRET || "").trim()) problems.push("PRIVY_APP_SECRET is not set");
+  const raw = env.PRIVY_AUTHORIZATION_KEY;
+  if (!String(raw || "").trim()) {
+    problems.push("PRIVY_AUTHORIZATION_KEY is not set — Privy rejects every trade without it");
+  } else if (!normalizeAuthorizationKey(raw)) {
+    problems.push("PRIVY_AUTHORIZATION_KEY is not a usable key — it must be the value Privy shows, starting with 'wallet-auth:'");
+  }
+  return problems;
+}
+
+/**
+ * Privy's wording for a rejected signature does not say which of several causes applies, and
+ * it is the first thing an operator sees. Name them so the fix is a check, not a guess.
+ */
+function describeSigningError(error) {
+  const message = String(error?.message || error || "");
+  if (!/authorization signature/i.test(message)) return error;
+  return new Error(
+    `${message} | Privy rejected this worker's authorization signature. Check, in order: ` +
+    `PRIVY_AUTHORIZATION_KEY is the private key Privy shows (starts with 'wallet-auth:'); ` +
+    `PRIVY_APP_ID is the app that owns these wallets; the key is still listed under that ` +
+    `app's authorization keys; and the wallet's signer quorum includes it.`
+  );
+}
+
 let _privy = null;
 function client() {
   if (_privy) return _privy;
+  const problems = signingConfigProblems();
+  if (problems.length) throw new Error(`delegated signing is misconfigured: ${problems.join("; ")}`);
   const { PrivyClient } = require("@privy-io/server-auth");
   _privy = new PrivyClient(process.env.PRIVY_APP_ID, process.env.PRIVY_APP_SECRET, {
-    walletApi: { authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_KEY }
+    walletApi: { authorizationPrivateKey: normalizeAuthorizationKey(process.env.PRIVY_AUTHORIZATION_KEY) }
   });
   return _privy;
 }
@@ -68,12 +131,19 @@ async function signAndSend(base64Tx, walletId, net, intent = {}) {
 
   const { VersionedTransaction } = require("@solana/web3.js");
   const transaction = VersionedTransaction.deserialize(Buffer.from(base64Tx, "base64"));
-  const res = await client().walletApi.solana.signAndSendTransaction({
-    walletId,
-    caip2,
-    transaction
-  });
+  let res;
+  try {
+    res = await client().walletApi.solana.signAndSendTransaction({
+      walletId,
+      caip2,
+      transaction
+    });
+  } catch (error) {
+    // A rejected authorization signature is a configuration fault, not a trade fault, and it
+    // reaches the operator as call_executions.error. Say which four things to check.
+    throw describeSigningError(error);
+  }
   return res?.hash || res?.signature || res;
 }
 
-module.exports = { signAndSend, resolveCaip2, CAIP2, authorizeSigning };
+module.exports = { signAndSend, resolveCaip2, CAIP2, authorizeSigning, normalizeAuthorizationKey, signingConfigProblems, describeSigningError };
