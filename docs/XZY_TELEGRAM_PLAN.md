@@ -1,8 +1,14 @@
 # Xzy — Telegram Edition Build Plan
 
-Status: **PLAN / not started.** No Xzy code exists yet. This document is the agreed
-shape of the build, written after reading the degenaration codebase. It is the input
-to the Xzy repo, not a description of anything shipped.
+Status: **SUPERSEDED — kept as the record of how Xzy was scoped.**
+
+Xzy was built and now lives in its own repository: **https://github.com/nolimitbw/XZY**.
+Nothing about it remains in this repo. This document is the plan it started from, not a
+description of what shipped; where the two disagree, the code in that repository is
+authoritative.
+
+What changed from this plan: the trading engine was written fresh rather than vendored
+from degenaration, so the "vendoring discipline" section below never applied.
 
 Owner decisions locked in this plan:
 
