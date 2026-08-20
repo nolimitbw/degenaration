@@ -47,12 +47,22 @@ const nextConfig = {
   // @privy-io/server-auth does not externalise what it requires, so @hpke/* was still traced
   // and its subpath re-exports still went missing. Every @hpke package the lockfile carries is
   // now external, which is the whole family rather than the one file that happened to throw.
-  serverExternalPackages: [
-    "@privy-io/server-auth",
-    "@hpke/common",
-    "@hpke/core",
-    "@hpke/chacha20poly1305"
-  ],
+  serverExternalPackages: ["@privy-io/server-auth"],
+  // serverExternalPackages stops the package being BUNDLED; it does not guarantee its files
+  // are shipped. Next still traces node_modules to decide what enters the lambda, and
+  // @hpke/common's entry re-exports './src/errors.js' in a way the tracer does not follow —
+  // so after externalising, production still threw the identical error (execution
+  // 2026-08-20 03:50 UTC, five minutes after the deploy that was meant to fix it).
+  //
+  // Forcing the whole @hpke tree into the routes that sign is what actually puts the files on
+  // disk. Both listed routes reach @privy-io/server-auth.
+  // BOTH paths on purpose. npm hoists @hpke differently here than on Vercel: locally the
+  // packages land under server/node_modules (the root @hpke directory is empty), while the
+  // failing lambda reported them at /var/task/node_modules/@hpke. A glob for only one layout
+  // silently matches nothing, which is exactly how the previous attempt shipped unchanged.
+  outputFileTracingIncludes: {
+    "**/*": ["./node_modules/@hpke/**/*", "./server/node_modules/@hpke/**/*"]
+  },
   webpack(config) {
     config.resolve.alias = {
       ...config.resolve.alias,
