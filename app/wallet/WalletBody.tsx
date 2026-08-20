@@ -6,6 +6,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { fetchBalance } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress } from "@/lib/solanaWallet";
+import AutoTrade from "@/components/AutoTrade";
 
 // Privy-dependent funding hub. Bot-level limits and execution controls live in the builders.
 export default function WalletBody() {
@@ -52,6 +53,19 @@ export default function WalletBody() {
     <>
       <h1 className="t-display font-bold">Wallet</h1>
       <p className="mt-1 t-body text-dim">Fund the wallet your bots use for automated trades.</p>
+
+      {/*
+        Granting delegated access is what makes a bot able to trade at all, and removing this
+        card removed the only way to do it. Privy signs a swap on a user's behalf only when the
+        app's authorization key is a SIGNER for that wallet, and a wallet acquires that signer
+        when the user delegates here. With the card gone, key1 in the Privy dashboard was
+        "Signer for" nothing, every entry reached the signer and came back "No valid
+        authorization signatures were provided", and the call was burned. Observed on
+        executions 2026-08-19 07:56 and 2026-08-20 04:02 UTC.
+      */}
+      <div className="mt-6">
+        <AutoTrade />
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="gradient-border rounded-lg border border-edge p-5">
