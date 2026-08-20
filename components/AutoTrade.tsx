@@ -35,6 +35,7 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
   // later.
   const prompted = useRef(false);
   useEffect(() => {
+    if (!headless) return; // the visible card must never disable its own button
     if (!authenticated || !address || delegated || busy || prompted.current) return;
     const seenKey = `degen.delegate.asked.${address}`;
     try { if (window.localStorage.getItem(seenKey)) return; } catch { /* private mode */ }
@@ -54,7 +55,17 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
 
   async function enable() {
     setBusy(true);
-    try { await delegateWallet({ address: address!, chainType: "solana" }); toast("Delegated access enabled. Review engine status and limits before activating orders."); }
+    try {
+      // delegateWallet can sit unresolved when Privy's dialog never opens — a popup blocked,
+      // the SDK not ready, delegated actions not enabled on the app. Without a bound the
+      // button stays "..." for ever and the user cannot retry, which is exactly how this
+      // control appeared broken rather than merely unanswered.
+      await Promise.race([
+        delegateWallet({ address: address!, chainType: "solana" }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Privy did not open the approval dialog. Check that delegated actions are enabled for this app, then try again.")), 20_000))
+      ]);
+      toast("Delegated access enabled. Review engine status and limits before activating orders.");
+    }
     catch (e: any) { toast(e.message || "Could not enable delegated access", "err"); setBusy(false); throw e; }
     setBusy(false);
   }
