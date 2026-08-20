@@ -36,7 +36,23 @@ const nextConfig = {
   //
   // Marking it external makes it a runtime require from node_modules instead of a traced
   // bundle, which is the supported way to carry a package whose entry re-exports subpaths.
-  serverExternalPackages: ["@privy-io/server-auth"],
+  // UPDATE 2026-08-20: marking only the top-level package was not enough. Production
+  // execution 2026-08-20 03:34 UTC (FtXH4AAg…, the first call to reach signing after
+  // ingestion was repaired) died with
+  //
+  //     Cannot find module './src/errors.js'
+  //       /var/task/node_modules/@hpke/common/script/mod.js
+  //
+  // A different subpath, in the CJS ("script") build, of a TRANSITIVE dependency. Externalising
+  // @privy-io/server-auth does not externalise what it requires, so @hpke/* was still traced
+  // and its subpath re-exports still went missing. Every @hpke package the lockfile carries is
+  // now external, which is the whole family rather than the one file that happened to throw.
+  serverExternalPackages: [
+    "@privy-io/server-auth",
+    "@hpke/common",
+    "@hpke/core",
+    "@hpke/chacha20poly1305"
+  ],
   webpack(config) {
     config.resolve.alias = {
       ...config.resolve.alias,
