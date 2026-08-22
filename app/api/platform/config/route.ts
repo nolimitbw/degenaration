@@ -53,7 +53,10 @@ export async function GET() {
   const platformFeeBps = feeCharged ? configuredBps : 0;
   const automationLive = worker?.status === "ok" && worker.mode === "live"
     && worker.signingEnabled === true && worker.network === "mainnet";
-  const copyTradingLive = automationLive && worker?.copyTradingEnabled === true;
+  // `readiness.tradable` includes the live in-app Vercel executor. The separate Render worker
+  // is optional and currently suspended, so its unreachable /health response cannot veto the
+  // scheduled engine that actually runs startCallWatcher.
+  const copyTradingLive = readiness.tradable;
   return NextResponse.json(
     {
       platformFeeBps,
@@ -77,7 +80,7 @@ export async function GET() {
          * account exists and "2.00%" the moment it does.
          */
         live: readiness.tradable,
-        copyLive: readiness.tradable && copyTradingLive,
+        copyLive: copyTradingLive,
         mode: worker?.mode || (workerConfigured ? "unreachable" : "not-configured"),
         network: worker?.network || null,
         status: readiness.status,

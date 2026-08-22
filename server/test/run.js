@@ -3803,11 +3803,12 @@ console.log("price selection");
   });
 }
 
-// ── Only revenue-protecting checks may be advisory ─────────────────────────────────────────
+// ── Only non-execution-safety checks may be advisory ───────────────────────────────────────
 //
 // Activation now gates on `tradable`, which ignores the ADVISORY set, so anything added to
-// that set stops blocking a bot from running. Exactly one check belongs there: `fee`, which
-// protects the platform's revenue and not the user. Every other check guards something a user
+// that set stops blocking a bot from running. `fee` protects platform revenue. `scanner`
+// controls whether new calls arrive, not whether the executor can safely process durable
+// intents and exits. Every other check guards something a user
 // can be harmed by — a missing signer, an unconfirmed submission, exits that never fire — and
 // quietly moving one of those in would open live trading with a real safety gate disabled.
 //
@@ -3817,12 +3818,18 @@ console.log("price selection");
   const path = require("node:path");
   const source = fs.readFileSync(path.join(__dirname, "../../lib/server/automation-readiness.ts"), "utf8");
 
-  test("the advisory set contains only the fee check", () => {
+  test("the advisory set contains only fee and scanner availability", () => {
     const declared = /const ADVISORY: ReadonlySet<string> = new Set\(\[([^\]]*)\]\)/.exec(source);
     assert.ok(declared, "ADVISORY set not found — the gate's shape changed");
     const ids = [...declared[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-    assert.deepEqual(ids, ["fee"],
-      `only "fee" may be advisory; found ${JSON.stringify(ids)}. Every other check protects a user.`);
+    assert.deepEqual(ids, ["fee", "scanner"],
+      `only fee and scanner availability may be advisory; found ${JSON.stringify(ids)}. Every other check protects execution safety.`);
+  });
+
+  test("the in-app executor reports copy trading because it runs the call watcher", () => {
+    const body = fs.readFileSync(path.join(__dirname, "../../app/api/worker/tick/route.ts"), "utf8");
+    assert.ok(/copyTradingEnabled:\s*true/.test(body));
+    assert.ok(/startCallWatcher\(callDeps/.test(body));
   });
 
   test("activation gates on tradable, and both activation routes agree", () => {

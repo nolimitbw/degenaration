@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
-import { usePrivy, useDelegatedActions } from "@privy-io/react-auth";
+import { usePrivy, useHeadlessDelegatedActions } from "@privy-io/react-auth";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress } from "@/lib/solanaWallet";
-import { automationLabel, useAutomationStatus } from "@/lib/useAutomationStatus";
+import { useAutomationStatus } from "@/lib/useAutomationStatus";
 
 /**
  * 24/7 auto-trading opt-in. Grants Privy a DELEGATED session key for the user's embedded
@@ -13,7 +13,9 @@ import { automationLabel, useAutomationStatus } from "@/lib/useAutomationStatus"
  */
 export default function AutoTrade({ headless = false }: { headless?: boolean } = {}) {
   const { user, authenticated } = usePrivy();
-  const { delegateWallet, revokeWallets } = useDelegatedActions();
+  // This component provides its own explicit consent UI, so use Privy's headless action
+  // instead of waiting for a second provider modal that may be disabled in the dashboard.
+  const { delegateWallet, revokeWallets } = useHeadlessDelegatedActions();
   const toast = useToast();
   const automation = useAutomationStatus();
   const [busy, setBusy] = useState(false);
@@ -98,7 +100,9 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
         </div>
       </details>
 
-      <p className={`mt-3 text-[12px] ${automation.live ? "text-up" : "text-dim"}`}>{automationLabel(automation)}</p>
+      <p className={`mt-3 text-[12px] ${automation.live ? "text-up" : "text-dim"}`}>
+        {delegated ? "Auto-trading access is on" : automation.loading ? "Checking auto-trading" : "Ready to enable auto-trading"}
+      </p>
       {delegated ? (
         <button onClick={disable} disabled={busy} className="mt-4 w-full rounded-md border border-danger/50 py-2.5 text-sm font-bold text-danger transition hover:bg-danger/10 disabled:opacity-50">{busy ? "…" : "Revoke delegated access"}</button>
       ) : (

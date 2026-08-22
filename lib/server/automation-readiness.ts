@@ -109,7 +109,7 @@ export async function automationReadiness() {
       ok: (facts.signerReady === true && worker?.signingEnabled === true) || inAppLive,
       reason: "Automated signing is not enabled on the execution worker or on this deployment."
     },
-    { id: "scanner", ok: scanner.online && scanner.approvedRefresh, reason: "The Discord scanner is not online with a current approved-channel map." },
+    { id: "scanner", ok: scanner.online && scanner.approvedRefresh, reason: "The Discord scanner health endpoint is not online with a current approved-channel map." },
         // `submission` is the one capability that depends on SIGNING rather than on code being
     // present. A watch-only worker reports it false by design, so with the engine in-app it
     // has to consider this deployment too, exactly like the `signer` check above.
@@ -151,7 +151,13 @@ export async function automationReadiness() {
 /**
  * Checks that are reported but do NOT stop a bot from running.
  *
- * Only `fee`, and only because it protects REVENUE rather than a user. Every other check
+ * `fee` protects revenue rather than a user. `scanner` describes signal ingestion rather than
+ * execution safety: when it is down there are no new durable intents to buy, but exits,
+ * settlement, reconciliation and already-journalled calls must continue. Coupling the RUN
+ * control to a separate Render health page made a suspended dashboard endpoint disable the
+ * healthy Vercel executor even while database-backed ingestion continued.
+ *
+ * Every other check
  * guards something a user could be harmed by — a missing signer, an unconfirmed submission,
  * exits that will not fire. Those stay blocking and always should.
  *
@@ -168,7 +174,7 @@ export async function automationReadiness() {
  * product to work. It is recorded here rather than in a commit message because the next session
  * needs to know it was a choice and not an oversight.
  */
-const ADVISORY: ReadonlySet<string> = new Set(["fee"]);
+const ADVISORY: ReadonlySet<string> = new Set(["fee", "scanner"]);
 
 /**
  * What a USER is told, as a constant rather than as the failing check's text.

@@ -209,7 +209,9 @@ export async function GET(req: NextRequest) {
         {
           runtime: "vercel-scheduled-engine",
           signingEnabled: true,
-          copyTradingEnabled: false,
+          // This route runs startCallWatcher below; reporting false made the public product
+          // contradict the executor that was actively consuming Discord copy intents.
+          copyTradingEnabled: true,
           build: process.env.VERCEL_GIT_COMMIT_SHA || null,
           capabilities: {
             durableIntents: true,
