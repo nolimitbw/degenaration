@@ -3791,6 +3791,19 @@ console.log("price selection");
     assert.equal(parse(`https://gmgn.ai/sol/token/${MINT} https://birdeye.so/token/${OTHER}`).rejected, "ambiguous-links");
   });
 
+  test("one direct token link outranks auxiliary pool links in a real alert embed", () => {
+    const result = parseMessage({
+      content: "",
+      embeds: [{ description: `Token https://gmgn.ai/sol/token/${MINT}` }],
+      components: [{ components: [
+        { url: `https://dexscreener.com/solana/${OTHER}` },
+        { url: `https://photon-sol.tinyastro.io/en/lp/${tradeWallet}` }
+      ] }]
+    });
+    assert.equal(result.mint, MINT);
+    assert.equal(result.candidateType, "mint");
+  });
+
   test("the same mint via two different hosts is one unambiguous call", () => {
     assert.equal(parse(`https://gmgn.ai/sol/token/${MINT} https://birdeye.so/token/${MINT}`).mint, MINT);
   });

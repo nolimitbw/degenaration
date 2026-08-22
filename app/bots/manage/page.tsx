@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, useHeadlessDelegatedActions, useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import {
   Activity,
   Archive,
@@ -30,6 +30,7 @@ import {
 import { TradingNotice } from "@/components/product/Readiness";
 import { useToast } from "@/components/Toast";
 import { formatSol, productFetch, type BotKind, type ProductBot } from "@/lib/product-api";
+import { hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -39,8 +40,9 @@ const TABS = [
 ];
 
 export default function BotManagerPage() {
-  const { authenticated, login, getAccessToken } = usePrivy();
+  const { authenticated, user, login, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const { delegateWallet } = useHeadlessDelegatedActions();
   const toast = useToast();
   const [kind, setKind] = useState<BotKind>("discord");
   const [bots, setBots] = useState<ProductBot[] | null>(null);
@@ -95,7 +97,15 @@ export default function BotManagerPage() {
   async function saveBot(bot: ProductBot, status: ProductBot["status"], duplicate = false) {
     setBusy(bot.id);
     try {
-      await productFetch("/api/product/bots", { getAccessToken, identityToken }, {
+      let currentIdentityToken = identityToken;
+      if (status === "active" && !duplicate && !hasDelegatedSolanaWallet(user)) {
+        const address = String(bot.config?.walletAddress || "");
+        if (!address) throw new Error("This bot has no execution wallet. Edit it before resuming.");
+        await delegateWallet({ address, chainType: "solana" });
+        currentIdentityToken = await getIdentityToken();
+        if (!currentIdentityToken) throw new Error("Wallet authorization could not be verified. Please try again.");
+      }
+      await productFetch("/api/product/bots", { getAccessToken, identityToken: currentIdentityToken }, {
         method: "POST",
         body: JSON.stringify({
           id: duplicate ? undefined : bot.id,

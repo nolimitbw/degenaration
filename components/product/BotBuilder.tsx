@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, useHeadlessDelegatedActions, useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
 import {
   AlertTriangle,
@@ -17,7 +17,7 @@ import {
   X
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
 import {
   formatPercentBps,
   formatSol,
@@ -189,6 +189,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const searchParams = useSearchParams();
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
+  const { delegateWallet } = useHeadlessDelegatedActions();
   const { createWallet } = useCreateWallet();
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
@@ -775,13 +776,13 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
    * message that cannot vary is not a diagnosis, and that is why they are gone rather than
    * reworded.
    */
-  async function checkReadiness() {
+  async function checkReadiness(currentIdentityToken = identityToken) {
     setChecking(true);
     setReadiness(null);
     try {
       const verdict = await productFetch<{ ready: boolean; reason: string | null; blocking: string | null }>(
         "/api/product/bots/readiness",
-        { getAccessToken, identityToken },
+        { getAccessToken, identityToken: currentIdentityToken },
         { method: "POST", body: JSON.stringify(activationPayload()) }
       );
       setReadiness(verdict);
@@ -804,7 +805,32 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   async function run() {
     if (!authenticated) { login(); return; }
     if (validationError) { toast(validationError, "err"); return; }
-    const verdict = await checkReadiness();
+    if (!walletAddress || !walletId) {
+      toast("Connect a verified Solana execution wallet first.", "err");
+      return;
+    }
+
+    // RUN is the user's explicit request for unattended execution. Grant the Privy signer at
+    // that moment instead of sending them to a separate Wallet setting they may never find.
+    // Fetch a fresh identity token after the grant so the same click can pass the server's
+    // signed delegation check; the hook value still reflects the token from before the grant.
+    let currentIdentityToken = identityToken;
+    if (!hasDelegatedSolanaWallet(user)) {
+      setChecking(true);
+      try {
+        await delegateWallet({ address: walletAddress, chainType: "solana" });
+        currentIdentityToken = await getIdentityToken();
+        if (!currentIdentityToken) throw new Error("Wallet authorization could not be verified. Please try again.");
+        toast("Auto-trading access enabled");
+      } catch (reason) {
+        toast(reason instanceof Error ? reason.message : "Could not enable auto-trading access", "err");
+        setChecking(false);
+        return;
+      }
+      setChecking(false);
+    }
+
+    const verdict = await checkReadiness(currentIdentityToken);
     if (!verdict.ready) {
       toast(verdict.reason || "This bot cannot run yet.", "err");
       return;
