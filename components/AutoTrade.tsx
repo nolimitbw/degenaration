@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
-import { usePrivy, useHeadlessDelegatedActions } from "@privy-io/react-auth";
+import { usePrivy, useSigners } from "@privy-io/react-auth";
 import { useToast } from "@/components/Toast";
+import { requiredPrivySignerId } from "@/lib/privySigner";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 import { useAutomationStatus } from "@/lib/useAutomationStatus";
 
@@ -15,7 +16,7 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
   const { user, authenticated } = usePrivy();
   // This component provides its own explicit consent UI, so use Privy's headless action
   // instead of waiting for a second provider modal that may be disabled in the dashboard.
-  const { delegateWallet, revokeWallets } = useHeadlessDelegatedActions();
+  const { addSigners, removeSigners } = useSigners();
   const toast = useToast();
   const automation = useAutomationStatus();
   const [busy, setBusy] = useState(false);
@@ -58,13 +59,11 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
   async function enable() {
     setBusy(true);
     try {
-      // delegateWallet can sit unresolved when Privy's dialog never opens — a popup blocked,
-      // the SDK not ready, delegated actions not enabled on the app. Without a bound the
-      // button stays "..." for ever and the user cannot retry, which is exactly how this
-      // control appeared broken rather than merely unanswered.
+      // This app uses Privy's TEE execution. TEE wallets must provision the app's key quorum
+      // with useSigners; delegated-actions hooks are on-device only and Privy rejects them.
       await Promise.race([
-        delegateWallet({ address: address!, chainType: "solana" }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Privy did not open the approval dialog. Check that delegated actions are enabled for this app, then try again.")), 20_000))
+        addSigners({ address: address!, signers: [{ signerId: requiredPrivySignerId(), policyIds: [] }] }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Wallet authorization timed out. Please try again.")), 20_000))
       ]);
       toast("Delegated access enabled. Review engine status and limits before activating orders.");
     }
@@ -73,7 +72,7 @@ export default function AutoTrade({ headless = false }: { headless?: boolean } =
   }
   async function disable() {
     setBusy(true);
-    try { await revokeWallets(); toast("Delegated access revoked"); }
+    try { await removeSigners({ address: address! }); toast("Delegated access revoked"); }
     catch (e: any) { toast(e.message || "Could not revoke", "err"); }
     setBusy(false);
   }

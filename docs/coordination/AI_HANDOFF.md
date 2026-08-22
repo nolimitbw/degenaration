@@ -251,3 +251,7 @@ by a test or a recorded reason.
 - Do not silently restore archived subscriptions. The currently observed signed-in wallet has
   archived DegenAration/SLPR bots; the owner must explicitly start or resume the desired bot and
   approve wallet delegation because both actions authorize automated trading.
+- Live browser verification exposed a second Privy-specific failure: the app uses TEE wallet
+  execution, where `useHeadlessDelegatedActions` is rejected as on-device-only. All opt-in paths
+  now use `useSigners` with the existing `key1` quorum. Production has the quorum's public ID in
+  `NEXT_PUBLIC_PRIVY_SIGNER_ID`; the authorization private key remains server-only.

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getIdentityToken, useHeadlessDelegatedActions, useIdentityToken, usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, useIdentityToken, usePrivy, useSigners } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
 import {
   AlertTriangle,
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { requiredPrivySignerId } from "@/lib/privySigner";
 import {
   formatPercentBps,
   formatSol,
@@ -189,7 +190,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const searchParams = useSearchParams();
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
-  const { delegateWallet } = useHeadlessDelegatedActions();
+  const { addSigners } = useSigners();
   const { createWallet } = useCreateWallet();
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
@@ -818,7 +819,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (!hasDelegatedSolanaWallet(user)) {
       setChecking(true);
       try {
-        await delegateWallet({ address: walletAddress, chainType: "solana" });
+        await addSigners({ address: walletAddress, signers: [{ signerId: requiredPrivySignerId(), policyIds: [] }] });
         currentIdentityToken = await getIdentityToken();
         if (!currentIdentityToken) throw new Error("Wallet authorization could not be verified. Please try again.");
         toast("Auto-trading access enabled");

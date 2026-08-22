@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getIdentityToken, useHeadlessDelegatedActions, useIdentityToken, usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, useIdentityToken, usePrivy, useSigners } from "@privy-io/react-auth";
 import {
   Activity,
   Archive,
@@ -31,6 +31,7 @@ import { TradingNotice } from "@/components/product/Readiness";
 import { useToast } from "@/components/Toast";
 import { formatSol, productFetch, type BotKind, type ProductBot } from "@/lib/product-api";
 import { hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { requiredPrivySignerId } from "@/lib/privySigner";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -42,7 +43,7 @@ const TABS = [
 export default function BotManagerPage() {
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
-  const { delegateWallet } = useHeadlessDelegatedActions();
+  const { addSigners } = useSigners();
   const toast = useToast();
   const [kind, setKind] = useState<BotKind>("discord");
   const [bots, setBots] = useState<ProductBot[] | null>(null);
@@ -101,7 +102,7 @@ export default function BotManagerPage() {
       if (status === "active" && !duplicate && !hasDelegatedSolanaWallet(user)) {
         const address = String(bot.config?.walletAddress || "");
         if (!address) throw new Error("This bot has no execution wallet. Edit it before resuming.");
-        await delegateWallet({ address, chainType: "solana" });
+        await addSigners({ address, signers: [{ signerId: requiredPrivySignerId(), policyIds: [] }] });
         currentIdentityToken = await getIdentityToken();
         if (!currentIdentityToken) throw new Error("Wallet authorization could not be verified. Please try again.");
       }
