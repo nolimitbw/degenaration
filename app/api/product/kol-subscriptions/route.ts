@@ -56,6 +56,12 @@ export async function POST(req: NextRequest) {
   if (status === "active" && body.confirmed !== true) {
     return NextResponse.json({ error: "activation confirmation required" }, { status: 400 });
   }
+  if (status === "active" && !ownership.delegated) {
+    return NextResponse.json(
+      { error: "Grant delegated execution to this wallet before activating the strategy.", code: "WALLET_NOT_DELEGATED" },
+      { status: 409 }
+    );
+  }
   if (status === "active") {
     const readiness = await automationReadiness();
     // Same gate as the bot route: `tradable` excludes the revenue-only fee check, every

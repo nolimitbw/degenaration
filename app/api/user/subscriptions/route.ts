@@ -47,6 +47,9 @@ export async function POST(req: NextRequest) {
   if (enabled) {
     const ownership = await requirePrivyWallet(req, user.privyUserId, userPubkey, walletId);
     if (!ownership.ok) return ownership.response;
+    if (!ownership.delegated) {
+      return NextResponse.json({ error: "grant delegated wallet access before enabling auto-trading" }, { status: 409 });
+    }
   }
   const size = strictNumeric(body?.size_sol, 0.001, 100);
   const dailyCap = strictNumeric(body?.daily_cap_sol, 0.001, 1000);

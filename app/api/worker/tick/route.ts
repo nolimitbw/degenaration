@@ -153,6 +153,19 @@ export async function GET(req: NextRequest) {
     const { confirmSignature, fetchReceivedAmount } = mod(require("@/server/engine/confirm"));
     const signer = mod(require("@/server/engine/signer"));
 
+    // Presence is not readiness. A malformed authorization key previously let the scheduler
+    // claim every call and fail only after quote + simulation. Refuse the pass before any
+    // claim, using the same validator as the long-running worker.
+    const signingProblems = signer.signingConfigProblems(process.env);
+    if (signingProblems.length) {
+      return NextResponse.json({
+        ok: false,
+        mode: "refused",
+        reason: "delegated signing configuration is not usable",
+        problems: signingProblems
+      }, { status: 503 });
+    }
+
     // Named explicitly rather than spread, so a missing dependency is a build error here
     // instead of a minified runtime failure inside a watcher.
     if (typeof store.loadPendingCalls !== "function") {
@@ -183,6 +196,37 @@ export async function GET(req: NextRequest) {
     }
 
     const io = { getPrice, signAndSend, confirmSignature, fetchReceivedAmount, onEvent: record };
+
+    // The database lease must describe the executor that can actually trade. Render may be
+    // suspended while this scheduled engine is healthy; without this heartbeat RUN sees a
+    // stale hosted-worker row and blocks every activation even though this route executes.
+    // A failed status write must not interrupt an exit, so record it and continue.
+    try {
+      await store.workerHeartbeat(
+        `vercel:${process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "production"}`,
+        net === "mainnet" ? "solana-mainnet" : "solana-devnet",
+        90,
+        {
+          runtime: "vercel-scheduled-engine",
+          signingEnabled: true,
+          copyTradingEnabled: false,
+          build: process.env.VERCEL_GIT_COMMIT_SHA || null,
+          capabilities: {
+            durableIntents: true,
+            quote: true,
+            simulation: true,
+            submission: true,
+            confirmation: true,
+            positionCapture: true,
+            takeProfitStopLoss: true,
+            dailyRisk: true,
+            reconciliation: true
+          }
+        }
+      );
+    } catch (error) {
+      record({ type: "HEARTBEAT_ERROR", error: error instanceof Error ? error.message : "heartbeat failed" });
+    }
     // pollMs 0 → one pass, no self-scheduling. A setTimeout that outlives the response is
     // either killed mid-write or resumed on a warm container with stale state.
     const passes = [

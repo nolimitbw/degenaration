@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
   }
   const ownership = await requirePrivyWallet(req, user.privyUserId, userPubkey, walletId);
   if (!ownership.ok) return ownership.response;
+  if (!ownership.delegated) {
+    return NextResponse.json({ error: "grant delegated wallet access before creating an automated order" }, { status: 409 });
+  }
 
   const payload = {
     privy_user_id: user.privyUserId,

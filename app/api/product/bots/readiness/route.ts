@@ -31,9 +31,11 @@ export async function POST(req: NextRequest) {
 
   // Wallet ownership, proven against the signed identity token rather than taken from the body.
   let walletOwned = false;
+  let walletDelegated = false;
   if (configurationValid && parsed.walletAddress) {
     const ownership = await requirePrivyWallet(req, user.privyUserId, parsed.walletAddress, parsed.walletId);
     walletOwned = ownership.ok;
+    walletDelegated = ownership.ok && ownership.delegated;
   }
 
   const config = (value?.config || {}) as Record<string, any>;
@@ -131,9 +133,9 @@ export async function POST(req: NextRequest) {
     configurationValid,
     configurationError: configurationValid ? null : (parsed as { error: string }).error,
     walletOwned,
-    // The builder only offers delegation as a precondition of having a wallet at all; the
-    // authoritative refusal is the worker's, which cannot sign for an undelegated wallet.
-    walletDelegated: walletOwned,
+    // From Privy's signed identity token. Ownership is not delegation: conflating them let an
+    // undelegated bot activate and consume calls before the signer inevitably refused it.
+    walletDelegated,
     botKind: value?.kind,
     // Discord facts come from one service-only database snapshot. Unknown is deliberately
     // preserved so the pure readiness table fails closed; KOL marks them not applicable.

@@ -86,11 +86,15 @@ export async function automationReadiness() {
   const facts = factsResult.ok ? factsResult.data || {} : {};
   const capabilities = worker?.capabilities || {};
   const engine = inAppEngine();
+  // A recent database lease proves the scheduled route is actually being invoked. Environment
+  // flags alone do not prove a scheduler exists; the lease alone does not prove signing. Both
+  // together identify a live in-app executor when the separate Render service is suspended.
+  const inAppLive = engine.signing && facts.workerLive === true && facts.workerMode === "solana-mainnet";
   const checks = [
     { id: "mainnetPolicy", ok: facts.mainnetEnabled === true, reason: "Mainnet automation is disabled by the audited release gate." },
     { id: "discordEntries", ok: facts.discordEntriesEnabled === true, reason: "Discord automated entries are disabled by the release gate." },
     { id: "workerLease", ok: facts.workerLive === true && facts.workerMode === "solana-mainnet", reason: "The execution worker is not heartbeating on Solana mainnet." },
-    { id: "workerHealth", ok: worker?.status === "ok" && worker?.network === "mainnet", reason: "The execution worker health endpoint is unavailable or on the wrong network." },
+    { id: "workerHealth", ok: (worker?.status === "ok" && worker?.network === "mainnet") || inAppLive, reason: "No execution runtime is live on Solana mainnet." },
     // Either executor proves signing for ITSELF, and neither can vouch for the other.
     //
     // `facts.signerReady` is derived in the database from the hosted worker's heartbeat, so it
@@ -102,7 +106,7 @@ export async function automationReadiness() {
     // cannot claim signing on a stale heartbeat alone.
     {
       id: "signer",
-      ok: (facts.signerReady === true && worker?.signingEnabled === true) || engine.signing,
+      ok: (facts.signerReady === true && worker?.signingEnabled === true) || inAppLive,
       reason: "Automated signing is not enabled on the execution worker or on this deployment."
     },
     { id: "scanner", ok: scanner.online && scanner.approvedRefresh, reason: "The Discord scanner is not online with a current approved-channel map." },
@@ -111,7 +115,7 @@ export async function automationReadiness() {
     // has to consider this deployment too, exactly like the `signer` check above.
     ...REQUIRED_CAPABILITIES.map((id) => ({
       id,
-      ok: capabilities[id] === true || (id === "submission" && engine.signing),
+      ok: capabilities[id] === true || inAppLive,
       reason: `The deployed worker has not reported its ${id} capability.`
     })),
     { id: "exits", ok: facts.automatedExitsEnabled === true, reason: "Automated take-profit and stop-loss exits are disabled by the release gate." },

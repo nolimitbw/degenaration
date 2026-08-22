@@ -1330,7 +1330,7 @@ test("sanitized errors leak neither a stack nor an unbounded message", () => {
   assert.ok(rules.sanitizeError(new Error("x".repeat(500))).length <= 200, "length bounded");
 });
 
-const { ownsPrivyWallet } = require("../../lib/server/privy-wallet");
+const { ownsPrivyWallet, privyWalletFromPayload } = require("../../lib/server/privy-wallet");
 const identityPayload = {
   sub: "did:privy:owner",
   linked_accounts: JSON.stringify([{
@@ -1339,6 +1339,22 @@ const identityPayload = {
 };
 test("accepts the authenticated user's linked Solana wallet", () => {
   assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:owner", tradeWallet, "wallet-owner"), true);
+  assert.deepStrictEqual(
+    privyWalletFromPayload(identityPayload, "did:privy:owner", tradeWallet, "wallet-owner"),
+    { address: tradeWallet, walletId: "wallet-owner", delegated: false },
+    "ownership proof must preserve that an undelegated wallet cannot run automation"
+  );
+  const delegatedPayload = {
+    ...identityPayload,
+    linked_accounts: JSON.stringify(
+      JSON.parse(identityPayload.linked_accounts).map((account) => ({ ...account, delegated: true }))
+    )
+  };
+  assert.strictEqual(
+    privyWalletFromPayload(delegatedPayload, "did:privy:owner", tradeWallet, "wallet-owner")?.delegated,
+    true,
+    "the signed Privy delegation claim must reach activation checks"
+  );
 });
 test("rejects a different Privy user", () => {
   assert.strictEqual(ownsPrivyWallet(identityPayload, "did:privy:attacker", tradeWallet, "wallet-owner"), false);
@@ -3995,6 +4011,14 @@ console.log("price selection");
     assert.ok(
       code.some((line) => line.includes("spendableFor(")),
       "readiness must derive spendable from the shared on-chain reader"
+    );
+    assert.ok(
+      code.some((line) => line.includes("walletDelegated = ownership.ok && ownership.delegated")),
+      "readiness must take delegation from Privy's signed wallet claim"
+    );
+    assert.ok(
+      !code.some((line) => /walletDelegated:\s*walletOwned\b/.test(line)),
+      "wallet ownership must never be treated as delegated signing permission"
     );
 
     // And the table's own half: a balance that IS supplied clears the capital check.

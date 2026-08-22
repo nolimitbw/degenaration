@@ -52,6 +52,12 @@ export async function POST(req: NextRequest) {
   if (parsed.walletAddress) {
     const ownership = await requirePrivyWallet(req, user.privyUserId, parsed.walletAddress, parsed.walletId);
     if (!ownership.ok) return ownership.response;
+    if (parsed.value.status === "active" && !ownership.delegated) {
+      return NextResponse.json(
+        { error: "Grant delegated execution to this wallet before activating the bot.", code: "WALLET_NOT_DELEGATED" },
+        { status: 409 }
+      );
+    }
   }
   const rpcName = parsed.value.status === "active"
     ? "app_user_save_bot"

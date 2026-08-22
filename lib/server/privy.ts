@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { callAppBridge } from "@/lib/server/app-bridge";
-import { ownsPrivyWallet, solanaWalletFromPayload } from "@/lib/server/privy-wallet";
+import { privyWalletFromPayload, solanaWalletFromPayload } from "@/lib/server/privy-wallet";
 import { linkedAccounts } from "@/lib/server/privy-wallet";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -47,8 +47,9 @@ export async function requirePrivyWallet(
   }
   try {
     const { payload } = await jwtVerify(token, keys, { issuer: "privy.io", audience: id });
-    if (!ownsPrivyWallet(payload, privyUserId, walletAddress, walletId)) throw new Error("wallet mismatch");
-    return { ok: true as const };
+    const wallet = privyWalletFromPayload(payload, privyUserId, walletAddress, walletId);
+    if (!wallet) throw new Error("wallet mismatch");
+    return { ok: true as const, delegated: wallet.delegated === true };
   } catch {
     return { ok: false as const, response: NextResponse.json({ error: "wallet does not belong to this user" }, { status: 403 }) };
   }
