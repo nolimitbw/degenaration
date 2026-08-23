@@ -217,16 +217,16 @@ function SourceCard({ source, minimumSampleSize, period }: { source: DiscordSour
         <p className="ui-label">Best each call reached · {periodLabel(period)}</p>
         <div className="mt-3 grid grid-cols-3 gap-y-4 sm:grid-cols-5">
           <Metric
-            label="Hit rate"
+            label="Hit rate (+50%)"
             value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "—"}
             tone={measured ? "positive" : "default"}
-            hint="Share of measured calls that traded above entry at any point in this period."
+            hint="Share of measured calls that reached at least 1.50x entry in this period."
           />
           <Metric
-            label="−50%"
+            label="Peak below 0.5x"
             value={measured ? String(source.down50 ?? 0) : "—"}
             tone={measured && (source.down50 ?? 0) > 0 ? "negative" : "default"}
-            hint="Calls that never recovered half their entry price."
+            hint="Calls whose highest measured price stayed below half their entry. Current losses are reported separately below."
           />
           <Metric
             label="+50%"

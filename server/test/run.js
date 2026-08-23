@@ -475,12 +475,15 @@ test("a rug and a call that went nowhere are separate buckets", () => {
   assert.strictEqual(outcomes.outcomeBucket(call(1.4, 1.4)), "under50");
   assert.strictEqual(outcomes.outcomeBucket(call(0.5, 0.5)), "under50", "0.5x is the boundary and is not a rug");
 });
-test("win rate and 2x rate are different numbers", () => {
-  // Same conflation the marketplace SQL had: one figure computed as the 2x share and
-  // rendered under the label "Win rate".
-  const agg = outcomes.sourceAggregate([call(1.2, 1.2), call(2, 2), call(0.4, 0.4)]);
-  assert.strictEqual(Math.round(agg.winRate), 67);
-  assert.strictEqual(Math.round(agg.twoXRate), 33);
+test("hit rate ignores above-entry noise and stays distinct from 2x rate", () => {
+  const agg = outcomes.sourceAggregate([
+    call(1.2, 1.2), // above entry, but not a meaningful hit
+    call(1.5, 1.5),
+    call(2, 2),
+    call(0.4, 0.4)
+  ]);
+  assert.strictEqual(Math.round(agg.winRate), 50);
+  assert.strictEqual(Math.round(agg.twoXRate), 25);
 });
 test("best and worst call come from measured rows only", () => {
   const agg = outcomes.sourceAggregate([call(0.4, 0.4), call(5, 5), {}, call(1.2, 1.2)]);
@@ -494,7 +497,7 @@ test("aggregates win rate, median, average and drawdown over a period", () => {
   assert.strictEqual(agg.eligibleCalls, 5);
   assert.strictEqual(agg.measuredCalls, 5);
   assert.strictEqual(agg.measured, true);
-  assert.strictEqual(agg.winRate, 80);                 // 4 of 5 above 1x
+  assert.strictEqual(agg.winRate, 80);                 // 4 of 5 reached +50%
   assert.strictEqual(agg.medianReturnX, 2);
   assert.strictEqual(agg.maxDrawdownBps, 5000);        // worst single drawdown
 });

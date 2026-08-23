@@ -144,13 +144,14 @@ export type DiscordSource = {
   averageCurrentX?: number | null;
   medianCurrentX?: number | null;
   currentWinRate?: number | null;
-  // Two distinct figures. `winRate` is the share that traded above entry at any point;
-  // `twoXRate` is the share that doubled. They were one field named after the first and
-  // computed as the second, so the marketplace list understated every source.
+  // Two distinct milestones. `winRate` is the share that reached +50%; `twoXRate` is the
+  // share that doubled. Any peak above entry is not a hit: that definition turns ordinary
+  // quote noise into a public win and materially overstates source quality.
   winRate: number | null;
   twoXRate?: number | null;
   bestCall?: DiscordSourceCall | null;
   worstCall?: DiscordSourceCall | null;
+  recentCalls?: DiscordSourceJournalCall[];
   copiedExecutions?: number;
   /** Integer lamports as a string; confirmed executed notional attributed to this source. */
   copiedVolumeLamports?: string | null;
@@ -180,6 +181,17 @@ export type DiscordSourceCall = {
   symbol: string | null;
   peakX: number | string | null;
   calledAt: string | null;
+};
+
+export type DiscordSourceJournalCall = {
+  id: string;
+  mint: string | null;
+  symbol: string | null;
+  calledAt: string;
+  peakX: number | string | null;
+  currentX: number | string | null;
+  dataUpdatedAt: string | null;
+  measurementStatus: "measured" | "tracking";
 };
 
 export type KolStrategy = {

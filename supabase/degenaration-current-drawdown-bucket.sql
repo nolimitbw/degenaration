@@ -1,3 +1,7 @@
+-- Corrects three public-performance truth defects together because this function owns the
+-- shared population and denominator: current 50% drawdown, meaningful +50% hit rate, and the
+-- recent accepted-call journal that lets a reader audit both aggregates.
+--
 -- "Down 50%+" counted calls that never recovered half the entry, not calls that are down half.
 --
 -- THE DEFECT
@@ -63,6 +67,7 @@ begin
       c.id,
       c.group_id,
       c.called_at,
+      c.last_scanned_at,
       c.parse_status,
       c.mint,
       c.symbol,
@@ -138,9 +143,10 @@ begin
         100.0 * count(*) filter (where c.parse_status = 'accepted' and c.current_x > 1)
           / nullif(count(c.current_x) filter (where c.parse_status = 'accepted'), 0)
       )::numeric, 2) as current_win_rate,
-      -- A win is a call that traded above entry at any point.
+      -- A marketplace hit is the first meaningful milestone: +50%. Using peak_x > 1
+      -- turns ordinary quote noise into a win and materially inflates the public rate.
       round((
-        100.0 * count(*) filter (where c.parse_status = 'accepted' and c.peak_x > 1)
+        100.0 * count(*) filter (where c.parse_status = 'accepted' and c.peak_x >= 1.5)
           / nullif(count(c.peak_x) filter (where c.parse_status = 'accepted'), 0)
       )::numeric, 2) as win_rate,
       -- The share that doubled. Previously returned under the name "win_rate".
@@ -242,6 +248,7 @@ begin
       m.max_drawdown_bps as "maxDrawdownBps",
       best.call as "bestCall",
       worst.call as "worstCall",
+      recent.calls as "recentCalls",
       coalesce(cp.copied_executions, 0) as "copiedExecutions",
       coalesce(cp.copied_volume_lamports, 0)::text as "copiedVolumeLamports",
       perf_1d.snapshot as "performance1d",
@@ -302,6 +309,28 @@ begin
       order by pc.peak_x asc, pc.called_at desc
       limit 1
     ) worst on true
+    left join lateral (
+      select coalesce(jsonb_agg(
+        jsonb_build_object(
+          'id', journal.id,
+          'mint', journal.mint,
+          'symbol', journal.symbol,
+          'calledAt', journal.called_at,
+          'peakX', case when journal.peak_x is null then null else round(journal.peak_x::numeric, 4) end,
+          'currentX', case when journal.current_x is null then null else round(journal.current_x::numeric, 4) end,
+          'dataUpdatedAt', journal.last_scanned_at,
+          'measurementStatus', case when journal.peak_x is null then 'tracking' else 'measured' end
+        ) order by journal.called_at desc, journal.id desc
+      ), '[]'::jsonb) as calls
+      from (
+        select pc.id, pc.mint, pc.symbol, pc.called_at, pc.peak_x, pc.current_x, pc.last_scanned_at
+        from period_calls pc
+        where pc.group_id = g.id
+          and pc.parse_status = 'accepted'
+        order by pc.called_at desc, pc.id desc
+        limit 20
+      ) journal
+    ) recent on true
     left join lateral (
       select jsonb_build_object(
         'sampleSize', ps.sample_size,

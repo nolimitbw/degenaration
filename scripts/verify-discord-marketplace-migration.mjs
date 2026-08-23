@@ -380,6 +380,26 @@ assert.equal(fixed.down50, 1, "the peak bucket is unchanged — it is a differen
 assert.notEqual(fixed.currentlyDown50, fixed.down50,
   "the two must be separately computed; equal values would prove nothing");
 
+// A hit begins at the first meaningful milestone (+50%), not at any quote above entry.
+// Peaks are 2.0 / 0.4 / 1.2 / 3.0 / 1.0, so only two of five are hits. The prior
+// `peak_x > 1` definition reported three and is extremely sensitive to ordinary price noise.
+assert.equal(Number(fixed.winRate), 40, "hit rate is the +50% milestone over measured calls");
+assert.equal(Number(fixed.twoXRate), 40, "the same fixture has two calls at 2x or better");
+
+assert.equal(fixed.recentCalls.length, 6,
+  "the source exposes measured and still-tracking accepted rows behind its aggregates");
+assert.equal(fixed.recentCalls[0].mint, "mintFlat", "journal is newest first");
+assert.equal(fixed.recentCalls[0].measurementStatus, "measured");
+const crashedJournalRow = fixed.recentCalls.find(
+  (call) => call.id === "40000000-0000-0000-0000-000000000013"
+);
+assert.ok(crashedJournalRow, "the production-shaped loss remains in the recent journal");
+assert.equal(Number(crashedJournalRow.currentX), 0.2151,
+  "the journal makes the production-shaped 78.5% loss auditable");
+assert.ok(crashedJournalRow.dataUpdatedAt);
+assert.equal(fixed.recentCalls.find((call) => call.mint === "mintTwo").measurementStatus, "tracking",
+  "an accepted call awaiting a baseline stays visible instead of disappearing from the journal");
+
 // The peak buckets must still partition the population, or the distribution stops summing.
 assert.equal(
   fixed.down50 + fixed.under50 + fixed.plus50 + fixed.twoX + fixed.fiveX,
@@ -442,6 +462,8 @@ console.log(JSON.stringify({
   copiedVolumeExcludesUnconfirmed: "PASS",
   zeroVolumeIsNotNullMetrics: "PASS",
   currentReturnReportedBesidePeak: "PASS",
+  meaningfulHitRate: "PASS",
+  recentCallJournal: "PASS",
   unknownCurrentReturnStaysNull: "PASS",
   callPerformance: {
     down50: perf.down50,

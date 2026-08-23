@@ -73,7 +73,7 @@ export default function DiscordSourceDetailsPage() {
               <div className="grid grid-cols-2 divide-x divide-y divide-edge pt-4 pb-3 sm:grid-cols-3 lg:grid-cols-7 lg:divide-y-0">
                 <Metric label="Eligible calls" value={source.eligibleCalls} />
                 <Metric label="Measured" value={source.measuredCalls} />
-                <Metric label="Hit rate (peak)" value={source.winRate == null ? "—" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} hint="Share of measured calls that traded above entry at any point." />
+                <Metric label="Hit rate (+50%)" value={source.winRate == null ? "—" : `${source.winRate.toFixed(1)}%`} tone={source.winRate == null ? "default" : "positive"} hint="Share of measured calls that reached at least 1.50x entry." />
                 <Metric label="2x rate" value={source.twoXRate == null ? "—" : `${source.twoXRate.toFixed(1)}%`} tone={source.twoXRate == null ? "default" : "positive"} hint="Share of measured calls whose peak reached twice entry." />
                 <Metric label="Median peak" value={source.medianReturnX == null ? "—" : `${source.medianReturnX.toFixed(2)}x`} hint="Best multiple the middle call reached. Not where it is now." />
                 <Metric label="Average peak" value={source.averageReturnX == null ? "—" : `${source.averageReturnX.toFixed(2)}x`} hint="Mean of the best multiple each call reached." />
@@ -143,6 +143,52 @@ export default function DiscordSourceDetailsPage() {
                       )}
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+
+            <section className="overflow-hidden rounded-md border border-edge bg-panel">
+              <header className="border-b border-edge px-5 py-4">
+                <h2 className="t-body font-semibold text-ink">Recent call journal</h2>
+                <p className="mt-1 t-label text-dim">The calls behind this period&apos;s hit rate, peak milestones, and current drawdown.</p>
+              </header>
+              {(source.recentCalls || []).length === 0 ? (
+                <p className="px-5 py-6 t-label text-dim">No accepted calls in this period.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[680px] border-collapse text-left">
+                    <thead className="border-b border-edge bg-void">
+                      <tr className="ui-label text-dim">
+                        <th className="px-5 py-3 font-medium">Token</th>
+                        <th className="px-4 py-3 font-medium">Called</th>
+                        <th className="px-4 py-3 font-medium">Best reached</th>
+                        <th className="px-4 py-3 font-medium">Now</th>
+                        <th className="px-5 py-3 font-medium">Journal state</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-edge">
+                      {(source.recentCalls || []).map((call) => {
+                        const current = call.currentX == null ? null : Number(call.currentX);
+                        return (
+                          <tr key={call.id} className="t-label text-ink">
+                            <td className="px-5 py-3">
+                              <p className="font-semibold">{call.symbol || "Unknown token"}</p>
+                              {call.mint && <p className="mt-1 max-w-44 truncate ui-code text-dim" title={call.mint}>{call.mint}</p>}
+                            </td>
+                            <td className="px-4 py-3 text-dim">{formatWhen(call.calledAt)}</td>
+                            <td className="px-4 py-3 ui-figure">{call.peakX == null ? "—" : `${Number(call.peakX).toFixed(2)}x`}</td>
+                            <td className={`px-4 py-3 ui-figure ${current == null ? "text-dim" : current < 1 ? "text-down" : "text-up"}`}>
+                              {current == null ? "—" : `${current.toFixed(2)}x`}
+                            </td>
+                            <td className="px-5 py-3">
+                              <p>{call.measurementStatus === "measured" ? "Measured" : "Tracking"}</p>
+                              <p className="mt-1 text-dim">{call.dataUpdatedAt ? `Updated ${formatWhen(call.dataUpdatedAt)}` : "Awaiting market data"}</p>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </section>
