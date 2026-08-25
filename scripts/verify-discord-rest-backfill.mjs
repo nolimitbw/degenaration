@@ -2,9 +2,25 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { INGEST_CONCURRENCY, scanDiscordHistoryPage } = require("../lib/server/discord-rest-backfill");
+const { INGEST_CONCURRENCY, discordJson, discordRetryDelay, scanDiscordHistoryPage } = require("../lib/server/discord-rest-backfill");
 
 assert.equal(INGEST_CONCURRENCY, 5, "history ingestion must stay bounded");
+
+// Discord's global rate window can exceed the old five-second cap. Retrying early starts a
+// fresh limited request every minute and can prevent the scanner from ever recovering.
+const rateHeaders = { get: name => name === "retry-after" ? "32" : null };
+assert.equal(discordRetryDelay({ headers: rateHeaders }, { retry_after: 2 }), 32_000);
+assert.equal(discordRetryDelay({ headers: { get: () => null } }, { retry_after: 90 }), 45_000);
+let rateFetches = 0;
+let sleptFor = null;
+const recovered = await discordJson("/channels/1/messages", "token", async () => {
+  rateFetches += 1;
+  if (rateFetches === 1) return { ok: false, status: 429, headers: rateHeaders, json: async () => ({ retry_after: 32 }) };
+  return { ok: true, status: 200, headers: { get: () => null }, json: async () => [] };
+}, async delay => { sleptFor = delay; });
+assert.deepEqual(recovered, []);
+assert.equal(rateFetches, 2);
+assert.equal(sleptFor, 32_000);
 
 const channel = { channel_id: "1495930481018142801", channel_name: "calls", guild_id: "1495795490657275914" };
 const mint = "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU";

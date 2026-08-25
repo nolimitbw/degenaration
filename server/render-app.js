@@ -10,7 +10,10 @@ const next = require("next");
 
 const port = Number(process.env.PORT || 10000);
 const hostname = "0.0.0.0";
-const scanIntervalMs = Math.max(60_000, Number(process.env.DISCORD_REST_SCAN_INTERVAL_MS || 60_000));
+// Discord can return a global retry window longer than one minute. Starting another scan
+// before that window expires keeps the bot permanently rate limited, so the free recovery
+// poll deliberately leaves two minutes between bounded passes.
+const scanIntervalMs = Math.max(120_000, Number(process.env.DISCORD_REST_SCAN_INTERVAL_MS || 120_000));
 const secret = process.env.BOT_SHARED_SECRET?.trim();
 
 async function main() {
@@ -41,6 +44,7 @@ async function main() {
         ok: body?.ok === true,
         channels: Array.isArray(body?.channels) ? body.channels.length : null,
         skipped: body?.skipped ?? null,
+        failedChannels: Array.isArray(body?.channels) ? body.channels.filter(channel => channel?.error).length : null,
         error: body?.error || null
       }));
     } catch (error) {

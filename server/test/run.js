@@ -3870,9 +3870,9 @@ console.log("price selection");
       "deployment whitespace must not invalidate an otherwise correct token");
   });
 
-  test("the free Render app drives one bounded Discord REST recovery pass per minute", () => {
+  test("the free Render app drives bounded Discord REST recovery without outrunning rate limits", () => {
     const runtime = fs.readFileSync(path.join(__dirname, "../render-app.js"), "utf8");
-    assert.ok(/Math\.max\(60_000/.test(runtime), "scanner interval must never become a tight loop");
+    assert.ok(/Math\.max\(120_000/.test(runtime), "scanner interval must leave Discord's global retry window room to clear");
     assert.ok(/discord-backfill\?live=1/.test(runtime), "runtime must invoke the approved-channel recovery route");
     assert.ok(/"x-bot-secret": secret/.test(runtime), "self-call must use the existing bot authentication boundary");
     assert.ok(/AbortSignal\.timeout\(55_000\)/.test(runtime), "a stuck scan must end before the next scheduled pass");
