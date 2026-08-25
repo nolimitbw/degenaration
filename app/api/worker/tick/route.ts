@@ -13,8 +13,8 @@ import { isBotRequest } from "@/lib/server/bot-auth";
  *
  * A Vercel function can do every step: Privy delegated signing is an HTTPS call, Jupiter quote
  * and swap are HTTPS, Solana simulate and submit are RPC over HTTPS. What it cannot do is stay
- * resident. So this route is invoked on a schedule and runs a BOUNDED INTERNAL LOOP, which is
- * what turns one invocation per minute into a check every few seconds.
+ * resident. So this route is invoked on a schedule and runs one bounded pass. Keeping the
+ * function alive between passes exhausted the free-tier compute allowance without doing work.
  *
  * ENTRIES ARE NOT ONLY DRIVEN FROM HERE. `/api/ingest-call` already receives a Discord call in
  * real time, so the entry path is triggered there too and a call executes seconds after it is
@@ -41,20 +41,7 @@ import { isBotRequest } from "@/lib/server/bot-auth";
  */
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
-
-/**
- * The loop must finish INSIDE the caller's HTTP timeout, not merely inside Vercel's function
- * limit. A 240s budget completed its work but the pg_cron caller reported "HTTP request
- * cancelled" every run — the route kept going server-side after the client hung up, so the
- * work landed while the schedule showed nothing but failures. A job that always reports failure
- * is a job whose alerts get muted, which is how a real outage later goes unnoticed.
- *
- * 50s of passes on a 60s schedule: the caller gets a clean response, and the gap between
- * invocations is smaller than the old one anyway.
- */
-const BUDGET_MS = 50_000;
-const INTERVAL_MS = 8_000;
+export const maxDuration = 60;
 
 function digest(value: string) {
   return createHash("sha256").update(value).digest();
@@ -238,26 +225,20 @@ export async function GET(req: NextRequest) {
     ];
     void jupiter;
 
-    // `?once=1` runs a SINGLE pass and returns, for the real-time path.
+    // Every invocation runs a SINGLE pass and returns. `?once=1` remains accepted because the
+    // real-time ingest path uses it, but scheduled and immediate execution deliberately share
+    // the exact same guarded implementation.
     //
     // A Discord call reaches /api/ingest-call the moment it is posted. Waiting for the next
     // scheduled tick would put up to a minute between the message and the trade, which for a
     // memecoin call is the difference between the entry the user expected and a worse one. So
-    // ingest triggers this mode straight after recording, and the scheduled loop stays as the
+    // ingest triggers this mode straight after recording, and the scheduled pass stays as the
     // safety net for anything that arrived between invocations.
     //
-    // Same claims, same guards, same code — only the loop is skipped. Nothing about a
-    // single-pass invocation may be more permissive than a scheduled one.
-    const once = req.nextUrl.searchParams.get("once") === "1";
-
-    // Sequential on purpose. Two overlapping passes would race the same claim, and the claim
-    // is the thing that makes a double-buy impossible.
-    do {
-      ticks += 1;
-      for (const pass of passes) await pass();
-      if (once || Date.now() - started >= BUDGET_MS) break;
-      await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS));
-    } while (Date.now() - started < BUDGET_MS);
+    // Sequential on purpose. The database claim is the final double-buy guard, and avoiding
+    // internal overlap keeps one invocation's accounting and diagnostics unambiguous.
+    ticks = 1;
+    for (const pass of passes) await pass();
   } catch (reason) {
     return NextResponse.json({
       ok: false,
@@ -274,7 +255,7 @@ export async function GET(req: NextRequest) {
     ok: true,
     mode: "live",
     ticks,
-    intervalMs: INTERVAL_MS,
+    intervalMs: null,
     elapsedMs: Date.now() - started,
     counts,
     errors

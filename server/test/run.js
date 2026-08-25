@@ -3848,6 +3848,18 @@ console.log("price selection");
     assert.ok(/startCallWatcher\(callDeps/.test(body));
   });
 
+  test("free-tier scheduled fallbacks return after one pass instead of idling in loops", () => {
+    const tick = fs.readFileSync(path.join(__dirname, "../../app/api/worker/tick/route.ts"), "utf8");
+    const backfill = fs.readFileSync(path.join(__dirname, "../../app/api/cron/discord-backfill/route.ts"), "utf8");
+    for (const [name, body] of [["worker tick", tick], ["Discord backfill", backfill]]) {
+      assert.ok(!/50_000/.test(body), `${name} must not reserve most of every scheduled minute`);
+      assert.ok(!/await new Promise\(\(resolve\) => setTimeout/.test(body), `${name} must not bill idle waits`);
+    }
+    assert.ok(/ticks = 1;[\s\S]*for \(const pass of passes\) await pass\(\)/.test(tick),
+      "worker tick must run exactly one sequential guarded pass");
+    assert.ok(/const sweeps = 0/.test(backfill), "legacy live mode must not start an internal polling loop");
+  });
+
   test("activation gates on tradable, and both activation routes agree", () => {
     for (const route of ["app/api/product/bots/route.ts", "app/api/product/kol-subscriptions/route.ts"]) {
       const body = fs.readFileSync(path.join(__dirname, "../../", route), "utf8");

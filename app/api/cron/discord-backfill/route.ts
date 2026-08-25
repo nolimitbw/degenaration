@@ -7,7 +7,7 @@ import { isBotRequest } from "@/lib/server/bot-auth";
 const { scanDiscordHistoryPage } = require("@/lib/server/discord-rest-backfill");
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 60;
 const MAX_PAGES_PER_RUN = 6;
 
 function digest(value: string) {
@@ -143,76 +143,16 @@ export async function GET(req: NextRequest) {
     }
 
     /**
-     * LIVE MODE — near-real-time call detection without a hosted gateway listener.
+     * `live=1` remains compatible with the existing scheduler, but this serverless fallback
+     * never waits between polls. The archive/forward scan above already performs the current
+     * pass. A previous 50-second polling loop exhausted Vercel's free compute allowance because
+     * two scheduled functions stayed resident for nearly every second of every minute.
      *
-     * Discord only pushes MESSAGE_CREATE over a persistent WebSocket, and nothing here can hold
-     * one open. The alternative is polling the REST API, and the limit on THAT is not Discord —
-     * `GET /channels/{id}/messages` is comfortable at this volume — it is how often anything
-     * gets to run. pg_cron's floor is one minute, which for a memecoin CA call is the difference
-     * between the entry the caller saw and a materially worse one.
-     *
-     * So the invocation does the waiting. It sweeps every few seconds for most of a minute, and
-     * pg_cron restarts it each minute. Detection drops from ~120s to ~5s, and the execution half
-     * is already immediate: ingest fires /api/worker/tick?once=1, measured at 840ms.
-     *
-     * Only a channel that has FINISHED its archive sweeps here. One still walking backwards has
-     * older pages to fetch and its own loop above already runs flat out; adding forward sweeps
-     * would just contend for the same rate limit.
-     *
-     * This is a bridge, not the destination. A gateway listener detects in ~100ms and costs one
-     * always-on process; when `degenaration-discord-bot` is hosted, drop the schedule back and
-     * let this go back to being a backfill.
+     * Near-real-time delivery belongs to the Discord Gateway service. This route is the durable,
+     * once-per-schedule recovery path when the gateway misses an event.
      */
     const live = req.nextUrl.searchParams.get("live") === "1";
-    const LIVE_BUDGET_MS = 50_000;
-    const SWEEP_INTERVAL_MS = 5_000;
-    let sweeps = 0;
-
-    if (live) {
-      const started = Date.now();
-      while (Date.now() - started < LIVE_BUDGET_MS) {
-        await new Promise((resolve) => setTimeout(resolve, SWEEP_INTERVAL_MS));
-        sweeps += 1;
-        for (const channel of rows) {
-          const total = results.get(channel.channel_id)!;
-          // Forward polling only. `completed` is what flips scanDiscordHistoryPage from
-          // paging `before` the oldest to fetching `after` the newest.
-          if (!total.completed) continue;
-          // Same isolation as the archive loop. A private channel throwing here would end the
-          // live sweep for every source, and this loop is the real-time path — the one that
-          // decides whether a call lands in seconds or not at all.
-          if ((total as any).error) continue;
-          let state = states.get(channel.channel_id) || {};
-          let pageResult;
-          try {
-            pageResult = await scanDiscordHistoryPage({
-              channel,
-              state,
-              token,
-              ingest: (payload: Record<string, unknown>) => ingest(req.nextUrl.origin, payload),
-              saveState: async (channelId: string, next: Record<string, unknown>) => {
-                state = await bridge("update_backfill_state", {
-                  p_channel_id: channelId,
-                  p_newest_message_id: next.newestMessageId || null,
-                  p_oldest_message_id: next.oldestMessageId || null,
-                  p_completed: next.completed === true,
-                  p_messages_scanned: next.messagesScanned || 0,
-                  p_last_error: next.lastError || null
-                });
-                states.set(channelId, state);
-              }
-            });
-          } catch (error) {
-            (total as any).error = String((error as Error)?.message || error).slice(0, 120);
-            skipped += 1;
-            continue;
-          }
-          total.scanned += pageResult.scanned;
-          total.accepted += pageResult.accepted;
-          total.rejected += pageResult.rejected;
-        }
-      }
-    }
+    const sweeps = 0;
 
     return NextResponse.json(
       { ok: true, live, sweeps, skipped, channels: [...results.values()] },
