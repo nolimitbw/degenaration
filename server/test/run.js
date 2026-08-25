@@ -3860,6 +3860,16 @@ console.log("price selection");
     assert.ok(/const sweeps = 0/.test(backfill), "legacy live mode must not start an internal polling loop");
   });
 
+  test("the hosted Gateway cannot stay false-live when Discord login never settles", () => {
+    const bot = fs.readFileSync(path.join(__dirname, "../bot/index.js"), "utf8");
+    assert.ok(/Promise\.race\(\[\s*client\.login\(discordToken\)/.test(bot),
+      "Discord login must have a readiness timeout");
+    assert.ok(/client\.destroy\(\)[\s\S]*setTimeout\(connectDiscord/.test(bot),
+      "a timed-out half-open Gateway session must be destroyed and retried");
+    assert.ok(/process\.env\.DISCORD_BOT_TOKEN\?\.trim\(\)/.test(bot),
+      "deployment whitespace must not invalidate an otherwise correct token");
+  });
+
   test("activation gates on tradable, and both activation routes agree", () => {
     for (const route of ["app/api/product/bots/route.ts", "app/api/product/kol-subscriptions/route.ts"]) {
       const body = fs.readFileSync(path.join(__dirname, "../../", route), "utf8");

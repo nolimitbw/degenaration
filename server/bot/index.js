@@ -39,6 +39,8 @@ const HEALTH_PORT = Number(process.env.BOT_HEALTH_PORT || process.env.PORT || 10
 const HEALTH_HOST = process.env.HEALTH_HOST || "0.0.0.0";
 const HISTORY_BACKFILL_ENABLED = process.env.HISTORY_BACKFILL_ENABLED !== "off";
 const HISTORY_BACKFILL_MAX_MESSAGES = Math.max(100, Number(process.env.HISTORY_BACKFILL_MAX_MESSAGES || 50000));
+const DISCORD_LOGIN_TIMEOUT_MS = Math.max(10_000, Number(process.env.DISCORD_LOGIN_TIMEOUT_MS || 30_000));
+const DISCORD_RECONNECT_MS = Math.max(5_000, Number(process.env.DISCORD_RECONNECT_MS || 15_000));
 
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
 // Declared with the other configuration rather than beside its setInterval: the ready handler
@@ -688,14 +690,38 @@ http.createServer((req, res) => {
   res.end(JSON.stringify(health.body));
 }).listen(HEALTH_PORT, HEALTH_HOST, () => console.log(`[bot] health listening on ${HEALTH_HOST}:${HEALTH_PORT}`));
 
-if (!process.env.DISCORD_BOT_TOKEN) {
+const discordToken = process.env.DISCORD_BOT_TOKEN?.trim();
+let loginFailures = 0;
+
+async function connectDiscord() {
+  if (!discordToken || client.isReady()) return;
+  let timeout;
+  try {
+    await Promise.race([
+      client.login(discordToken),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(`Gateway READY timed out after ${DISCORD_LOGIN_TIMEOUT_MS}ms`)), DISCORD_LOGIN_TIMEOUT_MS);
+      })
+    ]);
+    loginFailures = 0;
+  } catch (error) {
+    loginFailures += 1;
+    console.error(`[bot] Discord login attempt ${loginFailures} failed:`, error?.message || error);
+    // login() can remain pending forever before a shard exists. Destroy that half-open session
+    // before retrying, otherwise a healthy token can leave a free host false-live indefinitely.
+    try { client.destroy(); } catch {}
+    setTimeout(connectDiscord, Math.min(DISCORD_RECONNECT_MS * loginFailures, 60_000));
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+if (!discordToken) {
   // Named, not swallowed. Without this the process starts, serves /health, reports "starting"
   // forever, and gives no clue which of a dozen faults it is.
   console.error("[bot] DISCORD_BOT_TOKEN is not set — this listener cannot connect to Discord. " +
     "The process stays up and /live answers 200 so the deploy can land; /health will keep " +
     "reporting discord.ready=false until the token is set.");
 } else {
-  client.login(process.env.DISCORD_BOT_TOKEN).catch((error) => {
-    console.error("[bot] Discord login failed:", error?.message || error);
-  });
+  connectDiscord();
 }
