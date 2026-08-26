@@ -49,6 +49,26 @@ Deno.serve(async (request) => {
   if (body.verify_only === true) {
     return json({ ok: true, channel_id: channelId, guild_id: channel.guild_id, channel_name: channel.name ?? null });
   }
+  if (body.list_recent === true) {
+    const requestedLimit = Number(body.limit);
+    const limit = Number.isInteger(requestedLimit) ? Math.min(100, Math.max(1, requestedLimit)) : 100;
+    const messagesResponse = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=${limit}`, { headers: auth });
+    const messages = await messagesResponse.json().catch(() => null);
+    if (!messagesResponse.ok || !Array.isArray(messages)) {
+      return json({ error: "Discord message history is unavailable", upstream_status: messagesResponse.status }, 502);
+    }
+    return json({
+      ok: true,
+      channel_id: channelId,
+      messages: messages.map((message) => ({
+        id: message.id,
+        timestamp: message.timestamp,
+        author_bot: message.author?.bot === true,
+        embeds: Array.isArray(message.embeds) ? message.embeds : [],
+        message_reference: message.message_reference ?? null
+      }))
+    });
+  }
 
   const embeds = Array.isArray(body.embeds) ? body.embeds : [];
   const components = Array.isArray(body.components) ? body.components : [];
