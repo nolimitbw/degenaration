@@ -6,6 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "cloudflare:build": "opennextjs-cloudflare build",
+    "cloudflare:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cloudflare:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cloudflare:dry-run": "opennextjs-cloudflare build && wrangler deploy --dry-run --outdir .wrangler-dry-run",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "node server/test/run.js && node scripts/verify-discord-history-backfill.mjs && node scripts/verify-discord-rest-backfill.mjs",
     "verify:fee-ledger": "node scripts/verify-fee-ledger.mjs",
@@ -84,6 +88,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.4",
+    "@opennextjs/cloudflare": "^1.20.2",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18",
@@ -91,7 +96,8 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.19",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.126.0"
   },
   "overrides": {
     "axios": "1.18.0",
