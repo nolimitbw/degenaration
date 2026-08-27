@@ -11,7 +11,7 @@ security definer
 set search_path = public, extensions, pg_temp
 as $$
   select p_secret is not null
-    and encode(extensions.digest(p_secret, 'sha256'), 'hex') = '7492d9993c25810f58cf85945732852878335dca059c402a9c730d43312515c6'
+    and encode(extensions.digest(p_secret, 'sha256'), 'hex') = 'ad0ea74ac2b01bfd707a3dd97e8c2c494d2f7e34114f6d877f5df88c6459826b'
 $$;
 
 create or replace function public.admin_list_server_applications(p_secret text)
