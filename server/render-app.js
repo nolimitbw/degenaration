@@ -14,7 +14,33 @@ const hostname = "0.0.0.0";
 // before that window expires keeps the bot permanently rate limited, so the free recovery
 // poll deliberately leaves two minutes between bounded passes.
 const scanIntervalMs = Math.max(120_000, Number(process.env.DISCORD_REST_SCAN_INTERVAL_MS || 120_000));
+// Performance sampling is independent from Discord history recovery. Keeping it on its own
+// cadence means a Discord rate-limit or inaccessible channel cannot also freeze the winning
+// tracker. Five minutes is frequent enough for visible position milestones while remaining a
+// bounded, free-tier-friendly workload.
+const performanceIntervalMs = Math.max(300_000, Number(process.env.CALL_PERFORMANCE_INTERVAL_MS || 300_000));
 const secret = process.env.BOT_SHARED_SECRET?.trim();
+
+async function runAuthenticatedRoute(path, label, timeoutMs) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+      headers: { "x-bot-secret": secret },
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    const body = await response.json().catch(() => null);
+    console.log(`[render-app] ${label} ${response.status}`, JSON.stringify({
+      ok: body?.ok === true,
+      scanned: body?.scanned ?? null,
+      unpriced: body?.unpriced ?? null,
+      channels: Array.isArray(body?.channels) ? body.channels.length : null,
+      skipped: body?.skipped ?? null,
+      failedChannels: Array.isArray(body?.channels) ? body.channels.filter(channel => channel?.error).length : null,
+      error: body?.error || null
+    }));
+  } catch (error) {
+    console.error(`[render-app] ${label} failed:`, error?.message || error);
+  }
+}
 
 async function main() {
   const app = next({ dev: false, hostname, port });
@@ -33,27 +59,21 @@ async function main() {
     return;
   }
 
-  const scan = async () => {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/cron/discord-backfill?live=1`, {
-        headers: { "x-bot-secret": secret },
-        signal: AbortSignal.timeout(55_000)
-      });
-      const body = await response.json().catch(() => null);
-      console.log(`[render-app] Discord REST scan ${response.status}`, JSON.stringify({
-        ok: body?.ok === true,
-        channels: Array.isArray(body?.channels) ? body.channels.length : null,
-        skipped: body?.skipped ?? null,
-        failedChannels: Array.isArray(body?.channels) ? body.channels.filter(channel => channel?.error).length : null,
-        error: body?.error || null
-      }));
-    } catch (error) {
-      console.error("[render-app] Discord REST scan failed:", error?.message || error);
-    }
-  };
+  const scan = () => runAuthenticatedRoute(
+    "/api/cron/discord-backfill?live=1",
+    "Discord REST scan",
+    55_000
+  );
+  const samplePerformance = () => runAuthenticatedRoute(
+    "/api/cron/call-performance",
+    "call performance scan",
+    240_000
+  );
 
   setTimeout(scan, 5_000);
   setInterval(scan, scanIntervalMs);
+  setTimeout(samplePerformance, 15_000);
+  setInterval(samplePerformance, performanceIntervalMs);
 }
 
 main().catch((error) => {

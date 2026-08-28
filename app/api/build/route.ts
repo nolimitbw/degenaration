@@ -21,18 +21,29 @@ export const dynamic = "force-dynamic";
  * sets for exactly this purpose.
  */
 export async function GET() {
-  const sha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.NEXT_PUBLIC_BUILD_SHA || null;
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA
+    || process.env.RENDER_GIT_COMMIT
+    || process.env.APP_BUILD_SHA
+    || process.env.NEXT_PUBLIC_BUILD_SHA
+    || null;
+  const source = process.env.VERCEL_GIT_COMMIT_SHA
+    ? "VERCEL_GIT_COMMIT_SHA"
+    : process.env.RENDER_GIT_COMMIT
+      ? "RENDER_GIT_COMMIT"
+      : process.env.APP_BUILD_SHA
+        ? "APP_BUILD_SHA"
+        : process.env.NEXT_PUBLIC_BUILD_SHA
+          ? "NEXT_PUBLIC_BUILD_SHA"
+          : null;
   return NextResponse.json(
     {
       commit: sha,
       commitShort: sha ? sha.slice(0, 7) : null,
-      branch: process.env.VERCEL_GIT_COMMIT_REF || null,
-      environment: process.env.VERCEL_ENV || "local",
-      region: process.env.VERCEL_REGION || null,
+      branch: process.env.VERCEL_GIT_COMMIT_REF || process.env.RENDER_GIT_BRANCH || null,
+      environment: process.env.VERCEL_ENV || (process.env.RENDER ? "production" : "local"),
+      region: process.env.VERCEL_REGION || process.env.RENDER_REGION || null,
       // How the commit was determined, so a null is readable rather than alarming.
-      source: sha
-        ? "VERCEL_GIT_COMMIT_SHA"
-        : "unknown — deployed from a working tree with no git metadata; check `vercel inspect`"
+      source: source || "unknown — deployment did not expose git metadata"
     },
     { headers: { "cache-control": "no-store" } }
   );

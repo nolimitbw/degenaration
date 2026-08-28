@@ -3875,7 +3875,18 @@ console.log("price selection");
     assert.ok(/Math\.max\(120_000/.test(runtime), "scanner interval must leave Discord's global retry window room to clear");
     assert.ok(/discord-backfill\?live=1/.test(runtime), "runtime must invoke the approved-channel recovery route");
     assert.ok(/"x-bot-secret": secret/.test(runtime), "self-call must use the existing bot authentication boundary");
-    assert.ok(/AbortSignal\.timeout\(55_000\)/.test(runtime), "a stuck scan must end before the next scheduled pass");
+    assert.ok(/"Discord REST scan",\s*55_000/.test(runtime), "a stuck scan must end before the next scheduled pass");
+  });
+
+  test("the free Render app keeps the call-performance journal moving independently", () => {
+    const runtime = fs.readFileSync(path.join(__dirname, "../render-app.js"), "utf8");
+    assert.ok(/Math\.max\(300_000/.test(runtime), "performance scans must use a bounded free-tier cadence");
+    assert.ok(/\/api\/cron\/call-performance/.test(runtime), "runtime must invoke the canonical performance route");
+    assert.ok(/setInterval\(samplePerformance, performanceIntervalMs\)/.test(runtime),
+      "performance sampling must continue independently from Discord recovery");
+    assert.ok(/runAuthenticatedRoute[\s\S]*"x-bot-secret": secret/.test(runtime),
+      "performance self-call must stay behind bot authentication");
+    assert.ok(/AbortSignal\.timeout\(timeoutMs\)/.test(runtime), "a stuck performance scan must be bounded");
   });
 
   test("activation gates on tradable, and both activation routes agree", () => {
