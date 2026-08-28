@@ -190,16 +190,16 @@ export async function GET(req: NextRequest) {
     // A failed status write must not interrupt an exit, so record it and continue.
     try {
       await store.workerHeartbeat(
-        `vercel:${process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA || "production"}`,
+        `scheduled:${process.env.RENDER_INSTANCE_ID || process.env.VERCEL_DEPLOYMENT_ID || process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || "production"}`,
         net === "mainnet" ? "solana-mainnet" : "solana-devnet",
         90,
         {
-          runtime: "vercel-scheduled-engine",
+          runtime: "scheduled-engine",
           signingEnabled: true,
           // This route runs startCallWatcher below; reporting false made the public product
           // contradict the executor that was actively consuming Discord copy intents.
           copyTradingEnabled: true,
-          build: process.env.VERCEL_GIT_COMMIT_SHA || null,
+          build: process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.APP_BUILD_SHA || null,
           capabilities: {
             durableIntents: true,
             quote: true,

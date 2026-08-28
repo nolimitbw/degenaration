@@ -19,6 +19,10 @@ const scanIntervalMs = Math.max(120_000, Number(process.env.DISCORD_REST_SCAN_IN
 // tracker. Five minutes is frequent enough for visible position milestones while remaining a
 // bounded, free-tier-friendly workload.
 const performanceIntervalMs = Math.max(300_000, Number(process.env.CALL_PERFORMANCE_INTERVAL_MS || 300_000));
+// Entries are also triggered by live ingestion, but exits, settlement and reconciliation need
+// an independent clock. The route itself owns every signing, network and exit-path guard and
+// returns watch-only when the deployment is not deliberately authorized to trade.
+const executionIntervalMs = Math.max(60_000, Number(process.env.EXECUTION_TICK_INTERVAL_MS || 60_000));
 const secret = process.env.BOT_SHARED_SECRET?.trim();
 
 async function runAuthenticatedRoute(path, label, timeoutMs) {
@@ -69,11 +73,18 @@ async function main() {
     "call performance scan",
     240_000
   );
+  const runExecutionTick = () => runAuthenticatedRoute(
+    "/api/worker/tick",
+    "execution tick",
+    55_000
+  );
 
   setTimeout(scan, 5_000);
   setInterval(scan, scanIntervalMs);
   setTimeout(samplePerformance, 15_000);
   setInterval(samplePerformance, performanceIntervalMs);
+  setTimeout(runExecutionTick, 25_000);
+  setInterval(runExecutionTick, executionIntervalMs);
 }
 
 main().catch((error) => {

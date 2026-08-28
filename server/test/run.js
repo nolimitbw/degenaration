@@ -3895,6 +3895,15 @@ console.log("price selection");
       "Render runs npm start; bypassing render-app.js silently disables every scheduled journal pass");
   });
 
+  test("the free Render app drives the guarded execution safety tick", () => {
+    const runtime = fs.readFileSync(path.join(__dirname, "../render-app.js"), "utf8");
+    assert.ok(/Math\.max\(60_000/.test(runtime), "execution ticks must not overlap at sub-minute cadence");
+    assert.ok(/\/api\/worker\/tick/.test(runtime), "runtime must invoke the canonical guarded execution route");
+    assert.ok(/setInterval\(runExecutionTick, executionIntervalMs\)/.test(runtime),
+      "settlement, exits and reconciliation need a continuing scheduler");
+    assert.ok(/"execution tick",\s*55_000/.test(runtime), "a stuck execution pass must be bounded");
+  });
+
   test("activation gates on tradable, and both activation routes agree", () => {
     for (const route of ["app/api/product/bots/route.ts", "app/api/product/kol-subscriptions/route.ts"]) {
       const body = fs.readFileSync(path.join(__dirname, "../../", route), "utf8");
