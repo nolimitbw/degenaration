@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server/render-app.js",
     "cloudflare:build": "opennextjs-cloudflare build",
     "cloudflare:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "cloudflare:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

@@ -3889,6 +3889,12 @@ console.log("price selection");
     assert.ok(/AbortSignal\.timeout\(timeoutMs\)/.test(runtime), "a stuck performance scan must be bounded");
   });
 
+  test("the production start command launches the Render scheduler wrapper", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "../../package.json"), "utf8"));
+    assert.equal(pkg.scripts.start, "node server/render-app.js",
+      "Render runs npm start; bypassing render-app.js silently disables every scheduled journal pass");
+  });
+
   test("activation gates on tradable, and both activation routes agree", () => {
     for (const route of ["app/api/product/bots/route.ts", "app/api/product/kol-subscriptions/route.ts"]) {
       const body = fs.readFileSync(path.join(__dirname, "../../", route), "utf8");
