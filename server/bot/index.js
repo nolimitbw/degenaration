@@ -39,7 +39,10 @@ const HEALTH_PORT = Number(process.env.BOT_HEALTH_PORT || process.env.PORT || 10
 const HEALTH_HOST = process.env.HEALTH_HOST || "0.0.0.0";
 const HISTORY_BACKFILL_ENABLED = process.env.HISTORY_BACKFILL_ENABLED !== "off";
 const HISTORY_BACKFILL_MAX_MESSAGES = Math.max(100, Number(process.env.HISTORY_BACKFILL_MAX_MESSAGES || 50000));
-const DISCORD_LOGIN_TIMEOUT_MS = Math.max(10_000, Number(process.env.DISCORD_LOGIN_TIMEOUT_MS || 30_000));
+// Free hosts can take longer than Discord's normal connection window while the instance is
+// waking and establishing its first outbound TLS/WebSocket connection. Thirty seconds caused
+// us to destroy an otherwise-valid session before READY arrived, then repeat that forever.
+const DISCORD_LOGIN_TIMEOUT_MS = Math.max(10_000, Number(process.env.DISCORD_LOGIN_TIMEOUT_MS || 120_000));
 const DISCORD_RECONNECT_MS = Math.max(5_000, Number(process.env.DISCORD_RECONNECT_MS || 15_000));
 
 const INGEST_ATTEMPTS = Math.max(1, Number(process.env.INGEST_MAX_ATTEMPTS || 5));
@@ -426,10 +429,8 @@ client.once("ready", async () => {
   console.log(`[bot] build ${BOT_BUILD}`);
   await clearGlobalCommands();
   await Promise.allSettled(client.guilds.cache.map((guild) => syncRegisterCommand(guild)));
-  await refresh();
   console.log(`[bot] watching ${Object.keys(approved).length} approved channel(s)`);
   startHistoryBackfill();
-  setInterval(refresh, REFRESH_MS);
   // The one duty the legacy degencalls service still performed that this listener did not.
   // Until it does, retiring that service freezes every marketplace avatar, name and member
   // count at whatever they were the day it stopped.
@@ -440,6 +441,12 @@ client.once("ready", async () => {
   // reach for only after guessing first.
   emitHeartbeat();
 });
+
+// Source authorization is an HTTP concern, not a Discord-session concern. Refresh it while
+// the Gateway is connecting so health can distinguish "Discord is unavailable" from "the
+// website bridge is unavailable", and so a delayed READY can start listening immediately.
+refresh();
+setInterval(refresh, REFRESH_MS);
 
 client.on("guildCreate", (guild) => {
   syncRegisterCommand(guild);
