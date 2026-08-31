@@ -17,33 +17,41 @@ const TOKEN_PROGRAMS = new Set([
 ]);
 
 async function verifySolanaMint(mint: string) {
-  const rpcUrl = process.env.SOLANA_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
-  try {
-    const response = await fetchWithTimeout(rpcUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      cache: "no-store",
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: "degenaration-mint-validation",
-        method: "getAccountInfo",
-        params: [mint, { encoding: "jsonParsed", commitment: "confirmed" }]
-      })
-    }, 7_000);
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || payload?.error) return { ok: false as const, unavailable: true };
-    const account = payload?.result?.value;
-    return {
-      ok: Boolean(
-        account &&
-        TOKEN_PROGRAMS.has(account.owner) &&
-        account.data?.parsed?.type === "mint"
-      ),
-      unavailable: false
-    };
-  } catch {
-    return { ok: false as const, unavailable: true };
+  const rpcUrls = [...new Set([
+    process.env.SOLANA_RPC_URL,
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+    "https://api.mainnet-beta.solana.com",
+    "https://solana-rpc.publicnode.com"
+  ].filter((value): value is string => Boolean(value)))];
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const response = await fetchWithTimeout(rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "degenaration-mint-validation",
+          method: "getAccountInfo",
+          params: [mint, { encoding: "jsonParsed", commitment: "confirmed" }]
+        })
+      }, 7_000);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.error) continue;
+      const account = payload?.result?.value;
+      return {
+        ok: Boolean(
+          account &&
+          TOKEN_PROGRAMS.has(account.owner) &&
+          account.data?.parsed?.type === "mint"
+        ),
+        unavailable: false
+      };
+    } catch {
+      // Try the next independent RPC. Validation still fails closed if every RPC is down.
+    }
   }
+  return { ok: false as const, unavailable: true };
 }
 
 /**

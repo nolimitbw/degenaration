@@ -47,7 +47,16 @@ async function discordDelivery(request, env) {
   const channelResponse = await fetch(`${DISCORD_API}/channels/${channelId}`, { headers });
   if (!channelResponse.ok) return json({ error: "Discord channel is unavailable", upstream_status: channelResponse.status }, 502);
   const channel = await channelResponse.json();
-  if (channel.guild_id !== env.DISCORD_GUILD_ID) {
+  let approvedExternalSource = false;
+  if (channel.guild_id !== env.DISCORD_GUILD_ID && (body.verify_only === true || body.list_recent === true)) {
+    const approvedResponse = await fetch(`${RENDER_ORIGIN}/api/bot/approved-channels`, {
+      headers: { "x-bot-secret": env.BOT_SHARED_SECRET, "cache-control": "no-store" }
+    });
+    const approvedPayload = await approvedResponse.json().catch(() => null);
+    approvedExternalSource = approvedResponse.ok && Array.isArray(approvedPayload?.channels) &&
+      approvedPayload.channels.some((source) => source?.channel_id === channelId && source?.status !== "rejected");
+  }
+  if (channel.guild_id !== env.DISCORD_GUILD_ID && !approvedExternalSource) {
     return json({ error: "channel is outside the configured Discord server" }, 403);
   }
   if (body.verify_only === true) {
@@ -55,16 +64,27 @@ async function discordDelivery(request, env) {
   }
   if (body.list_recent === true) {
     const limit = Math.max(1, Math.min(100, Number(body.limit) || 100));
-    const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=${limit}`, { headers });
+    const after = isSnowflake(body.after) ? `&after=${body.after}` : "";
+    const response = await fetch(`${DISCORD_API}/channels/${channelId}/messages?limit=${limit}${after}`, { headers });
     const messages = await response.json().catch(() => []);
     if (!response.ok || !Array.isArray(messages)) return json({ error: "Discord history is unavailable" }, 502);
     return json({
       ok: true,
       messages: messages.map(message => ({
         id: message.id,
+        guild_id: channel.guild_id,
         timestamp: message.timestamp,
+        edited_timestamp: message.edited_timestamp,
         content: message.content,
         embeds: message.embeds,
+        attachments: message.attachments,
+        components: message.components,
+        author: message.author ? {
+          id: message.author.id,
+          username: message.author.username,
+          global_name: message.author.global_name,
+          bot: message.author.bot === true
+        } : null,
         author_bot: message.author?.bot === true
       }))
     });
