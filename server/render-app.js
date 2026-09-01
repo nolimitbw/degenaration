@@ -39,6 +39,17 @@ async function runAuthenticatedRoute(path, label, timeoutMs) {
       channels: Array.isArray(body?.channels) ? body.channels.length : null,
       skipped: body?.skipped ?? null,
       failedChannels: Array.isArray(body?.channels) ? body.channels.filter(channel => channel?.error).length : null,
+      // Render logs are the operator-only diagnostic surface. Include the bounded execution
+      // result here so a 200 watch-only/refusal response cannot be mistaken for a healthy
+      // signing pass. None of these fields are returned through public product endpoints.
+      mode: body?.mode || null,
+      traded: body?.traded ?? null,
+      reason: body?.reason || null,
+      missing: Array.isArray(body?.missing) ? body.missing : null,
+      problems: Array.isArray(body?.problems) ? body.problems : null,
+      ticks: body?.ticks ?? null,
+      counts: body?.counts || null,
+      errors: body?.errors || null,
       error: body?.error || null
     }));
   } catch (error) {
