@@ -119,6 +119,22 @@ for (const route of RETIRED_ROUTES) {
   }
 }
 
+// 9. Delegated wallet access is a per-user consent boundary. A server route that enumerates
+//    wallets and adds an application signer in bulk turns one operator-secret compromise into
+//    authority over every embedded wallet. The supported flow stays client-owned through
+//    Privy's delegation prompt; no API route may mutate `additionalSigners` on a user's behalf.
+for (const file of files) {
+  const rel = relative(root, file);
+  if (!rel.startsWith("app/api/")) continue;
+  const source = readFileSync(file, "utf8");
+  if (/\b(additionalSigners|additional_signers|addSigners|addSigner)\b/.test(source)) {
+    const lines = source.split("\n");
+    const idx = lines.findIndex((line) => /\b(additionalSigners|additional_signers|addSigners|addSigner)\b/.test(line));
+    fail(rel, Math.max(1, idx + 1),
+      "server API must not grant delegated wallet signers; delegation requires per-user consent");
+  }
+}
+
 if (failures > 0) {
   console.error(`\ncheck-code-quality: ${failures} problem(s)`);
   process.exit(1);
