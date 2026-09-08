@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { configuredPlatformFeeBps, formatBpsPercent } from "@/lib/fee-model";
 import { feeAccountReadiness } from "@/lib/server/fee-account";
-import { automationReadiness } from "@/lib/server/automation-readiness";
+import { automationReadiness, DEFAULT_AUTOMATION_WORKER_URL } from "@/lib/server/automation-readiness";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,8 +15,7 @@ type WorkerHealth = {
 };
 
 async function workerHealth(): Promise<WorkerHealth | null> {
-  const raw = process.env.AUTOMATION_WORKER_URL?.trim();
-  if (!raw) return null;
+  const raw = process.env.AUTOMATION_WORKER_URL?.trim() || DEFAULT_AUTOMATION_WORKER_URL;
   try {
     const url = new URL("/health", raw);
     if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) return null;
@@ -35,7 +34,7 @@ async function workerHealth(): Promise<WorkerHealth | null> {
 
 export async function GET() {
   const configuredBps = configuredPlatformFeeBps();
-  const workerConfigured = Boolean(process.env.AUTOMATION_WORKER_URL?.trim());
+  const workerConfigured = Boolean(process.env.AUTOMATION_WORKER_URL?.trim() || DEFAULT_AUTOMATION_WORKER_URL);
   const [worker, readiness, fee] = await Promise.all([workerHealth(), automationReadiness(), feeAccountReadiness()]);
 
   // The fee this deployment ACTUALLY charges, not the one it is configured to want.

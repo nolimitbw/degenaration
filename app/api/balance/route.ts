@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit, isMint, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
+import { rateLimit, isMint, sanitizeError } from "@/lib/server/guard";
 import { lamportsToSolString } from "@/lib/fee-model";
+import { walletBalanceLamports } from "@/lib/server/wallet-balance";
 
 // GET /api/balance?address=<pubkey> -> SOL balance (lamports + SOL)
 export async function GET(req: NextRequest) {
@@ -8,13 +9,10 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
   const address = req.nextUrl.searchParams.get("address");
   if (!isMint(address)) return NextResponse.json({ error: "invalid address" }, { status: 400 });
-  const rpc = process.env.MAINNET_RPC || "https://solana-rpc.publicnode.com";
   try {
-    const r = await fetchWithTimeout(rpc, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getBalance", params: [address] })
-    }).then((x) => x.json());
-    const lamports = r?.result?.value ?? 0;
+    const balance = await walletBalanceLamports(address);
+    if (balance == null) return NextResponse.json({ error: "Balance unavailable" }, { status: 502 });
+    const lamports = balance.toString();
     // `lamports` is the authoritative integer value. `sol` is a display convenience and
     // must never be fed back into ledger or validation math (spec §13.1).
     return NextResponse.json({ address, lamports, sol: Number(lamportsToSolString(lamports)) });

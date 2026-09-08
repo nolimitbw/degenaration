@@ -66,6 +66,8 @@ const SOURCE_MEASURED = {
   integrationHealth: "healthy",
   eligibleCalls: 24, acceptedCalls: 24, rejectedCalls: 6, executedCalls: 11, measuredCalls: 18,
   down50: 5, under50: 4, plus50: 3, twoX: 4, fiveX: 2,
+  milestoneHistoryComplete: true, down50Hits: 9, plus50Hits: 13, twoXHits: 6, fiveXHits: 2,
+  plus50Rate: 72.2,
   averageReturnX: 1.94, medianReturnX: 1.42,
   measuredCurrent: 18, averageCurrentX: 0.83, medianCurrentX: 0.71, currentWinRate: 33.3,
   winRate: 72.2, twoXRate: 33.3,
@@ -86,6 +88,8 @@ const SOURCE_COLLECTING = {
   publicSlug: "new-signals", integrationHealth: "pending",
   eligibleCalls: 0, acceptedCalls: 0, rejectedCalls: 0, executedCalls: 0, measuredCalls: 0,
   down50: 0, under50: 0, plus50: 0, twoX: 0, fiveX: 0,
+  milestoneHistoryComplete: true, down50Hits: 0, plus50Hits: 0, twoXHits: 0, fiveXHits: 0,
+  plus50Rate: null,
   averageReturnX: null, medianReturnX: null,
   measuredCurrent: 0, averageCurrentX: null, medianCurrentX: null, currentWinRate: null,
   winRate: null, twoXRate: null, bestCall: null, worstCall: null,
@@ -516,22 +520,19 @@ for (const surface of SURFACES) {
       }
     }
     if (surface.name === "discord-marketplace") {
-      // The card now shows the OUTCOME DISTRIBUTION — hit rate and the −50/+50/2x/5x+ buckets
-      // — rather than four statistics about the same calls. The buckets are peak-based, so
-      // what this gate protects is unchanged and its wording is not: a flattering peak figure
-      // must never appear without where those calls actually ended.
+      // The card shows cumulative journal milestones rather than putting exclusive peak
+      // buckets under labels that ordinarily mean "ever reached". A flattering milestone
+      // figure must still never appear without where those calls actually ended.
       //
-      // Asserted on VALUES, not labels. The fixture's measured source has 5/3/4/2 in the
-      // buckets and sits at 33.3% up-now against a 72.2% peak, so a card that shows the peak
-      // side alone fails here however the columns are renamed.
+      // Asserted on values and explicit milestone labels. The source sits at 33.3% up-now
+      // against a 72.2% historical hit rate.
       if (!shows("72.2%")) failures.push("peak hit rate 72.2% is not rendered");
       if (!shows("33.3%")) failures.push("current up-now rate 33.3% is not rendered — peak figures must never appear alone");
-      for (const [count, bucket] of [["5", "−50%"], ["3", "+50%"], ["4", "2x"], ["2", "5x+"]]) {
-        if (!shows(count)) failures.push(`marketplace card is missing the ${bucket} bucket count`);
+      for (const [count, milestone] of [["9", "Hit -50%"], ["13", "Hit +50%"], ["6", "Hit 2x"], ["2", "Hit 5x"]]) {
+        if (!shows(count) || !shows(milestone)) failures.push(`marketplace card is missing the ${milestone} journal count`);
       }
-      // The basis has to be stated, since every bucket is peak and nothing else says so.
-      if (!shows("Best each call reached")) {
-        failures.push("the distribution does not say it is measured at each call's peak");
+      if (!shows("Observed milestones")) {
+        failures.push("the journal does not identify the figures as observed milestones");
       }
       // And the period it covers, because the same buckets mean different things over 1D/7D/30D.
       if (!shows("last 7 days")) failures.push("the distribution does not name the period it covers");

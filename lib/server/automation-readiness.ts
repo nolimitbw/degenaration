@@ -20,14 +20,15 @@ type WorkerHealth = {
   capabilities?: Record<string, boolean>;
 };
 
+export const DEFAULT_AUTOMATION_WORKER_URL = "https://degenaration-worker.onrender.com";
+
 const REQUIRED_CAPABILITIES = [
   "durableIntents", "quote", "simulation", "submission", "confirmation",
   "positionCapture", "takeProfitStopLoss", "dailyRisk", "reconciliation"
 ] as const;
 
 async function workerHealth(): Promise<WorkerHealth | null> {
-  const raw = process.env.AUTOMATION_WORKER_URL?.trim();
-  if (!raw) return null;
+  const raw = process.env.AUTOMATION_WORKER_URL?.trim() || DEFAULT_AUTOMATION_WORKER_URL;
   try {
     const url = new URL("/health", raw);
     if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) return null;

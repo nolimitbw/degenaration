@@ -194,8 +194,9 @@ function SourceCard({ source, minimumSampleSize, period }: { source: DiscordSour
           The card held eighteen bordered cells inside a bordered card inside a page. */}
       <div className="border-b border-[color:var(--rule)] px-5 py-4"><DiscordActivityGrid source={source} /></div>
       {/*
-        The call record, as a distribution — how many went which way — instead of four
-        statistics about the same calls.
+        The durable milestone journal. Counts are cumulative: a 5x call also reached 2x and
+        +50%. That is the ordinary meaning of a label such as "2x", and it matches the source
+        detail journal instead of showing the exclusive 2x-to-5x bucket under the same label.
 
         Replaces two rows. The first was net PnL at 1 day / 7 days / 30 days, which is money
         from COPIED TRADES and reads "Collecting data" until someone has actually copied this
@@ -208,53 +209,48 @@ function SourceCard({ source, minimumSampleSize, period }: { source: DiscordSour
         degenaration-discord-current-return.sql filters `called_at >= v_since`, so changing
         1D/7D/30D above changes all of these.
 
-        All five figures come from the PEAK family, on one basis. Mixing peak and current is
-        the defect this codebase shipped once — "win rate 100%, average return 2.00x" for a
-        source whose every call touched 2x and went to zero — so the heading says which basis
-        it is rather than leaving the reader to assume.
+        Current drawdown remains on its own line below, because a historical first hit and the
+        token's price today answer different questions.
       */}
       <div className="border-b border-[color:var(--rule)] px-5 py-5">
-        <p className="ui-label">Best each call reached · {periodLabel(period)}</p>
-        <div className="mt-3 grid grid-cols-3 gap-y-4 sm:grid-cols-5">
+        <p className="ui-label">Observed milestones · {periodLabel(period)}</p>
+        <div className="mt-3 grid grid-cols-2 gap-y-4 sm:grid-cols-5">
           <Metric
             label="Hit rate (+50%)"
-            value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "—"}
+            value={measured && source.plus50Rate != null ? `${source.plus50Rate.toFixed(1)}%` : "—"}
             tone={measured ? "positive" : "default"}
-            hint="Share of measured calls that reached at least 1.50x entry in this period."
+            hint="Share of measured calls whose journal recorded a first hit at 1.50x entry."
           />
           <Metric
-            label="Peak below 0.5x"
-            value={measured ? String(source.down50 ?? 0) : "—"}
-            tone={measured && (source.down50 ?? 0) > 0 ? "negative" : "default"}
-            hint="Calls whose highest measured price stayed below half their entry. Current losses are reported separately below."
+            label="Hit -50%"
+            value={measured && source.milestoneHistoryComplete ? String(source.down50Hits ?? 0) : "—"}
+            tone={measured && (source.down50Hits ?? 0) > 0 ? "negative" : "default"}
+            hint="Calls whose journal recorded a first fall to half their entry price."
           />
           <Metric
-            label="+50%"
-            value={measured ? String(source.plus50 ?? 0) : "—"}
-            hint="Calls that reached at least +50% but not 2x."
+            label="Hit +50%"
+            value={measured && source.milestoneHistoryComplete ? String(source.plus50Hits ?? 0) : "—"}
+            hint="Calls whose journal recorded a first hit at 1.50x entry or better."
           />
           <Metric
-            label="2x"
-            value={measured ? String(source.twoX ?? 0) : "—"}
-            tone={measured && (source.twoX ?? 0) > 0 ? "positive" : "default"}
-            hint="Calls that reached at least 2x but not 5x."
+            label="Hit 2x"
+            value={measured && source.milestoneHistoryComplete ? String(source.twoXHits ?? 0) : "—"}
+            tone={measured && (source.twoXHits ?? 0) > 0 ? "positive" : "default"}
+            hint="Calls whose journal recorded a first hit at twice their entry price or better."
           />
           <Metric
-            label="5x+"
-            value={measured ? String(source.fiveX ?? 0) : "—"}
-            tone={measured && (source.fiveX ?? 0) > 0 ? "positive" : "default"}
-            hint="Calls that reached 5x or better."
+            label="Hit 5x"
+            value={measured && source.milestoneHistoryComplete ? String(source.fiveXHits ?? 0) : "—"}
+            tone={measured && (source.fiveXHits ?? 0) > 0 ? "positive" : "default"}
+            hint="Calls whose journal recorded a first hit at five times their entry price or better."
           />
         </div>
 
         {/*
           Where those same calls are NOW, on its own line and labelled as such.
 
-          The five figures above are all peak — the best each call ever reached — and peak
-          alone is the exact defect this product shipped once: a source whose every call
-          touched 2x and then went to zero read "win rate 100%, average return 2.00x". Five
-          flattering counts with nothing saying where the calls ended would restore it in a
-          new shape. The heading names the basis; this line supplies the other half.
+          The milestones above record first hits. Showing the current outcome beside them
+          prevents a source whose calls briefly rallied and then collapsed from looking healthy.
         */}
         {measured && (
           <p className="mt-4 border-t border-[color:var(--rule)] pt-3 t-label text-dim">
