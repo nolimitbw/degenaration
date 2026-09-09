@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getIdentityToken, useIdentityToken, usePrivy, useSigners } from "@privy-io/react-auth";
+import { getIdentityToken, useIdentityToken, usePrivy, useSigners, useUser } from "@privy-io/react-auth";
 import { useCreateWallet } from "@privy-io/react-auth/solana";
 import {
   AlertTriangle,
@@ -191,6 +191,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
   const { addSigners } = useSigners();
+  const { refreshUser } = useUser();
   const { createWallet } = useCreateWallet();
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
@@ -819,7 +820,14 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     if (!hasDelegatedSolanaWallet(user)) {
       setChecking(true);
       try {
-        await addSigners({ address: walletAddress, signers: [{ signerId: requiredPrivySignerId(), policyIds: [] }] });
+        const delegated = await addSigners({ address: walletAddress, signers: [{ signerId: requiredPrivySignerId(), policyIds: [] }] });
+        // addSigners returns the updated wallet immediately, but the identity-token hook can
+        // still contain the pre-delegation claim for this render. refreshUser is Privy's
+        // supported way to update both the user and its signed identity token.
+        const refreshedUser = await refreshUser();
+        if (!hasDelegatedSolanaWallet(delegated.user) && !hasDelegatedSolanaWallet(refreshedUser)) {
+          throw new Error("Wallet authorization did not finish. Please try Start bot again.");
+        }
         currentIdentityToken = await getIdentityToken();
         if (!currentIdentityToken) throw new Error("Wallet authorization could not be verified. Please try again.");
         toast("Auto-trading access enabled");
