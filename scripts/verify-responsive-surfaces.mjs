@@ -358,14 +358,14 @@ const SURFACES = [
   // Matches a real section heading on the landing page, not merely "some text rendered".
   // A weak predicate is how this audit once measured the 404 page for four widths while
   // reporting a surface name — so the string must be one only this page can produce.
-  { route: "/", name: "landing", ready: "document.body.innerText.includes('A straight path from signal to strategy')" },
+  { route: "/", name: "landing", ready: "document.body.innerText.includes('Built around the trade.')" },
   /**
    * The documentation. Long-form prose with a sticky contents rail and a timeline — the two
    * shapes most likely to overflow a phone — and it is the page an investor or a prospective
    * source owner reads before deciding anything. A broken layout here is expensive in a way a
    * broken internal screen is not.
    */
-  { route: "/docs", name: "docs", ready: "document.body.innerText.includes('Execution')" },
+  { route: "/docs", name: "docs", ready: "document.body.innerText.includes('Know your trading workspace.')" },
   /**
    * Each documentation page is its own route with its own layout — a split bar, a control
    * matrix, a stage pipeline, a worked example. Auditing only the index would leave the pages

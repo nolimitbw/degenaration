@@ -248,7 +248,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const active = isActivePath(path, href);
             return (
               <div key={href}>
-                <Link href={href} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+                <Link href={href} aria-current={active ? "page" : undefined} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
                   {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
                   <Icon aria-hidden="true" size={17} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
                   {label}
@@ -374,7 +374,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             {/* The section name is not repeated here. The rail marks it and the page's own
                 h1 states it; a third copy in the bar was the eyebrow again, one size down. */}
-            <span className="sr-only">{section}</span>
+            <div className="hidden items-center gap-3 lg:flex"><span className="terminal-network">Solana</span><span className="text-sm font-medium text-ink">{section}</span></div>
             <div className="ml-auto flex min-w-0 items-center gap-1.5">
               {/* One primary action, as the reference has. Gold is spent once per screen and
                   this is where it goes in the app — funding is the step that gates everything
@@ -401,6 +401,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mx-auto flex max-w-[1560px] items-center gap-2 border-t border-[color:var(--rule)] pt-4 t-label text-[color:var(--text-muted)]">
             <span className="h-[5px] w-[5px] rounded-full bg-up" aria-hidden="true" />
             Solana mainnet
+            <Link href="/docs" className="ml-auto inline-flex min-h-11 items-center text-dim hover:text-ink">Trading guides</Link>
+            <Link href="/docs/risk-controls" className="ml-4 inline-flex min-h-11 items-center text-dim hover:text-ink">Risk controls</Link>
           </div>
         </footer>
       </div>

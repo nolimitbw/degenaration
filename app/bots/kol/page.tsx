@@ -67,7 +67,7 @@ export default function KolMarketplacePage() {
     <AppShell>
       <PageHeader
         title="KOL Strategies"
-        description="Copy public strategies built and tracked on DegenAration."
+        description="Explore published strategies. Review the trading rules and measured history before subscribing."
         actions={
           <Link href="/bots/kol/new" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c]">
             <Bot aria-hidden="true" size={16} />

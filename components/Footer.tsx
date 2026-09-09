@@ -11,7 +11,7 @@ export default function Footer() {
           <p className="inline-flex min-h-11 items-center text-lg">
             <Logo />
           </p>
-          <div className="flex flex-wrap items-center gap-x-6 font-mono text-xs text-haze">
+          <div className="flex flex-wrap items-center gap-x-6 text-sm text-dim">
             {[
               ["/docs", "Docs & FAQ"],
               ["/terms", "Terms"],
@@ -31,10 +31,9 @@ export default function Footer() {
           </div>
         </div>
         <p className="mt-8 max-w-3xl text-[12px] leading-relaxed text-haze/70">
-          RISK DISCLOSURE: Memecoin trading is extremely high risk. You can lose your entire
-          balance. Degenaration is self-directed trading software, not financial advice, and
-          never holds custody of user funds. Past performance of any call group does not
-          guarantee future results. Trade only what you can afford to lose.
+          Crypto trading carries significant risk, including loss of your entire trading balance.
+          DegenAration provides self-directed trading software. Past performance does not predict
+          future results. Review your wallet permissions and capital limits before enabling automation.
         </p>
       </div>
     </footer>

@@ -37,8 +37,8 @@ export default function SourceSpotlight({
     <section className="mt-7" aria-labelledby="spotlight">
       <header className="flex flex-wrap items-baseline justify-between gap-3 pb-3">
         <div className="flex items-baseline gap-2.5">
-          <h2 id="spotlight" className="t-section font-medium text-ink">Most active sources</h2>
-          <span className="ui-label">By calls recorded</span>
+          <h2 id="spotlight" className="t-section font-medium text-ink">Source watchlist</h2>
+          <span className="ui-label">7-day overview</span>
         </div>
         <Link
           href="/bots/discord"
@@ -70,7 +70,7 @@ export default function SourceSpotlight({
       )}
 
       {top.length > 0 && (
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="source-watchlist grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {top.map((source) => <SpotlightCard key={source.id} source={source} />)}
 
         {/* The reference's promoted card. Gold is spent once per screen and this is the one
@@ -81,7 +81,7 @@ export default function SourceSpotlight({
             <p className="ui-label">Start here</p>
             <h3 className="mt-2 text-lg font-semibold leading-tight text-ink">Copy a source</h3>
             <p className="mt-2 t-meta leading-6 text-dim">
-              Set your buy size, take profit and stop loss. Your limits, not the caller&apos;s.
+              Configure entry size, profit targets, and stop loss before enabling automation.
             </p>
           </div>
           <Link

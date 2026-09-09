@@ -86,7 +86,7 @@ export default function DiscordMarketplacePage() {
     <AppShell>
       <PageHeader
         title="Discord sources"
-        description="Communities whose calls we track on chain. Copy any of them."
+        description="Compare recorded call outcomes, check source health, and configure your trading rules."
         /* Three buttons, two of them gold-weighted, and the reader had to choose between
            them before reading the page. Only one is what most people came to do; the other
            two are for server owners and now read as links. */

@@ -2,64 +2,33 @@ import Nav from "@/components/Nav";
 import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  BadgePercent,
-  BookOpen,
-  Bot,
-  ChartNoAxesCombined,
-  ListChecks,
-  MessagesSquare,
-  Radar,
-  ShieldCheck,
-  SlidersHorizontal,
-  Wallet,
-  WalletCards
-} from "lucide-react";
+import { ArrowUpRight, Radio, SlidersHorizontal, ChartNoAxesCombined, Wallet, BookOpen, ShieldCheck } from "lucide-react";
 
 const STEPS = [
-  { icon: Radar, title: "Choose a signal", copy: "Start with a reviewed Discord source or a live KOL market strategy." },
-  { icon: ListChecks, title: "Set the rules", copy: "Define entry size, take profit, stop loss, and the capital you are willing to use." },
-  { icon: ShieldCheck, title: "Run with limits", copy: "Activate after readiness checks, then review every execution and outcome." }
-];
-const PRODUCTS = [
-  { icon: Bot, title: "Bots", copy: "Build and manage your automated strategies.", href: "/bots" },
-  { icon: ChartNoAxesCombined, title: "Affiliate", copy: "Track referrals, commissions, and payouts.", href: "/affiliate" },
-  { icon: WalletCards, title: "Portfolio", copy: "Review positions, executions, fees, and PnL.", href: "/portfolio" }
-];
-const FEATURES = [
-  { icon: MessagesSquare, title: "Discord automation", copy: "Follow approved server calls with your own entry and exit rules.", href: "/bots/discord" },
-  { icon: Radar, title: "KOL strategies", copy: "Build strategies around live market activity and configurable filters.", href: "/bots/kol" },
-  { icon: SlidersHorizontal, title: "Bot management", copy: "Review status, update controls, and inspect each bot's activity.", href: "/bots/manage" },
-  { icon: WalletCards, title: "Portfolio", copy: "See open positions, execution history, fees, and realized results.", href: "/portfolio" },
-  { icon: BadgePercent, title: "Affiliate", copy: "Share DegenAration and follow commissions and payout history.", href: "/affiliate" },
-  { icon: Wallet, title: "Wallet setup", copy: "Connect your Solana wallet and prepare it for automated execution.", href: "/wallet" },
-  { icon: BookOpen, title: "Guides", copy: "Read how bots, risk controls, measurement, and custody work.", href: "/docs" }
+  { title: "Find your signal", copy: "Explore Discord sources and KOL strategies. Review the available history before you decide what to follow." },
+  { title: "Define your trade", copy: "Choose entry size, filters, profit targets, and stop loss. Set how much capital your bot can use." },
+  { title: "Follow the outcome", copy: "Authorize automation from your wallet, then review positions and execution history in your portfolio." }
 ];
 
 export default function Home() {
-  return <div className="degen-home" id="top"><Nav /><main id="main-content" tabIndex={-1}>
-    <Hero />
-    <section id="how-it-works" className="mx-auto max-w-7xl scroll-mt-24 px-5 py-20 sm:py-28">
-      <div className="max-w-2xl"><p className="ui-label text-gold-400">How it works</p><h2 className="home-section-title mt-4 font-bold text-ink">A straight path from signal to strategy.</h2></div>
-      <div className="mt-12 divide-y divide-edge border-y border-edge">{STEPS.map(({ icon: Icon, title, copy }, index) => <div key={title} className="grid gap-4 py-7 sm:grid-cols-[48px_48px_1fr] sm:items-center sm:gap-6"><span className="font-mono text-xs text-dim">0{index + 1}</span><Icon aria-hidden="true" size={22} className="text-gold-400" /><div className="grid gap-2 md:grid-cols-[.55fr_1fr] md:items-center md:gap-8"><h3 className="text-lg font-semibold text-ink">{title}</h3><p className="text-sm leading-6 text-dim">{copy}</p></div></div>)}</div>
-    </section>
-    <section id="platform" className="border-y border-edge bg-panel/35"><div className="mx-auto grid max-w-7xl divide-y divide-edge px-5 md:grid-cols-3 md:divide-x md:divide-y-0">{PRODUCTS.map(({ icon: Icon, title, copy, href }) => <Link key={title} href={href} className="group py-9 md:px-8 md:first:pl-0 md:last:pr-0"><div className="flex items-center justify-between"><Icon aria-hidden="true" size={20} className="text-gold-400" /><ArrowUpRight aria-hidden="true" size={16} className="text-dim transition group-hover:text-ink" /></div><h2 className="mt-7 text-xl font-semibold text-ink">{title}</h2><p className="mt-2 text-sm leading-6 text-dim">{copy}</p></Link>)}</div></section>
-    <section className="mx-auto max-w-7xl px-5 py-20 sm:py-24" aria-labelledby="included-heading">
-      <div className="grid gap-7 border-b border-edge pb-8 lg:grid-cols-[.7fr_1.3fr] lg:items-end">
-        <div><p className="ui-label text-gold-400">Platform</p><h2 id="included-heading" className="home-section-title mt-4 font-bold text-ink">Everything included.</h2></div>
-        <p className="max-w-2xl text-sm leading-7 text-dim">Open every part of DegenAration from one directory. Each feature uses your account, wallet, and recorded trading history.</p>
-      </div>
-      <div className="grid md:grid-cols-2 md:gap-x-10">
-        {FEATURES.map(({ icon: Icon, title, copy, href }) => (
-          <Link key={title} href={href} className="group grid min-h-32 grid-cols-[32px_1fr_20px] gap-4 border-b border-edge py-7 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400">
-            <Icon aria-hidden="true" size={21} className="mt-0.5 text-gold-400" />
-            <div><h3 className="text-base font-semibold text-ink">{title}</h3><p className="mt-2 text-sm leading-6 text-dim">{copy}</p></div>
-            <ArrowUpRight aria-hidden="true" size={16} className="mt-1 text-dim transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink" />
-          </Link>
-        ))}
+  return <div className="degen-home market-home" id="top">
+    <main id="main-content" tabIndex={-1}>
+    <div className="market-stage"><Nav /><Hero /></div>
+    <section className="market-proof" aria-label="Platform capabilities"><span><Radio size={17} aria-hidden="true" /> Source discovery</span><span><SlidersHorizontal size={17} aria-hidden="true" /> Configurable risk</span><span><ChartNoAxesCombined size={17} aria-hidden="true" /> Recorded outcomes</span><span><Wallet size={17} aria-hidden="true" /> Your wallet</span></section>
+    <section className="market-section" id="platform">
+      <div className="market-section-heading"><p>One connected workspace</p><h2>Built around the trade.</h2><span>From your first signal to your next decision.</span></div>
+      <div className="market-products">
+        <Link href="/bots/discord" className="market-product market-product-featured"><Radio size={24} aria-hidden="true" /><div><p>Discovery & automation</p><h3>Follow the source.<br />Keep the controls.</h3><p>Explore recorded call outcomes, choose a community, and build a bot around your own trading rules.</p></div><span>Explore Discord sources <ArrowUpRight size={18} aria-hidden="true" /></span></Link>
+        <div className="market-product-stack">
+          <Link href="/bots/kol" className="market-product"><SlidersHorizontal size={23} aria-hidden="true" /><div><h3>A strategy in your terms.</h3><p>Configure market filters, entry conditions, and exits in one place.</p></div><span>Explore KOL strategies <ArrowUpRight size={18} aria-hidden="true" /></span></Link>
+          <Link href="/portfolio" className="market-product"><ChartNoAxesCombined size={23} aria-hidden="true" /><div><h3>The full position picture.</h3><p>Review holdings, executions, fees, and realized results without switching tools.</p></div><span>Open portfolio <ArrowUpRight size={18} aria-hidden="true" /></span></Link>
+        </div>
       </div>
     </section>
-    <section className="mx-auto max-w-7xl px-5 py-20 sm:py-24"><p className="ui-label text-gold-400">Automation with evidence</p><div className="mt-4 grid gap-8 lg:grid-cols-[1fr_.8fr] lg:items-end"><h2 className="home-section-title max-w-3xl font-bold text-ink">Every signal keeps its risk controls and trading record.</h2><div><p className="text-sm leading-7 text-dim">Source performance, bot versions, route estimates, and portfolio history stay connected. Missing market evidence stops an entry instead of guessing.</p><Link href="/bots" className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-ink">Configure a bot <ArrowUpRight aria-hidden="true" size={16} /></Link></div></div></section>
-  </main><Footer /></div>;
+    <section id="how-it-works" className="market-section market-process"><div className="market-section-heading"><p>How it works</p><h2>Decide once.<br />Execute with a plan.</h2></div><div className="market-steps">{STEPS.map(({title, copy}, index) => <div key={title}><span className="market-step-number">0{index + 1}</span><h3>{title}</h3><p>{copy}</p></div>)}</div></section>
+    <section className="market-section market-resources"><div><ShieldCheck size={25} aria-hidden="true" /><h2>Understand what<br />you authorize.</h2><p>Automation needs your permission. Learn how wallet access, risk controls, and performance measurement work before you start.</p><Link href="/docs/custody">Wallet access & custody <ArrowUpRight size={16} aria-hidden="true" /></Link></div><div className="market-resource-links">{[["/docs", "Read the trading guides", "Setup, execution, and measurement."], ["/docs/risk-controls", "Know your risk controls", "Position sizing, exits, and capital limits."], ["/affiliate", "Grow with your community", "Referrals, commissions, and payouts."]].map(([href,title,copy]) => <Link key={href} href={href}><BookOpen size={19} aria-hidden="true" /><span><strong>{title}</strong><small>{copy}</small></span><ArrowUpRight size={18} aria-hidden="true" /></Link>)}</div></section>
+    <section className="market-closing"><p>DegenAration / Solana automation</p><h2>Make your next move<br />with a plan.</h2><Link href="/bots" className="market-primary">Open trading workspace <ArrowUpRight size={17} aria-hidden="true" /></Link></section>
+    </main>
+    <Footer />
+  </div>;
 }

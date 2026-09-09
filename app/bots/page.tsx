@@ -88,7 +88,7 @@ export default function BotsPage() {
     <AppShell>
       <PageHeader
         title="Bots"
-        description="Automate approved Discord calls or run a community strategy."
+        description="Your Solana trading workspace. Monitor sources, configure strategies, and manage your bots."
         actions={
           <>
             {/* One gold control per screen. "My Bots" was a second filled-weight button

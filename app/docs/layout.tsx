@@ -18,7 +18,7 @@ export const metadata = {
  */
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="degen-home min-h-dvh">
+    <div className="degen-home docs-workspace min-h-dvh">
       <header className="sticky top-0 z-30 border-b border-edge bg-[color:rgb(var(--void-rgb)/0.86)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import "./market-design.css";
 import Providers from "@/components/Providers";
 import { ToastProvider } from "@/components/Toast";
 import { ReadinessProvider } from "@/components/product/Readiness";
@@ -18,7 +19,7 @@ const display = Archivo({ subsets: ["latin"], weight: ["400", "500", "600", "700
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://degenaration.vercel.app"),
+  metadataBase: new URL("https://degenaration.pages.dev"),
   title: { default: "DegenAration | Solana Bot Automation", template: "%s | DegenAration" },
   description:
     "Build Solana automation from reviewed Discord sources or live KOL market rules, then track positions, fees, creator commissions, and payouts.",
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "DegenAration | Solana Bot Automation",
     description: "Discord and KOL bot automation with measured performance, bounded risk, creator commissions, and portfolio evidence.",
-    url: "https://degenaration.vercel.app", siteName: "DegenAration", type: "website"
+    url: "https://degenaration.pages.dev", siteName: "DegenAration", type: "website"
   },
   twitter: { card: "summary_large_image", title: "DegenAration", description: "Solana Discord and KOL bot automation with measured risk and portfolio evidence." }
 };

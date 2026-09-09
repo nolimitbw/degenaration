@@ -33,7 +33,7 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-4 pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+    <header className="terminal-page-header flex flex-col gap-4 pb-5 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
       <div className="min-w-0">
         {eyebrow && <p className="ui-label mb-1.5 truncate">{eyebrow}</p>}
         <h1 className="t-display font-semibold leading-[1.1] tracking-[-0.02em] text-ink lg:t-display">
@@ -49,7 +49,7 @@ export function PageHeader({
 export function ProductTabs({ items, active }: { items: Array<{ href: string; label: string; count?: number }>; active: string }) {
   return (
     <nav
-      className="-mx-4 grid grid-cols-4 border-y border-[color:var(--rule)] px-4 sm:mx-0 sm:flex sm:gap-7 sm:border-t-0 sm:px-0"
+      className="terminal-tabs -mx-4 grid grid-cols-4 border-y border-[color:var(--rule)] px-4 sm:mx-0 sm:flex sm:gap-7 sm:border-t-0 sm:px-0"
       aria-label="Section"
     >
       {items.map((item) => {
@@ -164,7 +164,7 @@ export function EmptyState({
   compact?: boolean;
 }) {
   return (
-    <div className={compact ? "px-1 py-8" : "px-1 py-14"}>
+    <div className={`terminal-empty ${compact ? "px-1 py-8" : "px-1 py-14"}`}>
       <div className="max-w-sm">
         <Icon aria-hidden="true" size={18} className="text-[color:var(--text-muted)]" />
         <h2 className="mt-3 t-body font-medium text-ink">{title}</h2>
