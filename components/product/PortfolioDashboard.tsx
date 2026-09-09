@@ -115,7 +115,7 @@ export default function PortfolioDashboard() {
           setUpdatedAt(Date.now());
         } else {
           // Keep the last known summary rather than blanking it; it renders as stale.
-          setError(product.reason instanceof Error ? product.reason.message : "Portfolio data is temporarily unavailable.");
+          setError(product.reason instanceof Error && product.reason.message === "unauthorized" ? "Your session expired. Reconnect your account, then try again." : product.reason instanceof Error ? product.reason.message : "Portfolio data is temporarily unavailable.");
         }
         if (chain.status === "fulfilled") setWalletPortfolio(chain.value);
       })

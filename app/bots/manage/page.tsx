@@ -64,6 +64,7 @@ export default function BotManagerPage() {
       .then((data) => setBots(data.bots || []))
       .catch((reason) => {
         const message = reason instanceof Error ? reason.message : "Could not load bots";
+        setBots([]);
         setLoadError(message);
         toast(message, "err");
       });

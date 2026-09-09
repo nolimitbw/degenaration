@@ -18,7 +18,8 @@ function keySet() {
 }
 
 export async function requirePrivyUser(req: NextRequest) {
-  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
+    || req.cookies.get("privy-token")?.value;
   const keys = keySet();
   const id = appId();
   if (!bearer || !keys || !id) {

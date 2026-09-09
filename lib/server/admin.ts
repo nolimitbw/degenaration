@@ -58,7 +58,8 @@ export async function requireAdmin(req: NextRequest) {
     return { ok: true as const, email: "legacy-admin-key", privyUserId: "legacy-admin-key", legacy: true as const };
   }
 
-  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
+    || req.cookies.get("privy-token")?.value;
   const idToken = req.headers.get("x-privy-id-token")?.trim() || req.cookies.get("privy-id-token")?.value;
   if (!bearer && !idToken) return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 

@@ -238,17 +238,26 @@ async function parseResponse<T>(response: Response | null): Promise<T> {
 }
 
 export async function productFetch<T>(url: string, auth?: AuthOptions, init?: RequestInit): Promise<T> {
-  const accessToken = auth ? await auth.getAccessToken() : null;
-  const response = await fetch(url, {
-    cache: "no-store",
-    ...init,
-    headers: {
-      ...(init?.body ? { "content-type": "application/json" } : {}),
-      ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
-      ...(auth?.identityToken ? { "privy-id-token": auth.identityToken } : {}),
-      ...(init?.headers || {})
-    }
-  }).catch(() => null);
+  const request = async () => {
+    const accessToken = auth ? await auth.getAccessToken() : null;
+    return fetch(url, {
+      cache: "no-store",
+      credentials: "same-origin",
+      ...init,
+      headers: {
+        ...(init?.body ? { "content-type": "application/json" } : {}),
+        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+        ...(auth?.identityToken ? { "privy-id-token": auth.identityToken } : {}),
+        ...(init?.headers || {})
+      }
+    }).catch(() => null);
+  };
+
+  let response = await request();
+  if (auth && response?.status === 401) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    response = await request();
+  }
   return parseResponse<T>(response);
 }
 

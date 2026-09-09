@@ -117,7 +117,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
           setUpdatedAt(Date.now());
         } else {
           // Keep the last known summary rather than blanking it; it renders as stale.
-          setError(affiliateResult.reason instanceof Error ? affiliateResult.reason.message : "Affiliate data is temporarily unavailable.");
+          setError(affiliateResult.reason instanceof Error && affiliateResult.reason.message === "unauthorized" ? "Your session expired. Reconnect your account, then try again." : affiliateResult.reason instanceof Error ? affiliateResult.reason.message : "Affiliate data is temporarily unavailable.");
         }
         if (botResult.status === "fulfilled") setBots(botResult.value.bots || []);
       })

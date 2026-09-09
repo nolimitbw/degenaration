@@ -191,9 +191,11 @@ export default function OwnerConsole() {
   const load = useCallback(async () => {
     if (!admin) return;
     setRefreshing(true);
+    const accessToken = getAccessToken();
+    const sharedAccessToken = () => accessToken;
     const requests = paths.map(async (path) => ({
       path,
-      result: await adminFetchJson<any>(`${path}?t=${Date.now()}`, getAccessToken, identityToken, email)
+      result: await adminFetchJson<any>(`${path}?t=${Date.now()}`, sharedAccessToken, identityToken, email)
     }));
     const [responses, botConfig] = await Promise.all([
       Promise.all(requests),
