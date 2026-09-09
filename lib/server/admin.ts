@@ -10,7 +10,7 @@ const OWNER_EMAILS = (process.env.ADMIN_OWNER_EMAILS || process.env.NEXT_PUBLIC_
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
 function appId() {
-  return process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID || "";
+  return process.env.NEXT_PUBLIC_PRIVY_APP_ID || process.env.PRIVY_APP_ID || "";
 }
 
 function getJwks() {

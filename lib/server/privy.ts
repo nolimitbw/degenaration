@@ -7,7 +7,8 @@ import { linkedAccounts } from "@/lib/server/privy-wallet";
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
 function appId() {
-  return process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID || "";
+  // Browser access tokens are issued for the public Privy app configured in PrivyProvider.
+  return process.env.NEXT_PUBLIC_PRIVY_APP_ID || process.env.PRIVY_APP_ID || "";
 }
 
 function keySet() {
