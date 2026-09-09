@@ -905,9 +905,20 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
   // Draft / Validated / Ready, derived — never stored. Storing "Ready" would freeze a verdict
   // that goes stale the moment the worker, the fee account or the balance changes, and the
   // user would be told to press RUN on something that cannot run. See lib/bot-states.js.
-  const stateLabel = displayState(botId ? "draft" : "draft", readiness
+  const baseStateLabel = displayState(botId ? "draft" : "draft", readiness
     ? { ready: readiness.ready, checks: readiness.ready ? [] : [{ blocking: readiness.blocking, ok: false }] }
     : null).label;
+  const fundingShortfallLamports = (() => {
+    if (walletAvailableLamports == null) return null;
+    try {
+      const shortfall = capitalPlan.plannedLamports - BigInt(walletAvailableLamports);
+      return shortfall > BigInt(0) ? shortfall : BigInt(0);
+    } catch {
+      return null;
+    }
+  })();
+  const waitingForFunds = fundingShortfallLamports != null && fundingShortfallLamports > BigInt(0);
+  const stateLabel = readiness?.ready && waitingForFunds ? "Waiting for funds" : baseStateLabel;
 
   // Controls this bot kind saves that no execution path reads yet, from the one contract the
   // build gate checks. Rendering them from the same list is what keeps the notice honest:
@@ -929,12 +940,68 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
     <>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-px overflow-hidden rounded-md border border-edge bg-edge">
+          {kind === "discord" && (
+            <section className="bg-panel p-5 sm:p-6" aria-labelledby="quick-launch-title">
+              <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 id="quick-launch-title" className="t-title font-semibold text-ink">Launch setup</h2>
+                  <p className="mt-1 t-label text-dim">Choose the source, set the risk, then start. Everything else is optional.</p>
+                </div>
+                <span className={`w-fit rounded-full px-3 py-1 t-label font-medium ${waitingForFunds ? "bg-gold-400/12 text-gold-400" : "bg-up/10 text-up"}`}>
+                  {waitingForFunds ? "Starts when funded" : "Funding ready"}
+                </span>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SelectField
+                  label="Copy calls from"
+                  userContent
+                  value={sourceId}
+                  onChange={(value) => { setSourceId(value); setChannelId(""); }}
+                  options={sources.map((item) => ({ value: item.id, label: item.name }))}
+                />
+                <SelectField
+                  label="Channel"
+                  userContent
+                  value={channelId}
+                  onChange={setChannelId}
+                  options={[{ value: "", label: "All approved channels" }, ...(source?.channels || []).map((channel) => ({ value: channel.id, label: channel.name || channel.id }))]}
+                />
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <NumberField label="Per trade" value={buyAmountSol} onChange={setBuyAmountSol} unit="SOL" step={0.1} min={0.01} />
+                <NumberField label="Daily spending cap" value={dailyLossSol} onChange={setDailyLossSol} unit="SOL" step={0.1} min={0.01} />
+                <NumberField label="Trades per day" value={maxTradesPerDay} onChange={(value) => setMaxTradesPerDay(Math.round(value))} unit="trades" step={1} min={1} max={500} />
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <NumberField label="Take profit" value={(tpLevels[0]?.targetBps || 10000) / 100} onChange={(value) => updateTp(0, { targetBps: Math.round(value * 100), enabled: true })} unit="%" step={5} min={0.01} max={10000} />
+                <NumberField label="Stop loss" value={stopBps / 100} onChange={(value) => setStopBps(Math.round(value * 100))} unit="%" step={2.5} min={0.01} max={100} />
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 border-t border-edge pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <Toggle
+                  label="Token safety checks"
+                  detail="Reject tokens that fail the checks available to the execution engine."
+                  checked={enabledSafetyCount > 0}
+                  onChange={(on) => { setFilters(on ? armedFilters() : defaultFilters()); setFlags(on ? armedFlags() : defaultFlags()); }}
+                  compact
+                />
+                <p className="max-w-md t-label leading-5 text-dim sm:text-right">
+                  {waitingForFunds && fundingShortfallLamports != null
+                    ? `You can start now. New entries wait until the wallet has ${lamportsToSol(capitalPlan.plannedLamports)} SOL; exits and settings remain active.`
+                    : "The bot starts monitoring immediately after confirmation."}
+                </p>
+              </div>
+            </section>
+          )}
           <FormSection
             title="Bot identity"
             pending={pendingFor("identity")}
             description="Name this setup before choosing where it trades."
             summary={name || "Name required"}
-            defaultOpen
+            defaultOpen={kind !== "discord"}
           >
             <div className="grid gap-4 lg:grid-cols-2">
               <TextField label="Bot name" value={name} onChange={setName} maxLength={80} />
@@ -959,7 +1026,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             pending={pendingFor("wallet")}
             description="Use the verified Solana wallet that owns this bot's trades."
             summary={walletAddress ? `${walletAddress.slice(0, 5)}...${walletAddress.slice(-4)}` : "Wallet required to activate"}
-            defaultOpen
+            defaultOpen={kind !== "discord"}
           >
             <div className="flex flex-col gap-4 rounded-md border border-edge bg-void px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -987,7 +1054,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             pending={pendingFor("source")}
               description="Choose an approved server and either one channel or all approved channels."
               summary={source?.name || "Source required"}
-              defaultOpen
+              defaultOpen={false}
             >
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
@@ -1033,7 +1100,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             pending={pendingFor("funding")}
             description="How much this bot spends per entry."
             summary={`${buyAmountSol.toFixed(2)} SOL per entry · ${effectiveMaxOpenTrades} open max`}
-            defaultOpen
+            defaultOpen={kind !== "discord"}
           >
             {kind === "kol" && <div className="grid gap-3 sm:grid-cols-3">
               <Toggle label="Automatic entries" detail="Open new positions from this source's calls." checked={autoEntry} onChange={setAutoEntry} compact disabled={killSwitch} />
@@ -1147,7 +1214,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             title="Take profit"
             pending={pendingFor("takeProfit")}
             description={`${(tpAllocationBps / 100).toFixed(0)}% allocated · ${(100 - tpAllocationBps / 100).toFixed(0)}% remains`}
-            defaultOpen
+            defaultOpen={kind !== "discord"}
             summary={takeProfitEnabled
               ? `${tpLevels.filter((level) => level.enabled).length} of ${tpLevels.length} levels on`
               : "Off"}
@@ -1274,7 +1341,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             title="Stop loss"
             pending={pendingFor("stopLoss")}
             description="Exit management continues when new entries are paused."
-            defaultOpen
+            defaultOpen={kind !== "discord"}
             summary={stopLossEnabled
               ? `-${(stopBps / 100).toFixed(1)}%${trailingStop ? " · trailing" : ""}${dynamicStop ? " · dynamic" : ""}`
               : "Off"}
@@ -1323,7 +1390,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
             title="Safety checks"
             pending={pendingFor("safety")}
             description="Refuse a call that fails basic token checks."
-            defaultOpen
+            defaultOpen={kind !== "discord"}
             summary={enabledSafetyCount > 0 ? `${enabledSafetyCount} of ${totalSafetyCount} on` : "Off"}
           >
             <Toggle
@@ -1613,7 +1680,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:opacity-50"
               >
                 {checking ? <Loader2 aria-hidden="true" size={15} className="animate-spin" /> : <ShieldCheck aria-hidden="true" size={15} />}
-                {checking ? "Checking" : "RUN"}
+                {checking ? "Checking" : waitingForFunds ? "Start and wait for funds" : "Start bot"}
               </button>
               <button
                 type="button"
@@ -1628,7 +1695,7 @@ export default function BotBuilder({ kind, botId }: { kind: BotKind; botId?: str
                 disabled={saving}
                 className="min-h-11 rounded-md border border-edge px-4 t-body font-semibold text-ink disabled:opacity-40"
               >
-                Save and use later
+                Save draft
               </button>
             </div>
           </div>

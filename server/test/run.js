@@ -4104,8 +4104,8 @@ console.log("price selection");
     const funded = evaluateReadiness({ ...READY, requiredLamports: "60000000", availableLamports: "106131962" });
     assert.strictEqual(funded.ready, true, "0.106 SOL covers a 0.06 SOL requirement");
     const unknown = evaluateReadiness({ ...READY, availableLamports: undefined });
-    assert.match(unknown.reason, /could not be read/,
-      "the message stays for the one case it was written for — an unreadable chain");
+    assert.strictEqual(unknown.ready, true,
+      "funding availability controls execution, not whether a bot may start waiting");
   });
 
   test("an archived bot is refused by readiness, not by a mislabelled outage", () => {
@@ -4171,19 +4171,17 @@ console.log("price selection");
     }
   });
 
-  test("a check that throws fails closed rather than passing", () => {
-    // requiredLamports that BigInt() cannot parse.
+  test("an unreadable balance does not prevent a configured bot from waiting", () => {
     const verdict = evaluateReadiness({ ...READY, requiredLamports: "not-a-number" });
-    assert.strictEqual(verdict.ready, false);
-    assert.strictEqual(verdict.failedCheck, "capital");
+    assert.strictEqual(verdict.ready, true);
   });
 
-  test("the capital shortfall names the amount, not just the fact", () => {
+  test("a capital shortfall allows activation and is enforced when execution is claimed", () => {
     const verdict = evaluateReadiness({
       ...READY, requiredLamports: "5500000000", availableLamports: "1000000000"
     });
-    assert.strictEqual(verdict.failedCheck, "capital");
-    assert.ok(verdict.reason.includes("4.5"), `expected the 4.5 SOL shortfall, got: ${verdict.reason}`);
+    assert.strictEqual(verdict.ready, true);
+    assert.strictEqual(verdict.failedCheck, null);
   });
 
   test("a KOL bot is not blocked for having no Discord source", () => {
