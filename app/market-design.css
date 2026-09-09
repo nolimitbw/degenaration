@@ -102,3 +102,100 @@ html[data-theme="light"] .app-shell { --canvas: #f1f3f6; --void: #f1f3f6; --void
   .market-proof { display: grid; grid-template-columns: 1fr 1fr; font-size: 12px; gap: 22px 14px; } .market-section { padding: 65px 24px; } .market-products, .market-process, .market-resources { grid-template-columns: 1fr; gap: 24px; } .market-product, .market-product-featured { padding: 28px; min-height: 265px; } .market-product-featured { min-height: 380px; } .market-process .market-section-heading { margin-bottom: 14px; } .market-resources { padding-top: 0; } .market-closing { padding: 65px 24px; } .market-hero-bottom { font-size: 10px; }
   .docs-workspace main { padding: 24px 18px; border-radius: 12px; } .terminal-empty { padding-inline: 20px; } .app-shell .app-sidebar { width: min(88vw,340px); }
 }
+
+/* Public studio direction: spatial product presentation from the approved reference. */
+.market-home { padding: 0; background: #f4f3ee; color: #11130f; --void-rgb: 244 243 238; --ink-rgb: 17 19 15; --dim-rgb: 86 90 81; --gold-400-rgb: 91 104 83; }
+.market-stage { max-width: none; margin: 0; border: 0; border-radius: 0; background: #f4f3ee; box-shadow: none; overflow: visible; }
+.market-nav { border-bottom: 1px solid #11130f18; padding: 14px 28px; background: rgb(244 243 238 / .9); backdrop-filter: blur(20px); }
+.market-nav nav { max-width: 1380px; }
+.market-nav a { color: #373b34; }
+.market-nav a:hover { color: #11130f; }
+.market-nav button { border-color: #11130f20; color: #11130f; }
+.market-nav .bg-gold-400 { background: #11130f; color: #f7f6f2; }
+.market-hero { min-height: 820px; max-width: 1440px; margin: auto; display: grid; grid-template-columns: .78fr 1.22fr; align-items: center; gap: 30px; padding: 70px 56px 95px; overflow: hidden; background: radial-gradient(circle at 84% 30%, #ffffff 0, transparent 32%); }
+.market-hero-copy { z-index: 4; padding: 0; text-align: left; }
+.market-network { color: #5d6258; font-size: 13px; }
+.market-network span { background: #6472c9; box-shadow: none; }
+.market-hero h1 { max-width: 620px; margin-top: 26px; color: #11130f; font-size: clamp(56px, 5.8vw, 88px); font-weight: 600; letter-spacing: -.065em; line-height: .96; }
+.market-hero-lede { max-width: 520px; margin: 30px 0 0; color: #555b51; font-size: 17px; line-height: 1.65; }
+.market-hero-actions { justify-content: flex-start; margin-top: 30px; }
+.market-primary, .market-secondary { border-radius: 7px; min-height: 50px; padding: 13px 22px; }
+.market-primary { background: #11130f; color: #fff; box-shadow: none; }
+.market-primary:hover { background: #30342d; }
+.market-secondary { background: transparent; border-color: #11130f2b; color: #252821; }
+.market-secondary:hover { background: #fff; }
+.market-hero-note { margin-top: 22px; color: #777c71; font-size: 12px; }
+.product-scene { position: relative; min-width: 720px; height: 650px; perspective: 1500px; transform: translateX(4%); }
+.product-board { position: absolute; left: 20px; top: 75px; width: 800px; height: 510px; overflow: hidden; border: 1px solid #17191428; border-radius: 18px; background: #fbfaf7; box-shadow: -28px 55px 80px #3e41382b, 0 2px 0 #fff inset; transform: rotateX(54deg) rotateZ(-12deg) rotateY(5deg); transform-style: preserve-3d; }
+.product-board header { height: 68px; display: flex; align-items: center; gap: 22px; padding: 0 24px; border-bottom: 1px solid #1a1c1817; color: #555a51; font-size: 12px; }
+.product-board header .inline-flex { color: #11130f; }
+.product-board header .inline-flex > span { font-size: 15px; }
+.board-status { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.board-status i { width: 6px; height: 6px; border-radius: 50%; background: #4f9a71; }
+.board-body { height: calc(100% - 68px); display: grid; grid-template-columns: 142px 1fr; }
+.board-body aside { display: flex; flex-direction: column; gap: 10px; padding: 28px 18px; border-right: 1px solid #1a1c1817; font-size: 12px; color: #767b71; }
+.board-body aside span { padding: 10px 12px; border-radius: 7px; }
+.board-body aside .active { background: #e9e8e2; color: #171914; }
+.board-content { padding: 36px; }
+.board-heading { display: flex; align-items: flex-start; justify-content: space-between; color: #6a7065; }
+.board-heading small { display: block; margin-bottom: 9px; font-size: 11px; }
+.board-heading strong { display: block; color: #171914; font-size: 24px; font-weight: 600; letter-spacing: -.03em; }
+.signal-flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-top: 42px; }
+.signal-card { height: 150px; display: flex; flex-direction: column; align-items: flex-start; padding: 19px; border-radius: 13px; color: #fff; box-shadow: 0 18px 28px #38384b24; transform: translateZ(35px); }
+.signal-card svg { margin-bottom: auto; opacity: .86; }
+.signal-card small { font-size: 10px; opacity: .72; }
+.signal-card strong { margin-top: 7px; font-size: 14px; line-height: 1.3; font-weight: 500; }
+.signal-card-blue { background: #48677d; transform: translateZ(35px) translateY(28px); }
+.signal-card-violet { background: #765aa8; transform: translateZ(60px); }
+.signal-card-coral { background: #b95f69; transform: translateZ(45px) translateY(16px); }
+.board-controls { display: flex; gap: 28px; margin-top: 64px; padding-top: 22px; border-top: 1px solid #181a161a; color: #656a61; font-size: 11px; }
+.board-controls span { display: inline-flex; align-items: center; gap: 7px; }
+.board-controls i { width: 5px; height: 5px; border-radius: 50%; background: #7c8277; }
+.scene-shadow { position: absolute; left: 80px; right: 0; bottom: 8px; height: 90px; border-radius: 50%; background: #60645c22; filter: blur(28px); }
+.market-proof { max-width: 1320px; border: 1px solid #11130f1b; border-inline: 0; color: #555b51; }
+.market-section { max-width: 1260px; }
+.market-section-heading > p, .market-closing > p { color: #656b60; }
+.market-section h2, .market-closing h2 { color: #11130f; }
+.market-section-heading > span { color: #686e64; }
+.market-product { background: #eae9e3; border-color: transparent; color: #11130f; border-radius: 12px; }
+.market-product:hover { border-color: #11130f38; }
+.market-product p, .market-steps p, .market-resources p, .market-resource-links small { color: #62685e; }
+.market-product-featured { background: #1b1e19; color: #f6f5f1; }
+.market-product-featured p { color: #bfc4ba; }
+.market-process { border-color: #11130f1a; }
+.market-steps > div, .market-resource-links > a { border-color: #11130f1c; }
+.market-step-number { color: #777d72; }
+.market-closing { border-color: #11130f1c; background: #e7e6df; }
+.market-closing .market-primary { color: #fff; }
+.market-home footer { border-color: #11130f1c; background: #11130f; color: #f5f4ef; }
+.market-home footer .text-ink { color: #f5f4ef; }
+.market-home footer .text-dim { color: #aeb3a9; }
+
+@media (max-width: 1023px) {
+  .market-home { padding: 0; }
+  .market-stage { margin: 0; border-radius: 0; }
+  .market-hero { grid-template-columns: 1fr; min-height: 1080px; padding: 70px 38px 80px; }
+  .market-hero-copy { max-width: 680px; }
+  .product-scene { transform: translateX(4%); margin-top: -40px; }
+}
+@media (max-width: 639px) {
+  .market-nav { padding: 8px 4px; }
+  .market-hero { display: block; min-height: 850px; padding: 58px 20px 30px; }
+  .market-hero h1 { font-size: 50px; }
+  .market-hero-lede { font-size: 15px; }
+  .market-hero-actions { align-items: stretch; }
+  .market-primary, .market-secondary { width: 100%; }
+  .product-scene { min-width: 0; width: 100%; height: 400px; margin-top: 25px; transform: none; }
+  .product-board { left: -4px; top: 42px; width: 550px; height: 360px; border-radius: 12px; transform: rotateX(50deg) rotateZ(-7deg) scale(.72); transform-origin: left top; }
+  .product-board header { height: 47px; padding: 0 14px; }
+  .product-board header > span:not(.board-status), .board-status { display: none; }
+  .product-board header svg { width: 24px; }
+  .board-body { height: calc(100% - 47px); grid-template-columns: 90px 1fr; }
+  .board-body aside { padding: 16px 8px; font-size: 9px; }
+  .board-content { padding: 22px; }
+  .board-heading strong { font-size: 17px; }
+  .signal-flow { margin-top: 24px; gap: 8px; }
+  .signal-card { height: 105px; padding: 12px; }
+  .signal-card strong { font-size: 10px; }
+  .board-controls { margin-top: 38px; }
+}
