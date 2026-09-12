@@ -27,7 +27,7 @@ services:
       - key: DELEGATED_SIGNING
         value: "off"
       - key: COPY_TRADING
-        value: "off"
+        value: "on"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY
