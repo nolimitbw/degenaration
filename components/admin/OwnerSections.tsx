@@ -621,13 +621,14 @@ function Payouts({ data, act }: { data: AdminData; act: (action: AdminAction) =>
 
 function Operations({ data }: { data: AdminData }) {
   const scanner = data.scanner;
+  const journalFallback = scanner.fallbackMode === "journal";
   return (
     <div className="space-y-7">
       <MetricStrip items={[
-        { label: "Scanner tokens", value: scanner.tokenCount || 0 },
-        { label: "Scanner pools", value: scanner.poolCount || 0 },
-        { label: "Unsupported pools", value: scanner.unsupportedPools || 0, tone: Number(scanner.unsupportedPools || 0) ? "text-gold-400" : "text-ink" },
-        { label: "Quarantined signals (24h)", value: scanner.quarantinedSignals24h || 0, tone: Number(scanner.quarantinedSignals24h || 0) ? "text-gold-400" : "text-ink" }
+        { label: journalFallback ? "Journal calls" : "Scanner tokens", value: scanner.tokenCount ?? "--" },
+        { label: journalFallback ? "Measured calls" : "Scanner pools", value: scanner.poolCount ?? "--" },
+        { label: journalFallback ? "Awaiting measurement" : "Unsupported pools", value: scanner.unsupportedPools ?? "--", tone: Number(scanner.unsupportedPools || 0) ? "text-gold-400" : "text-ink" },
+        { label: "Quarantined signals (24h)", value: scanner.quarantinedSignals24h ?? "--", tone: Number(scanner.quarantinedSignals24h || 0) ? "text-gold-400" : "text-ink" }
       ]} />
       <section>
         <SectionTitle title="Scanner freshness" detail={scanner.status || (scanner.ok ? "healthy" : "not reporting")} />

@@ -174,6 +174,7 @@ export type ScannerHealth = {
   latestMarketSnapshotAt?: string;
   latestRiskSnapshotAt?: string;
   quarantinedSignals24h?: number;
+  fallbackMode?: "journal";
 };
 
 export type SystemFlag = {
