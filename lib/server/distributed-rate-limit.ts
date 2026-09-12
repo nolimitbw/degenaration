@@ -51,7 +51,16 @@ export async function distributedRateLimit(req: NextRequest, options: Options) {
       ? NextResponse.json({ error: "request protection temporarily unavailable" }, { status: 503 })
       : null;
   }
-  if (result.data.allowed !== false) return null;
+  // A malformed-but-successful response must not be read as permission. `allowed !== false`
+  // silently permitted `{}` or any shape missing the field, so a bridge that answered 200
+  // with an unexpected body disabled the limit entirely — and failClosed did not cover it,
+  // because that only guards `!result.ok`.
+  if (typeof result.data?.allowed !== "boolean") {
+    return options.failClosed
+      ? NextResponse.json({ error: "request protection temporarily unavailable" }, { status: 503 })
+      : null;
+  }
+  if (result.data.allowed) return null;
 
   const retry = Math.max(1, Number(result.data.retryAfterSeconds) || options.windowSeconds);
   return NextResponse.json(

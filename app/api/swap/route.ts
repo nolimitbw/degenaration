@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, isMint, validBaseUnits, validSlippageBps, fetchWithTimeout, sanitizeError } from "@/lib/server/guard";
+import { configuredPlatformFeeBps } from "@/lib/fee-model";
+import { resolveSwapFeeAccount } from "@/lib/server/fee-account";
 
 const JUP = "https://lite-api.jup.ag/swap/v1";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const PLATFORM_FEE_BPS = 200;
 const MAX_PRICE_IMPACT_PCT = 15; // reject swaps with insane price impact
 
 export async function POST(req: NextRequest) {
@@ -26,8 +27,22 @@ export async function POST(req: NextRequest) {
   const slippageBps = validSlippageBps(body.slippageBps);
   const mevEnabled = mev !== false;
 
-  const feeAccount = process.env.PLATFORM_FEE_ACCOUNT;
-  const applyFee = !!feeAccount;
+  // Resolve a usable fee account BEFORE requesting the fee. Jupiter does not validate
+  // feeAccount, so a wallet address pasted into PLATFORM_FEE_ACCOUNT would build fine and
+  // then fail every swap on chain. When no usable account exists the fee is skipped —
+  // collecting nothing is recoverable, breaking every trade is not.
+  //
+  // Metis ExactIn accepts a fee account whose mint is EITHER side of the pair. Prefer wSOL,
+  // which covers both SOL -> token buys and token -> SOL sells with one initialized account.
+  // The former output-only assumption silently skipped every buy fee and contradicted the
+  // required 200 bps per confirmed leg.
+  const resolvedFee = await resolveSwapFeeAccount(inputMint, outputMint);
+  const feeAccount = resolvedFee.feeAccount;
+  const platformFeeBps = feeAccount ? configuredPlatformFeeBps() : 0;
+  const applyFee = platformFeeBps > 0 && Boolean(feeAccount);
+  if (!feeAccount && process.env.PLATFORM_FEE_ACCOUNT) {
+    console.warn(`[swap] platform fee skipped — ${resolvedFee.reason}`);
+  }
 
   try {
     const qurl = new URL(`${JUP}/quote`);
@@ -35,7 +50,7 @@ export async function POST(req: NextRequest) {
     qurl.searchParams.set("outputMint", outputMint);
     qurl.searchParams.set("amount", String(amount));
     qurl.searchParams.set("slippageBps", String(slippageBps));
-    if (applyFee) qurl.searchParams.set("platformFeeBps", String(PLATFORM_FEE_BPS));
+    if (applyFee) qurl.searchParams.set("platformFeeBps", String(platformFeeBps));
     const quote = await fetchWithTimeout(qurl, { cache: "no-store" }).then((r) => r.json());
     if (quote.error) return NextResponse.json({ error: quote.error }, { status: 400 });
 
@@ -58,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       swapTransaction: swap.swapTransaction, outAmount: quote.outAmount,
-      priceImpactPct: quote.priceImpactPct, platformFeeBps: applyFee ? PLATFORM_FEE_BPS : 0, feeAccountSet: applyFee
+      priceImpactPct: quote.priceImpactPct, platformFeeBps, feeAccountSet: applyFee
     });
   } catch (e: any) {
     return NextResponse.json({ error: sanitizeError(e) }, { status: 502 });

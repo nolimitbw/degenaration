@@ -103,7 +103,8 @@ test("worker records the configured commission when a fee account is present", (
   const previous = process.env.PLATFORM_FEE_ACCOUNT;
   process.env.PLATFORM_FEE_ACCOUNT = "F".repeat(44);
   delete require.cache[jupiterPath];
-  const { platformFeeSol } = require("../engine/jupiter");
+  const { platformFeeSol, __setFeeAccountUsable } = require("../engine/jupiter");
+  __setFeeAccountUsable(true);
   assert.ok(Math.abs(platformFeeSol(1.2) - 0.024) < 1e-9);
   if (previous) process.env.PLATFORM_FEE_ACCOUNT = previous;
   else delete process.env.PLATFORM_FEE_ACCOUNT;
@@ -438,11 +439,14 @@ const feeAccount = "F".repeat(44);
 const swapTransaction = {
   transaction: {
     signatures: [tradeSignature],
-    message: { accountKeys: [
-      { pubkey: tradeWallet, signer: true },
-      { pubkey: "T".repeat(44), signer: false },
-      { pubkey: feeAccount, signer: false }
-    ] }
+    message: {
+      accountKeys: [
+        { pubkey: tradeWallet, signer: true },
+        { pubkey: "T".repeat(44), signer: false },
+        { pubkey: feeAccount, signer: false }
+      ],
+      instructions: [{ programId: "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" }]
+    }
   },
   meta: {
     err: null,

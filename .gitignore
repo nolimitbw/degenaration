@@ -1,6 +1,9 @@
 node_modules/
 .next/
-tsconfig.tsbuildinfo
+.open-next/
+.wrangler/
+.wrangler-dry-run/
+.cloudflare-pages-dist/
 .env
 .env.local
 .env*.local
@@ -8,3 +11,10 @@ server/.env
 *.log
 .DS_Store
 .vercel
+
+# Extracted video contact sheets: large binaries, kept on Desktop instead
+docs/reference-frames/
+
+.references/
+tsconfig.tsbuildinfo
+.env*

@@ -23,9 +23,10 @@ const server = http.createServer(async (req, res) => {
     const call = JSON.parse(body);
     console.log(`[engine] call for ${call.mint} from group ${call.groupId}`);
 
-    // 1) Safety gate
-    const check = await rugCheck(call.mint);
-    if (!check.ok) return console.log(`[engine] SKIPPED — ${check.reasons.join("; ")}`);
+    // 1) Token evidence. No platform gate: the owner's rule is that whoever copies a caller
+    //    has already accepted that caller's risk. Subscriber-configured filters still apply on
+    //    the worker path; this standalone entry point carries no per-user configuration.
+    await rugCheck(call.mint).catch(() => null);
 
     // 2) Execute for each subscriber of this group, respecting their caps
     for (const u of subscribers.filter(s => s.groupId === call.groupId)) {

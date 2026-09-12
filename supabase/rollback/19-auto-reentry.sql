@@ -1,0 +1,14 @@
+-- Rollback of degenaration-auto-reentry.sql
+--
+-- `worker_claim_call_execution` is replaced at an UNCHANGED arity of (uuid, uuid), so there is
+-- nothing to drop. The body is restored by the reapply step in supabase/rollback/plan.mjs:
+--
+--     degenaration-freeze-after-stop.sql
+--
+-- WHAT ROLLING THIS BACK MEANS. `autoReentry` returns to persisted-but-unenforced: a bot whose
+-- owner turned auto re-entry OFF re-enters a token it has already traded to close, while its
+-- editor keeps showing the switch off. Every other limit the claim enforces is unaffected,
+-- including freeze-after-stop and the ordinary cooldown, which restrict WHEN a re-entry may
+-- happen but never refuse one outright.
+--
+-- Nothing to drop: this migration adds no column, table, index, constraint or grant.

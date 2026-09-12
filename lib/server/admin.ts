@@ -10,7 +10,7 @@ const OWNER_EMAILS = (process.env.ADMIN_OWNER_EMAILS || process.env.NEXT_PUBLIC_
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
 function appId() {
-  return process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID || "";
+  return process.env.NEXT_PUBLIC_PRIVY_APP_ID || process.env.PRIVY_APP_ID || "";
 }
 
 function getJwks() {
@@ -40,7 +40,12 @@ async function tryVerifyPrivyJwt(token: string | undefined | null) {
 function emailFromIdPayload(payload: any) {
   const linkedRaw = payload?.linked_accounts;
   let linked: any[] = [];
-  try { linked = typeof linkedRaw === "string" ? JSON.parse(linkedRaw) : Array.isArray(linkedRaw) ? linkedRaw : []; } catch {}
+  // A malformed linked_accounts claim must not throw; an empty list fails closed below.
+  try {
+    linked = typeof linkedRaw === "string" ? JSON.parse(linkedRaw) : Array.isArray(linkedRaw) ? linkedRaw : [];
+  } catch {
+    linked = [];
+  }
   const account = linked.find((item) => item?.type === "google_oauth");
   const email = String(account?.email || "").trim().toLowerCase();
   const subject = String(account?.subject || "").trim();
@@ -53,7 +58,8 @@ export async function requireAdmin(req: NextRequest) {
     return { ok: true as const, email: "legacy-admin-key", privyUserId: "legacy-admin-key", legacy: true as const };
   }
 
-  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim()
+    || req.cookies.get("privy-token")?.value;
   const idToken = req.headers.get("x-privy-id-token")?.trim() || req.cookies.get("privy-id-token")?.value;
   if (!bearer && !idToken) return { ok: false as const, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
 

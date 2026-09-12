@@ -16,9 +16,10 @@ import {
 import AppShell from "@/components/AppShell";
 import { EmptyState, Metric, PageHeader, ProductTabs, Segmented, StatusPill } from "@/components/product/Primitives";
 import { useToast } from "@/components/Toast";
-import { getSolanaAddress, getSolanaWalletId, hasDelegatedSolanaWallet } from "@/lib/solanaWallet";
+import { getSolanaAddress, getSolanaWalletId } from "@/lib/solanaWallet";
 import { formatPercentBps, formatSol, formatWhen, productFetch, solToLamports, type KolStrategy } from "@/lib/product-api";
 import { AUTOMATED_MAINNET_RELEASE } from "@/lib/trading-release";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const TABS = [
   { href: "/bots", label: "Overview" },
@@ -36,7 +37,6 @@ export default function KolStrategyDetailsPage() {
   const toast = useToast();
   const walletAddress = getSolanaAddress(user) || "";
   const walletId = getSolanaWalletId(user) || "";
-  const delegated = hasDelegatedSolanaWallet(user);
   const [period, setPeriod] = useState<Period>("30d");
   const [strategy, setStrategy] = useState<KolStrategy | null | undefined>(undefined);
   const [subscription, setSubscription] = useState<any | null>(null);
@@ -48,6 +48,8 @@ export default function KolStrategyDetailsPage() {
   const [priorityFee, setPriorityFee] = useState(500000);
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [readiness, setReadiness] = useState<{ ready: boolean; reason: string | null } | null>(null);
 
   useEffect(() => {
     setStrategy(undefined);
@@ -87,16 +89,54 @@ export default function KolStrategyDetailsPage() {
     return null;
   }, [buyAmount, dailyLoss, maxOpenTrades, maximumCapital, slippage]);
 
+  /**
+   * Ask the server whether this copy subscription can activate.
+   *
+   * Shares lib/bot-readiness.js with the builder, through /api/product/bots/readiness, so a
+   * subscriber and a bot owner cannot be told different things about the same platform state.
+   */
+  async function run() {
+    if (!authenticated) { login(); return; }
+    if (invalid) { toast(invalid, "err"); return; }
+    if (!confirmed) { toast("Confirm the copy settings and fee before activation.", "err"); return; }
+    setChecking(true);
+    setReadiness(null);
+    try {
+      const verdict = await productFetch<{ ready: boolean; reason: string | null }>(
+        "/api/product/bots/readiness",
+        { getAccessToken, identityToken },
+        {
+          method: "POST",
+          body: JSON.stringify({
+            kind: "kol",
+            name: strategy?.name || "Copy",
+            status: "active",
+            visibility: "private",
+            executionMode: "solana-mainnet",
+            confirmed: true,
+            config: { walletAddress, walletId, buyAmountLamports: String(Math.round(buyAmount * 1e9)), maxOpenTrades, simulationRequired: true }
+          })
+        }
+      );
+      setReadiness(verdict);
+      if (!verdict.ready) { toast(verdict.reason || "This strategy cannot run yet.", "err"); return; }
+      await save("active");
+    } catch (reason) {
+      // Fail closed: a readiness check that could not run is not a pass.
+      const message = reason instanceof Error ? reason.message : "Readiness could not be checked.";
+      setReadiness({ ready: false, reason: message });
+      toast(message, "err");
+    } finally {
+      setChecking(false);
+    }
+  }
+
   async function save(status: "active" | "paused") {
     if (!authenticated) {
       login();
       return;
     }
     if (!strategy) return;
-    if (status === "active" && !AUTOMATED_MAINNET_RELEASE.enabled) {
-      toast(AUTOMATED_MAINNET_RELEASE.reason, "err");
-      return;
-    }
     if (status === "active" && invalid) {
       toast(invalid, "err");
       return;
@@ -105,8 +145,8 @@ export default function KolStrategyDetailsPage() {
       toast("Confirm the copy settings and fee before activation.", "err");
       return;
     }
-    if (!walletAddress || !walletId || !delegated) {
-      toast("Connect a delegated Solana execution wallet first.", "err");
+    if (!walletAddress || !walletId) {
+      toast("Connect a verified Solana execution wallet first.", "err");
       return;
     }
     setSaving(true);
@@ -140,10 +180,10 @@ export default function KolStrategyDetailsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / KOL / Strategy"
+
         title={strategy?.name || "KOL strategy"}
         description="Review net-of-fee history and configure your own bounded capital controls before copying."
-        actions={<Link href="/bots/kol" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>}
+        actions={<Link href="/bots/kol" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-body font-semibold text-ink"><ArrowLeft size={15} /> Marketplace</Link>}
       />
       <ProductTabs items={TABS} active="/bots/kol" />
 
@@ -154,62 +194,62 @@ export default function KolStrategyDetailsPage() {
           <div className="space-y-5">
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
               <header className="flex flex-wrap items-start gap-4 border-b border-edge p-5">
-                <span className="grid h-14 w-14 place-items-center rounded-md border border-toxic/30 bg-toxic/10 font-mono text-base font-semibold text-toxic">{strategy.name.slice(0, 2).toUpperCase()}</span>
+                <span className="grid h-14 w-14 place-items-center rounded-md border border-gold-400/30 bg-gold-400/10 font-mono t-section font-semibold text-gold-400">{strategy.name.slice(0, 2).toUpperCase()}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-semibold text-ink">{strategy.name}</h2><StatusPill status={strategy.insufficientHistory ? "insufficient history" : "reviewed"} /></div>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-dim">{strategy.description || "No public strategy description was provided."}</p>
-                  <p className="mt-2 font-mono text-[9px] uppercase text-dim">
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="t-title font-semibold text-ink">{strategy.name}</h2><StatusPill status={strategy.insufficientHistory ? "tracking" : "reviewed"} /></div>
+                  <p className="mt-2 max-w-2xl t-body leading-6 text-dim">{strategy.description || "No public strategy description was provided."}</p>
+                  <p className="ui-label mt-2">
                     {strategy.creatorName || "Verified creator"} · Strategy version {strategy.version || 1}
                   </p>
                 </div>
-                <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] uppercase text-dim">{strategy.riskTier} risk</span>
+                <span className="ui-label rounded-sm border border-edge bg-void px-2 py-1">{strategy.riskTier} risk</span>
               </header>
               <div className="flex justify-end border-b border-edge p-3"><Segmented value={period} onChange={setPeriod} label="Strategy performance period" options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "3m", label: "3M" }]} /></div>
               <div className="grid grid-cols-2 divide-x divide-y divide-edge py-4 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
-                <Metric label="Net PnL" value={strategy.insufficientHistory ? "--" : formatSol(strategy.netPnlLamports)} tone={Number(strategy.netPnlLamports || 0) >= 0 ? "positive" : "negative"} />
-                <Metric label="Realized PnL" value={strategy.insufficientHistory ? "--" : formatSol(strategy.realizedPnlLamports)} />
-                <Metric label="Win rate" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.winRateBps)} />
-                <Metric label="Max drawdown" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.maxDrawdownBps)} />
+                <Metric label="Net PnL" value={strategy.insufficientHistory ? "—" : formatSol(strategy.netPnlLamports)} tone={Number(strategy.netPnlLamports || 0) >= 0 ? "positive" : "negative"} />
+                <Metric label="Realized PnL" value={strategy.insufficientHistory ? "—" : formatSol(strategy.realizedPnlLamports)} />
+                <Metric label="Win rate" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.winRateBps)} />
+                <Metric label="Max drawdown" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.maxDrawdownBps)} />
                 <Metric label="Followers" value={strategy.followers} />
                 <Metric label="Creator fee" value={formatPercentBps(strategy.creatorFeeBps)} />
               </div>
             </section>
 
             <section className="rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Ledger statistics</h2><p className="mt-1 text-[11px] text-dim">Calculated from immutable execution records, not creator-submitted percentages.</p></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Ledger statistics</h2><p className="mt-1 t-label text-dim">Calculated from immutable execution records, not creator-submitted percentages.</p></header>
               <div className="grid grid-cols-2 gap-px bg-edge md:grid-cols-4">
-                <div className="bg-void p-5"><p className="field-label">Completed sample</p><p className="mt-2 font-mono text-xl text-ink">{strategy.sampleSize}</p></div>
-                <div className="bg-void p-5"><p className="field-label">Traded volume</p><p className="mt-2 font-mono text-xl text-ink">{formatSol(strategy.volumeLamports)}</p></div>
-                <div className="bg-void p-5"><p className="field-label">Network fees</p><p className="mt-2 font-mono text-xl text-ink">{formatSol(strategy.networkFeesLamports)}</p></div>
-                <div className="bg-void p-5"><p className="field-label">Open trades</p><p className="mt-2 font-mono text-xl text-ink">{strategy.openTrades}</p></div>
+                <div className="bg-void p-5"><p className="field-label">Completed sample</p><p className="mt-2 font-mono t-title text-ink">{strategy.sampleSize}</p></div>
+                <div className="bg-void p-5"><p className="field-label">Traded volume</p><p className="mt-2 font-mono t-title text-ink">{formatSol(strategy.volumeLamports)}</p></div>
+                <div className="bg-void p-5"><p className="field-label">Network fees</p><p className="mt-2 font-mono t-title text-ink">{formatSol(strategy.networkFeesLamports)}</p></div>
+                <div className="bg-void p-5"><p className="field-label">Open trades</p><p className="mt-2 font-mono t-title text-ink">{strategy.openTrades}</p></div>
               </div>
-              <div className="flex flex-wrap justify-between gap-3 border-t border-edge px-5 py-4 font-mono text-[9px] text-dim"><span>Active since {formatWhen(strategy.activeSince)}</span><span>Updated {formatWhen(strategy.updatedAt)}</span></div>
+              <div className="flex flex-wrap justify-between gap-3 border-t border-edge px-5 py-4 t-label text-dim"><span>Active since {formatWhen(strategy.activeSince)}</span><span>Updated {formatWhen(strategy.updatedAt)}</span></div>
             </section>
 
             <StrategyConfiguration strategy={strategy} />
 
             <section className="rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Copying policy</h2></header>
+              <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Copying policy</h2></header>
               <div className="grid gap-4 p-5 sm:grid-cols-2">
                 {[
                   ["Immutable strategy version", "Your copy snapshots the current reviewed version. Future creator edits do not silently rewrite open positions."],
                   ["Stricter overrides only", "Subscriber capital, slippage, and loss controls can reduce risk without weakening creator requirements."],
                   ["No self-copy commission", "Linked creator accounts are blocked from earning commission on their own strategy."],
                   ["Confirmed trades only", "The 0.2% creator commission accrues only after an eligible copied trade is confirmed and reconciled."]
-                ].map(([title, copy]) => <div key={title} className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-up" /><div><p className="text-xs font-semibold text-ink">{title}</p><p className="mt-1 text-[11px] leading-5 text-dim">{copy}</p></div></div>)}
+                ].map(([title, copy]) => <div key={title} className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-up" /><div><p className="t-label font-semibold text-ink">{title}</p><p className="mt-1 t-label leading-5 text-dim">{copy}</p></div></div>)}
               </div>
             </section>
           </div>
 
           <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel xl:sticky xl:top-24">
             <header className="border-b border-edge p-5">
-              <div className="flex items-center justify-between gap-3"><div><p className="font-mono text-[9px] uppercase text-toxic">Subscriber setup</p><h2 className="mt-2 text-base font-semibold text-ink">Your copy controls</h2></div>{subscription && <StatusPill status={subscription.status} />}</div>
+              <div className="flex items-center justify-between gap-3"><div><p className="ui-label text-gold-400">Subscriber setup</p><h2 className="mt-2 t-section font-semibold text-ink">Your copy controls</h2></div>{subscription && <StatusPill status={subscription.status} />}</div>
             </header>
             <div className="space-y-4 p-5">
               <div className="rounded-md border border-edge bg-void p-3">
                 <p className="field-label">Execution wallet</p>
-                <div className="mt-2 flex items-center gap-2"><WalletCards size={15} className={walletAddress ? "text-toxic" : "text-dim"} /><span className="truncate font-mono text-xs text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</span></div>
-                <p className={`mt-1 text-[10px] ${delegated ? "text-up" : "text-toxic"}`}>{delegated ? "Delegated execution enabled" : "Delegation required"}</p>
+                <div className="mt-2 flex items-center gap-2"><WalletCards size={15} className={walletAddress ? "text-gold-400" : "text-dim"} /><span className="truncate font-mono t-label text-ink">{walletAddress ? `${walletAddress.slice(0, 7)}...${walletAddress.slice(-6)}` : "Not connected"}</span></div>
+                <p className={`mt-1 t-label ${walletAddress ? "text-up" : "text-gold-400"}`}>{walletAddress ? "Verified execution wallet" : "Wallet required"}</p>
               </div>
               <CopyField label="Buy amount" value={buyAmount} onChange={setBuyAmount} suffix="SOL" step={0.1} />
               <CopyField label="Maximum capital" value={maximumCapital} onChange={setMaximumCapital} suffix="SOL" step={0.5} />
@@ -217,24 +257,39 @@ export default function KolStrategyDetailsPage() {
               <CopyField label="Maximum open positions" value={maxOpenTrades} onChange={(value) => setMaxOpenTrades(Math.round(value))} suffix="trades" step={1} />
               <CopyField label="Slippage maximum" value={slippage} onChange={setSlippage} suffix="%" step={0.25} />
               <CopyField label="Priority fee maximum" value={priorityFee} onChange={(value) => setPriorityFee(Math.round(value))} suffix="lamports" step={100000} />
-              <div className="rounded-md border border-edge bg-void p-3 text-xs">
+              <div className="rounded-md border border-edge bg-void p-3 t-label">
                 <div className="flex justify-between gap-3 text-dim"><span>Creator fee</span><span className="font-mono text-ink">{formatPercentBps(strategy.creatorFeeBps)}</span></div>
                 <div className="mt-2 flex justify-between gap-3 text-dim"><span>Network</span><span className="font-mono text-ink">{AUTOMATED_MAINNET_RELEASE.label}</span></div>
               </div>
-              {invalid && <p className="rounded-md border border-down/35 bg-down/5 px-3 py-2 text-[11px] text-down">{invalid}</p>}
-              <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I reviewed this strategy, its fee, and my worst-case capital limit.</label>
+              {invalid && <p className="rounded-md border border-down/35 bg-down/5 px-3 py-2 t-label text-down">{invalid}</p>}
+              <label className="flex items-start gap-2 t-label leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I reviewed this strategy, its fee, and my worst-case capital limit.</label>
+              {/* The same two actions as the builder, for the same reason: this page carried a
+                  permanently disabled button whose label came from a frozen constant, so a user
+                  with a local wallet-state mismatch and a user waiting on the fee account read
+                  the identical sentence. RUN asks the server and reports the one check that failed. */}
+              {readiness && (
+                <p role={readiness.ready ? "status" : "alert"} className={`rounded-md border px-3 py-2 t-label leading-5 ${readiness.ready ? "border-up/30 bg-up/5 text-up" : "border-down/35 bg-down/5 text-down"}`}>
+                  {readiness.ready ? "Every readiness check passes." : readiness.reason}
+                </p>
+              )}
               <button
                 type="button"
-                disabled
-                title={AUTOMATED_MAINNET_RELEASE.reason}
-                className="inline-flex min-h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-dim opacity-70"
+                onClick={run}
+                disabled={saving || checking}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:opacity-50"
               >
                 <Play size={15} />
-                Mainnet activation locked
+                {checking ? "Checking" : "RUN"}
               </button>
-              {subscription?.status === "active" && <button type="button" onClick={() => save("paused")} disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink"><Pause size={15} /> Pause entries</button>}
-              {!authenticated && <button type="button" onClick={login} className="min-h-11 w-full rounded-md border border-edge text-sm font-semibold text-ink">Connect account</button>}
-              <p className="flex gap-2 text-[10px] leading-4 text-dim"><ShieldCheck size={14} className="shrink-0 text-up" />{AUTOMATED_MAINNET_RELEASE.reason}</p>
+              <button
+                type="button"
+                onClick={() => save("paused")}
+                disabled={saving}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-edge px-4 t-body font-semibold text-ink disabled:opacity-40"
+              >
+                <Pause size={15} /> Save and use later
+              </button>
+              {!authenticated && <button type="button" onClick={login} className="min-h-11 w-full rounded-md border border-edge t-body font-semibold text-ink">Connect account</button>}
             </div>
           </aside>
         </div>
@@ -262,8 +317,8 @@ function StrategyConfiguration({ strategy }: { strategy: KolStrategy }) {
   return (
     <section className="rounded-md border border-edge bg-panel">
       <header className="border-b border-edge px-5 py-4">
-        <h2 className="text-sm font-semibold text-ink">Reviewed strategy configuration</h2>
-        <p className="mt-1 text-[11px] text-dim">Wallet identifiers are removed. Your copy snapshots this exact public version.</p>
+        <h2 className="t-body font-semibold text-ink">Reviewed strategy configuration</h2>
+        <p className="mt-1 t-label text-dim">Wallet identifiers are removed. Your copy snapshots this exact public version.</p>
       </header>
       <div className="grid gap-px bg-edge sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -272,24 +327,24 @@ function StrategyConfiguration({ strategy }: { strategy: KolStrategy }) {
           ["Lookback", `${Number(trigger.lookbackMinutes || 0)} minutes`],
           ["Entry", formatSol(config.buyAmountLamports)],
           ["Capital ceiling", formatSol(config.maximumCapitalLamports)],
-          ["Maximum positions", String(config.maxOpenTrades || "--")],
+          ["Maximum positions", String(config.maxOpenTrades || "—")],
           ["DCA", dcaText],
           ["Risk checks", `${enabledRanges + enabledFlags} enabled · fail closed`]
         ].map(([label, value]) => (
           <div key={label} className="bg-void p-4">
             <p className="field-label">{label}</p>
-            <p className="mt-2 text-xs leading-5 text-ink">{value}</p>
+            <p className="mt-2 t-label leading-5 text-ink">{value}</p>
           </div>
         ))}
       </div>
       <div className="grid gap-px border-t border-edge bg-edge lg:grid-cols-[1.4fr_.6fr]">
         <div className="bg-panel p-4">
           <p className="field-label">Take-profit schedule</p>
-          <p className="mt-2 text-xs leading-5 text-ink">{takeProfitText}</p>
+          <p className="mt-2 t-label leading-5 text-ink">{takeProfitText}</p>
         </div>
         <div className="bg-panel p-4">
           <p className="field-label">Stop loss</p>
-          <p className="mt-2 text-xs leading-5 text-ink">
+          <p className="mt-2 t-label leading-5 text-ink">
             -{Number(stopLoss.stopBps || 0) / 100}%{stopLoss.trailing ? " · trailing" : ""}{stopLoss.dynamic ? " · dynamic" : ""}
           </p>
         </div>
@@ -303,8 +358,8 @@ function CopyField({ label, value, onChange, suffix, step }: { label: string; va
     <label className="block">
       <span className="field-label">{label}</span>
       <span className="field-control mt-1.5 flex items-center px-3">
-        <input type="number" value={value} step={step} min={0} onChange={(event) => onChange(Number(event.target.value))} className="min-w-0 flex-1 bg-transparent font-mono text-xs outline-none" />
-        <span className="font-mono text-[9px] text-dim">{suffix}</span>
+        <NumericTextInput value={value} onChange={onChange} decimals={4} min={0} className="min-w-0 flex-1 bg-transparent font-mono t-label outline-none" />
+        <span className="t-label text-dim">{suffix}</span>
       </span>
     </label>
   );

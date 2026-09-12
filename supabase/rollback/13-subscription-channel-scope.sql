@@ -1,0 +1,15 @@
+-- Rollback of degenaration-subscription-channel-scope.sql
+--
+-- `worker_claim_call_execution` is replaced at an UNCHANGED arity of (uuid, uuid), so no
+-- overload was created and no explicit drop is needed. The body is restored by the reapply
+-- step in supabase/rollback/plan.mjs:
+--
+--     degenaration-bot-entry-limits.sql
+--
+-- WHAT ROLLING THIS BACK MEANS
+--
+-- A bot restricted to one channel goes back to copying every approved channel of its source,
+-- silently, while its editor keeps showing the single channel its owner chose. Every other
+-- limit this function enforces is unaffected.
+--
+-- Nothing to drop: this migration adds no column, table, index, constraint or grant.

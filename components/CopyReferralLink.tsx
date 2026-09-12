@@ -21,7 +21,7 @@ export default function CopyReferralLink({ path }: { path: string }) {
     <button
       type="button"
       onClick={copy}
-      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-ink transition hover:border-toxic/60 hover:text-toxic"
+      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-edge bg-void px-4 text-sm font-semibold text-ink transition hover:border-gold-400/60 hover:text-gold-400"
     >
       <Icon aria-hidden="true" size={16} />
       {state === "copied" ? "Copied" : state === "error" ? "Copy failed" : "Copy referral link"}

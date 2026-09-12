@@ -44,8 +44,12 @@ function startLimitWatcher(deps, pollMs = 8000) {
       const order = { ...o, ...(claimed.order || {}) };
       let sig = null;
       try {
-        const { tx } = await buyToken(order.mint, order.amount_sol, order.user_pubkey, order.slippage_bps || 300);
-        sig = await signAndSend(tx, order.wallet_id); // walletId signs; user_pubkey built the tx
+        const { tx, quotedAtMs } = await buyToken(order.mint, order.amount_sol, order.user_pubkey, order.slippage_bps || 300);
+        sig = await signAndSend(tx, order.wallet_id, {
+          walletAddress: order.user_pubkey,
+          builtAtMs: quotedAtMs,
+          idempotencyKey: `limit:${order.id}`
+        });
         const finished = await finishOrder(order.id, claimed.claim_token, "filled", sig, null);
         if (!finished?.ok) throw new Error(finished?.error || "could not persist filled order");
         try {
@@ -55,6 +59,20 @@ function startLimitWatcher(deps, pollMs = 8000) {
         }
         onEvent({ type: "FILLED", order, price, sig });
       } catch (e) {
+        // Only mark the order failed when NOTHING was signed. If signAndSend succeeded and
+        // finishOrder then threw, the buy already settled on chain — recording it as failed
+        // would be a lie, and retrying it would spend the user's SOL twice.
+        //
+        // The order is deliberately left at status 'processing'. worker_claim_limit_order
+        // claims only `where status = 'open'`, so it can never be picked up again: the
+        // failure mode is a stuck order, not a duplicate trade. Stuck is recoverable by a
+        // human; a second unattended buy is not.
+        //
+        // DO NOT ADD A REAPER THAT RESETS 'processing' TO 'open' ON AGE ALONE. Age cannot
+        // distinguish "signed and settled but not recorded" from "never signed", and the
+        // first case re-executes a real purchase. Any requeue must first confirm on chain
+        // that no transaction landed for that order — the claim also already consumed the
+        // wallet's daily automation cap, which a blind requeue would double-count too.
         if (!sig) {
           try { await finishOrder(order.id, claimed.claim_token, "failed", null, e.message); }
           catch (finishError) { onEvent({ type: "FINISH_ERROR", order, error: finishError.message }); }

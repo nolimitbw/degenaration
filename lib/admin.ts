@@ -50,12 +50,20 @@ export async function adminFetchJson<T>(
   email?: string | null,
   init?: RequestInit
 ): Promise<{ ok: true; status: number; data: T } | { ok: false; status: number; data: any; error: string }> {
-  const headers = await adminHeaders(getAccessToken, identityToken, email);
-  const response = await fetch(url, {
-    cache: "no-store",
-    ...init,
-    headers: { ...headers, ...(init?.headers || {}) }
-  }).catch(() => null);
+  const request = async () => {
+    const headers = await adminHeaders(getAccessToken, identityToken, email);
+    return fetch(url, {
+      cache: "no-store",
+      credentials: "same-origin",
+      ...init,
+      headers: { ...headers, ...(init?.headers || {}) }
+    }).catch(() => null);
+  };
+  let response = await request();
+  if (response?.status === 401) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    response = await request();
+  }
   if (!response) return { ok: false, status: 0, data: null, error: "request failed" };
   const data = await response.json().catch(() => null);
   if (!response.ok || data?.error) {

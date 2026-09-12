@@ -23,12 +23,53 @@ export type ProductBot = {
   sampleSize?: number;
   netPnlLamports?: number | string | null;
   volumeLamports?: number | string | null;
+  networkFeesLamports?: number | string | null;
+  platformFeesLamports?: number | string | null;
+  creatorFeesLamports?: number | string | null;
   openTrades?: number;
   followers?: number;
   created_at?: string;
   updated_at?: string;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type BotActivitySignal = {
+  id: string;
+  status: string;
+  parseStatus: string;
+  mint: string | null;
+  confidenceBps: number | null;
+  reason: string | null;
+  sourceType: string;
+  sourceRef: string;
+  receivedAt: string;
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+export type BotActivityExecution = {
+  id: string;
+  intentKind: string;
+  side: string;
+  mint: string;
+  state: string;
+  executionMode: string;
+  requestedInputBaseUnits: string;
+  executionStatus: string | null;
+  attempt: number | null;
+  txSignature: string | null;
+  grossNotionalLamports: string | null;
+  networkFeeLamports: string | null;
+  priorityFeeLamports: string | null;
+  platformFeeLamports: string | null;
+  creatorFeeLamports: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  submittedAt: string | null;
+  confirmedAt: string | null;
+  reconciledAt: string | null;
 };
 
 export type DiscordSource = {
@@ -39,6 +80,17 @@ export type DiscordSource = {
   bannerUrl: string | null;
   description: string;
   ownerDisplayName: string | null;
+  /**
+   * Whether a verified account is actually linked to this source, i.e. `owner_privy_user_id`
+   * resolves — NOT whether a name is on screen. `ownerDisplayName` is synced from Discord and
+   * is present whether or not anyone has claimed the server, so it cannot answer this.
+   *
+   * It decides whether the creator commission is real. `settle_execution_into_ledger` reads a
+   * null owner and sets the creator share to zero, keeping the whole platform fee, without
+   * raising. Both approved sources are in exactly that state today, so the card must not
+   * advertise a 0.70% payment that settlement will never make.
+   */
+  creatorPayable: boolean;
   joinUrl: string | null;
   publicSlug: string | null;
   referralCode: string | null;
@@ -47,22 +99,99 @@ export type DiscordSource = {
   marketplaceVisible: boolean;
   integrationHealth: "pending" | "healthy" | "degraded" | "unavailable";
   eligibleCalls: number;
+  acceptedCalls?: number;
+  rejectedCalls?: number;
+  totalCalls?: number;
+  duplicateSignals?: number;
+  retractedCalls?: number;
+  activeMonitoring?: number;
+  executedCalls?: number;
   measuredCalls: number;
+  // Peak-multiple ladder, lowest first. Exclusive: a measured call is in exactly one.
+  // `down50` — peak never reached 0.5x, so entry was never half recovered. This is a PEAK
+  // bucket and part of the five-way partition; it is NOT the answer to "how many are down 50%".
+  down50?: number;
+  // How many accepted calls are currently below half their call price. Overlaps the peak
+  // buckets on purpose: a call can have reached 2x and be underwater by half today.
+  currentlyDown50?: number;
   under50: number;
   plus50: number;
   twoX: number;
   fiveX: number;
+  down50Hits?: number;
+  plus50Hits?: number;
+  twoXHits?: number;
+  fiveXHits?: number;
+  milestoneHistoryComplete?: boolean;
+  down50Rate?: number | null;
+  plus50Rate?: number | null;
+  twoXHitRate?: number | null;
+  fiveXHitRate?: number | null;
+  medianCurrentReturnBps?: number | null;
+  medianPeakReturnBps?: number | null;
+  averagePeakReturnBps?: number | null;
+  performanceProvider?: string | null;
+  // PEAK multiples: the best each call ever traded. Every figure on this line is best-case
+  // by construction, which is why the current-return pair below exists and why no surface
+  // may label either family simply "return".
   averageReturnX: number | null;
   medianReturnX: number | null;
+  // CURRENT multiples: where those same calls are now. A source whose calls all round-tripped
+  // reads 2.00x on the peak figures and below 1.00x here. `measuredCurrent` has its own
+  // denominator because a call can have a peak and no current price once its pair stops
+  // resolving, and folding those in would quietly drop dead tokens out of the average.
+  measuredCurrent?: number;
+  averageCurrentX?: number | null;
+  medianCurrentX?: number | null;
+  currentWinRate?: number | null;
+  // Two distinct milestones. `winRate` is the share that reached +50%; `twoXRate` is the
+  // share that doubled. Any peak above entry is not a hit: that definition turns ordinary
+  // quote noise into a public win and materially overstates source quality.
   winRate: number | null;
+  twoXRate?: number | null;
+  bestCall?: DiscordSourceCall | null;
+  worstCall?: DiscordSourceCall | null;
+  recentCalls?: DiscordSourceJournalCall[];
+  copiedExecutions?: number;
+  /** Integer lamports as a string; confirmed executed notional attributed to this source. */
+  copiedVolumeLamports?: string | null;
   maxDrawdownBps: number | null;
+  performance1d?: DiscordSourcePerformance | null;
+  performance7d?: DiscordSourcePerformance | null;
+  performance30d?: DiscordSourcePerformance | null;
   activeFollowers: number;
   channels: Array<{ id: string; name: string | null }>;
   dataFreshnessAt: string | null;
   lastSignalAt: string | null;
+  lastProcessedCallAt?: string | null;
+  lastSuccessfulExecutionAt?: string | null;
   profileSyncedAt: string | null;
   lastVerifiedAt: string | null;
   approvedAt: string | null;
+};
+
+export type DiscordSourcePerformance = {
+  sampleSize: number;
+  netPnlLamports: number | string | null;
+  asOf: string;
+};
+
+export type DiscordSourceCall = {
+  mint: string | null;
+  symbol: string | null;
+  peakX: number | string | null;
+  calledAt: string | null;
+};
+
+export type DiscordSourceJournalCall = {
+  id: string;
+  mint: string | null;
+  symbol: string | null;
+  calledAt: string;
+  peakX: number | string | null;
+  currentX: number | string | null;
+  dataUpdatedAt: string | null;
+  measurementStatus: "measured" | "tracking";
 };
 
 export type KolStrategy = {
@@ -109,17 +238,26 @@ async function parseResponse<T>(response: Response | null): Promise<T> {
 }
 
 export async function productFetch<T>(url: string, auth?: AuthOptions, init?: RequestInit): Promise<T> {
-  const accessToken = auth ? await auth.getAccessToken() : null;
-  const response = await fetch(url, {
-    cache: "no-store",
-    ...init,
-    headers: {
-      ...(init?.body ? { "content-type": "application/json" } : {}),
-      ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
-      ...(auth?.identityToken ? { "privy-id-token": auth.identityToken } : {}),
-      ...(init?.headers || {})
-    }
-  }).catch(() => null);
+  const request = async () => {
+    const accessToken = auth ? await auth.getAccessToken() : null;
+    return fetch(url, {
+      cache: "no-store",
+      credentials: "same-origin",
+      ...init,
+      headers: {
+        ...(init?.body ? { "content-type": "application/json" } : {}),
+        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+        ...(auth?.identityToken ? { "privy-id-token": auth.identityToken } : {}),
+        ...(init?.headers || {})
+      }
+    }).catch(() => null);
+  };
+
+  let response = await request();
+  if (auth && response?.status === 401) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    response = await request();
+  }
   return parseResponse<T>(response);
 }
 

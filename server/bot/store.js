@@ -9,29 +9,45 @@ const BOT_SECRET = process.env.BOT_SHARED_SECRET;
 const REGISTER_URL = process.env.BOT_REGISTER_URL || (SITE_URL ? `${SITE_URL}/api/bot/register-channel` : "");
 const APPROVED_URL = process.env.BOT_APPROVED_CHANNELS_URL || (SITE_URL ? `${SITE_URL}/api/bot/approved-channels` : "");
 const STATUS_URL = process.env.BOT_GUILD_STATUS_URL || (SITE_URL ? `${SITE_URL}/api/bot/guild-status` : "");
+const PROFILE_URL = process.env.BOT_SYNC_PROFILE_URL || (SITE_URL ? `${SITE_URL}/api/bot/sync-source-profile` : "");
+const OWNER_LINK_URL = process.env.BOT_OWNER_LINK_URL || (SITE_URL ? `${SITE_URL}/api/bot/create-owner-link` : "");
 
 function H(extra) {
   return { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json", ...extra };
 }
 
-// { channelId: { groupId, groupName } } for every APPROVED call channel.
+/**
+ * `{ channelId: { groupId, groupName, guildId } }` for every ACTIVE approved call channel.
+ *
+ * `guildId` is carried so the listener can check the guild/channel PAIR before forwarding.
+ * Channel snowflakes are globally unique, so the pair check is not about a collision — it is
+ * about the registration being stale. `source_ref` is built from the registered guild, and
+ * every downstream projection keys on it, so a wrong guild attributes calls to the wrong
+ * source with nothing able to notice.
+ *
+ * THE FALLBACK IS GONE, DELIBERATELY. It queried
+ *
+ *     call_channels?status=eq.approved
+ *
+ * which checks strictly LESS than the bridge: no `removed_at`, and no join to approved_groups
+ * at all, so a suspended or removed source stayed in the map. A bridge outage therefore WIDENED
+ * what the listener watched — the one direction an outage must never move authorization. The
+ * caller keeps its last known good map instead, which can only ever be narrower or equal.
+ */
 async function loadApprovedChannels() {
-  if (APPROVED_URL && BOT_SECRET) {
-    const r = await fetch(APPROVED_URL, { headers: { "x-bot-secret": BOT_SECRET } });
-    if (r.ok) {
-      const data = await r.json();
-      const map = {};
-      for (const c of data?.channels || []) map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name };
-      return map;
-    }
-    console.error(`[bot] approved channel bridge failed (${r.status}); falling back to Supabase`);
-  }
-  if (!SB || !KEY) throw new Error("approved channel query not configured");
-  const r = await fetch(`${SB}/rest/v1/call_channels?status=eq.approved&select=channel_id,group_id,guild_name`, { headers: H() });
+  if (!APPROVED_URL || !BOT_SECRET) throw new Error("approved channel bridge not configured");
+  const r = await fetch(APPROVED_URL, { headers: { "x-bot-secret": BOT_SECRET } });
   if (!r.ok) throw new Error(`approved channel query failed (${r.status})`);
-  const rows = await r.json();
+  const data = await r.json();
   const map = {};
-  for (const c of rows || []) map[c.channel_id] = { groupId: c.group_id, groupName: c.guild_name };
+  for (const c of data?.channels || []) {
+    map[c.channel_id] = {
+      groupId: c.group_id,
+      groupName: c.guild_name,
+      guildId: c.guild_id,
+      scannerAcknowledgmentsEnabled: c.scanner_acknowledgments_enabled !== false
+    };
+  }
   return map;
 }
 
@@ -75,4 +91,89 @@ async function getGuildStatus(guildId) {
   return response.json();
 }
 
-module.exports = { loadApprovedChannels, registerChannel, getGuildStatus };
+/**
+ * Push a guild's public profile to the marketplace.
+ *
+ * WHY THIS IS HERE. The marketplace card is required to show the real Discord server avatar
+ * rather than generated cover art, and `approved_groups.avatar_url` is where it comes from.
+ * This listener never wrote it — only the legacy `degencalls` service did, 56 successful syncs
+ * — so retiring that service would have frozen every source's avatar, name and member count at
+ * whatever they were on the day it stopped, with nothing raising. The retirement plan recorded
+ * that dependency and it was the one duty still uncovered.
+ *
+ * Everything sent is already public: the guild's name, icon, banner, description, member count
+ * and owner display name are visible to anyone who can see the server. No message content, no
+ * member list, no invite.
+ */
+async function syncSourceProfile(guild, { botPresent = true } = {}) {
+  if (!PROFILE_URL || !BOT_SECRET) throw new Error("source profile bridge not configured");
+  const owner = await guild.fetchOwner?.().catch(() => null);
+  const response = await fetch(PROFILE_URL, {
+    method: "POST",
+    headers: { "x-bot-secret": BOT_SECRET, "content-type": "application/json" },
+    body: JSON.stringify({
+      guild_id: guild.id,
+      guild_name: guild.name ?? null,
+      guild_member_count: guild.memberCount ?? null,
+      // iconURL/bannerURL return null when the guild has none, which the route accepts. Asking
+      // for png keeps the value stable — the default format varies with whether the icon is
+      // animated, and a URL that changes shape on every sync defeats the route's validation.
+      avatar_url: guild.iconURL?.({ size: 256, extension: "png" }) ?? null,
+      banner_url: guild.bannerURL?.({ size: 1024, extension: "png" }) ?? null,
+      description: guild.description ?? null,
+      owner_display_name: owner?.displayName || owner?.user?.username || null,
+      bot_present: botPresent
+    })
+  });
+  if (!response.ok) throw new Error(`source profile sync failed (${response.status})`);
+  return response.json().catch(() => ({}));
+}
+
+async function createOwnerLink({ guildId, discordUserId, discordUsername }) {
+  if (!OWNER_LINK_URL || !BOT_SECRET) throw new Error("owner link bridge not configured");
+  const response = await fetch(OWNER_LINK_URL, {
+    method: "POST",
+    headers: { "x-bot-secret": BOT_SECRET, "content-type": "application/json" },
+    body: JSON.stringify({
+      guild_id: guildId,
+      discord_user_id: discordUserId,
+      discord_username: discordUsername,
+      manage_guild_verified: true
+    })
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data?.ok === false) throw new Error(data?.error || `owner link creation failed (${response.status})`);
+  return data;
+}
+
+async function rpc(name, body) {
+  if (!SB || !KEY || !BOT_SECRET) throw new Error("history backfill store not configured");
+  const response = await fetch(`${SB}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: H(),
+    body: JSON.stringify({ p_secret: BOT_SECRET, ...body })
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.message || `${name} failed (${response.status})`);
+  return data;
+}
+
+async function getHistoryBackfillState(channelId) {
+  return rpc("bot_discord_backfill_state", { p_channel_id: channelId });
+}
+
+async function saveHistoryBackfillState(channelId, state) {
+  return rpc("bot_update_discord_backfill_state", {
+    p_channel_id: channelId,
+    p_newest_message_id: state.newestMessageId || null,
+    p_oldest_message_id: state.oldestMessageId || null,
+    p_completed: Boolean(state.completed),
+    p_messages_scanned: Number(state.messagesScanned || 0),
+    p_last_error: state.lastError || null
+  });
+}
+
+module.exports = {
+  loadApprovedChannels, registerChannel, getGuildStatus, syncSourceProfile, createOwnerLink,
+  getHistoryBackfillState, saveHistoryBackfillState
+};

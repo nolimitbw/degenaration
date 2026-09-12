@@ -1,6 +1,7 @@
+/** Network metadata only. Runtime authority lives in automationReadiness(), which reads the
+ * current worker lease, signer, scanner, fee account, audited flags and reconciliation state.
+ * A compile-time boolean cannot truthfully describe an operational capability. */
 export const AUTOMATED_MAINNET_RELEASE = Object.freeze({
-  enabled: false,
   network: "solana-mainnet" as const,
-  label: "Solana Mainnet",
-  reason: "Automated activation is locked until execution, exit management, and reconciliation pass controlled release review."
+  label: "Solana Mainnet"
 });

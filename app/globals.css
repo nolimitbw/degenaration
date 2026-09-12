@@ -9,8 +9,8 @@
   --panel-rgb: 21 22 23;
   --edge: #2b2a28;
   --edge-rgb: 43 42 40;
-  --toxic: #c29463;
-  --toxic-rgb: 194 148 99;
+  --gold-hex: #c29463;
+  --gold-rgb: 194 148 99;
   --hotpink: #d56f6f;
   --hotpink-rgb: 213 111 111;
   --cyber: #d2ad80;
@@ -29,8 +29,67 @@
   --brand-rgb: 194 148 99;
   --brand-dim: rgba(194, 148, 99, 0.5);
   --grape-rgb: 194 148 99;
-  --shadow-toxic: 0 0 0 1px rgba(194,148,99,0.26), 0 10px 24px -14px rgba(194,148,99,0.38);
+  --shadow-gold: 0 0 0 1px rgba(194,148,99,0.26), 0 10px 24px -14px rgba(194,148,99,0.38);
   --shadow-pink: 0 0 0 1px rgba(213,111,111,0.25), 0 10px 24px -14px rgba(213,111,111,0.34);
+
+  /* Semantic token layer (spec §5.2).
+     The `--gold-hex` / `--hotpink` / `--cyber` variables above are named for a retired neon
+     palette but hold warm values. Their Tailwind aliases have been removed; components
+     now use the semantic names below. The raw CSS variables remain only because internal
+     utilities (.grid-bg, .gradient-text, focus rings) still reference them. */
+  --canvas: #0d0e0f;
+  --canvas-elevated: #111213;
+  --surface-1: #151617;
+  --surface-2: #1a1917;
+  --surface-3: #201e1a;
+  --surface-hover: #262320;
+
+  --border-subtle: rgba(194, 148, 99, 0.10);
+  --border-default: rgba(194, 148, 99, 0.16);
+  --border-strong: rgba(194, 148, 99, 0.30);
+
+  --gold-100: #f7ead6;
+  --gold-200: #e8cfa9;
+  --gold-300: #d9b487;
+  --gold-400: #c29463;
+  --gold-500: #a2784b;
+  --gold-600: #7d5c39;
+
+  /* Channel-only forms so Tailwind can apply opacity modifiers (bg-gold-400/10).
+     A hex var cannot take `/10`, so the semantic scale needs both shapes. */
+  --gold-300-rgb: 217 180 135;
+  --gold-400-rgb: 194 148 99;
+  --gold-500-rgb: 162 120 75;
+  --success-rgb: 85 185 135;
+  --danger-rgb: 213 111 111;
+  --warning-rgb: 217 180 135;
+  --info-rgb: 210 173 128;
+
+  /* Three text tones, not five.
+     The old scale ran primary/secondary/muted/disabled/dim — close enough together that
+     nothing on a screen read as more important than anything else, which is why every
+     surface felt flat regardless of its layout. Three tones with real distance between
+     them let weight do the work: say it, support it, or stand down. */
+  --text-primary: #f4f1ec;
+  --text-secondary: #a09a91;
+  --text-muted: #6f6a63;
+  --text-disabled: #4d4943;
+
+  /* Hairline rules replace panel borders as the default structural device. A ledger rules
+     its columns; it does not draw a box around every entry. */
+  --rule: rgba(240, 233, 222, 0.09);
+  --rule-strong: rgba(240, 233, 222, 0.16);
+
+  --success: #55b987;
+  --success-muted: rgba(85, 185, 135, 0.12);
+  --danger: #d56f6f;
+  --danger-muted: rgba(213, 111, 111, 0.12);
+  --warning: #d9b487;
+  --info: #d2ad80;
+
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.28);
+  --shadow-focus: 0 0 0 3px rgba(194, 148, 99, 0.16);
+
   color-scheme: dark;
 }
 
@@ -42,8 +101,8 @@
     --panel-rgb: 21 22 23;
     --edge: #2b2a28;
     --edge-rgb: 43 42 40;
-    --toxic: #c29463;
-    --toxic-rgb: 194 148 99;
+    --gold-hex: #c29463;
+    --gold-rgb: 194 148 99;
     --hotpink: #d56f6f;
     --hotpink-rgb: 213 111 111;
     --cyber: #d2ad80;
@@ -62,7 +121,7 @@
     --brand-rgb: 194 148 99;
     --brand-dim: rgba(194, 148, 99, 0.5);
     --grape-rgb: 194 148 99;
-    --shadow-toxic: 0 0 0 1px rgba(194,148,99,0.26), 0 10px 24px -14px rgba(194,148,99,0.38);
+    --shadow-gold: 0 0 0 1px rgba(194,148,99,0.26), 0 10px 24px -14px rgba(194,148,99,0.38);
     --shadow-pink: 0 0 0 1px rgba(213,111,111,0.25), 0 10px 24px -14px rgba(213,111,111,0.34);
     color-scheme: dark;
   }
@@ -70,8 +129,16 @@
 
 html { scroll-behavior: smooth; }
 
+/* The canvas colour lives on html so there is never a flash before paint. body is
+   transparent so the fixed DegenBackdrop (z-index -10) shows through it. body keeps
+   position: relative but no z-index, so it does not create a stacking context and the
+   negative-z backdrop still resolves against the root. */
+html {
+  background: var(--canvas);
+}
+
 body {
-  background: var(--void);
+  background: transparent;
   color: var(--ink);
   overflow-x: hidden;
   position: relative;
@@ -104,15 +171,123 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Text roles.
+
+   The single strongest signal that this interface was generated rather than
+   designed was one habit repeated 94 times across 33 files: every caption,
+   field label, nav heading, table header, page eyebrow, status pill and footer
+   was set in 9px uppercase monospace with wide tracking. Real products spend
+   that treatment once, on the one thing it suits. Spending it everywhere makes
+   every label shout at the same volume, so none of them carry meaning.
+
+   Four roles, each with exactly one job:
+     .ui-label   naming a value          — sentence case, quiet, gets out of the way
+     .ui-figure  a number worth reading  — tabular, sized up, the reason for the screen
+     .ui-code    a machine string        — mono ONLY here: address, signature, mint, id
+     .ui-absent  a value we do not have  — an em dash, never a zero
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* The defaults sit inside :where() so they carry zero specificity. A caller that keeps an
+   explicit `text-gold-400` or `text-[13px]` beside `ui-label` is making a deliberate
+   exception, and the utility must still win — otherwise this class would silently repaint
+   every label it was applied to. */
+:where(.ui-label) {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+}
+.ui-label {
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  font-family: var(--font-display), sans-serif;
+}
+
+.ui-figure {
+  font-feature-settings: "tnum" 1, "cv01" 1;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ONE type scale.
+
+   The audit counted 18 distinct sizes in use, across two competing systems: the
+   Tailwind names (text-xs ×300, text-sm ×227, base, lg, xl, 2xl, 3xl) and pixel
+   literals added on top of them (text-[12px] ×194, [11px] ×95, [13px], [14px],
+   [15px], [17px], [22px], [25px], [10px] ×22, [9px] ×7, [8px] ×2). Two scales is
+   worse than one bad scale, because now nothing can be reasoned about.
+
+   Six steps. Each has a job, and a size only exists because a job needed it.
+   Product code uses these; raw `text-[Npx]` is the thing being retired.
+   ───────────────────────────────────────────────────────────────────────────── */
+.t-display { font-size: 34px; line-height: 1.08; letter-spacing: -0.022em; font-weight: 600; }
+.t-title   { font-size: 22px; line-height: 1.2;  letter-spacing: -0.016em; font-weight: 500; }
+.t-section { font-size: 17px; line-height: 1.35; letter-spacing: -0.01em;  font-weight: 500; }
+.t-body    { font-size: 14px; line-height: 1.5; }
+.t-meta    { font-size: 13px; line-height: 1.45; }
+.t-label   { font-size: 12px; line-height: 1.35; }
+
+@media (max-width: 640px) {
+  .t-display { font-size: 27px; }
+  .t-title   { font-size: 20px; }
+}
+
+/* Figures get their own two steps — a balance should be readable across a desk. */
+.t-figure-lg { font-size: 25px; line-height: 1.05; }
+.t-figure    { font-size: 15px; line-height: 1.2; }
+
+/* Monospace means "compare this character by character". Nothing else earns it. */
+:where(.ui-code) {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.ui-code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* An unknown value is not zero and must never look like one. It is also not `--`, which
+   reads as a rendering failure rather than an honest absence.
+   Set smaller than the figure it stands in for: at full size an em dash in a grotesque is
+   nearly a rule, and a column of them looked like strikethrough. */
+.ui-absent {
+  color: var(--text-disabled);
+  font-size: 0.72em;
+  vertical-align: 0.12em;
+}
+
+/* The ledger rail: figures on the canvas, separated by rules, no card chrome.
+   Number first at reading size, its name underneath. */
+.rail {
+  display: grid;
+  /* Wrapped rows need real separation: at 4px the label of row one sat against the figure of
+     row two and the band read as one column of alternating sizes. */
+  gap: 22px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 16px 0 18px;
+}
+/* Vertical rules only once the band is a single row. Below that the grid wraps, and a
+   left border on every child but the first puts a rule down the middle of row two — a
+   divider that separates nothing. Wrapped rows are separated by space instead. */
+@media (min-width: 1280px) {
+  .rail { gap: 0; }
+  .rail > * { padding-left: 22px; padding-right: 22px; border-left: 1px solid var(--rule); }
+  .rail > *:first-child { padding-left: 0; border-left: 0; }
+  .rail > *:last-child { padding-right: 0; }
+}
+
 .field-label {
   display: block;
-  color: rgb(var(--dim-rgb));
-  font-family: var(--font-mono), monospace;
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.4;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
   letter-spacing: 0;
-  text-transform: uppercase;
 }
 
 .field-control {
@@ -131,9 +306,9 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .field-control:focus,
 .field-control:focus-within {
-  border-color: rgb(var(--toxic-rgb));
+  border-color: rgb(var(--gold-rgb));
   outline: none;
-  box-shadow: 0 0 0 3px rgb(var(--toxic-rgb) / 0.12);
+  box-shadow: 0 0 0 3px rgb(var(--gold-rgb) / 0.12);
 }
 
 .field-control::placeholder,
@@ -150,8 +325,8 @@ input[type="number"]::-webkit-outer-spin-button {
   --panel-rgb: 21 22 23;
   --edge: #2b2a28;
   --edge-rgb: 43 42 40;
-  --toxic: #b98b5d;
-  --toxic-rgb: 185 139 93;
+  --gold-hex: #b98b5d;
+  --gold-rgb: 185 139 93;
   --hotpink: #dd6b6b;
   --hotpink-rgb: 221 107 107;
   --cyber: #d0aa7c;
@@ -165,12 +340,21 @@ input[type="number"]::-webkit-outer-spin-button {
   --brand: #b98b5d;
   --brand-rgb: 185 139 93;
   --grape-rgb: 185 139 93;
-  --shadow-toxic: 0 0 0 1px rgb(var(--toxic-rgb) / 0.22), 0 8px 20px -12px rgb(var(--toxic-rgb) / 0.32);
+  --shadow-gold: 0 0 0 1px rgb(var(--gold-rgb) / 0.22), 0 8px 20px -12px rgb(var(--gold-rgb) / 0.32);
   --shadow-pink: 0 0 0 1px rgb(var(--hotpink-rgb) / 0.22), 0 8px 20px -12px rgb(var(--hotpink-rgb) / 0.3);
+  /* Semantic channel vars must track the shell-scoped palette above, otherwise the
+     workspace would render the :root gold instead of this slightly deeper one. */
+  --gold-300-rgb: 208 170 124;
+  --gold-400-rgb: 185 139 93;
+  --gold-500-rgb: 155 114 74;
+  --success-rgb: 75 187 131;
+  --danger-rgb: 221 107 107;
+  --warning-rgb: 208 170 124;
+  --info-rgb: 208 170 124;
   color-scheme: dark;
+  /* No grid. This 32px one was the grid still showing on every dashboard page after the
+     backdrop's was removed — the shell painted its own, so removing one left the other. */
   background: var(--void);
-  background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
-  background-size: 32px 32px;
   color: var(--ink);
 }
 
@@ -181,38 +365,141 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .app-shell ::selection {
-  background: rgb(var(--toxic-rgb) / 0.75);
+  background: rgb(var(--gold-rgb) / 0.75);
   color: #17110c;
 }
 
+/* Theme preference is resolved before paint by app/layout.tsx. Components continue to use
+   the same semantic and legacy Tailwind aliases, so light and dark are one UI rather than two
+   diverging component trees. */
+html[data-theme="light"] {
+  --void: #f5f6f4;
+  --void-rgb: 245 246 244;
+  --panel: #ffffff;
+  --panel-rgb: 255 255 255;
+  --edge: #d9dcd7;
+  --edge-rgb: 217 220 215;
+  --gold-hex: #895a2f;
+  --gold-rgb: 137 90 47;
+  --brand: #895a2f;
+  --brand-rgb: 137 90 47;
+  --hotpink: #b44848;
+  --hotpink-rgb: 180 72 72;
+  --cyber: #8a6540;
+  --cyber-rgb: 138 101 64;
+  --up: #237650;
+  --up-rgb: 35 118 80;
+  --dim: #686d66;
+  --dim-rgb: 104 109 102;
+  --ink: #171a17;
+  --ink-rgb: 23 26 23;
+  --ember: #171a17;
+  --ember-rgb: 23 26 23;
+  --haze: #434843;
+  --haze-rgb: 67 72 67;
+  --canvas: #f5f6f4;
+  --canvas-elevated: #eef0ed;
+  --surface-1: #ffffff;
+  --surface-2: #f8f9f7;
+  --surface-3: #eff1ee;
+  --surface-hover: #e8ebe7;
+  --border-subtle: rgba(23, 26, 23, 0.08);
+  --border-default: rgba(23, 26, 23, 0.14);
+  --border-strong: rgba(137, 90, 47, 0.36);
+  --gold-100: #4d2f17;
+  --gold-200: #68401f;
+  --gold-300: #79502a;
+  --gold-400: #895a2f;
+  --gold-500: #704723;
+  --gold-600: #573619;
+  --gold-300-rgb: 121 80 42;
+  --gold-400-rgb: 137 90 47;
+  --gold-500-rgb: 112 71 35;
+  --success-rgb: 35 118 80;
+  --danger-rgb: 180 72 72;
+  --warning-rgb: 137 90 47;
+  --info-rgb: 79 99 111;
+  --text-primary: #171a17;
+  --text-secondary: #434843;
+  --text-muted: #686d66;
+  --text-disabled: #92968f;
+  --success: #237650;
+  --success-muted: rgba(35, 118, 80, 0.10);
+  --danger: #b44848;
+  --danger-muted: rgba(180, 72, 72, 0.10);
+  --warning: #895a2f;
+  --info: #4f636f;
+  --shadow-panel: 0 14px 36px rgba(33, 38, 33, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(137, 90, 47, 0.14);
+  color-scheme: light;
+}
+
+html[data-theme="light"] .app-shell {
+  --void: #f5f6f4;
+  --void-rgb: 245 246 244;
+  --panel: #ffffff;
+  --panel-rgb: 255 255 255;
+  --edge: #d9dcd7;
+  --edge-rgb: 217 220 215;
+  --gold-hex: #895a2f;
+  --gold-rgb: 137 90 47;
+  --brand: #895a2f;
+  --brand-rgb: 137 90 47;
+  --hotpink: #b44848;
+  --hotpink-rgb: 180 72 72;
+  --cyber: #8a6540;
+  --cyber-rgb: 138 101 64;
+  --up: #237650;
+  --up-rgb: 35 118 80;
+  --dim: #686d66;
+  --dim-rgb: 104 109 102;
+  --ink: #171a17;
+  --ink-rgb: 23 26 23;
+  --gold-300-rgb: 121 80 42;
+  --gold-400-rgb: 137 90 47;
+  --gold-500-rgb: 112 71 35;
+  --success-rgb: 35 118 80;
+  --danger-rgb: 180 72 72;
+  --warning-rgb: 137 90 47;
+  --info-rgb: 79 99 111;
+  color-scheme: light;
+}
+
+html[data-theme="light"] .degen-backdrop svg,
+html[data-theme="light"] .degen-backdrop .backdrop-vignette { opacity: 0; }
+
+.app-sidebar {
+  background: rgb(var(--panel-rgb) / 0.98);
+  box-shadow: 18px 0 48px -42px rgba(0, 0, 0, 0.65);
+}
+
+/* A plain hairline. The gradient that faded gold into the edge colour was decoration on a
+   structural divider — it drew the eye to the boundary rather than to the content. */
+.app-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 1px;
+  background: var(--rule);
+}
+
+/* The truthful automation notice is 60px at desktop sizes. When it is present in flow, keep
+   the sticky rail inside the remaining viewport; when dismissed, the selector disappears and
+   Tailwind's h-screen applies again. */
+@media (min-width: 1024px) {
+  .release-banner ~ .app-shell .app-sidebar { height: calc(100vh - 60px); }
+}
+
 :where(a, button, input, select, textarea):focus-visible {
-  outline: 2px solid rgb(var(--toxic-rgb));
+  outline: 2px solid rgb(var(--gold-rgb));
   outline-offset: 2px;
 }
 
 .grid-bg {
-  background-image:
-    linear-gradient(rgb(var(--toxic-rgb) / 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--toxic-rgb) / 0.06) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
+  background: transparent;
 }
 
-.text-glow-toxic { text-shadow: 0 0 18px rgb(var(--toxic-rgb) / 0.45); }
-.text-glow-pink { text-shadow: 0 0 18px rgb(var(--hotpink-rgb) / 0.45); }
-
-.gradient-text {
-  background: linear-gradient(90deg, rgb(var(--ink-rgb)), rgb(var(--toxic-rgb)), rgb(var(--cyber-rgb)), rgb(var(--ink-rgb)));
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: gradient-pan 6s linear infinite;
-}
-@keyframes gradient-pan {
-  to { background-position: 300% 0; }
-}
+.text-glow-gold { text-shadow: 0 0 18px rgb(var(--gold-rgb) / 0.45); }
 
 .gradient-border {
   position: relative;
@@ -224,7 +511,7 @@ input[type="number"]::-webkit-outer-spin-button {
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(135deg, rgb(var(--toxic-rgb) / 0.55), rgb(var(--cyber-rgb) / 0.25), transparent 60%);
+  background: linear-gradient(135deg, rgb(var(--gold-rgb) / 0.55), rgb(var(--cyber-rgb) / 0.25), transparent 60%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -257,7 +544,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .flash-up { animation: flash-up 700ms ease-out; }
 .flash-down { animation: flash-down 700ms ease-out; }
 @keyframes flash-up {
-  0% { background-color: rgb(var(--toxic-rgb) / 0.4); }
+  0% { background-color: rgb(var(--gold-rgb) / 0.4); }
   100% { background-color: transparent; }
 }
 @keyframes flash-down {
@@ -265,7 +552,7 @@ input[type="number"]::-webkit-outer-spin-button {
   100% { background-color: transparent; }
 }
 
-::selection { background: rgb(var(--toxic-rgb) / 0.85); color: #ffffff; }
+::selection { background: rgb(var(--gold-rgb) / 0.85); color: #ffffff; }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -284,8 +571,8 @@ input[type="number"]::-webkit-outer-spin-button {
   --panel-rgb: 21 22 23;
   --edge: #2b2a28;
   --edge-rgb: 43 42 40;
-  --toxic: #b98b5d;
-  --toxic-rgb: 185 139 93;
+  --gold-hex: #b98b5d;
+  --gold-rgb: 185 139 93;
   --hotpink: #dd6b6b;
   --hotpink-rgb: 221 107 107;
   --up: #4bbb83;
@@ -301,29 +588,26 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--ink);
   overflow-x: clip;
   background: var(--void);
-  background-image: linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.012) 1px, transparent 1px);
-  background-size: 40px 40px;
 }
-.degen-home ::selection { background: rgb(var(--toxic-rgb) / 0.9); color: #17110c; }
+.degen-home ::selection { background: rgb(var(--gold-rgb) / 0.9); color: #17110c; }
 .degen-home .text-haze { color: var(--haze); }
 
-.home-hero { position: relative; }
-.home-hero::before {
-  content: "";
-  position: absolute;
-  inset: 6rem 0 auto;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(var(--toxic-rgb) / .48), transparent);
-}
-.home-chart-grid {
-  background-image: linear-gradient(rgb(var(--edge-rgb) / .5) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--edge-rgb) / .5) 1px, transparent 1px);
-  background-size: 48px 48px;
+.home-hero-title { font-size: clamp(3.6rem, 7.6vw, 7.8rem); line-height: .88; letter-spacing: -.065em; }
+.home-section-title {
+  font-size: clamp(2.15rem, 4.5vw, 4.6rem);
+  line-height: .98;
+  letter-spacing: -.045em;
 }
 .home-band { background: rgb(var(--panel-rgb) / .42); }
 .terminal-preview { border-radius: 6px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+@media (max-width: 639px) {
+  .home-hero-title { font-size: clamp(3.35rem, 17vw, 5rem); }
+  .home-section-title { font-size: clamp(2.35rem, 11vw, 3.6rem); }
 }
 
 /* Full-page launch art stays crisp without an enlarged, low-resolution video crop. */
@@ -472,11 +756,6 @@ input[type="number"]::-webkit-outer-spin-button {
   100% { transform: scale(1.16) rotate(8deg); opacity: 1; }
 }
 
-/* Reserve the accent for intentional emphasis, not a looping visual effect. */
-.cosmic-text {
-  color: #ff7799;
-}
-
 /* Dark utility surfaces preserve contrast over the launch art. */
 .glass-cosmic {
   background: rgba(10, 11, 16, 0.82);
@@ -500,11 +779,6 @@ input[type="number"]::-webkit-outer-spin-button {
   box-shadow: 0 22px 50px -34px rgba(0,0,0,0.95);
 }
 
-/* glow helpers */
-.glow-grape   { box-shadow: 0 0 0 1px rgb(var(--grape-rgb) / 0.4), 0 12px 40px -12px rgb(var(--grape-rgb) / 0.6); }
-.glow-magenta { box-shadow: 0 0 0 1px rgba(255,85,119,0.4), 0 12px 40px -12px rgba(255,85,119,0.55); }
-.text-glow-grape { text-shadow: 0 0 24px rgb(var(--grape-rgb) / 0.55); }
-
 /* Primary and secondary actions remain legible at a glance. */
 .btn-cosmic {
   position: relative;
@@ -515,7 +789,9 @@ input[type="number"]::-webkit-outer-spin-button {
   box-shadow: 0 10px 28px -14px rgb(var(--grape-rgb) / 0.6), 0 1px 0 0 rgba(255,255,255,0.25) inset;
   transition: background 180ms ease, box-shadow 180ms ease;
 }
-.btn-cosmic:hover { background: #e51b4b; box-shadow: 0 14px 32px -14px rgb(var(--grape-rgb) / 0.7); }
+/* Was `#e51b4b`, a crimson left over from a retired palette. A primary action that changes
+   hue on hover reads as a different button; it brightens within the brand instead. */
+.btn-cosmic:hover { background: rgb(var(--gold-rgb) / 0.88); box-shadow: 0 14px 32px -14px rgb(var(--grape-rgb) / 0.7); }
 .btn-ghost {
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -530,34 +806,29 @@ input[type="number"]::-webkit-outer-spin-button {
   outline-offset: 3px;
 }
 
-/* Stable two-tone wordmark. */
-.logo-de  { color: #ffffff; }
-.logo-gen { color: #ff2255; }
-
-.hero-kicker,
 .source-status {
-  border: 1px solid rgb(var(--grape-rgb) / 0.45);
-  background: rgb(var(--grape-rgb) / 0.08);
-  color: #ffb4c5;
-}
-.hero-proof { color: var(--haze); }
-.hero-proof div { display: flex; gap: 0.5rem; }
-.hero-proof dd { color: var(--ink); }
-.source-status {
+  border: 1px solid rgb(var(--gold-rgb) / 0.34);
+  background: rgb(var(--gold-rgb) / 0.07);
+  color: rgb(var(--gold-rgb));
   display: inline-flex;
-  padding: 0.2rem 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.6875rem;
 }
 .source-metrics {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.75rem 0;
-  font-family: var(--font-mono);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 0.85rem 0;
 }
-.source-metrics dt { color: var(--haze); font-size: 0.625rem; text-transform: uppercase; }
-.source-metrics dd { margin-top: 0.2rem; color: var(--ink); font-size: 0.875rem; font-weight: 700; }
+.source-metrics dt { color: var(--text-secondary); font-size: 0.75rem; }
+.source-metrics dd {
+  margin-top: 0.25rem;
+  color: var(--ink);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
 .source-empty {
   border: 1px dashed rgba(255, 255, 255, 0.22);
   background: rgba(10, 11, 16, 0.6);
@@ -569,7 +840,7 @@ input[type="number"]::-webkit-outer-spin-button {
   place-items: center;
   border: 1px solid rgb(var(--grape-rgb) / 0.45);
   background: rgb(var(--grape-rgb) / 0.08);
-  color: #ffb4c5;
+  color: rgb(var(--gold-rgb));
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   font-weight: 700;
@@ -596,10 +867,194 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .terminal-hero {
   background:
-    linear-gradient(135deg, rgb(var(--toxic-rgb) / 0.08), transparent 42%),
+    linear-gradient(135deg, rgb(var(--gold-rgb) / 0.08), transparent 42%),
     rgb(var(--panel-rgb) / 0.95);
 }
 
 :is(.app-shell, .degen-home) .bg-toxic.text-white {
   color: #17110c;
+}
+
+/* ── Landing stage ──────────────────────────────────────────────────────────────────────
+   The inset hero viewport. Every layer here is painted rather than an image, so it stays
+   crisp on a 5K display and costs no network request — the reference look is entirely
+   gradients, a grid and four SVG paths.
+
+   The bloom is GOLD. The reference blooms mint and its dashboard accents purple; our
+   identity is black/gold/white, and the design guidance independently names "AI purple/pink
+   gradients" as the pattern to avoid on a fintech surface. */
+
+/* The card must read as an object sitting ON the page, which needs the page behind it to be
+   darker than the card. Both were the same token at first and the rounded corner was
+   invisible — the inset was there and did nothing. */
+/* The surround. In the reference the page BEHIND the card is not flat black — it carries a
+   soft light at two corners, which is what makes the near-black card read as an object lying
+   on a surface rather than as the page itself. Flat black was why the rounded corner did
+   nothing: there was nothing for it to be a corner against. */
+.degen-home {
+  background:
+    radial-gradient(60% 40% at 6% 2%, rgb(var(--gold-300-rgb) / 0.07), transparent 62%),
+    radial-gradient(50% 40% at 96% 96%, rgb(var(--ink-rgb) / 0.05), transparent 66%),
+    #060605;
+}
+
+.stage {
+  background: #080807;
+  min-height: min(92vh, 940px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 40px 120px rgb(0 0 0 / 0.7);
+}
+
+/* The inner panel — the layer I missed first time, and the one that makes the composition.
+   The reference nests a second rounded rectangle inside the card, below the nav, and the
+   bloom lives INSIDE it. Without it the light bleeds to the card edge and the whole frame
+   reads as one flat wash; with it the light is contained and the panel edge catches it. */
+.stage-panel {
+  position: absolute;
+  inset: 84px 14px 14px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--ink-rgb) / 0.07);
+  background: #0a0a09;
+}
+
+@media (min-width: 640px) {
+  .stage-panel { inset: 96px 22px 22px; border-radius: 26px; }
+}
+
+/* The diagonal light.
+ *
+ * Three overlapping radials, not one: a single ellipse reads as a spotlight with an obvious
+ * centre, while offset layers give the soft directional falloff the reference has. The first
+ * pass was built at ~0.20 alpha and was invisible on a real display — the bloom is the whole
+ * atmosphere of this design, so it carries real weight here.
+ *
+ * The white layer does most of the lifting and the gold tints it. Gold alone at this strength
+ * turns the corner amber and starts to look like a warning state rather than light.
+ */
+/**
+ * The light.
+ *
+ * This is the whole design, and my first two passes badly under-built it. In the reference the
+ * bloom covers roughly a third of the panel and its core is near-WHITE — bright enough that
+ * the closing word of the headline is legible only as a silhouette against it. Mine peaked
+ * around 0.34 alpha over a quarter of the frame, which reads as a smudge.
+ *
+ * Built as a bright core inside a much wider warm falloff, offset from each other. A single
+ * radial gives an obvious centre and a visible edge; offsetting a small hot core inside a
+ * large soft one is what produces directional light rather than a spotlight.
+ *
+ * White carries the brightness and gold tints it. Gold alone at this intensity turns the
+ * corner amber and starts reading as a warning state instead of light.
+ */
+.stage-bloom {
+  position: absolute;
+  inset: -10%;
+  z-index: 0;
+  background:
+    /* The sweep. An ellipse ROTATED across the frame, not a circle sitting in a corner —
+       this is the difference between light with a direction and a glowing blob, and the
+       blob is what made the first versions read as generated. */
+    linear-gradient(112deg,
+      transparent 34%,
+      rgb(var(--ink-rgb) / 0.07) 46%,
+      rgb(var(--ink-rgb) / 0.14) 56%,
+      rgb(var(--gold-300-rgb) / 0.10) 64%,
+      transparent 78%),
+    /* The hot spot. This carries the frame, so it is bright and TIGHT — spreading the same
+       light across the whole sweep produced an even haze, which reads as a filter over the
+       page rather than as a source shining onto it. Real light has somewhere it comes from. */
+    radial-gradient(20% 20% at 71% 23%, rgb(var(--ink-rgb) / 0.90), transparent 68%),
+    radial-gradient(30% 27% at 73% 21%, rgb(var(--ink-rgb) / 0.46), transparent 72%),
+    radial-gradient(42% 36% at 77% 17%, rgb(var(--gold-300-rgb) / 0.30), transparent 76%),
+    /* The dim answering light at the far corner, much weaker than the source. */
+    radial-gradient(50% 44% at 3% 99%, rgb(var(--ink-rgb) / 0.11), transparent 74%);
+  filter: blur(40px);
+}
+
+/* Starfield. The reference's dark quadrants are not empty — they carry a fine dust that keeps
+   the black from reading as a void. Three offset dot grids at different sizes so no repeat is
+   visible, masked away from the bloom where they would only muddy it. */
+.stage-stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    radial-gradient(1px 1px at 18% 24%, rgb(var(--ink-rgb) / 0.5), transparent),
+    radial-gradient(1px 1px at 62% 78%, rgb(var(--ink-rgb) / 0.4), transparent),
+    radial-gradient(1px 1px at 84% 62%, rgb(var(--ink-rgb) / 0.35), transparent),
+    radial-gradient(1px 1px at 32% 88%, rgb(var(--ink-rgb) / 0.45), transparent),
+    radial-gradient(1px 1px at 8% 58%, rgb(var(--ink-rgb) / 0.3), transparent);
+  background-size: 220px 190px, 310px 260px, 170px 230px, 260px 300px, 190px 210px;
+  mask-image: radial-gradient(70% 60% at 74% 20%, transparent 30%, #000 78%);
+  -webkit-mask-image: radial-gradient(70% 60% at 74% 20%, transparent 30%, #000 78%);
+}
+
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, rgb(var(--ink-rgb) / 0.028) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--ink-rgb) / 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+  /* Fades out before the edges so the grid never collides with the card's rounded corner. */
+  mask-image: radial-gradient(88% 78% at 50% 42%, #000 35%, transparent 78%);
+  -webkit-mask-image: radial-gradient(88% 78% at 50% 42%, #000 35%, transparent 78%);
+}
+
+/* The vertical light shafts under the headline. */
+/* The light shafts falling from the headline. Five of them at mixed brightness and uneven
+   spacing — evenly spaced identical lines read as a UI element rather than as light. */
+.stage-streaks {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 58%;
+  z-index: 0;
+  background-image:
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.42)),
+    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.30)),
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.55)),
+    linear-gradient(to bottom, transparent, rgb(var(--gold-300-rgb) / 0.22)),
+    linear-gradient(to bottom, transparent, rgb(var(--ink-rgb) / 0.28));
+  background-size: 1px 100%, 1px 100%, 1px 100%, 1px 100%, 1px 100%;
+  background-position: 43.5% bottom, 47% bottom, 50.5% bottom, 53% bottom, 57.5% bottom;
+  background-repeat: no-repeat;
+  mask-image: linear-gradient(to bottom, transparent 4%, #000 62%, transparent 96%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4%, #000 62%, transparent 96%);
+}
+
+/* The closing phrase falls into the background. background-clip:text needs a transparent
+   fill, which strips the text from forced-colors mode — so that mode gets the solid ink
+   colour back rather than an invisible headline. */
+.stage-display-fade {
+  background: linear-gradient(96deg, rgb(var(--ink-rgb)) 4%, rgb(var(--ink-rgb) / 0.34) 82%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (forced-colors: active) {
+  .stage-display-fade {
+    color: rgb(var(--ink-rgb));
+    -webkit-text-fill-color: rgb(var(--ink-rgb));
+  }
+}
+
+.stage-wire {
+  fill: none;
+  stroke: rgb(var(--ink-rgb) / 0.14);
+  stroke-width: 1;
+}
+
+/* The promoted card in the workspace card row. It reuses .stage-bloom, so it needs a base
+   that the bloom can sit on without the card reading as a different surface material from
+   the three data cards beside it — a tint and a stronger edge, not a gradient of its own. */
+.spotlight-cta {
+  background:
+    linear-gradient(160deg, rgb(var(--gold-rgb) / 0.10), transparent 62%),
+    var(--panel);
 }

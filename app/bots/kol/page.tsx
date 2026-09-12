@@ -43,7 +43,12 @@ export default function KolMarketplacePage() {
   const load = useCallback(() => {
     setStrategies(null);
     setError("");
-    productFetch<{ strategies: KolStrategy[] }>(`/api/product/marketplace/kol?period=${period}&sort=${sort}`)
+    // Bounded so a hung provider cannot leave the list loading forever (§16).
+    productFetch<{ strategies: KolStrategy[] }>(
+      `/api/product/marketplace/kol?period=${period}&sort=${sort}`,
+      undefined,
+      { signal: AbortSignal.timeout(15000) }
+    )
       .then((data) => setStrategies(data.strategies || []))
       .catch((reason) => {
         setStrategies([]);
@@ -61,11 +66,10 @@ export default function KolMarketplacePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / KOL"
-        title="KOL strategy marketplace"
-        description="Copy reviewed scanner strategies with immutable versions, net-of-fee performance, and risk controls you can only make stricter."
+        title="KOL Strategies"
+        description="Explore published strategies. Review the trading rules and measured history before subscribing."
         actions={
-          <Link href="/bots/kol/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
+          <Link href="/bots/kol/new" className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c]">
             <Bot aria-hidden="true" size={16} />
             Create KOL bot
           </Link>
@@ -85,14 +89,14 @@ export default function KolMarketplacePage() {
             { value: "3m", label: "3M" }
           ]}
         />
-        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-toxic">
+        <label className="flex min-h-11 sm:min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search strategies" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-dim/70" />
+          <input aria-label="Search KOL strategies" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search strategies" className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-dim/70" />
         </label>
-        <label className="flex min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 text-xs text-dim">
+        <label className="flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 t-label text-dim">
           <SlidersHorizontal aria-hidden="true" size={14} />
           <span className="sr-only">Sort strategies</span>
-          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="bg-transparent text-xs text-ink outline-none">
+          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="h-11 sm:h-auto bg-transparent t-label text-ink outline-none">
             <option value="performance">Best net performance</option>
             <option value="drawdown">Lowest drawdown</option>
             <option value="followers">Most followers</option>
@@ -100,19 +104,34 @@ export default function KolMarketplacePage() {
             <option value="fee">Lowest fee</option>
           </select>
         </label>
-        <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh strategies">
+        <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh strategies">
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>
 
       <div className="mt-5">
         {strategies == null && <LoadingRows count={4} />}
-        {strategies != null && visible.length === 0 && (
+        {/* A failure and an empty result are different states and get different actions:
+            offering "create the first strategy" when the request actually failed is
+            misleading, and a retry is what the user needs (§16). */}
+        {strategies != null && visible.length === 0 && error && (
           <EmptyState
             icon={Sparkles}
-            title={error ? "Strategy data is temporarily unavailable" : "No public KOL strategies yet"}
-            description={error || "Create a strategy, submit it for review, and it will appear here after approval with honest performance history."}
-            action={<Link href="/bots/kol/new" className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">Create the first strategy</Link>}
+            title="Strategy data could not be loaded"
+            description={error}
+            action={<button type="button" onClick={load} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-body font-semibold text-ink"><RefreshCw size={15} /> Try again</button>}
+          />
+        )}
+        {strategies != null && visible.length === 0 && !error && (
+          <EmptyState
+            icon={Sparkles}
+            title={query.trim() ? "No strategies match these filters" : "No public KOL strategies yet"}
+            description={query.trim() ? "Clear filters or create the first strategy in this view." : "Create a strategy, submit it for review, and it will appear here after approval with measured performance history."}
+            action={
+              query.trim()
+                ? <button type="button" onClick={() => setQuery("")} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md border border-edge px-4 t-body font-semibold text-ink">Clear filters</button>
+                : <Link href="/bots/kol/new" className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c]">Create KOL bot</Link>
+            }
           />
         )}
         <div className="grid gap-4 xl:grid-cols-2">
@@ -128,22 +147,22 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
   return (
     <article className="overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex items-start gap-4 border-b border-edge p-5">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-toxic/30 bg-toxic/10 font-mono text-sm font-semibold text-toxic">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-md border border-gold-400/30 bg-gold-400/10 font-mono t-body font-semibold text-gold-400">
           {strategy.name.slice(0, 2).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate text-base font-semibold text-ink">{strategy.name}</h2>
-            <StatusPill status={strategy.insufficientHistory ? "insufficient history" : "reviewed"} />
+            <h2 className="truncate t-section font-semibold text-ink">{strategy.name}</h2>
+            <StatusPill status={strategy.insufficientHistory ? "tracking" : "reviewed"} />
           </div>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-dim">{strategy.description || "No public description provided."}</p>
+          <p className="mt-1 line-clamp-2 t-label leading-5 text-dim">{strategy.description || "No public description provided."}</p>
         </div>
-        <span className="rounded-sm border border-edge bg-void px-2 py-1 font-mono text-[9px] uppercase text-dim">{strategy.riskTier} risk</span>
+        <span className="ui-label rounded-sm border border-edge bg-void px-2 py-1">{strategy.riskTier} risk</span>
       </header>
       <div className="grid grid-cols-4 divide-x divide-edge border-b border-edge py-4">
-        <Metric label="Net PnL" value={strategy.insufficientHistory ? "--" : formatSol(strategy.netPnlLamports)} tone={net > 0 ? "positive" : net < 0 ? "negative" : "default"} />
-        <Metric label="Win rate" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.winRateBps)} />
-        <Metric label="Drawdown" value={strategy.insufficientHistory ? "--" : formatPercentBps(strategy.maxDrawdownBps)} />
+        <Metric label="Net PnL" value={strategy.insufficientHistory ? "—" : formatSol(strategy.netPnlLamports)} tone={net > 0 ? "positive" : net < 0 ? "negative" : "default"} />
+        <Metric label="Win rate" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.winRateBps)} />
+        <Metric label="Drawdown" value={strategy.insufficientHistory ? "—" : formatPercentBps(strategy.maxDrawdownBps)} />
         <Metric label="Followers" value={strategy.followers} detail={`${strategy.openTrades} open trades`} />
       </div>
       <div className="grid grid-cols-3 divide-x divide-edge border-b border-edge py-3">
@@ -152,12 +171,12 @@ function StrategyCard({ strategy }: { strategy: KolStrategy }) {
         <Metric label="Sample" value={strategy.sampleSize} detail={strategy.insufficientHistory ? "Minimum 5" : "Completed trades"} />
       </div>
       <footer className="flex flex-wrap items-center justify-between gap-3 p-5">
-        <div className="flex items-center gap-4 text-xs text-dim">
+        <div className="flex items-center gap-4 t-label text-dim">
           <span className="inline-flex items-center gap-1.5"><ShieldCheck size={14} className="text-up" /> Reviewed</span>
           <span className="inline-flex items-center gap-1.5"><Users size={14} /> {strategy.followers}</span>
-          <span className="font-mono text-[9px]">Updated {formatWhen(strategy.updatedAt)}</span>
+          <span className="t-label">Updated {formatWhen(strategy.updatedAt)}</span>
         </div>
-        <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c]">View and copy</Link>
+        <Link href={`/bots/kol/${strategy.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c]">View and copy</Link>
       </footer>
     </article>
   );

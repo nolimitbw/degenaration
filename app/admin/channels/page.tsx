@@ -109,7 +109,7 @@ export default function AdminChannels() {
     <AppShell>
       <h1 className="text-2xl font-bold">Admin · Discord call channels</h1>
       <p className="mt-1 text-sm text-dim">
-        Server owners run <code className="rounded bg-void px-1 font-mono text-toxic">/register</code> in their call
+        Server owners run <code className="rounded bg-void px-1 font-mono text-gold-400">/register</code> in their call
         channel; approve one here and the bot relays its calls to the platform Discord and eligible subscribers.
       </p>
 
@@ -117,54 +117,54 @@ export default function AdminChannels() {
         <button
           onClick={() => load()}
           disabled={!admin}
-          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-toxic disabled:opacity-50"
+          className="rounded-md border border-edge px-3 py-1.5 text-xs font-bold text-ink hover:border-gold-400 disabled:opacity-50"
         >
           Refresh
         </button>
-        <span className={`font-mono text-[11px] ${loaded ? "text-toxic" : "text-dim"}`}>
+        <span className={`text-[12px] ${loaded ? "text-gold-400" : "text-dim"}`}>
           {waitingForOwnerToken ? "verifying owner session" : loaded ? `${channels.length} registered channel${channels.length === 1 ? "" : "s"}` : "loading owner data"}
         </span>
-        <span className="rounded border border-toxic/40 bg-toxic/10 px-2 py-1 font-mono text-[10px] text-toxic">
+        <span className="rounded border border-gold-400/40 bg-gold-400/10 px-2 py-1 text-[12px] text-gold-400">
           {ADMIN_CHANNELS_UI_VERSION}
         </span>
-        <span className="font-mono text-[10px] text-dim">{source ? source : "owner api pending"}</span>
-        {lastSync && <span className="font-mono text-[11px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
+        <span className="text-[12px] text-dim">{source ? source : "owner api pending"}</span>
+        {lastSync && <span className="text-[12px] text-dim">synced {lastSync.toLocaleTimeString()}</span>}
       </div>
 
-      {err && <p className="mt-4 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">{err}</p>}
+      {err && <p className="mt-4 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">{err}</p>}
       {approvedResult?.public_slug && (
         <div className="mt-4 rounded-md border border-up/35 bg-up/5 px-4 py-3">
           <p className="text-sm font-bold text-up">Channel approved and public profile created.</p>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 font-mono text-xs">
-            <a href={`/source/${approvedResult.public_slug}`} className="text-toxic hover:underline">Open profile</a>
-            {approvedResult.referral_code && <a href={`/r/${approvedResult.referral_code}`} className="text-toxic hover:underline">Open referral link</a>}
+            <a href={`/source/${approvedResult.public_slug}`} className="text-gold-400 hover:underline">Open profile</a>
+            {approvedResult.referral_code && <a href={`/r/${approvedResult.referral_code}`} className="text-gold-400 hover:underline">Open referral link</a>}
           </div>
         </div>
       )}
 
-      <div className="mt-5 grid gap-3 rounded-lg border border-edge bg-panel p-4 font-mono text-[11px] text-dim md:grid-cols-4">
+      <div className="mt-5 grid gap-3 rounded-lg border border-edge bg-panel p-4 text-[12px] text-dim md:grid-cols-4">
         <div><span className="text-ink">Bot app</span><br />{bot?.clientId ? `app ${bot.clientId}` : "loading"}</div>
         <div><span className="text-ink">Command</span><br />{bot?.slashCommandConfigured ? `${bot.registrationCommand || "/register"} ready` : "missing slash scope"}</div>
         <div><span className="text-ink">Register bridge</span><br />{bot?.registrationBridgeConfigured ? "online" : "not configured"}</div>
         <div><span className="text-ink">Expected bot build</span><br />{bot?.botBuild || "source-tools-v2"}</div>
       </div>
       {bot && (!bot.slashCommandConfigured || !bot.registrationBridgeConfigured) && (
-        <p className="mt-3 rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
+        <p className="mt-3 rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">
           Discord registration is not fully ready. The invite needs applications.commands and the website needs BOT_SHARED_SECRET before /register can submit channels.
         </p>
       )}
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border border-edge bg-panel p-4">
-          <p className="font-mono text-[10px] uppercase text-dim">Pending approval</p>
-          <p className="mt-2 font-mono text-2xl font-bold text-toxic">{loaded ? expectedPending : "..."}</p>
+          <p className="ui-label">Pending approval</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-gold-400">{loaded ? expectedPending : "..."}</p>
         </div>
         <div className="rounded-lg border border-edge bg-panel p-4">
-          <p className="font-mono text-[10px] uppercase text-dim">Total registrations</p>
+          <p className="ui-label">Total registrations</p>
           <p className="mt-2 font-mono text-2xl font-bold text-ink">{loaded ? channels.length : "..."}</p>
         </div>
         <div className="rounded-lg border border-edge bg-panel p-4">
-          <p className="font-mono text-[10px] uppercase text-dim">Newest channel</p>
+          <p className="ui-label">Newest channel</p>
           <p className="mt-2 truncate font-mono text-sm font-bold text-ink">{newest ? `${newest.guild_name || "Discord server"} #${newest.channel_name || newest.channel_id}` : loaded ? "None" : "..."}</p>
         </div>
       </div>
@@ -174,7 +174,7 @@ export default function AdminChannels() {
         {!loaded && <p className="text-sm text-dim">{email ? "Loading registered channels..." : "Waiting for owner session..."}</p>}
         {waitingForOwnerToken && <p className="text-sm text-dim">Verifying the owner identity token before loading approvals...</p>}
         {loaded && expectedPending > pending.length && !err && (
-          <p className="rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 font-mono text-xs text-hotpink">
+          <p className="rounded-md border border-danger/40 bg-danger/5 px-3 py-2 font-mono text-xs text-danger">
             Database summary sees {expectedPending} pending channel{expectedPending === 1 ? "" : "s"}, but this page received {pending.length}. API source: {source || "unknown"}. Hard refresh this page, then press Refresh; if it stays here, the deployed admin API is not returning the channel list.
           </p>
         )}
@@ -185,7 +185,7 @@ export default function AdminChannels() {
               If someone just ran /register, press Refresh. If this page does not show {ADMIN_CHANNELS_UI_VERSION},
               hard refresh the browser tab because it is still running an old admin bundle.
             </p>
-            <p className="mt-3 font-mono text-[11px] text-dim">
+            <p className="mt-3 text-[12px] text-dim">
               Bot command: {bot?.registrationCommand || "/register"} · bridge {bot?.registrationBridgeConfigured ? "online" : "not configured"} · source {source || "not loaded"}
             </p>
           </div>
@@ -195,23 +195,23 @@ export default function AdminChannels() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h3 className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></h3>
-                <p className="mt-0.5 font-mono text-[11px] text-dim">channel {c.channel_id} · {c.guild_member_count ?? "—"} members · registered by {c.registered_by ?? "—"}</p>
+                <p className="mt-0.5 text-[12px] text-dim">channel {c.channel_id} · {c.guild_member_count ?? "—"} members · registered by {c.registered_by ?? "—"}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => act(c.id, "approve")} disabled={busy === c.id}
-                  className="rounded-md bg-toxic px-4 py-2 text-sm font-bold text-[#17110c] disabled:opacity-50">{busy === c.id ? "Working..." : "Approve"}</button>
+                  className="rounded-md bg-gold-400 px-4 py-2 text-sm font-bold text-[#17110c] disabled:opacity-50">{busy === c.id ? "Working..." : "Approve"}</button>
                 <button onClick={() => act(c.id, "reject")} disabled={busy === c.id}
-                  className="rounded-md border border-hotpink/60 px-4 py-2 text-sm font-bold text-hotpink hover:bg-hotpink/10 disabled:opacity-50">Reject</button>
+                  className="rounded-md border border-danger/60 px-4 py-2 text-sm font-bold text-danger hover:bg-danger/10 disabled:opacity-50">Reject</button>
               </div>
             </div>
             <label className="mt-4 block">
-              <span className="font-mono text-[10px] uppercase text-dim">Decision reason</span>
+              <span className="ui-label">Decision reason</span>
               <input
                 value={decisionReasons[c.id] || ""}
                 onChange={(event) => setDecisionReasons((current) => ({ ...current, [c.id]: event.target.value }))}
                 maxLength={500}
                 placeholder="Verified server ownership and call-channel access"
-                className="mt-2 min-h-10 w-full rounded-md border border-edge bg-void px-3 text-sm text-ink outline-none placeholder:text-dim/60 focus:border-toxic"
+                className="mt-2 min-h-11 sm:min-h-10 w-full rounded-md border border-edge bg-void px-3 text-sm text-ink outline-none placeholder:text-dim/60 focus:border-gold-400"
               />
             </label>
           </div>
@@ -227,13 +227,13 @@ export default function AdminChannels() {
                 <div>
                   <span className="font-bold">{c.guild_name || "Discord server"} <span className="font-mono text-xs text-dim">#{c.channel_name}</span></span>
                   {c.group_id && (
-                    <p className="mt-1 font-mono text-[10px] text-dim">
+                    <p className="mt-1 text-[12px] text-dim">
                       Profile {c.integration_health || "pending"} · {c.profile_synced_at ? `synced ${new Date(c.profile_synced_at).toLocaleString()}` : "awaiting sync"} · marketplace {c.marketplace_visible === false ? "hidden" : "visible"}
                     </p>
                   )}
-                  {c.profile_sync_error && <p className="mt-1 max-w-2xl text-xs text-hotpink">{c.profile_sync_error}</p>}
+                  {c.profile_sync_error && <p className="mt-1 max-w-2xl text-xs text-danger">{c.profile_sync_error}</p>}
                 </div>
-                <span className={`font-mono text-xs ${c.status === "approved" ? "text-toxic" : "text-hotpink"}`}>{c.status}</span>
+                <span className={`font-mono text-xs ${c.status === "approved" ? "text-gold-400" : "text-danger"}`}>{c.status}</span>
               </div>
             ))}
           </div>

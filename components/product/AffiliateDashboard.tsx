@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Bot,
   Check,
+  ChevronDown,
   Clipboard,
   Copy,
   CreditCard,
@@ -22,11 +23,13 @@ import {
   X
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import AffiliateLinkIcon from "@/components/icons/AffiliateLinkIcon";
 import { PageHeader, Segmented, StatusPill } from "@/components/product/Primitives";
-import { formatSol, formatWhen, lamportsToSol, productFetch, solToLamports, type ProductBot } from "@/lib/product-api";
+import { formatPercentBps, formatSol, formatWhen, lamportsToSol, productFetch, solToLamports, type ProductBot } from "@/lib/product-api";
 import { emailFromPrivyUser } from "@/lib/admin";
 import { validateReferralSlug } from "@/lib/referral-rules";
 import { getSolanaAddress } from "@/lib/solanaWallet";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 type Scope = "discord" | "kol" | "referrals" | "payouts";
 type Period = "24h" | "7d" | "30d" | "3m";
@@ -57,6 +60,22 @@ type AffiliateSummary = {
   slugChangedAt: string | null;
   slugCooldownUntil: string | null;
   referralRewardPolicyEnabled: boolean;
+  discordOwnership?: {
+    connectedDiscord: { id: string; discordUserId: string; discordUsername: string | null; linkedAt: string; lastVerifiedAt: string } | null;
+    sources: Array<{
+      sourceGroupId: string;
+      sourceName: string;
+      publicSlug: string | null;
+      verificationStatus: string;
+      ownedSince: string;
+      commissionRateBps: number;
+      eligibleCalls: number;
+      confirmedEligibleVolumeLamports: number | string;
+      confirmedEarningsLamports: number | string;
+      pendingEarningsLamports: number | string;
+    }>;
+    payouts: Array<any>;
+  };
 };
 
 export default function AffiliateDashboard({ initialScope = "discord" }: { initialScope?: Scope }) {
@@ -68,30 +87,42 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   const [summary, setSummary] = useState<AffiliateSummary | null>(null);
   const [bots, setBots] = useState<ProductBot[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [botConfig, setBotConfig] = useState<any>(null);
 
-  const discordLinked = Boolean((user as any)?.discord || (user as any)?.linkedAccounts?.some((account: any) => account?.type === "discord_oauth"));
+  const discordProviderLinked = Boolean((user as any)?.discord || (user as any)?.linkedAccounts?.some((account: any) => account?.type === "discord_oauth"));
 
   const load = useCallback(() => {
     if (!authenticated) {
       setSummary(null);
       setBots([]);
+      setError("");
       return;
     }
     setLoading(true);
+    setError("");
     const affiliateScope = scope === "payouts" || scope === "referrals" ? "all" : scope;
-    Promise.all([
-      productFetch<AffiliateSummary>(`/api/product/affiliate?scope=${affiliateScope}`, { getAccessToken }),
-      productFetch<{ bots: ProductBot[] }>("/api/product/bots", { getAccessToken })
+    // Bounded so a hung provider can never leave the page spinning forever.
+    const signal = AbortSignal.timeout(15000);
+    // allSettled, not all: one failing panel must not blank the whole page (spec §16).
+    Promise.allSettled([
+      productFetch<AffiliateSummary>(`/api/product/affiliate?scope=${affiliateScope}`, { getAccessToken }, { signal }),
+      productFetch<{ bots: ProductBot[] }>("/api/product/bots", { getAccessToken }, { signal })
     ])
-      .then(([affiliate, botData]) => {
-        setSummary(affiliate);
-        setBots(botData.bots || []);
+      .then(([affiliateResult, botResult]) => {
+        if (affiliateResult.status === "fulfilled") {
+          setSummary(affiliateResult.value);
+          setUpdatedAt(Date.now());
+        } else {
+          // Keep the last known summary rather than blanking it; it renders as stale.
+          setError(affiliateResult.reason instanceof Error && affiliateResult.reason.message === "unauthorized" ? "Your session expired. Reconnect your account, then try again." : affiliateResult.reason instanceof Error ? affiliateResult.reason.message : "Affiliate data is temporarily unavailable.");
+        }
+        if (botResult.status === "fulfilled") setBots(botResult.value.bots || []);
       })
-      .catch((reason) => toast(reason instanceof Error ? reason.message : "Could not load affiliate data", "err"))
       .finally(() => setLoading(false));
-  }, [authenticated, getAccessToken, scope, toast]);
+  }, [authenticated, getAccessToken, scope]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -112,13 +143,13 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   if (!authenticated) {
     return (
       <>
-        <PageHeader eyebrow="Creator revenue" title="Affiliate" description="Track Discord and KOL creator commission from confirmed, reconciled copied trades." />
-        <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel p-8 text-center">
-          <div className="max-w-md">
-            <WalletCards className="mx-auto text-toxic" size={26} />
-            <h2 className="mt-4 text-base font-semibold text-ink">Connect your account</h2>
-            <p className="mt-2 text-sm leading-6 text-dim">Commission ledgers, referral attribution, and payout requests are private account data.</p>
-            <button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c]">Connect account</button>
+        <PageHeader title="Affiliate" description="What you have earned from your servers and referrals." />
+        <div className="max-w-sm border-t border-[color:var(--rule)] pt-8">
+          <div>
+            <WalletCards className="text-[color:var(--text-muted)]" size={20} />
+            <h2 className="mt-3 t-section font-medium text-ink">Connect your wallet</h2>
+            <p className="mt-1.5 t-meta leading-5 text-dim">Your earnings, referrals and payouts are private to your account.</p>
+            <button type="button" onClick={login} className="mt-5 min-h-11 rounded-md bg-gold-400 px-5 t-body font-medium text-[#17110c] transition hover:bg-gold-300">Connect wallet</button>
           </div>
         </div>
       </>
@@ -130,13 +161,12 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
   return (
     <>
       <PageHeader
-        eyebrow="Creator revenue"
         title="Affiliate"
-        description="Immutable commission accounting for confirmed Discord and KOL copied trades. Payouts are reviewed and reconciled on chain."
+        description="Track creator and referral earnings."
         actions={
           <>
-            <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh affiliate dashboard"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
-            <button type="button" onClick={() => setPayoutOpen(true)} disabled={!summary || Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Request payout</button>
+            <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh affiliate dashboard"><RefreshCw size={15} className={loading ? "animate-spin" : ""} /></button>
+            <button type="button" onClick={() => setPayoutOpen(true)} disabled={!summary || Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"><CreditCard size={15} /> Request payout</button>
           </>
         }
       />
@@ -148,27 +178,57 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
           ["referrals", "Referrals"],
           ["payouts", "Payouts"]
         ].map(([value, label]) => (
-          <button key={value} type="button" onClick={() => setScope(value as Scope)} className={`relative min-h-11 shrink-0 px-4 text-sm font-medium ${scope === value ? "text-ink" : "text-dim hover:text-ink"}`}>
+          <button key={value} type="button" onClick={() => setScope(value as Scope)} className={`relative min-h-11 shrink-0 px-4 t-body font-medium ${scope === value ? "text-ink" : "text-dim hover:text-ink"}`}>
             {label}
-            {scope === value && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-toxic" />}
+            {scope === value && <span className="absolute inset-x-2 bottom-0 h-0.5 bg-gold-400" />}
           </button>
         ))}
       </nav>
 
-      {loading && !summary && <div className="mt-6 grid min-h-72 place-items-center border border-edge bg-panel"><Loader2 className="animate-spin text-toxic" /></div>}
+      {/* Skeleton shaped like the real content, never a spinner in a giant empty box. */}
+      {loading && !summary && (
+        <div className="mt-5 space-y-px" aria-busy="true">
+          <div className="grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((key) => <div key={key} className="bg-panel p-5"><div className="h-3 w-24 animate-pulse rounded bg-void" /><div className="mt-3 h-5 w-28 animate-pulse rounded bg-void" /></div>)}
+          </div>
+          <div className="mt-5 h-48 animate-pulse rounded-md border border-edge bg-panel" />
+        </div>
+      )}
+
+      {/* Recoverable failure with a retry, instead of a blank page and a vanished toast. */}
+      {!loading && !summary && error && (
+        <div className="mt-6 rounded-md border border-edge bg-panel p-6">
+          <p className="t-body font-semibold text-ink">Affiliate data could not be loaded</p>
+          <p className="mt-1 t-label leading-5 text-dim">{error}</p>
+          <button type="button" onClick={load} className="mt-4 inline-flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge px-4 t-label font-semibold text-ink"><RefreshCw size={14} /> Try again</button>
+        </div>
+      )}
+
+      {/* Last known data is preserved on a transient failure and labelled as stale. */}
+      {summary && error && (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-md border border-edge bg-panel px-4 py-3">
+          <p className="t-label text-dim">Showing the last loaded data{updatedAt ? ` from ${new Date(updatedAt).toLocaleTimeString()}` : ""}. {error}</p>
+          <button type="button" onClick={load} className="inline-flex min-h-11 sm:min-h-9 items-center gap-2 rounded-md border border-edge px-3 t-label font-semibold text-ink"><RefreshCw size={13} /> Retry</button>
+        </div>
+      )}
       {summary && (scope === "discord" || scope === "kol") && (
         <>
           <section className="mt-5 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Rewards available", formatSol(summary.availableLamports), "Ready for request"],
-              ["Pending rewards", formatSol(summary.pendingLamports), "Awaiting availability"],
-              ["Lifetime earnings", formatSol(summary.lifetimeLamports), "Positive credits"],
-              ["30-day earnings", formatSol(summary.earnings30dLamports), `${summary.followers} attributed followers`]
-            ].map(([label, value, detail]) => (
+              ["Rewards available", formatSol(summary.availableLamports), "Ready for request", `Credited from confirmed, reconciled copied trades. Requestable once the balance reaches ${formatSol(summary.minimumPayoutLamports)}.`],
+              ["Pending rewards", formatSol(summary.pendingLamports), "Awaiting availability", "Earned but not yet available. Rewards become available once the trade that produced them is reconciled on chain."],
+              ["Lifetime earnings", formatSol(summary.lifetimeLamports), "Positive credits", "Every reward ever credited to this account, before any payouts or reversals."],
+              ["30-day earnings", formatSol(summary.earnings30dLamports), `${summary.followers} attributed followers`, "Rewards credited in the last 30 days, and the number of users whose trades were attributed to you."]
+            ].map(([label, value, detail, hint]) => (
               <div key={label} className="bg-panel p-5">
-                <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
-                <p className="mt-2 font-mono text-xl font-semibold text-ink">{value}</p>
-                <p className="mt-1 text-[11px] text-dim">{detail}</p>
+                <p className="ui-label flex items-center gap-1.5">
+                  {label}
+                  {/* Reference R1 puts an info affordance on every metric so the page needs
+                      no explanatory prose (spec §6.1, §6.3). */}
+                  <span title={hint} aria-label={hint} role="img" className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-dim/50 font-mono t-label normal-case leading-none text-dim">i</span>
+                </p>
+                <p className="mt-2 font-mono t-title font-semibold text-ink">{value}</p>
+                <p className="mt-1 t-label text-dim">{detail}</p>
               </div>
             ))}
           </section>
@@ -176,7 +236,7 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
           <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
             <section className="overflow-hidden rounded-md border border-edge bg-panel">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-                <div><h2 className="text-sm font-semibold text-ink">Earnings</h2><p className="mt-1 text-[11px] text-dim">Creator commission credits from authoritative ledger entries.</p></div>
+                <div><h2 className="t-body font-semibold text-ink">Earnings</h2><p className="mt-1 t-label text-dim">Creator commission credits from authoritative ledger entries.</p></div>
                 <Segmented value={period} onChange={setPeriod} label="Earnings period" options={[{ value: "24h", label: "24H" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }, { value: "3m", label: "3M" }]} />
               </header>
               <AffiliateChart rows={summary.chart || []} period={period} />
@@ -189,17 +249,17 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
             </section>
 
             <aside className="overflow-hidden rounded-md border border-edge bg-panel">
-              <header className="border-b border-edge px-5 py-4"><p className="font-mono text-[9px] uppercase text-toxic">Referral link</p><h2 className="mt-2 text-sm font-semibold text-ink">Stable creator URL</h2></header>
+              <header className="border-b border-edge px-5 py-4"><p className="ui-label text-gold-400">Referral link</p><h2 className="mt-2 t-body font-semibold text-ink">Stable creator URL</h2></header>
               <div className="p-5">
                 <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
-                  <Link2 size={14} className="shrink-0 text-toxic" />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
-                  <button type="button" onClick={copyReferral} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link"><Copy size={14} /></button>
+                  <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
+                  <span className="min-w-0 flex-1 truncate ui-code t-label text-ink">{typeof window !== "undefined" ? `${window.location.origin}/r/${summary.referralCode}` : `/r/${summary.referralCode}`}</span>
+                  <button type="button" onClick={copyReferral} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link"><Copy size={14} /></button>
                 </div>
-                <p className="mt-3 text-[11px] leading-5 text-dim">Attribution is stored server-side. This code does not contain your user ID, wallet, or email.</p>
+                <p className="mt-3 t-label leading-5 text-dim">Attribution is stored server-side. This code does not contain your user ID, wallet, or email.</p>
                 <div className="mt-4 rounded-md border border-edge bg-void p-3">
                   <p className="field-label">Signed-in creator</p>
-                  <p className="mt-1.5 truncate text-xs text-ink">{emailFromPrivyUser(user) || "Privy account"}</p>
+                  <p className="mt-1.5 truncate t-label text-ink">{emailFromPrivyUser(user) || "Privy account"}</p>
                 </div>
               </div>
             </aside>
@@ -207,10 +267,12 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
 
           {scope === "discord" ? (
             <DiscordAffiliate
-              linked={discordLinked}
+              linked={Boolean(summary.discordOwnership?.connectedDiscord)}
+              providerLinked={discordProviderLinked}
               onLink={() => linkDiscord()}
               botConfig={botConfig}
               bots={filteredBots}
+              ownership={summary.discordOwnership}
             />
           ) : (
             <KolAffiliate bots={filteredBots} summary={summary} />
@@ -229,6 +291,45 @@ export default function AffiliateDashboard({ initialScope = "discord" }: { initi
       )}
 
       {summary && scope === "payouts" && <PayoutHistory summary={summary} onRequest={() => setPayoutOpen(true)} />}
+
+      {/* Reference R1 answers the recurring questions as collapsed inline items at the
+          foot of the page, so the surfaces above stay free of explanatory paragraphs
+          (spec §6.1, §6.3). */}
+      {summary && (
+        <section className="mt-6 border-t border-edge pt-5" aria-label="Affiliate questions">
+          <div className="grid gap-2 sm:grid-cols-3">
+            {[
+              {
+                q: "How are earnings calculated?",
+                a: `Each confirmed swap leg charges a ${formatPercentBps(summary.defaultRateBps)} share of executed notional, paid out of the 2.00% platform fee rather than added to it. Rewards credit once the trade is reconciled on chain.`
+              },
+              {
+                q: "When do I get paid?",
+                // NOT a "network" fee. Solana network fees are ~0.000005 SOL; this is a fixed
+                // platform charge and the RPC posts it to commission_ledger_entries with
+                // account_type = 'platform'. Calling it a network fee told users the chain
+                // takes 0.043 SOL when this platform books it as revenue. The Portfolio
+                // trade table already keeps "Network fee" and "Platform fee" as separate
+                // columns — this string was the one place that conflated them.
+                a: `Request a payout once your available balance reaches ${formatSol(summary.minimumPayoutLamports)}. A fixed ${formatSol(summary.processingFeeLamports)} platform processing fee is deducted, and the exact gross, fee, and net are shown before you confirm.`
+              },
+              {
+                q: "Can I change my reward rate?",
+                a: "Rates are set per source and versioned with an effective date. Historical trades keep the rate that applied when they executed, so past earnings never change retroactively."
+              }
+            ].map(({ q, a }) => (
+              <details key={q} className="group rounded-md border border-edge bg-panel">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 t-label font-semibold text-ink">
+                  {q}
+                  <ChevronDown aria-hidden="true" size={14} className="shrink-0 text-dim transition group-open:rotate-180" />
+                </summary>
+                <p className="border-t border-edge px-4 py-3 t-label leading-5 text-dim">{a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
       {payoutOpen && summary && (
         <PayoutModal
           summary={summary}
@@ -274,9 +375,7 @@ function ReferralDashboard({
   const validatedSlug = validation.ok && typeof validation.slug === "string" ? validation.slug : null;
   const currentSlug = summary.referralCode.toLowerCase();
   const changed = validatedSlug != null && validatedSlug !== currentSlug;
-  const cooldownActive = summary.slugCooldownUntil
-    ? new Date(summary.slugCooldownUntil).getTime() > Date.now()
-    : false;
+  const renameUsed = Boolean(summary.slugChangedAt);
 
   useEffect(() => {
     setSlug(summary.referralCode.toLowerCase());
@@ -348,19 +447,19 @@ function ReferralDashboard({
           ["Lifetime rewards", formatSol(summary.referralLifetimeLamports), "Excludes rejected or reversed"]
         ].map(([label, value, detail]) => (
           <div key={label} className="bg-panel p-4">
-            <p className="font-mono text-[9px] uppercase text-dim">{label}</p>
-            <p className="mt-2 font-mono text-lg font-semibold text-ink">{value}</p>
-            <p className="mt-1 text-[10px] leading-4 text-dim">{detail}</p>
+            <p className="ui-label">{label}</p>
+            <p className="mt-2 font-mono t-title font-semibold text-ink">{value}</p>
+            <p className="mt-1 t-label leading-4 text-dim">{detail}</p>
           </div>
         ))}
       </section>
 
       {!summary.referralRewardPolicyEnabled && (
-        <div className="flex items-start gap-3 rounded-md border border-toxic/35 bg-toxic/5 px-4 py-3">
-          <ShieldAlert size={17} className="mt-0.5 shrink-0 text-toxic" />
+        <div className="flex items-start gap-3 rounded-md border border-gold-400/35 bg-gold-400/5 px-4 py-3">
+          <ShieldAlert size={17} className="mt-0.5 shrink-0 text-gold-400" />
           <div>
-            <p className="text-xs font-semibold text-ink">Referral attribution is active; monetary rewards await an approved policy.</p>
-            <p className="mt-1 text-[11px] leading-5 text-dim">Invites and qualifying activity are recorded now. No reward amount is promised or accrued until the owner approves a rate and hold period.</p>
+            <p className="t-label font-semibold text-ink">Referral attribution is active; monetary rewards await an approved policy.</p>
+            <p className="mt-1 t-label leading-5 text-dim">Invites and qualifying activity are recorded now. No reward amount is promised or accrued until the owner approves a rate and hold period.</p>
           </div>
         </div>
       )}
@@ -368,16 +467,16 @@ function ReferralDashboard({
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="overflow-hidden rounded-md border border-edge bg-panel">
           <header className="border-b border-edge px-5 py-4">
-            <p className="font-mono text-[9px] uppercase text-toxic">Referral activity</p>
-            <h2 className="mt-2 text-sm font-semibold text-ink">Immutable first-touch attribution</h2>
-            <p className="mt-1 text-[11px] text-dim">A referred account is assigned once. Review and abuse states never earn rewards automatically.</p>
+            <p className="ui-label text-gold-400">Referral activity</p>
+            <h2 className="mt-2 t-body font-semibold text-ink">Immutable first-touch attribution</h2>
+            <p className="mt-1 t-label text-dim">A referred account is assigned once. Review and abuse states never earn rewards automatically.</p>
           </header>
           {!summary.referralActivity?.length ? (
             <div className="grid min-h-60 place-items-center p-8 text-center">
               <div>
-                <UserPlus size={22} className="mx-auto text-toxic" />
-                <p className="mt-3 text-sm font-semibold text-ink">No attributed invites yet</p>
-                <p className="mt-1 text-[11px] text-dim">Share your stable URL to begin the attribution flow.</p>
+                <UserPlus size={22} className="mx-auto text-gold-400" />
+                <p className="mt-3 t-body font-semibold text-ink">No attributed invites yet</p>
+                <p className="mt-1 t-label text-dim">Share your stable URL to begin the attribution flow.</p>
               </div>
             </div>
           ) : (
@@ -385,13 +484,13 @@ function ReferralDashboard({
               {summary.referralActivity.slice(0, 20).map((event) => (
                 <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]">
                   <div>
-                    <p className="text-xs font-semibold text-ink">{event.inviteLabel}</p>
-                    <p className="mt-1 text-[10px] text-dim">{event.statusReason}</p>
+                    <p className="t-label font-semibold text-ink">{event.inviteLabel}</p>
+                    <p className="mt-1 t-label text-dim">{event.statusReason}</p>
                   </div>
                   <StatusPill status={event.status} />
                   <div className="text-right">
-                    <p className="font-mono text-xs text-ink">{formatSol(event.rewardLamports)}</p>
-                    <p className="mt-1 font-mono text-[9px] text-dim">{formatWhen(event.attributed_at)}</p>
+                    <p className="font-mono t-label text-ink">{formatSol(event.rewardLamports)}</p>
+                    <p className="mt-1 t-label text-dim">{formatWhen(event.attributed_at)}</p>
                   </div>
                 </div>
               ))}
@@ -401,45 +500,47 @@ function ReferralDashboard({
 
         <aside className="h-fit overflow-hidden rounded-md border border-edge bg-panel">
           <header className="border-b border-edge px-5 py-4">
-            <p className="font-mono text-[9px] uppercase text-toxic">Referral URL</p>
-            <h2 className="mt-2 text-sm font-semibold text-ink">Your public link</h2>
+            <p className="ui-label text-gold-400">Referral URL</p>
+            <h2 className="mt-2 t-body font-semibold text-ink">Your public link</h2>
           </header>
           <div className="p-5">
             <div className="flex min-h-11 items-center gap-2 rounded-md border border-edge bg-void px-3">
-              <Link2 size={14} className="shrink-0 text-toxic" />
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-ink">/r/{summary.referralCode}</span>
-              <button type="button" onClick={copyLink} className="grid h-8 w-8 shrink-0 place-items-center rounded-sm text-dim hover:text-ink" aria-label="Copy referral link">
+              <AffiliateLinkIcon size={14} className="shrink-0 text-gold-400" />
+              <span className="min-w-0 flex-1 truncate ui-code t-label text-ink">/r/{summary.referralCode}</span>
+              <button type="button" onClick={copyLink} className="grid h-11 w-11 shrink-0 place-items-center rounded-sm text-dim hover:text-ink sm:h-8 sm:w-8" aria-label="Copy referral link">
                 <Copy size={14} />
               </button>
             </div>
 
             <div className="mt-5 border-t border-edge pt-5">
               <div className="flex items-center gap-2">
-                {summary.customSlugEligible ? <PencilLine size={15} className="text-toxic" /> : <LockKeyhole size={15} className="text-dim" />}
-                <p className="text-xs font-semibold text-ink">Custom path</p>
+                {summary.customSlugEligible ? <PencilLine size={15} className="text-gold-400" /> : <LockKeyhole size={15} className="text-dim" />}
+                <p className="t-label font-semibold text-ink">Custom path</p>
               </div>
-              <p className="mt-2 text-[11px] leading-5 text-dim">
+              <p className="mt-2 t-label leading-5 text-dim">
                 {summary.customSlugEligible
-                  ? "Change only the final path segment. Previous links remain reserved and redirect safely for one year."
-                  : "Custom paths unlock after a Discord source or affiliate account is approved."}
+                  ? "Choose the final path segment carefully. Every account can rename its generated code once; the previous link remains reserved."
+                  : renameUsed
+                    ? "Your one referral URL change has been used. This path is now permanent."
+                    : "Your referral URL is being prepared."}
               </p>
               <label className="mt-4 block">
                 <span className="field-label">degenaration.vercel.app/r/</span>
                 <input
                   value={slug}
                   onChange={(event) => setSlug(event.target.value.toLowerCase())}
-                  disabled={!summary.customSlugEligible || cooldownActive}
+                  disabled={!summary.customSlugEligible}
                   maxLength={32}
-                  className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 font-mono text-sm text-ink outline-none focus:border-toxic disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 font-mono t-body text-ink outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </label>
-              <p className={`mt-2 min-h-5 text-[10px] ${
+              <p className={`mt-2 min-h-5 t-label ${
                 !validation.ok || check?.available === false ? "text-down" : check?.available ? "text-up" : "text-dim"
               }`}>
                 {!summary.customSlugEligible
                   ? "Approval required."
-                  : cooldownActive
-                    ? `Next change available ${formatWhen(summary.slugCooldownUntil)}.`
+                  : renameUsed
+                    ? "Your one change has already been used."
                     : !validation.ok
                       ? validation.error
                       : checking
@@ -451,8 +552,8 @@ function ReferralDashboard({
               <button
                 type="button"
                 onClick={() => setConfirmOpen(true)}
-                disabled={!changed || !check?.available || checking || saving || cooldownActive}
-                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!changed || !check?.available || checking || saving}
+                className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <PencilLine size={15} />
                 Review URL change
@@ -467,20 +568,20 @@ function ReferralDashboard({
           <div className="w-full max-w-md rounded-md border border-edge bg-panel p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-[9px] uppercase text-toxic">Confirm referral URL</p>
-                <h2 id="referral-confirm-title" className="mt-2 text-base font-semibold text-ink">Change your public path?</h2>
+                <p className="ui-label text-gold-400">Confirm referral URL</p>
+                <h2 id="referral-confirm-title" className="mt-2 t-section font-semibold text-ink">Change your public path?</h2>
               </div>
-              <button type="button" onClick={() => setConfirmOpen(false)} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={15} /></button>
+              <button type="button" onClick={() => setConfirmOpen(false)} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close confirmation"><X size={15} /></button>
             </div>
-            <dl className="mt-5 divide-y divide-edge border-y border-edge text-xs">
+            <dl className="mt-5 divide-y divide-edge border-y border-edge t-label">
               <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Current</dt><dd className="break-all font-mono text-ink">/r/{currentSlug}</dd></div>
-              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">New</dt><dd className="break-all font-mono text-toxic">/r/{validatedSlug}</dd></div>
-              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Cooldown</dt><dd className="font-mono text-ink">30 days</dd></div>
+              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">New</dt><dd className="break-all font-mono text-gold-400">/r/{validatedSlug}</dd></div>
+              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Future changes</dt><dd className="font-mono text-ink">Not available</dd></div>
             </dl>
-            <p className="mt-4 text-[11px] leading-5 text-dim">The old URL will keep redirecting during its retention period and cannot be claimed by another account.</p>
+            <p className="mt-4 t-label leading-5 text-dim">This change is permanent. The old URL remains reserved and cannot be claimed by another account.</p>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-10 rounded-md border border-edge px-4 text-xs font-semibold text-ink">Cancel</button>
-              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-10 rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
+              <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 t-label font-semibold text-ink">Cancel</button>
+              <button type="button" onClick={saveSlug} disabled={saving} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
             </div>
           </div>
         </div>
@@ -505,22 +606,29 @@ function AffiliateChart({ rows, period }: { rows: AffiliateSummary["chart"]; per
     <div className="relative h-64 p-5">
       <svg viewBox="0 0 560 180" className="h-full w-full" role="img" aria-label={data.length ? `Affiliate earnings chart with ${data.length} ledger days` : "No affiliate earnings in this period"}>
         {[28, 68, 108, 148].map((y) => <line key={y} x1="20" y1={y} x2="540" y2={y} stroke="rgb(var(--edge-rgb))" strokeWidth="1" />)}
-        {data.length > 1 && <polyline points={points} fill="none" stroke="rgb(var(--toxic-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
+        {data.length > 1 && <polyline points={points} fill="none" stroke="rgb(var(--gold-rgb))" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
         {data.map((row, index) => {
           const [x, y] = points.split(" ")[index].split(",");
-          return <circle key={row.day} cx={x} cy={y} r="3.5" fill="rgb(var(--void-rgb))" stroke="rgb(var(--toxic-rgb))" strokeWidth="2" />;
+          return <circle key={row.day} cx={x} cy={y} r="3.5" fill="rgb(var(--void-rgb))" stroke="rgb(var(--gold-rgb))" strokeWidth="2" />;
         })}
       </svg>
-      {data.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><p className="text-sm font-semibold text-ink">No earnings in this period</p><p className="mt-1 text-[11px] text-dim">Confirmed creator commission entries will appear here.</p></div></div>}
+      {data.length === 0 && <div className="absolute inset-0 grid place-items-center text-center"><div><p className="t-body font-semibold text-ink">No earnings in this period</p><p className="mt-1 t-label text-dim">Confirmed creator commission entries will appear here.</p></div></div>}
     </div>
   );
 }
 
 function ChartMetric({ label, value }: { label: string; value: string }) {
-  return <div className="bg-panel p-4"><p className="field-label">{label}</p><p className="mt-2 font-mono text-sm text-ink">{value}</p></div>;
+  return <div className="bg-panel p-4"><p className="field-label">{label}</p><p className="mt-2 font-mono t-body text-ink">{value}</p></div>;
 }
 
-function DiscordAffiliate({ linked, onLink, botConfig, bots }: { linked: boolean; onLink: () => void; botConfig: any; bots: ProductBot[] }) {
+function DiscordAffiliate({ linked, providerLinked, onLink, botConfig, bots, ownership }: {
+  linked: boolean;
+  providerLinked: boolean;
+  onLink: () => void;
+  botConfig: any;
+  bots: ProductBot[];
+  ownership?: AffiliateSummary["discordOwnership"];
+}) {
   const liveReady = Boolean(
     botConfig?.live?.online &&
     botConfig?.live?.commandsRegistered &&
@@ -530,34 +638,233 @@ function DiscordAffiliate({ linked, onLink, botConfig, bots }: { linked: boolean
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-        <div><h2 className="text-sm font-semibold text-ink">Discord creator setup</h2><p className="mt-1 text-[11px] text-dim">Connect ownership, install the official bot, register a channel, then submit for review.</p></div>
+        <div>
+          <h2 className="t-body font-semibold text-ink">List your Discord server</h2>
+          <p className="mt-1 t-label text-dim">
+            {ownership?.connectedDiscord
+              ? `Connected as ${ownership.connectedDiscord.discordUsername ? `@${ownership.connectedDiscord.discordUsername}` : ownership.connectedDiscord.discordUserId}`
+              : "Four steps, about two minutes. You earn a share of every trade your calls produce."}
+          </p>
+        </div>
         <StatusPill status={linked ? "Discord connected" : "Discord not connected"} />
       </header>
       <div className="grid gap-px bg-edge lg:grid-cols-4">
-        <CreatorStep number="01" title="Connect Discord" detail="Use Privy OAuth to link the account that owns or manages the server." done={linked} action={!linked ? <button type="button" onClick={onLink} className="text-xs font-semibold text-toxic">Connect Discord</button> : null} />
-        <CreatorStep number="02" title="Install bot" detail="The guild install grants only the channel permissions needed for source tracking and /register." done={false} action={<a href={botConfig?.invite || "/api/bot/config"} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-toxic">Add bot <ArrowUpRight size={13} /></a>} />
-        <CreatorStep number="03" title="Register channel" detail="Run /register in the call channel. The bot checks your Manage Server role and its own channel access." done={false} action={<span className="font-mono text-xs text-ink">/register</span>} />
-        <CreatorStep number="04" title="Submit application" detail="Add server details, invite URL, call format, and owner agreement for admin review." done={bots.length > 0} action={<Link href="/apply" className="text-xs font-semibold text-toxic">Open application</Link>} />
+        {/*
+          Written for a Discord owner, not for us. The old copy said things like "the guild
+          install grants only the channel permissions needed for source tracking" — accurate,
+          and it tells someone deciding whether to trust us with their server nothing they can
+          act on. Each step now says what to do, and what it costs them.
+
+          `state` is derived, never guessed. Whether the bot is installed in THEIR particular
+          server is not something this page can know — botConfig reports our application
+          globally — so step 2 is never ticked, only ever offered. A tick that might be wrong
+          is worse than no tick, because the whole point of the column is telling someone where
+          they are.
+        */}
+        {/*
+          The owner's actual order: add the bot, register the channel, wait for approval, THEN
+          connect ownership. The previous order put /connect first, which cannot work — there
+          is no source to take ownership OF until a channel is registered and approved, so
+          anyone following it ran the last step first and got nothing.
+
+          Only the final step has a real signal. `ownership.sources` populates when ownership
+          links, which IS step 4, so it cannot report progress on steps 1-3; and whether the
+          bot is in a particular server is not knowable from here. Those three are therefore
+          offered, never ticked. Inventing progress on the screen that tells a creator where
+          they are would be the worst possible place for it.
+        */}
+        <CreatorStep
+          number="01"
+          title="Add the bot to your server"
+          detail="It can read the one channel you choose. It cannot post, manage members, or see anything else."
+          state={linked ? "done" : "current"}
+          action={
+            <a
+              href={botConfig?.invite || "/api/bot/config"}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] transition-colors duration-150 hover:bg-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-200"
+            >
+              Add bot <ArrowUpRight aria-hidden="true" size={13} />
+            </a>
+          }
+        />
+        <CreatorStep
+          number="02"
+          title="Register your calls channel"
+          detail="Run this inside the channel where you post calls. That is the channel we will track."
+          state={linked ? "done" : "todo"}
+          action={<CopyCommand command="/register" />}
+        />
+        <CreatorStep
+          number="03"
+          title="We review it"
+          detail="A person checks the server and the channel by hand. You do not need to do anything while you wait."
+          state={linked ? "done" : "todo"}
+          action={
+            <Link
+              href="/apply"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md border border-edge px-4 t-label font-medium text-dim transition-colors duration-150 hover:border-gold-400 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+            >
+              Add details <ArrowUpRight aria-hidden="true" size={13} />
+            </Link>
+          }
+        />
+        <CreatorStep
+          number="04"
+          title="Claim your server"
+          detail={
+            linked
+              ? "Done. Your earnings from this server are tracked to your account."
+              : "Once approved, run this in your server. It links the source to you so you get paid for it."
+          }
+          state={linked ? "done" : "todo"}
+          action={
+            !providerLinked ? (
+              <button
+                type="button"
+                onClick={onLink}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-edge px-4 t-label font-semibold text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+              >
+                Connect Discord
+              </button>
+            ) : !linked ? (
+              <CopyCommand command="/connect discord" />
+            ) : null
+          }
+        />
       </div>
-      <div className="grid gap-px border-t border-edge bg-edge sm:grid-cols-4">
-        <ChartMetric label="Bot runtime" value={botConfig?.live?.online ? "Online" : "Unavailable"} />
-        <ChartMetric label="Slash commands" value={botConfig?.live?.commandsRegistered ? "Registered" : "Syncing"} />
-        <ChartMetric label="Channel registry" value={botConfig?.live?.approvedChannelRefreshOk ? "Synced" : "Degraded"} />
-        <ChartMetric label="Setup status" value={liveReady ? "Ready" : "Check status"} />
+      {/*
+        Was a four-cell strip reading "Bot runtime Online · Slash commands Registered · Channel
+        registry Synced · Setup status Ready" — four pieces of operator telemetry on a page
+        written for Discord owners, none of which they can act on and all of which they have to
+        read past. When everything is fine it now says so in one line; the detail appears only
+        when something is actually wrong, which is the only time it changes what they should do.
+      */}
+      <div className="border-t border-edge px-5 py-3.5">
+        {liveReady ? (
+          <p className="flex items-center gap-2 t-label text-dim">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-up" />
+            The bot is online and ready to accept your server.
+          </p>
+        ) : (
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 t-label text-dim">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-[color:var(--warning)]" />
+            <span className="text-ink">Setup is temporarily unavailable.</span>
+            {!botConfig?.live?.online && <span>The bot is not responding.</span>}
+            {botConfig?.live?.online && !botConfig?.live?.commandsRegistered && <span>Commands are still syncing.</span>}
+            {botConfig?.live?.online && !botConfig?.live?.approvedChannelRefreshOk && <span>The channel registry is behind.</span>}
+            <span>You can still complete the steps above; nothing is lost.</span>
+          </p>
+        )}
       </div>
-      {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 font-mono text-[9px] text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
+      {!!bots.length && <div className="divide-y divide-edge border-t border-edge">{bots.map((bot) => <div key={bot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"><div><p className="t-label font-semibold text-ink">{bot.name}</p><p className="mt-1 ui-code t-label text-dim">{bot.sourceName || "Discord source"} · v{bot.version}</p></div><StatusPill status={bot.status} /></div>)}</div>}
+      {ownership?.sources?.length ? (
+        <div className="border-t border-edge">
+          <header className="px-5 py-4"><h3 className="t-body font-semibold text-ink">Owned sources</h3><p className="mt-1 t-label text-dim">Only confirmed reconciled executions contribute volume and earnings.</p></header>
+          <div className="divide-y divide-edge">
+            {ownership.sources.map((source) => (
+              <div key={source.sourceGroupId} className="px-5 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="t-label font-semibold text-ink">{source.sourceName}</p><p className="mt-1 t-label text-dim">Connected {formatWhen(source.ownedSince)}</p></div><StatusPill status={source.verificationStatus} /></div>
+                <div className="mt-4 grid gap-px overflow-hidden rounded-md border border-edge bg-edge sm:grid-cols-2 xl:grid-cols-5">
+                  <ChartMetric label="Commission rate" value={formatPercentBps(source.commissionRateBps)} />
+                  <ChartMetric label="Eligible calls" value={String(source.eligibleCalls)} />
+                  <ChartMetric label="Confirmed volume" value={formatSol(source.confirmedEligibleVolumeLamports)} />
+                  <ChartMetric label="Confirmed earnings" value={formatSol(source.confirmedEarningsLamports)} />
+                  <ChartMetric label="Pending earnings" value={formatSol(source.pendingEarningsLamports)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : linked ? <p className="border-t border-edge px-5 py-6 text-center t-label text-dim">Discord is connected. No eligible source is owned by this account yet.</p> : null}
     </section>
   );
 }
 
-function CreatorStep({ number, title, detail, done, action }: { number: string; title: string; detail: string; done: boolean; action: React.ReactNode }) {
+/**
+ * One step of Discord creator onboarding.
+ *
+ * The number used to render TWICE on every card — once as a gold label on the left and again
+ * inside the status circle on the right — so each card read "01 … 01". Now the circle carries
+ * either the number or a tick, and nothing repeats it.
+ *
+ * `state` drives the whole card. A creator following this should never have to work out which
+ * step they are on: the current one is the only card with a live-coloured marker and an
+ * emphasised action, finished ones tick, and later ones sit back.
+ */
+function CreatorStep({
+  number,
+  title,
+  detail,
+  state,
+  action
+}: {
+  number: string;
+  title: string;
+  detail: string;
+  state: "done" | "current" | "todo";
+  action: React.ReactNode;
+}) {
+  const marker =
+    state === "done"
+      ? "border-transparent bg-up/15 text-up"
+      : state === "current"
+        ? "border-gold-400 text-gold-400"
+        : "border-[color:var(--rule)] text-[color:var(--text-muted)]";
+
   return (
-    <div className="min-h-44 bg-panel p-5">
-      <div className="flex items-center justify-between"><span className="font-mono text-[10px] text-toxic">{number}</span><span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-up/10 text-up" : "bg-edge text-dim"}`}>{done ? <Check size={13} /> : number}</span></div>
-      <h3 className="mt-5 text-sm font-semibold text-ink">{title}</h3>
-      <p className="mt-2 min-h-12 text-[11px] leading-5 text-dim">{detail}</p>
-      <div className="mt-3">{action}</div>
+    // `todo` is NOT dimmed. Every step here is something the creator can act on right now, and
+    // we cannot see their progress through the middle three — fading them would be inventing a
+    // sequence lock that does not exist and making the buttons harder to read for no reason.
+    <div className="flex min-h-48 flex-col bg-panel p-5">
+      <div className="flex items-center gap-2.5">
+        <span className={`ui-figure grid h-7 w-7 shrink-0 place-items-center rounded-full border t-label ${marker}`}>
+          {state === "done" ? <Check size={14} aria-hidden="true" /> : number}
+        </span>
+        {/* The state is written, not only coloured — the tick and the gold ring are both
+            reinforcement, never the only carrier. */}
+        {state === "current" && <span className="ui-label text-gold-400">Start here</span>}
+        {state === "done" && <span className="ui-label text-up">Done</span>}
+      </div>
+      <h3 className="mt-4 t-body font-semibold text-ink">{title}</h3>
+      <p className="mt-2 t-label leading-5 text-dim">{detail}</p>
+      {/* Actions stay at the bottom so the four buttons line up across the row regardless of
+          how long each description runs. */}
+      <div className="mt-auto pt-4">{action}</div>
     </div>
+  );
+}
+
+/**
+ * A slash command with a copy button.
+ *
+ * Two of these steps used to print `/connect discord` and `/register` as plain text, leaving
+ * the creator to retype them into Discord exactly. That is the slowest and most error-prone
+ * moment in the whole flow, and it had no control at all — the owner asked for a button on
+ * every step, and these two are why.
+ */
+function CopyCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard?.writeText(command).then(
+          () => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 2000);
+          },
+          () => setCopied(false)
+        );
+      }}
+      className="inline-flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-edge px-3 text-left transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+    >
+      <span className="ui-code truncate t-label text-ink">{command}</span>
+      <span className={`shrink-0 t-label font-semibold ${copied ? "text-up" : "text-gold-400"}`}>
+        {copied ? "Copied" : "Copy"}
+      </span>
+    </button>
   );
 }
 
@@ -565,24 +872,24 @@ function KolAffiliate({ bots, summary }: { bots: ProductBot[]; summary: Affiliat
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-edge px-5 py-4">
-        <div><h2 className="text-sm font-semibold text-ink">KOL creator strategies</h2><p className="mt-1 text-[11px] text-dim">Published, paused, and draft strategies count toward quota according to lifecycle state.</p></div>
-        <div className="font-mono text-xs text-ink">{bots.filter((bot) => bot.visibility === "public" && bot.status !== "archived").length} / 3 published</div>
+        <div><h2 className="t-body font-semibold text-ink">KOL creator strategies</h2><p className="mt-1 t-label text-dim">Published, paused, and draft strategies count toward quota according to lifecycle state.</p></div>
+        <div className="font-mono t-label text-ink">{bots.filter((bot) => bot.visibility === "public" && bot.status !== "archived").length} / 3 published</div>
       </header>
       {bots.length === 0 ? (
-        <div className="p-8 text-center"><Bot className="mx-auto text-toxic" size={22} /><p className="mt-3 text-sm font-semibold text-ink">No KOL strategies yet</p><Link href="/bots/kol/new" className="mt-3 inline-flex text-xs font-semibold text-toxic">Create a strategy</Link></div>
+        <div className="p-8 text-center"><Bot className="mx-auto text-gold-400" size={22} /><p className="mt-3 t-body font-semibold text-ink">No KOL strategies yet</p><Link href="/bots/kol/new" className="mt-3 inline-flex t-label font-semibold text-gold-400">Create a strategy</Link></div>
       ) : (
         <div className="divide-y divide-edge">
           {bots.map((bot) => (
             <div key={bot.id} className="grid items-center gap-4 px-5 py-4 md:grid-cols-[1fr_auto_auto_auto]">
-              <div className="min-w-0"><p className="truncate text-xs font-semibold text-ink">{bot.name}</p><p className="mt-1 truncate font-mono text-[9px] text-dim">{bot.strategySlug || "Private draft"} · v{bot.version}</p></div>
-              <span className="font-mono text-[10px] text-dim">{bot.followers || 0} followers</span>
-              <span className="font-mono text-[10px] text-ink">{formatSol(bot.volumeLamports)}</span>
+              <div className="min-w-0"><p className="truncate t-label font-semibold text-ink">{bot.name}</p><p className="mt-1 truncate t-label text-dim">{bot.strategySlug || "Private draft"} · v{bot.version}</p></div>
+              <span className="t-label text-dim">{bot.followers || 0} followers</span>
+              <span className="t-label text-ink">{formatSol(bot.volumeLamports)}</span>
               <StatusPill status={bot.moderationStatus || bot.status} />
             </div>
           ))}
         </div>
       )}
-      <div className="border-t border-edge px-5 py-4 text-[11px] text-dim">Accrued KOL commission: <span className="font-mono text-ink">{formatSol(summary.lifetimeLamports)}</span> at a default 0.20% rate.</div>
+      <div className="border-t border-edge px-5 py-4 t-label text-dim">Accrued KOL commission: <span className="font-mono text-ink">{formatSol(summary.lifetimeLamports)}</span> at a default 0.20% rate.</div>
     </section>
   );
 }
@@ -590,10 +897,10 @@ function KolAffiliate({ bots, summary }: { bots: ProductBot[]; summary: Affiliat
 function RecentEvents({ events }: { events: any[] }) {
   return (
     <section className="mt-5 overflow-hidden rounded-md border border-edge bg-panel">
-      <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Recent earning events</h2></header>
-      {events.length === 0 ? <p className="px-5 py-8 text-center text-xs text-dim">No creator commission events yet.</p> : (
+      <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Recent earning events</h2></header>
+      {events.length === 0 ? <p className="px-5 py-8 text-center t-label text-dim">No creator commission events yet.</p> : (
         <div className="divide-y divide-edge">
-          {events.slice(0, 12).map((event) => <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><div><p className="text-xs font-semibold text-ink">{event.sourceType} commission</p><p className="mt-1 font-mono text-[9px] text-dim">{event.sourceId || "platform"} · {event.rateBps ? `${event.rateBps / 100}%` : "adjustment"}</p></div><span className={`font-mono text-xs ${Number(event.amountLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(event.amountLamports)}</span><span className="font-mono text-[9px] text-dim">{formatWhen(event.created_at)}</span></div>)}
+          {events.slice(0, 12).map((event) => <div key={event.id} className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto]"><div><p className="t-label font-semibold text-ink">{event.sourceType} commission</p><p className="mt-1 t-label text-dim">{event.sourceId || "platform"} · {event.rateBps ? `${event.rateBps / 100}%` : "adjustment"}</p></div><span className={`font-mono t-label ${Number(event.amountLamports) >= 0 ? "text-up" : "text-down"}`}>{formatSol(event.amountLamports)}</span><span className="t-label text-dim">{formatWhen(event.created_at)}</span></div>)}
         </div>
       )}
     </section>
@@ -604,20 +911,20 @@ function PayoutHistory({ summary, onRequest }: { summary: AffiliateSummary; onRe
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="overflow-hidden rounded-md border border-edge bg-panel">
-        <header className="border-b border-edge px-5 py-4"><h2 className="text-sm font-semibold text-ink">Payout history</h2><p className="mt-1 text-[11px] text-dim">A payout is not shown as paid until its on-chain transaction is confirmed.</p></header>
-        {summary.payouts.length === 0 ? <p className="px-5 py-12 text-center text-xs text-dim">No payout requests yet.</p> : (
+        <header className="border-b border-edge px-5 py-4"><h2 className="t-body font-semibold text-ink">Payout history</h2><p className="mt-1 t-label text-dim">A payout is not shown as paid until its on-chain transaction is confirmed.</p></header>
+        {summary.payouts.length === 0 ? <p className="px-5 py-12 text-center t-label text-dim">No payout requests yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[780px] text-left">
-              <thead className="bg-void font-mono text-[9px] uppercase text-dim"><tr><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Gross</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Net</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Status</th></tr></thead>
-              <tbody>{summary.payouts.map((payout) => <tr key={payout.id} className="border-t border-edge text-xs"><td className="px-4 py-4 font-mono text-dim">{formatWhen(payout.requested_at)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.grossLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(payout.processingFeeLamports)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.netLamports)}</td><td className="px-4 py-4 font-mono text-[9px] text-dim">{payout.destinationWallet.slice(0, 6)}...{payout.destinationWallet.slice(-5)}</td><td className="px-4 py-4"><StatusPill status={payout.status} /></td></tr>)}</tbody>
+              <thead className="ui-label bg-void"><tr><th className="px-4 py-3">Requested</th><th className="px-4 py-3">Gross</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Net</th><th className="px-4 py-3">Destination</th><th className="px-4 py-3">Status</th></tr></thead>
+              <tbody>{summary.payouts.map((payout) => <tr key={payout.id} className="border-t border-edge t-label"><td className="px-4 py-4 font-mono text-dim">{formatWhen(payout.requested_at)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.grossLamports)}</td><td className="px-4 py-4 font-mono text-dim">{formatSol(payout.processingFeeLamports)}</td><td className="px-4 py-4 font-mono text-ink">{formatSol(payout.netLamports)}</td><td className="px-4 py-4 t-label text-dim">{payout.destinationWallet.slice(0, 6)}...{payout.destinationWallet.slice(-5)}</td><td className="px-4 py-4"><StatusPill status={payout.status} /></td></tr>)}</tbody>
             </table>
           </div>
         )}
       </section>
       <aside className="h-fit rounded-md border border-edge bg-panel p-5">
-        <p className="field-label">Available balance</p><p className="mt-2 font-mono text-2xl text-ink">{formatSol(summary.availableLamports)}</p>
-        <dl className="mt-5 divide-y divide-edge border-y border-edge"><div className="flex justify-between py-3 text-xs text-dim"><dt>Minimum request</dt><dd className="font-mono text-ink">{formatSol(summary.minimumPayoutLamports)}</dd></div><div className="flex justify-between py-3 text-xs text-dim"><dt>Processing fee</dt><dd className="font-mono text-ink">{formatSol(summary.processingFeeLamports)}</dd></div></dl>
-        <button type="button" onClick={onRequest} disabled={Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="mt-5 min-h-11 w-full rounded-md bg-toxic text-sm font-semibold text-[#17110c] disabled:opacity-40">Request payout</button>
+        <p className="field-label">Available balance</p><p className="mt-2 font-mono t-display text-ink">{formatSol(summary.availableLamports)}</p>
+        <dl className="mt-5 divide-y divide-edge border-y border-edge"><div className="flex justify-between py-3 t-label text-dim"><dt>Minimum request</dt><dd className="font-mono text-ink">{formatSol(summary.minimumPayoutLamports)}</dd></div><div className="flex justify-between py-3 t-label text-dim"><dt>Processing fee</dt><dd className="font-mono text-ink">{formatSol(summary.processingFeeLamports)}</dd></div></dl>
+        <button type="button" onClick={onRequest} disabled={Number(summary.availableLamports) < Number(summary.minimumPayoutLamports)} className="mt-5 min-h-11 w-full rounded-md bg-gold-400 t-body font-semibold text-[#17110c] disabled:opacity-40">Request payout</button>
       </aside>
     </div>
   );
@@ -639,13 +946,21 @@ function PayoutModal({
   onSuccess: () => void;
 }) {
   const toast = useToast();
-  const [amount, setAmount] = useState(Math.max(0.1, Math.min(lamportsToSol(summary.availableLamports), 1)));
+  // Single source for the payout minimum: the server value, never a repeated literal.
+  const minimum = lamportsToSol(summary.minimumPayoutLamports);
+  const [amount, setAmount] = useState(Math.max(minimum, Math.min(lamportsToSol(summary.availableLamports), 1)));
   const [wallet, setWallet] = useState(defaultWallet);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const fee = lamportsToSol(summary.processingFeeLamports);
   const net = Math.max(0, amount - fee);
-  const invalid = amount < 0.1 || amount > lamportsToSol(summary.availableLamports) || net <= 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet);
+  // Take the minimum from the server rather than repeating 0.1 here. The database pins it
+  // (`payout_requests_gross_lamports_check`: gross_lamports >= 100000000) and the RPC raises
+  // 'minimum payout is 0.1 SOL' below it — but the edge function replaces raised exceptions
+  // with a generic message, so a client that disagrees with the server would produce an
+  // unexplained "temporarily unavailable" on a money action instead of a usable reason.
+  // The same duplicated-constant problem as the 0.043 fee literal removed earlier.
+  const invalid = amount < minimum || amount > lamportsToSol(summary.availableLamports) || net <= 0 || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wallet);
 
   async function submit() {
     if (invalid || !confirmed) return;
@@ -667,18 +982,18 @@ function PayoutModal({
   return (
     <div className="fixed inset-0 z-[110] grid place-items-center bg-black/75 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="payout-title" className="w-full max-w-lg rounded-md border border-edge bg-panel shadow-2xl" onClick={(event) => event.stopPropagation()}>
-        <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="font-mono text-[9px] uppercase text-toxic">Commission payout</p><h2 id="payout-title" className="mt-2 text-lg font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
+        <header className="flex items-start justify-between border-b border-edge p-5"><div><p className="ui-label text-gold-400">Commission payout</p><h2 id="payout-title" className="mt-2 t-title font-semibold text-ink">Request withdrawal</h2></div><button type="button" onClick={onClose} className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md border border-edge text-dim" aria-label="Close payout"><X size={15} /></button></header>
         <div className="space-y-4 p-5">
-          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><input type="number" value={amount} min={0.1} step={0.01} onChange={(event) => setAmount(Number(event.target.value))} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" /><span className="font-mono text-[10px] text-dim">SOL</span></span></label>
-          <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono text-xs" /></label>
+          <label className="block"><span className="field-label">Gross requested amount</span><span className="field-control mt-1.5 flex items-center px-3"><NumericTextInput value={amount} onChange={setAmount} decimals={2} min={minimum} className="min-w-0 flex-1 bg-transparent font-mono t-body outline-none" /><span className="t-label text-dim">SOL</span></span></label>
+          <label className="block"><span className="field-label">Destination Solana wallet</span><input value={wallet} onChange={(event) => setWallet(event.target.value.trim())} className="field-control mt-1.5 px-3 font-mono t-label" /></label>
           <div className="divide-y divide-edge rounded-md border border-edge bg-void px-3">
-            <div className="flex justify-between py-3 text-xs text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>
-            <div className="flex justify-between py-3 text-xs text-dim"><span>Processing/admin fee</span><span className="font-mono text-ink">-{fee.toFixed(3)} SOL</span></div>
-            <div className="flex justify-between py-3 text-xs font-semibold text-ink"><span>Net wallet payout</span><span className="font-mono">{net.toFixed(3)} SOL</span></div>
+            <div className="flex justify-between py-3 t-label text-dim"><span>Gross request</span><span className="font-mono text-ink">{amount.toFixed(3)} SOL</span></div>
+            <div className="flex justify-between py-3 t-label text-dim"><span>Processing/admin fee</span><span className="font-mono text-ink">-{fee.toFixed(3)} SOL</span></div>
+            <div className="flex justify-between py-3 t-label font-semibold text-ink"><span>Net wallet payout</span><span className="font-mono">{net.toFixed(3)} SOL</span></div>
           </div>
-          <label className="flex items-start gap-2 text-[11px] leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I confirm the destination, gross amount, fixed 0.043 SOL fee, and net payout. I understand this request is pending until reviewed and reconciled.</label>
+          <label className="flex items-start gap-2 t-label leading-5 text-dim"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#b98b5d]" />I confirm the destination, gross amount, fixed {formatSol(summary.processingFeeLamports)} processing fee, and net payout. I understand this request is pending until reviewed and reconciled.</label>
         </div>
-        <footer className="flex justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={onClose} className="min-h-11 rounded-md border border-edge px-5 text-sm font-semibold text-ink">Cancel</button><button type="button" onClick={submit} disabled={invalid || !confirmed || busy} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-toxic px-5 text-sm font-semibold text-[#17110c] disabled:opacity-40">{busy && <Loader2 size={14} className="animate-spin" />}Submit request</button></footer>
+        <footer className="flex justify-end gap-2 border-t border-edge p-5"><button type="button" onClick={onClose} className="min-h-11 rounded-md border border-edge px-5 t-body font-semibold text-ink">Cancel</button><button type="button" onClick={submit} disabled={invalid || !confirmed || busy} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-5 t-body font-semibold text-[#17110c] disabled:opacity-40">{busy && <Loader2 size={14} className="animate-spin" />}Submit request</button></footer>
       </div>
     </div>
   );

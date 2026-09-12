@@ -12,6 +12,30 @@ function rpcFor() {
   return process.env.MAINNET_RPC || "https://api.mainnet-beta.solana.com";
 }
 
+/**
+ * Backups for the SOL balance only.
+ *
+ * getBalance is the one call every public RPC answers, and it is the number this whole screen
+ * is built around — so it gets failover that the token-account call does not. api.mainnet-beta
+ * rate-limits datacenter traffic hard, and when it refused, `sol` fell through to 0 and a user
+ * holding 4 SOL was shown 0.000. A second opinion costs one request and removes that.
+ */
+const BALANCE_FALLBACKS = ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"];
+
+async function balanceWithFailover(primary: string, address: string): Promise<number | null> {
+  const seen = new Set<string>();
+  for (const url of [primary, ...BALANCE_FALLBACKS]) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    try {
+      const res = await rpc(url, "getBalance", [address], 5_000);
+      const value = res?.result?.value;
+      if (value != null && Number.isFinite(Number(value))) return Number(value);
+    } catch { /* try the next provider */ }
+  }
+  return null;
+}
+
 async function rpc(url: string, method: string, params: any[], timeoutMs = 8_000) {
   const r = await fetchWithTimeout(url, {
     method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
@@ -30,15 +54,22 @@ export async function GET(req: NextRequest) {
 
   try {
     const [balResult, accResult] = await Promise.allSettled([
-      rpc(url, "getBalance", [address], 5_000),
+      balanceWithFailover(url, address),
       rpc(url, "getTokenAccountsByOwner", [address, { programId: TOKEN_PROGRAM }, { encoding: "jsonParsed" }])
     ]);
-    if (balResult.status === "rejected" && accResult.status === "rejected") throw balResult.reason;
 
-    const balRes = balResult.status === "fulfilled" ? balResult.value : null;
+    const lamports = balResult.status === "fulfilled" ? balResult.value : null;
     const accRes = accResult.status === "fulfilled" ? accResult.value : null;
-    const partial = balResult.status === "rejected" || accResult.status === "rejected";
-    const sol = (balRes?.result?.value ?? 0) / 1e9;
+    const partial = lamports == null || accResult.status === "rejected";
+    /**
+     * null, NOT 0, when no provider would answer.
+     *
+     * This used to be `?? 0`, so a refused getBalance reported a confident zero balance for a
+     * funded wallet — the screen said 0.000 SOL while the money was there. An unknown balance
+     * is now unknown all the way to the interface, which renders it as an absent value. A
+     * wrong zero on a money screen is worse than a dash: one is a gap, the other is a claim.
+     */
+    const sol = lamports == null ? null : lamports / 1e9;
     const accounts: any[] = accRes?.result?.value ?? [];
     const holdings = accounts
       .map((a) => {
@@ -81,11 +112,17 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
 
     const tokenUsd = positions.reduce((s, p) => s + (p.valueUsd || 0), 0);
-    const solUsd = sol * solPrice;
+    // An unknown SOL balance makes the total unknown too. Reporting the token value alone as
+    // "total" would understate the account by however much SOL it holds.
+    const solUsd = sol == null ? null : sol * solPrice;
     return NextResponse.json({
       address, sol, solPrice, solChange24h, solUsd, positions, tokenUsd,
-      totalUsd: solUsd + tokenUsd, count: positions.length, partial,
-      warning: partial ? "Some balances could not be read before the Solana RPC timeout." : null
+      totalUsd: solUsd == null ? null : solUsd + tokenUsd, count: positions.length, partial,
+      warning: sol == null
+        ? "The SOL balance could not be read from any Solana RPC. Shown values exclude it."
+        : partial
+          ? "Some balances could not be read before the Solana RPC timeout."
+          : null
     }, {
       headers: {
         "Cache-Control": "public, max-age=15, s-maxage=60, stale-while-revalidate=300",

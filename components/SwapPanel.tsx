@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useSignAndSendTransaction, useWallets } from "@privy-io/react-auth/solana";
 import { getBase58Decoder } from "@solana/kit";
 import { fetchWithTimeout } from "@/lib/server/guard";
 import { getSolanaAddress } from "@/lib/solanaWallet";
+import { NumericTextInput } from "@/components/product/NumericField";
 
 const SOL = "So11111111111111111111111111111111111111112";
 const BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -72,26 +74,25 @@ export default function SwapPanel() {
     <div className="rounded-lg border border-edge bg-panel p-5">
       <div className="flex items-center gap-2">
         <h2 className="font-bold">Live swap</h2>
-        <span className="rounded-full border border-hotpink/50 px-2 py-0.5 font-mono text-[11px] text-hotpink">mainnet</span>
+        <span className="rounded-full border border-danger/50 px-2 py-0.5 text-[12px] text-danger">mainnet</span>
       </div>
       <p className="mt-1 text-xs text-dim">
         Real Jupiter swap, signed and sent by your own wallet. Non-custodial end to end.
       </p>
       <label className="mt-4 block">
-        <span className="font-mono text-[11px] uppercase text-dim">Amount (SOL) → BONK</span>
-        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(+e.target.value)}
-          className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-toxic" />
+        <span className="ui-label">Amount (SOL) → BONK</span>
+        <NumericTextInput value={amount} onChange={setAmount} decimals={2} className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono outline-none focus:border-gold-400" />
       </label>
       <button onClick={run} disabled={busy || amount <= 0}
-        className="mt-4 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+        className="mt-4 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">
         {status === "quoting" ? "Building swap…" : status === "signing" ? "Sign in your wallet…" : authenticated ? "Swap & sign" : "Connect wallet"}
       </button>
       {status === "done" && (
-        <p className="mt-3 break-all font-mono text-[11px] text-toxic">
-          ✓ Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
+        <p className="mt-3 break-all text-[12px] text-gold-400">
+          <Check size={14} className="inline" aria-hidden="true" /> Sent{sig ? <> — <a href={`https://explorer.solana.com/tx/${sig}`} target="_blank" rel="noreferrer" className="underline">{sig.slice(0, 12)}…</a></> : ""}
         </p>
       )}
-      {status === "error" && <p className="mt-3 font-mono text-[11px] text-hotpink">{err}</p>}
+      {status === "error" && <p className="mt-3 text-[12px] text-danger">{err}</p>}
     </div>
   );
 }

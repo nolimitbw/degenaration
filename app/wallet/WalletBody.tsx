@@ -1,17 +1,13 @@
 "use client";
-import dynamic from "next/dynamic";
+import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getNet } from "@/lib/net";
 import { usePrivy } from "@privy-io/react-auth";
-import { getMyProfile, saveProfileLimits, fetchBalance } from "@/lib/queries";
+import { fetchBalance } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 import { getSolanaAddress } from "@/lib/solanaWallet";
 
-// Heavy signing panels load after the deposit/balance UI paints.
-const SwapPanel = dynamic(() => import("@/components/SwapPanel"), { ssr: false, loading: () => <div className="h-40 animate-pulse rounded-lg border border-edge bg-panel/40" /> });
-const AutoTrade = dynamic(() => import("@/components/AutoTrade"), { ssr: false, loading: () => <div className="h-40 animate-pulse rounded-lg border border-edge bg-panel/40" /> });
-
-// Privy-dependent wallet hub (deposit, limits, auto-trade, swap). Lazily loaded by page.tsx.
+// Privy-dependent funding hub. Bot-level limits and execution controls live in the builders.
 export default function WalletBody() {
   const { authenticated, user, login, getAccessToken } = usePrivy();
   const toast = useToast();
@@ -21,16 +17,6 @@ export default function WalletBody() {
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [maxTrade, setMaxTrade] = useState(0.5);
-  const [dailyCap, setDailyCap] = useState(2);
-  const [savedLimits, setSavedLimits] = useState(false);
-
-  useEffect(() => {
-    if (!authenticated) return;
-    getAccessToken().then((token) => getMyProfile(token)).then((p) => {
-      if (p) { setMaxTrade(p.max_trade_sol ?? 0.5); setDailyCap(p.daily_cap_sol ?? 2); }
-    }).catch(() => {});
-  }, [address, authenticated, getAccessToken]);
 
   async function loadBalance() {
     if (!address) return;
@@ -49,24 +35,13 @@ export default function WalletBody() {
   useEffect(() => { loadBalance(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [address]);
 
   const copy = () => { if (!address) return; navigator.clipboard?.writeText(address); setCopied(true); toast("Address copied"); setTimeout(() => setCopied(false), 1500); };
-  async function saveLimits() {
-    if (!Number.isFinite(maxTrade) || maxTrade <= 0) { toast("Max per trade must be above 0 SOL", "err"); return; }
-    if (!Number.isFinite(dailyCap) || dailyCap < maxTrade) { toast("Daily cap must be at least max per trade", "err"); return; }
-    const { error } = await saveProfileLimits(
-      { max_trade_sol: maxTrade, daily_cap_sol: dailyCap, wallet_address: address },
-      await getAccessToken()
-    );
-    if (error) { toast("Could not save — sign in first", "err"); return; }
-    setSavedLimits(true); toast("Trade limits saved"); setTimeout(() => setSavedLimits(false), 1500);
-  }
-
   if (!authenticated || !address) {
     return (
       <div className="mx-auto max-w-md rounded-lg border border-edge bg-panel p-8 text-center">
-        <h1 className="text-xl font-bold">Connect your wallet</h1>
-        <p className="mt-2 text-sm text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
-        <button onClick={login} className="mt-6 w-full rounded-md bg-toxic py-3 font-bold text-[#17110c] shadow-toxic transition hover:brightness-110">Connect wallet</button>
-        <p className="mt-3 font-mono text-[11px] text-dim">Wallet keys remain with your wallet provider. Delegated access is optional and revocable.</p>
+        <h1 className="t-title font-bold">Connect your wallet</h1>
+        <p className="mt-2 t-body text-dim">Sign in to create a Privy-secured Solana wallet or connect a supported wallet.</p>
+        <button onClick={login} className="mt-6 w-full rounded-md bg-gold-400 py-3 font-bold text-[#17110c] shadow-gold transition hover:brightness-110">Connect wallet</button>
+        <p className="mt-3 t-label text-dim">Wallet keys remain with your wallet provider.</p>
       </div>
     );
   }
@@ -75,8 +50,8 @@ export default function WalletBody() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold">Wallet</h1>
-      <p className="mt-1 text-sm text-dim">Fund your wallet and set application-level limits for supported automation claims.</p>
+      <h1 className="t-display font-bold">Wallet</h1>
+      <p className="mt-1 t-body text-dim">Fund the wallet your bots use for automated trades.</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="gradient-border rounded-lg border border-edge p-5">
@@ -84,46 +59,28 @@ export default function WalletBody() {
           <div className="mt-4 flex flex-col items-center gap-4">
             <img src={qr} alt="deposit QR" className="rounded-md border border-edge bg-void" width={180} height={180} />
             <div className="w-full">
-              <p className="font-mono text-[11px] uppercase text-dim">Your deposit address</p>
+              <p className="ui-label">Your deposit address</p>
               <div className="mt-1 flex items-center gap-2">
-                <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono text-xs">{address}</code>
-                <button onClick={copy} className="rounded-md bg-toxic px-3 py-2 text-xs font-bold text-white">{copied ? "✓" : "Copy"}</button>
+                <code className="flex-1 truncate rounded-md border border-edge bg-void px-3 py-2 font-mono t-label">{address}</code>
+                <button onClick={copy} className="rounded-md bg-gold-400 px-3 py-2 t-label font-bold text-white">{copied ? <Check size={14} aria-label="Copied" /> : "Copy"}</button>
               </div>
             </div>
-            <p className="w-full rounded-md border border-hotpink/40 bg-hotpink/5 px-3 py-2 text-center font-mono text-[11px] text-hotpink">Send only mainnet SOL. Transfers are irreversible.</p>
+            <p className="w-full rounded-md border border-danger/40 bg-danger/5 px-3 py-2 text-center t-label text-danger">Send only mainnet SOL. Transfers are irreversible.</p>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="gradient-border rounded-lg border border-edge p-5">
+        <div className="gradient-border h-fit rounded-lg border border-edge p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase text-dim">Balance</p>
-                <p className="mt-1 font-mono text-3xl font-bold">{balanceLoading ? "…" : balance != null ? balance.toFixed(3) : "—"} <span className="text-base text-dim">SOL</span></p>
-                <p className="mt-1 font-mono text-xs text-dim">{balanceError ? balanceError : "mainnet"}</p>
+                <p className="t-label uppercase text-dim">Balance</p>
+                <p className="mt-1 font-mono t-display font-bold">{balanceLoading ? "…" : balance != null ? balance.toFixed(3) : "—"} <span className="t-section text-dim">SOL</span></p>
+                <p className="mt-1 font-mono t-label text-dim">{balanceError ? balanceError : "mainnet"}</p>
               </div>
               <button onClick={loadBalance} disabled={balanceLoading}
-                className="rounded-md border border-edge px-3 py-1.5 font-mono text-[11px] font-bold text-dim transition hover:border-toxic hover:text-toxic disabled:opacity-50">
+                className="rounded-md border border-edge px-3 py-1.5 t-label font-bold text-dim transition hover:border-gold-400 hover:text-gold-400 disabled:opacity-50">
                 {balanceLoading ? "Checking" : "Refresh"}
               </button>
             </div>
-          </div>
-          <div className="gradient-border rounded-lg border border-edge p-5">
-            <h2 className="font-bold">Automation limits</h2>
-            <p className="mt-1 text-xs text-dim">The database reserves these limits atomically before the worker requests a signature.</p>
-            <label className="mt-4 block">
-              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Max per trade</span><span className="text-ink">{maxTrade} SOL</span></span>
-              <input type="range" min="0.1" max="5" step="0.1" value={maxTrade} onChange={(e) => setMaxTrade(+e.target.value)} className="mt-2 w-full accent-toxic" />
-            </label>
-            <label className="mt-4 block">
-              <span className="flex justify-between font-mono text-[11px] uppercase text-dim"><span>Daily spend cap</span><span className="text-ink">{dailyCap} SOL</span></span>
-              <input type="range" min="0.5" max="20" step="0.5" value={dailyCap} onChange={(e) => setDailyCap(+e.target.value)} className="mt-2 w-full accent-toxic" />
-            </label>
-            <button onClick={saveLimits} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110">{savedLimits ? "✓ Saved" : "Save limits"}</button>
-            <p className="mt-3 font-mono text-[11px] text-dim">Limits are application controls. Manage the separate Privy delegation below.</p>
-          </div>
-          <AutoTrade />
-          <SwapPanel />
         </div>
       </div>
     </>

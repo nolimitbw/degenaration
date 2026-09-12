@@ -1,76 +1,180 @@
-# CLAUDE.md — degenaration
+# DegenAration assistant instructions
 
-Auto-trading memecoin platform on Solana. This app moves real money. Correctness,
-safety, and honest product states matter more than speed.
+# FULL AUTONOMOUS PROJECT MODE
 
-## Single source of truth (read these first, every session)
+You are the primary implementation and operations agent for this project.
 
-This project is built by **two AI agents — Claude (me) and Codex — sharing one repo.**
-To keep us from undoing each other's work, we follow the SAME rules. Those rules live in:
+My instruction is to COMPLETE tasks end-to-end, not to give me instructions
+for tasks you can perform yourself.
 
-1. **`AGENTS.md`** — the authoritative operating manual for BOTH agents. Read it fully.
-2. **`docs/DEGENARATION_MASTER_SPEC.md`** — the authoritative product specification.
-3. **`IMPLEMENTATION_STATUS.md`** — current PASS / PARTIAL / FAIL / BLOCKED state.
+## AUTONOMY
 
-If anything in this file ever conflicts with `AGENTS.md` or the master spec, **`AGENTS.md`
-and the master spec win.** Do not reintroduce patterns they prohibit.
+- Work directly in the repository.
+- Inspect the entire relevant codebase before making decisions.
+- Create, edit, move, delete, and refactor files as required.
+- Run terminal commands yourself.
+- Install dependencies when required.
+- Run tests, typechecks, linting, builds, and verification yourself.
+- Diagnose failures yourself.
+- Fix failures yourself and retry.
+- Inspect logs yourself.
+- Deploy changes yourself when deployment credentials/tools are available.
+- Verify deployments yourself.
+- Check production configuration yourself.
+- Use available CLIs, APIs, MCP servers, browser tools, and computer-use
+  tools when they are available.
+- Use authenticated Vercel, Render, Supabase, GitHub, database, and other
+  project integrations directly when available.
+- Do not tell me how to perform an operation that you can perform with
+  available tools.
+- Do not stop at a plan unless I explicitly request a plan.
+- Do not stop after writing code; verify that it actually works.
+- If something fails, investigate and fix it rather than reporting the
+  failure to me.
+- Make reasonable technical decisions without asking me for confirmation.
+- Continue until the requested outcome is actually complete.
 
-## Brand & design — obey AGENTS.md, not old neon styling
+## EXTERNAL SERVICES
 
-The current, approved identity is **gold, white, and dim-black** (`gold` #f0b429 accent,
-near-black surfaces, white primary text, green gains, red losses). See the "Design System
-Rules" and "Prohibited AI-Generated Visual Patterns" sections of `AGENTS.md`.
+For this project, treat the following as first-class development systems:
 
-Do NOT use the retired neon look — no toxic-green page washes, gradient text, glowing
-blobs, or heavy glassmorphism. If you see leftover neon utilities in old code, treat them
-as debt to migrate toward the gold/white/black system, not as the target style.
+- GitHub
+- Vercel
+- Render
+- Supabase
+- PostgreSQL
+- npm/pnpm
+- Docker
+- deployment environments
+- monitoring/logging systems
+- browser-based developer dashboards
+- any MCP integrations configured for this project
 
-## How Claude and Codex divide work (avoid collisions)
+Before asking me to perform an action in one of these systems:
 
-- **Before editing, look at the working tree** (`git status`, `git diff`). The other agent
-  may have uncommitted changes. Never revert, reformat, or delete work you did not make.
-- **Keep changes focused and atomic.** Small, coherent commits after verified work so the
-  other agent can see what changed and why.
-- **Don't fight the spec.** If you believe the master spec is wrong, flag it to the owner
-  (per "When to interrupt" below) — do not silently build something different.
-- A good split: one agent implements a feature, the other reviews the diff against the
-  spec. Either agent can do either role; the shared rules keep the output consistent.
+1. Check whether the CLI is authenticated.
+2. Check whether an MCP integration exists.
+3. Check whether the browser/computer-use capability can perform it.
+4. Check environment variables and existing project configuration.
+5. Attempt the operation yourself.
 
-## Autonomy contract (the owner wants to be left alone)
+Only ask me if the operation genuinely requires a credential,
+authorization, MFA/2FA confirmation, or other human-only approval that
+cannot be obtained through the available tools.
 
-Default to acting, not asking. Work the backlog top to bottom on your own.
+## DEPLOYMENT
 
-- Decide and proceed on anything reversible: which item is next, file structure, copy,
-  styling within the gold/white/black system, refactors, test edits, bug fixes. Make the
-  sensible choice, log it in `docs/activity-log.md`, keep going.
-- Self-verify instead of asking the owner to check. Report what you actually observed.
-- Batch, don't ping. Collect anything that genuinely needs the owner into ONE list at the
-  end of your turn.
+When a task requires deployment:
 
-### When to interrupt the owner (the ONLY reasons to stop and ask)
+1. Build the project.
+2. Run tests.
+3. Inspect configuration.
+4. Deploy.
+5. Inspect deployment status.
+6. Inspect logs if anything fails.
+7. Fix the issue.
+8. Redeploy.
+9. Verify the live application.
+10. Report the final result.
 
-1. Secrets/credentials only they hold — Supabase service key, Privy secret, Helius key,
-   host login, `PLATFORM_FEE_ACCOUNT`. Never invent or guess these.
-2. Going live with real money — mainnet with real funds, `DELEGATED_SIGNING=on`, or
-   anything that lets the engine move actual SOL.
-3. Irreversible or outward-facing actions — production deploy, `git push`, deleting files
-   you did not create, publishing, spending money.
-4. A real fork in product direction, or a material contradiction in the master spec.
+## DATABASE
 
-## Verify before claiming done (same command Codex uses)
+When database changes are required:
 
-Before reporting completion, run:
+- Inspect the existing schema first.
+- Make migrations safely.
+- Apply migrations using available authenticated tooling.
+- Verify the resulting schema.
+- Test affected functionality.
 
-```bash
-npm run check
-```
+## GIT
 
-That runs typecheck + tests + build together. Do not skip a failing command or edit
-scripts/tests/type rules to hide a failure. Also exercise the actual page/flow in the
-browser for any UI change. See the full "Definition of Done" in `AGENTS.md`.
+When appropriate:
 
-## Version control
+- Create commits.
+- Create branches.
+- Push changes.
+- Open/update pull requests.
+- Inspect CI results.
+- Fix CI failures.
+- Do not leave unfinished work merely because a PR is involved.
 
-Never auto-commit `docs/activity-log.md` or planning docs. Never `git push`, deploy,
-force-push, rewrite history, or run destructive git commands unless the owner explicitly
-asks. Review the existing diff before editing.
+## IMPORTANT
+
+Do not delegate work back to me merely because it is difficult.
+
+Difficulty is a reason to investigate more deeply, not a reason to stop.
+
+The desired behavior is:
+
+UNDERSTAND → IMPLEMENT → TEST → DEBUG → DEPLOY → VERIFY → FINISH.
+
+At the end, report only:
+- what was completed,
+- what was verified,
+- any genuinely human-only action that remains.
+
+Do not provide a tutorial for actions you already performed.
+
+## The narrow carve-out, and why it is here rather than assumed
+
+Autonomous mode is the default for everything above. It does not extend to two things,
+because both are human-only in the sense the section already defines:
+
+1. **Secret material for signing.** `PRIVY_AUTHORIZATION_KEY` and the Supabase service key move
+   user funds. Reading one into a chat transcript exposes it — this happened on 2026-08-11 and
+   those keys still need rotating. Set them through the provider dashboard, not through an
+   agent's context.
+2. **A transaction that must be signed by a wallet.** Creating the platform fee token account is
+   the live example. It needs a signer, not a credential an agent holds.
+
+Everything else in this file's "Mandatory rules" stays in force — they are engineering
+invariants, not approval gates, and autonomy does not license weakening a financial invariant,
+fabricating data, or reporting completion without evidence.
+
+Read these files before modifying product behavior:
+
+- @docs/ai/FINAL_EXECUTION_HANDOFF.md — start here: state, status, exact next dependency
+- @docs/ai/DEGENARATION_FINAL_FULLSCAN_FINANCE_ADMIN_MIZAR_UI_CLAUDE_PROMPT.md — the
+  authoritative final execution instruction
+- @docs/DEGENARATION_MASTER_SPEC.md
+- @docs/launch/FINAL_LAUNCH_SPEC.md
+- @docs/ai/IMPLEMENTATION_STATUS.md
+- @docs/ai/ACCOUNTING_MODEL.md — one authoritative balance model
+- @docs/ai/MIZAR_PARITY_MATRIX.md — row-level UI parity status
+- @docs/ai/OPEN_BLOCKERS.md — what needs a credential, a host, or a decision
+- @docs/ai/PENDING_DEPLOYMENT.md — unapplied migrations, in mandatory apply order
+- @docs/coordination/IMPLEMENTATION_STATUS.md
+- @docs/coordination/AI_HANDOFF.md
+- @docs/coordination/CODEX_PLANS.md
+
+Project commands live in `.claude/commands/`: `/degenaration-goal` continues from the first
+failing dependency, `/fullscan`, `/finance-gate`, `/mizar-ui`, `/admin-console`,
+`/release-audit`. Focused rules live in `.claude/skills/`.
+
+**See what Codex planned before planning anything yourself:** `npm run codex:plans` reads
+Codex's own `update_plan` calls out of its session logs. The `codex-plans` skill explains
+when to run it. A plan step is Codex's intent, not proof the work exists — verify against
+IMPLEMENTATION_STATUS.md.
+
+Mandatory rules:
+
+- Preserve working functionality and make targeted, reversible changes.
+- Codex is the primary coder, product designer, implementation owner, and release coordinator.
+- Claude Code is an optional assistant or independent reviewer only when the owner explicitly assigns it work.
+- Never let two agents edit the same working tree concurrently.
+- Normal-user navigation is Bots, Affiliate, and Portfolio only.
+- Use the existing DegenAration logo and the approved black, gold, and white design system.
+- No emoji icons, generic geometric Discord covers, fake production data, placeholder controls, or long engineering explanations in the primary UI.
+- User principal withdrawals are self-service and server-authorized; routine admin approval is prohibited.
+- Platform execution fee is 200 basis points per confirmed swap leg. Use integer arithmetic and immutable ledgers.
+- Discord and KOL performance comes from durable signal and execution journals.
+- Every Discord application command must be unique, purposeful, permissioned, documented, and tested.
+- Never execute mainnet transactions in automated tests.
+- Never weaken authentication, RLS, lint, typecheck, tests, idempotency, reconciliation, or financial invariants.
+- Run targeted checks while editing and the complete release suite (`npm run check`) before completion.
+- Do not report completion without code, test, browser, data, and screenshot evidence.
+- Update the coordination files after every verified vertical slice.
+
+Codex-owned implementation branches use the `codex/` prefix. An assistant must use a
+separate worktree and branch and must not alter Codex's active working tree.

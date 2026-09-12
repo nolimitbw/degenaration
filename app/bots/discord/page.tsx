@@ -22,7 +22,8 @@ import {
   Segmented,
   StatusPill
 } from "@/components/product/Primitives";
-import { DiscordSourceAvatar, DiscordSourceBanner } from "@/components/product/DiscordSourceVisual";
+import { DiscordSourceAvatar, IntegrationHealthDot } from "@/components/product/DiscordSourceVisual";
+import { DiscordActivityGrid, DiscordCallCounts } from "@/components/product/DiscordMarketplaceMetrics";
 import { formatPercentBps, formatWhen, productFetch, type DiscordSource } from "@/lib/product-api";
 import { safeDiscordBotInstall, safeDiscordInvite } from "@/lib/external-url";
 
@@ -34,6 +35,10 @@ const TABS = [
 ];
 
 type Period = "1d" | "7d" | "30d";
+
+/** Written out, because "1d" above a column of counts reads as a unit rather than a window. */
+const PERIOD_LABEL: Record<Period, string> = { "1d": "last 24 hours", "7d": "last 7 days", "30d": "last 30 days" };
+const periodLabel = (period: Period) => PERIOD_LABEL[period];
 type Sort = "performance" | "drawdown" | "followers" | "calls" | "newest" | "fee";
 
 export default function DiscordMarketplacePage() {
@@ -80,20 +85,22 @@ export default function DiscordMarketplacePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Bots / Discord"
-        title="Approved Discord sources"
-        description="Measured community calls, transparent sample sizes, and configurable execution controls. Only approved channels can produce eligible signals."
+        title="Discord sources"
+        description="Compare recorded call outcomes, check source health, and configure your trading rules."
+        /* Three buttons, two of them gold-weighted, and the reader had to choose between
+           them before reading the page. Only one is what most people came to do; the other
+           two are for server owners and now read as links. */
         actions={
           <>
-            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-toxic/40 px-4 text-sm font-semibold text-toxic transition hover:bg-toxic/10">
-              <Bot aria-hidden="true" size={16} />
-              Add bot to server
+            <a href={installUrl} target={installUrl.startsWith("https://") ? "_blank" : undefined} rel={installUrl.startsWith("https://") ? "noreferrer" : undefined} className="inline-flex min-h-11 items-center gap-2 px-1 t-meta text-dim transition hover:text-ink sm:min-h-10">
+              <Bot aria-hidden="true" size={15} />
+              Add our bot to a server
             </a>
-            <Link href="/affiliate?tab=discord" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-edge px-4 text-sm font-semibold text-ink transition hover:border-toxic/60">
-              <Users aria-hidden="true" size={16} />
-              List a server
+            <Link href="/affiliate?tab=discord" className="inline-flex min-h-11 items-center gap-2 px-1 t-meta text-dim transition hover:text-ink sm:min-h-10">
+              <Users aria-hidden="true" size={15} />
+              List your server
             </Link>
-            <Link href="/bots/discord/new" className="inline-flex min-h-10 items-center gap-2 rounded-md bg-toxic px-4 text-sm font-semibold text-[#17110c]">
+            <Link href="/bots/discord/new" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 t-body font-medium text-[#17110c] transition hover:bg-gold-300 sm:min-h-10">
               <Plus aria-hidden="true" size={16} />
               New Discord bot
             </Link>
@@ -109,23 +116,24 @@ export default function DiscordMarketplacePage() {
           onChange={setPeriod}
           options={[{ value: "1d", label: "1D" }, { value: "7d", label: "7D" }, { value: "30d", label: "30D" }]}
         />
-        <label className="flex min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-toxic">
+        <label className="flex min-h-11 sm:min-h-10 flex-1 items-center gap-2 rounded-md border border-edge bg-void px-3 focus-within:border-gold-400">
           <Search aria-hidden="true" size={15} className="text-dim" />
           <input
+            aria-label="Search approved Discord sources"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search approved sources"
-            className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-dim/70"
+            className="min-w-0 flex-1 bg-transparent t-body text-ink outline-none placeholder:text-dim/70"
           />
         </label>
-        <label className="flex min-h-10 items-center gap-2 text-xs text-dim">
+        <label className="flex min-h-11 sm:min-h-10 items-center gap-2 t-label text-dim">
           <input type="checkbox" checked={minimumHistory} onChange={(event) => setMinimumHistory(event.target.checked)} className="h-4 w-4 accent-[#b98b5d]" />
           Minimum {minimumSampleSize} measured calls
         </label>
-        <label className="flex min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 text-xs text-dim">
+        <label className="flex min-h-11 sm:min-h-10 items-center gap-2 rounded-md border border-edge bg-void px-3 t-label text-dim">
           <SlidersHorizontal aria-hidden="true" size={14} />
           <span className="sr-only">Sort sources</span>
-          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="bg-transparent text-xs text-ink outline-none">
+          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="h-11 sm:h-auto bg-transparent t-label text-ink outline-none">
             <option value="performance">Best performance</option>
             <option value="drawdown">Lowest drawdown</option>
             <option value="followers">Most followers</option>
@@ -134,7 +142,7 @@ export default function DiscordMarketplacePage() {
             <option value="fee">Lowest fee</option>
           </select>
         </label>
-        <button type="button" onClick={load} className="grid h-10 w-10 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh marketplace" title="Refresh marketplace">
+        <button type="button" onClick={load} className="grid h-11 w-11 place-items-center sm:h-10 sm:w-10 rounded-md border border-edge text-dim hover:text-ink" aria-label="Refresh marketplace" title="Refresh marketplace">
           <RefreshCw aria-hidden="true" size={15} />
         </button>
       </section>
@@ -149,33 +157,31 @@ export default function DiscordMarketplacePage() {
           />
         )}
         <div className="grid gap-4 xl:grid-cols-2">
-          {visible.map((source) => <SourceCard key={source.id} source={source} minimumSampleSize={minimumSampleSize} />)}
+          {visible.map((source) => <SourceCard key={source.id} source={source} minimumSampleSize={minimumSampleSize} period={period} />)}
         </div>
       </div>
     </AppShell>
   );
 }
 
-function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; minimumSampleSize: number }) {
+function SourceCard({ source, minimumSampleSize, period }: { source: DiscordSource; minimumSampleSize: number; period: Period }) {
   const measured = source.measuredCalls >= minimumSampleSize;
   const joinUrl = safeDiscordInvite(source.joinUrl);
   return (
-    <article className="overflow-hidden rounded-md border border-edge bg-panel">
-      <DiscordSourceBanner source={source} compact />
-      <header className="flex items-start gap-4 border-b border-edge p-5">
+    <article className="overflow-hidden rounded-lg border border-[color:var(--rule)] bg-panel">
+      <header className="flex items-start gap-4 border-b border-[color:var(--rule)] p-5">
         <DiscordSourceAvatar source={source} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate text-base font-semibold text-ink">{source.name}</h2>
+            <h2 className="truncate t-section font-semibold text-ink">{source.name}</h2>
             <StatusPill status={source.verificationStatus || "approved"} />
-            <StatusPill status={source.integrationHealth || "pending"} />
+            <IntegrationHealthDot status={source.integrationHealth} />
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-dim">
-            <span>{source.members || "Member count unavailable"}</span>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 t-label text-dim">
+            {source.members && <span>{source.members}</span>}
             <span>{source.activeFollowers} active followers</span>
-            <span>{formatPercentBps(source.creatorFeeBps)} creator fee</span>
           </p>
-          <p className="mt-2 line-clamp-2 text-xs leading-5 text-dim">{source.description}</p>
+          <p className="mt-2 line-clamp-2 t-label leading-5 text-dim">{source.description}</p>
         </div>
         {joinUrl && (
           <a href={joinUrl} target="_blank" rel="noreferrer" className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-edge text-dim hover:text-ink" aria-label={`Join ${source.name}`} title="Join server">
@@ -184,37 +190,129 @@ function SourceCard({ source, minimumSampleSize }: { source: DiscordSource; mini
         )}
       </header>
 
-      <div className="grid grid-cols-2 divide-x divide-y divide-edge border-b border-edge py-4 sm:grid-cols-5 sm:divide-y-0">
-        <Metric label="Win rate" value={measured && source.winRate != null ? `${source.winRate.toFixed(1)}%` : "--"} tone={measured ? "positive" : "default"} />
-        <Metric label="Median return" value={measured && source.medianReturnX != null ? `${source.medianReturnX.toFixed(2)}x` : "--"} />
-        <Metric label="Average return" value={measured && source.averageReturnX != null ? `${source.averageReturnX.toFixed(2)}x` : "--"} />
-        <Metric label="Max drawdown" value={measured ? formatPercentBps(source.maxDrawdownBps) : "--"} tone={source.maxDrawdownBps != null ? "negative" : "default"} />
-        <Metric label="Eligible calls" value={source.eligibleCalls} detail={`${source.measuredCalls} measured`} />
+      {/* Bands separated by rules and spacing rather than by filled boxes on a 1px grid.
+          The card held eighteen bordered cells inside a bordered card inside a page. */}
+      <div className="border-b border-[color:var(--rule)] px-5 py-4"><DiscordActivityGrid source={source} /></div>
+      {/*
+        The durable milestone journal. Counts are cumulative: a 5x call also reached 2x and
+        +50%. That is the ordinary meaning of a label such as "2x", and it matches the source
+        detail journal instead of showing the exclusive 2x-to-5x bucket under the same label.
+
+        Replaces two rows. The first was net PnL at 1 day / 7 days / 30 days, which is money
+        from COPIED TRADES and reads "Collecting data" until someone has actually copied this
+        source; three permanently empty cards above a period selector that already exists is
+        what made the periods look broken. The second was Hit rate / Up now / Median peak /
+        Median now — four ways of saying the same thing to someone who wants to know whether
+        the calls landed.
+
+        Every bucket here is period-scoped already: `period_calls` in
+        degenaration-discord-current-return.sql filters `called_at >= v_since`, so changing
+        1D/7D/30D above changes all of these.
+
+        Current drawdown remains on its own line below, because a historical first hit and the
+        token's price today answer different questions.
+      */}
+      <div className="border-b border-[color:var(--rule)] px-5 py-5">
+        <p className="ui-label">Observed milestones · {periodLabel(period)}</p>
+        <div className="mt-3 grid grid-cols-2 gap-y-4 sm:grid-cols-5">
+          <Metric
+            label="Hit rate (+50%)"
+            value={measured && source.plus50Rate != null ? `${source.plus50Rate.toFixed(1)}%` : "—"}
+            tone={measured ? "positive" : "default"}
+            hint="Share of measured calls whose journal recorded a first hit at 1.50x entry."
+          />
+          <Metric
+            label="Hit -50%"
+            value={measured && source.milestoneHistoryComplete ? String(source.down50Hits ?? 0) : "—"}
+            tone={measured && (source.down50Hits ?? 0) > 0 ? "negative" : "default"}
+            hint="Calls whose journal recorded a first fall to half their entry price."
+          />
+          <Metric
+            label="Hit +50%"
+            value={measured && source.milestoneHistoryComplete ? String(source.plus50Hits ?? 0) : "—"}
+            hint="Calls whose journal recorded a first hit at 1.50x entry or better."
+          />
+          <Metric
+            label="Hit 2x"
+            value={measured && source.milestoneHistoryComplete ? String(source.twoXHits ?? 0) : "—"}
+            tone={measured && (source.twoXHits ?? 0) > 0 ? "positive" : "default"}
+            hint="Calls whose journal recorded a first hit at twice their entry price or better."
+          />
+          <Metric
+            label="Hit 5x"
+            value={measured && source.milestoneHistoryComplete ? String(source.fiveXHits ?? 0) : "—"}
+            tone={measured && (source.fiveXHits ?? 0) > 0 ? "positive" : "default"}
+            hint="Calls whose journal recorded a first hit at five times their entry price or better."
+          />
+        </div>
+
+        {/*
+          Where those same calls are NOW, on its own line and labelled as such.
+
+          The milestones above record first hits. Showing the current outcome beside them
+          prevents a source whose calls briefly rallied and then collapsed from looking healthy.
+        */}
+        {measured && (
+          <p className="mt-4 border-t border-[color:var(--rule)] pt-3 t-label text-dim">
+            Where they are now:{" "}
+            <span className={source.currentWinRate != null && source.currentWinRate >= 50 ? "text-up" : "text-ink"}>
+              {source.currentWinRate == null ? "—" : `${source.currentWinRate.toFixed(1)}% still above entry`}
+            </span>
+            {source.currentlyDown50 != null && (
+              <>
+                {" · "}
+                <span className={source.currentlyDown50 > 0 ? "text-down" : "text-ink"}>
+                  {source.currentlyDown50} down 50%+
+                </span>
+              </>
+            )}
+            {source.medianCurrentX != null && <> · median {Number(source.medianCurrentX).toFixed(2)}x</>}
+          </p>
+        )}
       </div>
 
       <div className="p-5">
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            ["<50%", source.under50, "text-down"],
-            ["+50%", source.plus50, "text-toxic"],
-            ["2x", source.twoX, "text-up"],
-            ["5x+", source.fiveX, "text-up"]
-          ].map(([label, value, tone]) => (
-            <div key={label as string} className="rounded-sm border border-edge bg-void px-3 py-2 text-center">
-              <p className={`font-mono text-sm font-semibold tabular-nums ${tone}`}>{value}</p>
-              <p className="mt-1 font-mono text-[8px] uppercase text-dim">{label}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className={`text-xs font-medium ${measured ? "text-ink" : "text-toxic"}`}>{measured ? "Measured history available" : "Insufficient measured history"}</p>
-            <p className="mt-1 font-mono text-[9px] text-dim">Last signal: {formatWhen(source.lastSignalAt)}</p>
-            <p className="mt-1 font-mono text-[9px] text-dim">Profile sync: {formatWhen(source.profileSyncedAt)}</p>
+        <DiscordCallCounts source={source} />
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-edge pt-4">
+          <div className="min-w-0">
+            {measured ? (
+              <p className="t-label text-dim">{source.measuredCalls} measured calls in this period</p>
+            ) : (
+              <p
+                className="t-label text-dim"
+                title="Performance appears after eligible calls receive enough market data."
+              >
+                {source.approvedAt ? `Tracking started ${formatWhen(source.approvedAt)}` : "No eligible calls yet"}
+              </p>
+            )}
+            {/* The commission is stated only when there is somebody who can receive it.
+                Both approved sources carry creator_fee_bps 70 and owner_privy_user_id NULL,
+                and settle_execution_into_ledger reads that null and sets the creator share to
+                ZERO — silently, with the whole platform fee retained. So the card was
+                advertising a payment to a server owner that the settlement path would never
+                make, which is the same defect as quoting a platform fee nobody is charged.
+                `creatorPayable` is the owner link resolving, not a display name: the name is
+                synced from Discord and is present whether or not anyone has claimed the
+                server. */}
+            {source.creatorPayable ? (
+              <p
+                className="mt-1 t-label text-dim"
+                title={`The server owner receives ${formatPercentBps(source.creatorFeeBps)} of executed notional, paid out of the 2.00% platform fee. You are not charged extra.`}
+              >
+                {formatPercentBps(source.creatorFeeBps)} goes to the server owner, out of the platform fee
+              </p>
+            ) : (
+              <p
+                className="mt-1 t-label text-[color:var(--text-muted)]"
+                title="Nobody has claimed this server yet, so no creator share is paid on its calls. It does not cost you more either way — the platform fee is the same."
+              >
+                No server owner claimed yet
+              </p>
+            )}
           </div>
-          <div className="flex gap-2">
-            <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-10 items-center rounded-md border border-edge px-4 text-xs font-semibold text-ink hover:border-toxic/60">Details</Link>
-            <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-10 items-center rounded-md bg-toxic px-4 text-xs font-semibold text-[#17110c]">Configure bot</Link>
+          <div className="flex shrink-0 gap-2">
+            <Link href={`/bots/discord/${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md border border-edge px-4 t-label font-semibold text-ink hover:border-gold-400/60">Details</Link>
+            <Link href={`/bots/discord/new?source=${source.id}`} className="inline-flex min-h-11 sm:min-h-10 items-center rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c]">Configure bot</Link>
           </div>
         </div>
       </div>

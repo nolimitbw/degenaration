@@ -45,8 +45,8 @@ export function useAutomationStatus() {
 }
 
 export function automationLabel(status: AutomationStatus) {
-  if (status.loading) return "Checking engine";
+  if (status.loading) return "Checking automation";
   if (status.live) return "Automation live";
   if (!status.configured) return "Automation not configured";
-  return status.mode === "watch-only" ? "Automation watch-only" : "Automation unavailable";
+  return status.mode === "watch-only" ? "Automation is monitoring only" : "Automation not yet available";
 }

@@ -1,17 +1,8 @@
-"use client";
-import AppShell from "@/components/AppShell";
-import dynamic from "next/dynamic";
+import { redirect } from "next/navigation";
 
-// Shell paints instantly; the Privy-dependent body loads as a separate client chunk.
-const TrackerBody = dynamic(() => import("./TrackerBody"), {
-  ssr: false,
-  loading: () => <p className="text-sm text-dim">Loading tracker…</p>
-});
-
-export default function Tracker() {
-  return (
-    <AppShell>
-      <TrackerBody />
-    </AppShell>
-  );
+// Spec section 9: normal users see Bots, Affiliate and Portfolio. This legacy surface
+// is no longer part of the product. The route is kept as a redirect rather than deleted so
+// an existing bookmark or an old link lands somewhere real instead of on a 404.
+export default function TrackerRedirect() {
+  redirect("/bots");
 }

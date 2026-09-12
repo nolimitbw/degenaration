@@ -1,0 +1,99 @@
+{
+  "base": "https://degenaration.vercel.app",
+  "plan": "owner-link",
+  "capturedAtNote": "timestamp intentionally omitted; git records it",
+  "results": [
+    {
+      "route": "/connect/discord/aaaaaaaa-0000-4000-8000-000000000001",
+      "id": "discord-owner-link",
+      "viewport": "mobile",
+      "width": 375,
+      "title": "DegenAration | Solana Bot Automation",
+      "scrollWidth": 375,
+      "clientWidth": 375,
+      "horizontalOverflow": false,
+      "hasViewportMeta": true,
+      "forbiddenCopy": [],
+      "emojiInUi": false,
+      "smallTapTargets": 0,
+      "signedIn": false,
+      "spinners": 0,
+      "headings": [
+        "Connect Discord"
+      ],
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nConnect wallet\n\nVERIFIED SOURCE OWNERSHIP\n\nConnect Discord\n\nMatch the Discord manager who created this link to one signed-in DegenAration account.\n\nSign in to DegenAration\n\nThe account you sign in with will become the source owner only after the Discord identity also matches.\n\nSign in\nSolana Mainnet workspace",
+      "consoleErrors": 2,
+      "failedRequests": [],
+      "screenshot": "discord-owner-link-mobile-375x812.jpg"
+    },
+    {
+      "route": "/connect/discord/aaaaaaaa-0000-4000-8000-000000000001",
+      "id": "discord-owner-link",
+      "viewport": "tablet-768",
+      "width": 768,
+      "title": "DegenAration | Solana Bot Automation",
+      "scrollWidth": 759,
+      "clientWidth": 759,
+      "horizontalOverflow": false,
+      "hasViewportMeta": true,
+      "forbiddenCopy": [],
+      "emojiInUi": false,
+      "smallTapTargets": 3,
+      "signedIn": false,
+      "spinners": 0,
+      "headings": [
+        "Connect Discord"
+      ],
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nSOLANA\nMAINNET\nConnect wallet\n\nVERIFIED SOURCE OWNERSHIP\n\nConnect Discord\n\nMatch the Discord manager who created this link to one signed-in DegenAration account.\n\nSign in to DegenAration\n\nThe account you sign in with will become the source owner only after the Discord identity also matches.\n\nSign in\nSolana Mainnet workspace",
+      "consoleErrors": 0,
+      "failedRequests": [],
+      "screenshot": "discord-owner-link-tablet-768-768x1024.jpg"
+    },
+    {
+      "route": "/connect/discord/aaaaaaaa-0000-4000-8000-000000000001",
+      "id": "discord-owner-link",
+      "viewport": "tablet",
+      "width": 1024,
+      "title": "DegenAration | Solana Bot Automation",
+      "scrollWidth": 1015,
+      "clientWidth": 1015,
+      "horizontalOverflow": false,
+      "hasViewportMeta": true,
+      "forbiddenCopy": [],
+      "emojiInUi": false,
+      "smallTapTargets": 2,
+      "signedIn": false,
+      "spinners": 0,
+      "headings": [
+        "Connect Discord"
+      ],
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nVERIFIED SOURCE OWNERSHIP\n\nConnect Discord\n\nMatch the Discord manager who created this link to one signed-in DegenAration account.\n\nSign in to DegenAration\n\nThe account you sign in with will become the source owner only after the Discord identity also matches.\n\nSign in\nSolana Mainnet workspace",
+      "consoleErrors": 0,
+      "failedRequests": [],
+      "screenshot": "discord-owner-link-tablet-1024x768.jpg"
+    },
+    {
+      "route": "/connect/discord/aaaaaaaa-0000-4000-8000-000000000001",
+      "id": "discord-owner-link",
+      "viewport": "desktop",
+      "width": 1440,
+      "title": "DegenAration | Solana Bot Automation",
+      "scrollWidth": 1431,
+      "clientWidth": 1431,
+      "horizontalOverflow": false,
+      "hasViewportMeta": true,
+      "forbiddenCopy": [],
+      "emojiInUi": false,
+      "smallTapTargets": 2,
+      "signedIn": false,
+      "spinners": 0,
+      "headings": [
+        "Connect Discord"
+      ],
+      "visibleText": "Skip to content\nSOLANA MAINNET. Bots save, edit and pause normally, and they do not place trades on their own yet.\nDegenAration\nBots\nAffiliate\nPortfolio\nSOLANA\nMAINNET\nConnect wallet\n\nVERIFIED SOURCE OWNERSHIP\n\nConnect Discord\n\nMatch the Discord manager who created this link to one signed-in DegenAration account.\n\nSign in to DegenAration\n\nThe account you sign in with will become the source owner only after the Discord identity also matches.\n\nSign in\nSolana Mainnet workspace",
+      "consoleErrors": 0,
+      "failedRequests": [],
+      "screenshot": "discord-owner-link-desktop-1440x1000.jpg"
+    }
+  ]
+}

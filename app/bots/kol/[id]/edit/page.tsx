@@ -16,7 +16,7 @@ export default function EditKolBotPage() {
   const params = useParams<{ id: string }>();
   return (
     <AppShell>
-      <PageHeader eyebrow="Bots / KOL / Edit" title="Edit KOL strategy" description="New settings apply to future signals; existing positions retain their entry snapshot." />
+      <PageHeader title="Edit KOL strategy" description="Changes apply to new trades. Open positions keep the settings they opened with." />
       <ProductTabs items={TABS} active="/bots/manage" />
       <div className="mt-6"><BotBuilder kind="kol" botId={params.id} /></div>
     </AppShell>

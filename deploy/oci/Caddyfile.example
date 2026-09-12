@@ -1,0 +1,7 @@
+worker.example.com {
+  reverse_proxy 127.0.0.1:10000
+}
+
+discord.example.com {
+  reverse_proxy 127.0.0.1:10001
+}

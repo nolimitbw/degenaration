@@ -193,3 +193,13 @@ begin
   );
 end;
 $$;
+
+-- Both admin functions above are redefined in this file, and a `create or replace` resets
+-- nothing about privileges — but a function that has never been revoked is executable by
+-- PUBLIC by default, and this file carried no grant block at all. Stated explicitly so
+-- reapplying it cannot leave the admin API open, the same defect corrected in
+-- admin-dashboard-secret-rpcs.sql.
+revoke execute on function public.admin_decide_call_channel(text, uuid, text) from public, anon, authenticated;
+revoke execute on function public.admin_decide_server_application(text, uuid, text) from public, anon, authenticated;
+grant execute on function public.admin_decide_call_channel(text, uuid, text) to service_role;
+grant execute on function public.admin_decide_server_application(text, uuid, text) to service_role;

@@ -1,28 +1,43 @@
 import Link from "next/link";
+import { PageIntro, P, H2, NextPage } from "@/components/docs/DocsKit";
 
-const FAQ = [
-  { q: "What is Degenaration?", a: "A Solana market terminal for live token research, measured Discord call sources, wallet tracking, wallet-signed swaps, and persistent limit-order preparation." },
-  { q: "Who holds my funds?", a: "Your wallet provider does. Manual swaps require your wallet signature. Optional Privy delegation can let the configured worker request signatures while you are offline; it is powerful, revocable access and is not itself a cryptographic trade-only policy." },
-  { q: "How does automation work?", a: "Before supported limit or Discord entry work is claimed, the database atomically checks the saved wallet, max-per-trade limit, source cap, and wallet daily cap. Automated activation remains locked until duplicate prevention, capital caps, revocation, exit management, and restart reconciliation pass controlled release review." },
-  { q: "What does it cost?", a: "Free to join. When the platform fee wallet is configured, the execution fee is shown in the trade preview before you sign. If fees are off, the terminal says so." },
-  { q: "Which network does this use?", a: "Manual wallet-signed swaps use Solana Mainnet and real funds. Trades are irreversible. Unattended bot activation remains locked while automation is verified." },
-  { q: "How are call groups ranked?", a: "From ingested call timestamps and live market measurements such as measured-call count, hit rate, median peak, average peak, and best call. Sparse profiles remain marked as measuring instead of showing invented results." },
-  { q: "Is it safe?", a: "No memecoin trading system is safe from loss. Degenaration adds provider timeouts, input validation, token checks, atomic execution claims, spend reservations, and revocable delegation, but provider, contract, wallet, and market risk remain. An independent security review has not yet been completed." }
+export const metadata = {
+  title: "Overview — DegenAration Documentation",
+  description: "Learn how sources, automated execution, wallet permissions, and performance measurement work."
+};
+
+const CONCEPTS = [
+  { title: "Sources", body: "Discord sources publish calls. Their journals show the calls captured and price observations available—not a promise of future performance.", href: "/docs/how-it-works" },
+  { title: "Trading rules", body: "Bots apply your entry settings, filters, and exit rules. Execution depends on authorization, available funds, liquidity, and service availability.", href: "/docs/risk-controls" },
+  { title: "Wallet access", body: "Automation requires signing permissions. Understand what you authorize, how to revoke access, and how to withdraw before funding a strategy.", href: "/docs/custody" }
 ];
 
-export default function Docs() {
-  return (
-    <main id="main-content" tabIndex={-1} className="mx-auto max-w-3xl px-5 py-16">
-      <Link href="/" className="font-mono text-xs text-toxic">← back</Link>
-      <h1 className="mt-4 text-4xl font-bold">Docs & FAQ</h1>
-      <div className="mt-8 space-y-6">
-        {FAQ.map((f) => (
-          <div key={f.q} className="rounded-lg border border-edge bg-panel p-5">
-            <h2 className="font-bold text-ink">{f.q}</h2>
-            <p className="mt-2 text-sm leading-relaxed text-dim">{f.a}</p>
-          </div>
-        ))}
-      </div>
-    </main>
-  );
+export default function DocsOverview() {
+  return <>
+    <PageIntro eyebrow="Documentation / Overview" title="Know your trading workspace." lede="A practical guide to DegenAration: discover sources, configure automated Solana trades, and understand the results." />
+    <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      {CONCEPTS.map(({title, body, href}, index) => <Link key={title} href={href} className="rounded-xl border border-edge bg-panel p-5 transition-colors hover:border-gold-400">
+        <span className="font-mono text-xs text-gold-400">0{index + 1}</span>
+        <h2 className="mt-5 text-lg font-medium text-ink">{title}</h2>
+        <p className="mt-3 text-sm text-dim">{body}</p>
+        <span className="mt-5 block text-sm text-ink">Read guide →</span>
+      </Link>)}
+    </div>
+    <H2>Start with the source. Set your own limits.</H2>
+    <div className="mt-5 grid gap-5">
+      <P>Use the marketplace to review Discord sources and published KOL strategies. Check the sample size, measurement period, and data freshness alongside performance. An approved listing is not an endorsement or a guarantee of a profitable trade.</P>
+      <P>Configure a bot with an entry size and risk limits you understand. Review wallet permissions and the platform&apos;s automation status before enabling it. Saving a configuration is not the same as executing a trade.</P>
+    </div>
+    <H2>Read the journal correctly.</H2>
+    <div className="mt-5 grid gap-5">
+      <P>A call&apos;s recorded peak measures an observed price relative to its reference entry. It is not a realized return, and it does not mean a follower could have bought or sold at that price. Fees, slippage, execution timing, and liquidity affect actual results.</P>
+      <P>Compare peak outcomes with current performance, and check whether processing is delayed. Missing observations and limited history reduce what a journal can tell you. Your portfolio&apos;s executed trades are separate from a source&apos;s call history.</P>
+    </div>
+    <div className="mt-10 rounded-xl border border-gold-400/25 bg-gold-400/5 p-6">
+      <h2 className="text-lg font-medium text-ink">Before you enable automation</h2>
+      <p className="mt-3 text-sm text-dim">Crypto assets can lose their entire value. Stop losses and other settings cannot guarantee an exit or a maximum loss. Start only with capital you can afford to lose, and review your active bots regularly.</p>
+      <Link href="/docs/risk-controls" className="mt-4 inline-flex min-h-11 items-center text-sm text-gold-400 underline underline-offset-4">Review risk controls</Link>
+    </div>
+    <NextPage href="/docs/how-it-works" label="Next guide" title="How it works" />
+  </>;
 }

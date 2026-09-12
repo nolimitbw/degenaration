@@ -3,6 +3,8 @@ export type AdminTab =
   | "discord"
   | "kol"
   | "referrals"
+  | "clients"
+  | "revenue"
   | "payouts"
   | "operations"
   | "users"
@@ -206,6 +208,20 @@ export type AdminData = {
   scanner: ScannerHealth;
   flags: SystemFlag[];
   events: AuditEvent[];
+  discordOwnership: {
+    sources: Array<{
+      sourceGroupId: string;
+      sourceName: string;
+      discordGuildId: string;
+      ownerPrivyUserId: string | null;
+      discordUserId: string | null;
+      commissionRateBps: number;
+      verificationStatus: string;
+      validFrom: string | null;
+    }>;
+    sessions: Array<Record<string, any>>;
+    events: Array<Record<string, any>>;
+  };
   botConfig: {
     clientId?: string;
     slashCommandConfigured?: boolean;
@@ -237,4 +253,11 @@ export type AdminAction = {
   body: Record<string, unknown>;
   destructive?: boolean;
   reasonRequired?: boolean;
+  input?: {
+    key: string;
+    label: string;
+    placeholder?: string;
+    required?: boolean;
+    pattern?: string;
+  };
 };

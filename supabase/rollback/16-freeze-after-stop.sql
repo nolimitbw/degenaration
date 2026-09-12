@@ -1,0 +1,12 @@
+-- Rollback of degenaration-freeze-after-stop.sql
+--
+-- `worker_claim_call_execution` is replaced at an UNCHANGED arity of (uuid, uuid), so there is
+-- nothing to drop. The body is restored by the reapply step in supabase/rollback/plan.mjs:
+--
+--     degenaration-subscription-channel-scope.sql
+--
+-- WHAT ROLLING THIS BACK MEANS. `stopLoss.freezeAfterStop` returns to persisted-but-unenforced:
+-- a bot re-enters a token that just stopped it out, while its editor keeps showing the switch
+-- on. Every other limit the claim enforces is unaffected.
+--
+-- Nothing to drop: this migration adds no column, table, index, constraint or grant.

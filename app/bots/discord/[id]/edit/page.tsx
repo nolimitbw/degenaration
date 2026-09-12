@@ -16,7 +16,7 @@ export default function EditDiscordBotPage() {
   const params = useParams<{ id: string }>();
   return (
     <AppShell>
-      <PageHeader eyebrow="Bots / Discord / Edit" title="Edit Discord bot" description="Saving creates a new immutable configuration version for future signals." />
+      <PageHeader title="Edit Discord bot" description="Changes apply to new trades. Open positions keep the settings they opened with." />
       <ProductTabs items={TABS} active="/bots/manage" />
       <div className="mt-6"><BotBuilder kind="discord" botId={params.id} /></div>
     </AppShell>

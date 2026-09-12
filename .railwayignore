@@ -1,0 +1,28 @@
+# What NOT to upload to Railway.
+#
+# The service builds with root directory `server/bot`, so the tarball must be rooted at the
+# REPOSITORY root for that path to resolve — deploying server/bot's contents directly made the
+# builder look for server/bot/server/bot and fail. Rooting it here means the whole repo is in
+# scope, and the first attempt returned a 500 on upload.
+#
+# Everything below is either rebuilt by the platform or belongs to a different service. The
+# Discord listener needs server/bot and nothing else.
+node_modules
+.next
+.git
+.vercel
+tsconfig.tsbuildinfo
+
+# The Next.js application. Deployed to Vercel; the listener never imports it.
+app
+components
+public
+lib
+
+# Verification tooling, evidence and migrations — none of it runs in the listener.
+scripts
+docs
+supabase
+.claude
+.agents
+.references

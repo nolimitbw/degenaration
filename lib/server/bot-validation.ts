@@ -96,11 +96,7 @@ export function validateBotPayload(raw: unknown) {
   const maximumCapital = BigInt(lamports.maximumCapitalLamports);
   const dailyLossLimit = BigInt(lamports.dailyLossLimitLamports);
   const perTokenExposure = BigInt(lamports.perTokenExposureLamports);
-  if (
-    buyAmount > perTokenExposure ||
-    perTokenExposure > maximumCapital ||
-    dailyLossLimit > maximumCapital
-  ) {
+  if (buyAmount > perTokenExposure || perTokenExposure > maximumCapital || dailyLossLimit < buyAmount) {
     return { error: "capital limits are inconsistent" } as const;
   }
 
@@ -112,7 +108,11 @@ export function validateBotPayload(raw: unknown) {
     ["autoRetryCount", 0, 10],
     ["limitRetryCount", 0, 10],
     ["quoteExpirationSeconds", 5, 300],
-    ["cooldownSeconds", 0, 604_800]
+    ["cooldownSeconds", 0, 604_800],
+    // Entries per trading day, which runs 06:00 -> 06:00 America/New_York. Required and
+    // bounded like every other cap: the claim reads it from the stored configuration, and a
+    // missing value there means "no limit", so it must not be possible to save without one.
+    ["maxTradesPerDay", 1, 500]
   ] as const) {
     const value = boundedInteger(config[field], min, max);
     if (value == null) {
@@ -120,13 +120,23 @@ export function validateBotPayload(raw: unknown) {
     }
     if (field === "maxOpenTrades") maxOpenTrades = value;
   }
-  if (!isObject(config.takeProfit) || !levelsValid(config.takeProfit.levels)) {
+  if (
+    !isObject(config.takeProfit) ||
+    (config.takeProfit.enabled === false
+      ? !Array.isArray(config.takeProfit.levels) || config.takeProfit.levels.length !== 0
+      : !levelsValid(config.takeProfit.levels))
+  ) {
     return { error: "invalid take-profit allocation" } as const;
   }
-  if (!isObject(config.stopLoss) || boundedInteger(config.stopLoss.stopBps, 1, 10_000) == null) {
+  if (
+    !isObject(config.stopLoss) ||
+    (config.stopLoss.enabled === false
+      ? config.stopLoss.stopBps !== 0
+      : boundedInteger(config.stopLoss.stopBps, 1, 10_000) == null)
+  ) {
     return { error: "invalid stop loss" } as const;
   }
-  const dcaCapital = kind === "kol" ? dcaCapitalLamports(config.dca) : BigInt(0);
+  const dcaCapital = dcaCapitalLamports(config.dca);
   if (dcaCapital == null) return { error: "invalid DCA levels" } as const;
   if ((buyAmount + dcaCapital) * BigInt(maxOpenTrades!) > maximumCapital) {
     return { error: "maximum capital does not cover configured entries" } as const;

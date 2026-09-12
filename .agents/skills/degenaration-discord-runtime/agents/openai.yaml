@@ -1,0 +1,4 @@
+interface:
+  display_name: "DegenAration Discord Runtime"
+  short_description: "Safely evolve Discord ingestion and acknowledgments"
+  default_prompt: "Use $degenaration-discord-runtime to repair and verify the Discord Gateway call-ingestion path."

@@ -1,55 +1,55 @@
-import Nav from "@/components/Nav";
-import Hero from "@/components/Hero";
+import Footer from "@/components/Footer";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Bot,
-  ChartNoAxesCombined,
-  ShieldCheck,
-  WalletCards
-} from "lucide-react";
+import Image from "next/image";
+import { ArrowUpRight, Radio, SlidersHorizontal, ChartNoAxesCombined, Wallet, BookOpen, ShieldCheck } from "lucide-react";
+import HeroStage from "@/components/landing/HeroStage";
+import { getLandingStats } from "@/lib/server/landing";
 
-export default function Home() {
-  return (
-    <div className="degen-home" id="top">
-      <Nav />
-      <main id="main-content" tabIndex={-1}>
-        <Hero />
-        <section className="home-band border-y border-edge" id="platform">
-          <div className="mx-auto grid max-w-7xl divide-y divide-edge px-5 md:grid-cols-3 md:divide-x md:divide-y-0">
-            {[
-              [Bot, "Bots", "Build from reviewed Discord sources or live KOL volatility rules.", "/bots"],
-              [ChartNoAxesCombined, "Affiliate", "Track creator commissions, referrals, and payout requests.", "/affiliate"],
-              [WalletCards, "Portfolio", "Review running positions, executions, fees, and PnL evidence.", "/portfolio"]
-            ].map(([Icon, title, copy, href]) => {
-              const FeatureIcon = Icon as typeof Bot;
-              return <Link key={title as string} href={href as string} className="group px-5 py-8 first:pl-0 last:pr-0">
-                <FeatureIcon aria-hidden="true" size={19} className="text-toxic" />
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold text-ink">{title as string}</h2>
-                  <ArrowUpRight aria-hidden="true" size={15} className="text-dim transition group-hover:text-toxic" />
-                </div>
-                <p className="mt-2 text-sm leading-6 text-dim">{copy as string}</p>
-              </Link>;
-            })}
-          </div>
-        </section>
-        <section className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-[.8fr_1.2fr] lg:items-center">
-          <div>
-            <p className="font-mono text-[11px] uppercase text-toxic">Automation with evidence</p>
-            <h2 className="mt-4 max-w-lg text-3xl font-semibold leading-tight text-ink md:text-4xl">Every signal passes through the same risk and capital controls.</h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-dim">Source performance, scanner evidence, immutable bot versions, route estimates, and portfolio history stay connected. Missing market evidence rejects entries instead of guessing.</p>
-            <Link href="/bots" className="mt-8 inline-flex rounded-md bg-toxic px-5 py-3 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Configure a bot</Link>
-          </div>
-          <div className="border border-edge bg-panel p-6">
-            <div className="flex items-center gap-3 border-b border-edge pb-4"><ShieldCheck className="text-up" size={20} /><div><p className="text-sm font-semibold">Bounded automation</p><p className="text-xs text-dim">Versioned controls, explicit release gates, and audited actions.</p></div></div>
-            <div className="mt-5 grid gap-px bg-edge sm:grid-cols-3">
-              {[["Automation", "Release locked"], ["Missing data", "Fail closed"], ["Network", "Solana Mainnet"]].map(([key, value]) => <div key={key} className="bg-void p-4"><p className="font-mono text-[10px] uppercase text-dim">{key}</p><p className="mt-2 text-sm font-semibold text-ink">{value}</p></div>)}
-            </div>
-          </div>
-        </section>
-        <footer className="border-t border-edge px-5 py-7"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 text-xs text-dim"><span>DegenAration</span><span>Trading is high risk. Nothing shown is financial advice.</span></div></footer>
-      </main>
-    </div>
-  );
+const STEPS = [
+  { title: "Find your signal", copy: "Explore Discord sources and KOL strategies. Review the available history before you decide what to follow." },
+  { title: "Define your trade", copy: "Choose entry size, filters, profit targets, and stop loss. Set how much capital your bot can use." },
+  { title: "Follow the outcome", copy: "Authorize automation from your wallet, then review positions and execution history in your portfolio." }
+];
+
+const INFRASTRUCTURE = [
+  { name: "Solana", logo: "/logos/solana.svg", role: "Settlement" },
+  { name: "Privy", logo: "/logos/privy.svg", role: "Wallet authorization" },
+  { name: "Jupiter", logo: "/logos/jupiter.svg", role: "Route execution" },
+  { name: "Discord", logo: "/logos/discord.svg", role: "Signal ingestion" },
+  { name: "Supabase", logo: "/logos/supabase.svg", role: "Durable journal" }
+] as const;
+
+export default async function Home() {
+  const stats = await getLandingStats();
+  return <div className="degen-home market-home" id="top">
+    <main id="main-content" tabIndex={-1}>
+    <HeroStage stats={stats} />
+    <section className="infra-rail" aria-label="Execution infrastructure">
+      <div className="infra-rail-heading"><span>Execution stack</span><strong>Built on infrastructure traders already trust</strong></div>
+      <div className="infra-marquee-mask">
+        <div className="infra-marquee-track">
+          {[...INFRASTRUCTURE, ...INFRASTRUCTURE].map((item, index) => <div className="infra-partner" key={`${item.name}-${index}`} aria-hidden={index >= INFRASTRUCTURE.length}>
+            <Image src={item.logo} alt={index < INFRASTRUCTURE.length ? `${item.name} logo` : ""} width={30} height={30} />
+            <span><strong>{item.name}</strong><small>{item.role}</small></span>
+          </div>)}
+        </div>
+      </div>
+    </section>
+    <section className="market-proof" aria-label="Platform capabilities"><span><Radio size={17} aria-hidden="true" /> Source discovery</span><span><SlidersHorizontal size={17} aria-hidden="true" /> Configurable risk</span><span><ChartNoAxesCombined size={17} aria-hidden="true" /> Recorded outcomes</span><span><Wallet size={17} aria-hidden="true" /> Your wallet</span></section>
+    <section className="market-section" id="platform">
+      <div className="market-section-heading"><p>One connected workspace</p><h2>Built around the trade.</h2><span>From your first signal to your next decision.</span></div>
+      <div className="market-products">
+        <Link href="/bots/discord" className="market-product market-product-featured"><Radio size={24} aria-hidden="true" /><div><p>Discovery & automation</p><h3>Follow the source.<br />Keep the controls.</h3><p>Explore recorded call outcomes, choose a community, and build a bot around your own trading rules.</p></div><span>Explore Discord sources <ArrowUpRight size={18} aria-hidden="true" /></span></Link>
+        <div className="market-product-stack">
+          <Link href="/bots/kol" className="market-product"><SlidersHorizontal size={23} aria-hidden="true" /><div><h3>A strategy in your terms.</h3><p>Configure market filters, entry conditions, and exits in one place.</p></div><span>Explore KOL strategies <ArrowUpRight size={18} aria-hidden="true" /></span></Link>
+          <Link href="/portfolio" className="market-product"><ChartNoAxesCombined size={23} aria-hidden="true" /><div><h3>The full position picture.</h3><p>Review holdings, executions, fees, and realized results without switching tools.</p></div><span>Open portfolio <ArrowUpRight size={18} aria-hidden="true" /></span></Link>
+        </div>
+      </div>
+    </section>
+    <section id="how-it-works" className="market-section market-process"><div className="market-section-heading"><p>How it works</p><h2>Decide once.<br />Execute with a plan.</h2></div><div className="market-steps">{STEPS.map(({title, copy}, index) => <div key={title}><span className="market-step-number">0{index + 1}</span><h3>{title}</h3><p>{copy}</p></div>)}</div></section>
+    <section className="market-section market-resources"><div><ShieldCheck size={25} aria-hidden="true" /><h2>Understand what<br />you authorize.</h2><p>Automation needs your permission. Learn how wallet access, risk controls, and performance measurement work before you start.</p><Link href="/docs/custody">Wallet access & custody <ArrowUpRight size={16} aria-hidden="true" /></Link></div><div className="market-resource-links">{[["/docs", "Read the trading guides", "Setup, execution, and measurement."], ["/docs/risk-controls", "Know your risk controls", "Position sizing, exits, and capital limits."], ["/affiliate", "Grow with your community", "Referrals, commissions, and payouts."]].map(([href,title,copy]) => <Link key={href} href={href}><BookOpen size={19} aria-hidden="true" /><span><strong>{title}</strong><small>{copy}</small></span><ArrowUpRight size={18} aria-hidden="true" /></Link>)}</div></section>
+    <section className="market-closing"><p>DegenAration / Solana automation</p><h2>Make your next move<br />with a plan.</h2><Link href="/bots" className="market-primary">Open trading workspace <ArrowUpRight size={17} aria-hidden="true" /></Link></section>
+    </main>
+    <Footer />
+  </div>;
 }

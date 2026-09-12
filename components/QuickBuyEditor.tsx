@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { isEditable, normalizeWhileTyping } from "@/lib/numeric-input";
 
 /** Small modal to edit the shared quick-buy SOL preset amounts (up to 4). */
 export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: number[]; loaded: boolean; onSave: (next: number[]) => Promise<{ error: any }> }) {
@@ -31,7 +32,7 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
 
   return (
     <>
-      <button onClick={openEditor} className="flex items-center gap-1.5 rounded-md border border-edge px-3 py-1.5 font-mono text-xs text-dim transition hover:border-toxic hover:text-toxic">
+      <button onClick={openEditor} className="flex items-center gap-1.5 rounded-md border border-edge px-3 py-1.5 font-mono text-xs text-dim transition hover:border-gold-400 hover:text-gold-400">
         <Pencil aria-hidden="true" size={13} /> Edit quick-buy
       </button>
       {open && (
@@ -39,22 +40,29 @@ export default function QuickBuyEditor({ presets, loaded, onSave }: { presets: n
           <div className="w-full max-w-sm rounded-lg border border-edge bg-panel p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold">Quick-buy amounts</h3>
-              <button onClick={() => setOpen(false)} aria-label="Close" title="Close" className="grid h-9 w-9 place-items-center rounded-md text-dim hover:bg-edge/40 hover:text-ink"><X aria-hidden="true" size={17} /></button>
+              <button onClick={() => setOpen(false)} aria-label="Close" title="Close" className="grid h-11 w-11 place-items-center sm:h-9 sm:w-9 rounded-md text-dim hover:bg-edge/40 hover:text-ink"><X aria-hidden="true" size={17} /></button>
             </div>
             <p className="mt-1 text-xs text-dim">Your own SOL presets — shown as one-tap buy buttons on Trenches.</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               {draft.map((v, i) => (
                 <label key={i} className="block">
-                  <span className="font-mono text-[10px] uppercase text-dim">Preset {i + 1}</span>
+                  <span className="ui-label">Preset {i + 1}</span>
                   <input
-                    type="number" step="0.01" min="0.01" value={v}
-                    onChange={(e) => setDraft((d) => d.map((x, j) => (j === i ? e.target.value : x)))}
-                    className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-toxic"
+                    type="text" inputMode="decimal" autoComplete="off" value={v}
+                    onChange={(e) => {
+                      // Draft presets are already held as strings, which is the correct
+                      // editing shape. They only lacked a validity gate, so a stray
+                      // character or a second dot could be saved.
+                      const next = normalizeWhileTyping(e.target.value);
+                      if (!isEditable(next, { decimals: 4 })) return;
+                      setDraft((d) => d.map((x, j) => (j === i ? next : x)));
+                    }}
+                    className="mt-1 w-full rounded-md border border-edge bg-void px-3 py-2 font-mono text-sm outline-none focus:border-gold-400"
                   />
                 </label>
               ))}
             </div>
-            <button onClick={save} disabled={busy || !loaded} className="mt-5 w-full rounded-md bg-toxic py-2.5 font-bold text-white shadow-toxic transition hover:brightness-110 disabled:opacity-50">
+            <button onClick={save} disabled={busy || !loaded} className="mt-5 w-full rounded-md bg-gold-400 py-2.5 font-bold text-white shadow-gold transition hover:brightness-110 disabled:opacity-50">
               {busy ? "Saving…" : !loaded ? "Loading your presets…" : "Save"}
             </button>
           </div>

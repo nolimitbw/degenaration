@@ -1,11 +1,13 @@
 "use client";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { createSolanaRpc, createSolanaRpcSubscriptions } from "@solana/kit";
+import { useTheme } from "@/components/ThemeProvider";
 
 const rpcUrl = process.env.NEXT_PUBLIC_MAINNET_RPC || "https://solana-rpc.publicnode.com";
 const rpcSubscriptionsUrl = process.env.NEXT_PUBLIC_MAINNET_WS || rpcUrl.replace(/^http/, "ws");
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const { resolved } = useTheme();
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   if (!appId) return <>{children}</>;
   return (
@@ -13,7 +15,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       appId={appId}
       config={{
         appearance: {
-          theme: "dark",
+          theme: resolved,
           accentColor: "#c29463",
           walletChainType: "solana-only"
         },

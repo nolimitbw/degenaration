@@ -1,0 +1,11 @@
+drop trigger if exists trade_executions_00_verified_discord_creator on app_private.trade_executions;
+drop function if exists app_private.enforce_verified_discord_creator();
+drop function if exists public.admin_resolve_discord_ownership(text, text, uuid, text, text, text, text);
+drop function if exists public.admin_list_discord_ownership(text, text, integer);
+drop function if exists public.app_user_revoke_discord_owner_link(text, text, text);
+drop function if exists public.app_user_discord_ownership_summary(text, text);
+drop function if exists public.app_user_complete_discord_owner_link(text, text, uuid, text, text);
+drop function if exists public.app_user_get_discord_link_session(text, text, uuid);
+drop function if exists public.bot_create_discord_owner_link(text, text, text, text, boolean);
+drop table if exists app_private.discord_ownership_events;
+drop table if exists app_private.discord_owner_link_sessions;

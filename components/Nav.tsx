@@ -6,9 +6,11 @@ import Logo from "@/components/Logo";
 import { Menu, X } from "lucide-react";
 
 const LINKS = [
+  { label: "How it works", href: "/#how-it-works" },
   { label: "Bots", href: "/bots" },
   { label: "Affiliate", href: "/affiliate" },
-  { label: "Portfolio", href: "/portfolio" }
+  { label: "Portfolio", href: "/portfolio" },
+  { label: "Docs", href: "/docs" }
 ];
 
 export default function Nav() {
@@ -27,12 +29,14 @@ export default function Nav() {
       initial={{ y: -30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.2, 0.7, 0.2, 1] }}
-      className="sticky inset-x-0 top-0 z-[70] border-b border-edge bg-void/90 backdrop-blur-xl"
+      className="market-nav relative z-[70]"
     >
       <motion.nav
         className={`mx-auto flex h-16 max-w-7xl items-center gap-2 px-5 transition-shadow duration-300 ${scrolled ? "shadow-[0_12px_30px_-24px_rgba(0,0,0,.9)]" : ""}`}
       >
-        <Link href="#top" className={`transition-all ${scrolled ? "text-base" : "text-lg"}`}>
+        {/* min-h-11: the brand link measured 40px tall on a phone, under the 44px minimum.
+            It is the first control on the page, so it is the first one to get this right. */}
+        <Link href="#top" className={`inline-flex min-h-11 items-center transition-all ${scrolled ? "text-base" : "text-lg"}`}>
           <Logo />
         </Link>
 
@@ -49,15 +53,15 @@ export default function Nav() {
         </div>
 
         <div className="ml-3 hidden items-center gap-2 md:flex">
-          <Link href="/login" className="rounded-md border border-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-toxic">Connect Wallet</Link>
-          <Link href="/bots" className="rounded-md bg-toxic px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open app</Link>
+          <Link href="/login" className="rounded-md border border-edge px-4 py-2 text-sm font-semibold text-ink transition hover:border-gold-400">Connect Wallet</Link>
+          <Link href="/bots" className="rounded-md bg-gold-400 px-4 py-2 text-sm font-semibold text-[#17110c] transition hover:bg-[#d1a371]">Open app</Link>
         </div>
 
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label="Menu"
           aria-expanded={open}
-          className="ml-auto grid h-10 w-10 place-items-center rounded-md border border-edge text-dim md:hidden"
+          className="ml-auto grid h-11 w-11 place-items-center rounded-md border border-edge text-dim md:hidden"
         >
           {open ? <X aria-hidden="true" size={19} /> : <Menu aria-hidden="true" size={19} />}
         </button>
@@ -76,7 +80,7 @@ export default function Nav() {
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <Link href="/login" onClick={() => setOpen(false)} className="rounded-md border border-edge px-3 py-2.5 text-center text-sm font-semibold">Connect Wallet</Link>
-            <Link href="/bots" onClick={() => setOpen(false)} className="rounded-md bg-toxic px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open app</Link>
+            <Link href="/bots" onClick={() => setOpen(false)} className="rounded-md bg-gold-400 px-3 py-2.5 text-center text-sm font-bold text-[#17110c]">Open app</Link>
           </div>
         </motion.div>
       )}

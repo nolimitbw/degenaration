@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 // Shell paints instantly; the Privy-aware body loads as a separate client chunk.
 const SettingsBody = dynamic(() => import("./SettingsBody"), {
   ssr: false,
-  loading: () => <p className="text-sm text-dim">Loading settings…</p>
+  loading: () => <p className="t-body text-dim">Loading settings…</p>
 });
 
 export default function Settings() {

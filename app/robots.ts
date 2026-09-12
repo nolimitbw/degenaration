@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 
-// Allow public marketplace discovery while keeping private and legacy surfaces out.
+// Allow public marketplace discovery while keeping private surfaces out.
+//
+// The legacy trading surfaces are no longer listed here: they now redirect to the product
+// (spec section 9), so a crawler that follows one lands on /bots. Listing a redirect as
+// disallowed only hides the redirect.
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
@@ -16,20 +20,7 @@ export default function robots(): MetadataRoute.Robots {
         "/onboarding",
         "/bots/manage",
         "/r/",
-        "/terminal",
-        "/trades",
-        "/dashboard",
-        "/holdings",
-        "/orders",
-        "/search",
-        "/explorer",
-        "/trenches",
-        "/alpha",
-        "/watchlist",
         "/calls",
-        "/alerts",
-        "/tracker",
-        "/demo",
         "/tools/"
       ]
     },

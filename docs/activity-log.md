@@ -1,5 +1,79 @@
 # Activity Log
 
+## Session: Discord bot invite fix
+
+- Owner reported servers still could not add the Discord bot. Checked the website invite and
+  found it pointed at old app id `1521883553682559116`, while the local `DISCORD_BOT_TOKEN`
+  belongs to app `1522107717836214405` (`De Generation PR`).
+- Updated `/apply` to use the active bot app id and `bot applications.commands` scopes, and
+  added an always-visible "Add the active Degenaration bot" CTA before the application form.
+- Updated Discord runbooks to reference the token-backed app id and invite URL.
+- Verification: Discord API shows `bot_public: true` and `bot_require_code_grant: false` for
+  the active app. `npx tsc --noEmit --incremental false`, `npm --prefix server test`,
+  `git diff --check`, and `npm run build` passed.
+- Deployed to Vercel Production as `dpl_Ek2rYmkYmbhg6kG35MXwcczJPhb8`. Live `/apply` contains
+  `client_id=1522107717836214405` and the Discord OAuth URL returns 200.
+- Follow-up after owner clarified the bot source lives in `nolimitbw/Degencalls`: patched the
+  Degencalls bot locally to support external `!register` and call forwarding.
+- Applied production Supabase call-source migration and secret-checked bot RPCs for register,
+  approved-channel refresh, and ingest. Added website bot routes `/api/bot/register-channel`
+  and `/api/bot/approved-channels`, and switched `/api/ingest-call` to the RPC path so the
+  Discord tracker no longer needs Vercel or the bot host to hold a Supabase service-role key.
+
+## Session: production deploy for Discord-source landing work
+
+- Owner asked to deploy. Re-ran verification before shipping: `npx tsc --noEmit --incremental false`,
+  `npm --prefix server test`, `git diff --check`, and `npm run build` all passed.
+- Deployed the current local source to Vercel Production. First deploy was green, then added
+  `BOT_SHARED_SECRET` as a sensitive Production env var and redeployed so `/api/ingest-call`
+  can authenticate Discord bot posts.
+- Final Vercel deployment: `dpl_8U7caN3HuyCANyQJNnk3vCDEj2hE`, aliased to
+  `https://degenaration.vercel.app`.
+- Live smoke checks passed: `/` 200 with `rocket-launch-hero.png` in the HTML, `/calls` 200,
+  `/images/rocket-launch-hero.png` 200 as a 1672x941 PNG, `/api/call-sources` 200, and
+  `/api/ingest-call` returns 401 for an intentionally wrong bot secret.
+- Not fully deployed: the separate Discord bot daemon still needs a long-running host plus
+  `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`. Those service-role credentials are not present
+  locally, so only the Vercel website/API side was shipped.
+
+## Session: landing page clarity and Discord-source UX
+
+- Replaced the enlarged 640px launch clip with a dedicated high-resolution rocket image in
+  `public/images/rocket-launch-hero.png`; removed the watermark crop and scroll-scrub code
+  that made the prior hero visibly soft.
+- Reframed the landing page around the actual source workflow: callers connect approved Discord
+  channels, performance is independently tracked, users review the record, then choose their
+  own per-source execution limits.
+- Rewired home-page source cards to `/api/call-sources`, so they display measured call data rather
+  than legacy group fields. The empty state now explains how callers can get listed.
+- Simplified dense visual effects into high-contrast, static surfaces; removed decorative coin
+  rain, animated gradient buttons, animated card borders, custom cursor, and unverified latency
+  and availability claims. Updated main navigation and calls to action to working destinations.
+- Browser review found the persistent risk banner overlapping the fixed navigation and an awkward
+  desktop headline wrap. Moved navigation beneath the banner and condensed the heading.
+- Verification: `npx tsc --noEmit --incremental false`, `npm run build`, and
+  `npm --prefix server test` passed (26 tests). Production-preview browser checks passed at
+  desktop and 390px mobile widths; the mobile menu expands and the primary calls action reaches
+  `/calls` and its caller-listing state.
+
+## Session: Discord call-source platform
+
+- Added an approved-source performance path: calls retain selected-channel and caller
+  attribution plus entry/current/peak market data; the worker refreshes recent calls from
+  DexScreener without executing trades.
+- Added `/api/call-sources` and rewired `/calls` to compare measured 2x hit rate, average /
+  median / best peak multiple, scanner coverage, and recent calls before a user subscribes.
+- Added optional `RELAY_CHANNEL_ID` support so the bot relays only successfully-ingested,
+  approved-channel calls to the official Degenaration Discord with mentions disabled.
+- Added `supabase/call-source-platform.sql` and admin-flow fixes: application approval is now
+  a vetting decision; an actual copy source appears only when a selected Discord channel is
+  approved. Multiple approved channels from one guild reuse the same source.
+- Added scanner tests. Pending verification: server tests, TypeScript build, and local browser
+  smoke test. No production deployment or bot configuration was changed.
+- Browser smoke test caught a stale demo-group path in the new endpoint; moved the existing
+  id-based demo filter into a shared source module so both direct and API-backed source lists
+  exclude it.
+
 ## Session: professional finish pass (autonomous, overnight)
 
 ### Phase 0 — Config + hygiene (DONE, verified)
@@ -931,3 +1005,135 @@ over the entire codebase. Found 19 real bugs. Fixed all of them.
 - `npx tsc --noEmit`: clean, 0 errors.
 - `npm run build`: green, all 45 routes.
 - `node server/test/run.js`: 24/24 pass.
+
+## Session: automation integrity and production truthfulness (2026-07-16)
+
+- Added a health endpoint and startup preflight to the 24/7 worker. Live signing now
+  refuses to start when Privy signing credentials are missing.
+- Fixed worker commission records so fees remain zero when the Jupiter fee account is
+  not configured; failed Supabase writes now surface as execution errors.
+- Added Privy identity-token ownership checks for limit orders, wallet copy trading,
+  and Discord call copying. A submitted Solana wallet must belong to the same Privy user.
+- Added production automation status to `/api/platform/config`; limit and copy controls
+  no longer claim to be live when no healthy mainnet worker is configured.
+- Added `render.yaml` for the `degenaration-worker` service with safe signing-off defaults.
+- Added on-chain verification before a browser can mark a limit order filled, and applied
+  the `limit_order_fill_integrity` Supabase migration.
+- Deployed Vercel production deployment `dpl_E3DF4vKj2WSXBij1WdPaXJzTsfsb`.
+
+### Verify
+
+- `npx tsc --noEmit`: clean.
+- `npm run build`: green, 39 pages generated.
+- `npm --prefix server test`: 35/35 pass.
+- Worker `/health` process smoke test: watch-only status returned correctly.
+- Unsafe worker startup with signing enabled and missing secrets: rejected with exit 1.
+- Production `/terminal`, `/orders`, `/calls`, `/tracker`, and `/admin/channels`: HTTP 200.
+
+## Session: final source, referral, and release hardening (2026-07-29)
+
+- Deployed Discord profile synchronization, marketplace visibility rules, branded
+  fallbacks, stable public profiles, and admin health diagnostics.
+- Verified `/register` in an approved production Discord channel. Render recorded a
+  successful registration and profile sync; the marketplace now shows the real server
+  icon, member count, fresh sync timestamp, and healthy integration state.
+- Added signed pre-auth referral capture, immutable first-touch attribution, abuse
+  review records, canonical aliases, eligible custom slugs, cooldown/history, reward
+  lifecycle storage, and authoritative commission accrual with append-only reversals.
+- Removed public paper-trading controls and limited bot payloads to Solana Mainnet
+  drafts. Automated activation, delegated signing, payouts, and monetary referral
+  rewards remain disabled because the durable live execution/exit stack is incomplete.
+- Added skip navigation, labeled controls, responsive bot tabs, and fixed the public
+  source table so its internal horizontal scroll does not widen a 390px viewport.
+- Deployed Vercel production deployment `dpl_9GSTSk4oEKEooQc3Hzz37m1bDnTB`.
+- Updated `docs/FINAL_COMPLETION_AUDIT.md`; release decision remains `NOT READY`.
+
+### Verify
+
+- `npm run typecheck`: passed.
+- `npm test`: 41/41 passed.
+- `npm run build`: passed, 59 routes.
+- `git diff --check`: passed for committed runtime changes.
+- Production browser smoke: seven primary routes at 1440px, 768px, and 390px with no
+  console/page errors or horizontal overflow.
+
+## Session: mandatory Mizar reference and builder parity (2026-08-01)
+
+- Inventoried all 49 mandatory files in `.references/PNL CARDS/` and
+  `.references/SETTINGS AND FUNCTIONS IDEA/`; opened all 41 images at original
+  resolution and reviewed complete one-second contact-sheet coverage for all five videos.
+- Probed and decoded every video frame with temporary `/private/tmp` ffmpeg tooling. No
+  project dependency or lockfile changed.
+- Added the required inventory, parity matrix, click-flow map, and reference-coverage
+  documents under `docs/ai/`.
+- Reordered the shared Discord/KOL builder around identity, wallet, source/strategy, and
+  funding before advanced decisions; grouped final confirmation into Main, Buy, Sell, and
+  Advanced settings.
+- Fixed edit hydration for scanner presets and valid zero-valued cooldown, delay, and
+  priority settings. Added TP/DCA ordering and enabled-range validation, a distinct
+  preview failure state, and channel reset when changing Discord servers.
+- Browser testing exposed invalid nested labels in compact TP/DCA/range inputs. Replaced
+  them with stable per-control accessible names and reran the multi-level flow.
+- Captured six builder/dialog/filter evidence images across 1440, 1024, and 390 widths.
+  All widths had no page overflow and the final browser pass had no console errors.
+- `npm run check`: passed, including 170 tests and the production build.
+
+## Session: Discord marketplace parity contract (2026-08-01)
+
+- Added a forward-safe Discord marketplace RPC replacement that returns accepted,
+  rejected, and successfully executed call counts; latest processed and successful
+  execution timestamps; scanner freshness; and authoritative 1D/7D/30D net PnL
+  snapshots without converting missing ledger history to zero.
+- Reworked Discord source cards and profiles around shared activity, performance, and
+  call-count components while retaining the real server avatar, verification, scanner
+  health, followers, return statistics, drawdown, and creator commission.
+- Browser-tested the marketplace at 1440x1000, 1024x768, and 390x844. All three widths
+  had no horizontal overflow; period and sort controls changed state; the browser console
+  had no warnings or errors.
+- The local app bridge lacked product database credentials, so it correctly rendered the
+  provider-failure state. The migration was not applied and live source cards remain
+  deployment evidence rather than a PASS claim.
+- Typecheck, code quality, 170 tests, performance-journal verification, and visible-copy
+  checks passed.
+
+## Session: Bot Manager fee and archive parity (2026-08-01)
+
+- Confirmed the user bot list RPC already returns authoritative 30-day network,
+  platform, and creator fee fields; added them to the client contract and manager table.
+- Added a compact total-fee cell with visible gas cost and a tooltip breakdown without
+  treating a missing snapshot as zero.
+- Replaced direct archive with an accessible confirmation. Escape, backdrop, and Cancel
+  close safely; submission is locked while pending; bots with open positions cannot enter
+  the archive flow; historical versions, executions, performance, and finances remain.
+- Typecheck, code quality, visible-copy, and whitespace checks passed. Authenticated
+  lifecycle browser evidence remains pending because no test user session is available.
+
+## Session: PnL share identity and link parity (2026-08-01)
+
+- Replaced the PnL export's decorative letter block with the same original SVG geometry
+  used by the DegenAration application logo.
+- Made the visible card URL, QR target, response metadata, native share text, and
+  clipboard fallback resolve to the same canonical or verified referral URL.
+- Retained server-side PnL derivation, authenticated record lookup, immutable snapshot
+  recording, restrained win/loss colors, and deterministic 1600x900 export dimensions.
+- Did not infer completed-trade exit prices: the current ledger lacks a durable position
+  to exit-execution price relationship, so losing completed-trade parity remains BLOCKED.
+- `npm run check` passed, including 170 tests and the production build. Authenticated PnL
+  render screenshots remain pending.
+
+## Session: Safe migration and bot lifecycle verification (2026-08-01)
+
+- Added repeatable PostgreSQL migration verification with PGlite and proved the Discord
+  marketplace migration preserves fixture history, keeps unknown metrics null, reruns
+  safely, and remains callable only through the service-role bridge.
+- Added terminal archive, live Discord source uniqueness, and immutable position entry
+  configuration guards without rewriting existing bot or position history.
+- Added an owner-only signal and execution journal RPC, API route, manager action, and
+  responsive activity table while keeping Portfolio positions as a separate action.
+- Exercised actual bot RPCs with two isolated subjects: create, persisted hydration, edit,
+  versions 1 through 6, activate, pause, resume, archive guard, archive, denied restore,
+  allowed KOL duplication, denied Discord source duplication, owner denial, and retained
+  entry snapshots all passed.
+- Queried production read-only before deployment: no duplicate live Discord source/profile
+  sets and no bot positions missing snapshots were found. New lifecycle/activity migrations
+  remain intentionally unapplied pending a confirmed safe target.
