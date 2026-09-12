@@ -1,8 +1,9 @@
-import Nav from "@/components/Nav";
-import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowUpRight, Radio, SlidersHorizontal, ChartNoAxesCombined, Wallet, BookOpen, ShieldCheck } from "lucide-react";
+import HeroStage from "@/components/landing/HeroStage";
+import { getLandingStats } from "@/lib/server/landing";
 
 const STEPS = [
   { title: "Find your signal", copy: "Explore Discord sources and KOL strategies. Review the available history before you decide what to follow." },
@@ -10,10 +11,30 @@ const STEPS = [
   { title: "Follow the outcome", copy: "Authorize automation from your wallet, then review positions and execution history in your portfolio." }
 ];
 
-export default function Home() {
+const INFRASTRUCTURE = [
+  { name: "Solana", logo: "/logos/solana.svg", role: "Settlement" },
+  { name: "Privy", logo: "/logos/privy.svg", role: "Wallet authorization" },
+  { name: "Jupiter", logo: "/logos/jupiter.svg", role: "Route execution" },
+  { name: "Discord", logo: "/logos/discord.svg", role: "Signal ingestion" },
+  { name: "Supabase", logo: "/logos/supabase.svg", role: "Durable journal" }
+] as const;
+
+export default async function Home() {
+  const stats = await getLandingStats();
   return <div className="degen-home market-home" id="top">
     <main id="main-content" tabIndex={-1}>
-    <div className="market-stage"><Nav /><Hero /></div>
+    <HeroStage stats={stats} />
+    <section className="infra-rail" aria-label="Execution infrastructure">
+      <div className="infra-rail-heading"><span>Execution stack</span><strong>Built on infrastructure traders already trust</strong></div>
+      <div className="infra-marquee-mask">
+        <div className="infra-marquee-track">
+          {[...INFRASTRUCTURE, ...INFRASTRUCTURE].map((item, index) => <div className="infra-partner" key={`${item.name}-${index}`} aria-hidden={index >= INFRASTRUCTURE.length}>
+            <Image src={item.logo} alt={index < INFRASTRUCTURE.length ? `${item.name} logo` : ""} width={30} height={30} />
+            <span><strong>{item.name}</strong><small>{item.role}</small></span>
+          </div>)}
+        </div>
+      </div>
+    </section>
     <section className="market-proof" aria-label="Platform capabilities"><span><Radio size={17} aria-hidden="true" /> Source discovery</span><span><SlidersHorizontal size={17} aria-hidden="true" /> Configurable risk</span><span><ChartNoAxesCombined size={17} aria-hidden="true" /> Recorded outcomes</span><span><Wallet size={17} aria-hidden="true" /> Your wallet</span></section>
     <section className="market-section" id="platform">
       <div className="market-section-heading"><p>One connected workspace</p><h2>Built around the trade.</h2><span>From your first signal to your next decision.</span></div>

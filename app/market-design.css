@@ -1,6 +1,21 @@
 /* Public discovery and trading workspace share the same material palette. */
 .market-home { padding-top: 28px; background: radial-gradient(ellipse at 10% 0%, #30291f 0, transparent 38%), #090b0e; --dim: #aaaeb6; --dim-rgb: 170 174 182; }
 .market-stage { max-width: 1440px; margin: 0 auto; border: 1px solid #ffffff14; border-radius: 28px; background: #0c0f14; overflow: hidden; box-shadow: 0 32px 100px #0005; }
+.infra-rail { max-width: 1380px; margin: 22px auto 0; padding: 22px 28px; display: grid; grid-template-columns: minmax(220px,.75fr) minmax(0,2fr); align-items: center; gap: 28px; border: 1px solid rgb(var(--ink-rgb)/.09); border-radius: 20px; background: rgb(var(--ink-rgb)/.025); overflow: hidden; }
+.infra-rail-heading { display: grid; gap: 6px; }
+.infra-rail-heading span { color: rgb(var(--gold-400-rgb)); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.infra-rail-heading strong { max-width: 260px; color: rgb(var(--ink-rgb)); font-size: 15px; line-height: 1.35; }
+.infra-marquee-mask { min-width: 0; overflow: hidden; mask-image: linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent); }
+.infra-marquee-track { display: flex; width: max-content; animation: infra-marquee 26s linear infinite; }
+.infra-partner { width: 190px; display: flex; align-items: center; gap: 12px; padding: 4px 22px; border-right: 1px solid rgb(var(--ink-rgb)/.09); }
+.infra-partner img { width: 28px; height: 28px; object-fit: contain; filter: saturate(.75); }
+.infra-partner span { display: grid; gap: 2px; }
+.infra-partner strong { color: rgb(var(--ink-rgb)); font-size: 14px; line-height: 1.2; }
+.infra-partner small { color: rgb(var(--dim-rgb)); font-size: 10px; letter-spacing: .02em; }
+.infra-rail:hover .infra-marquee-track, .infra-rail:focus-within .infra-marquee-track { animation-play-state: paused; }
+@keyframes infra-marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .infra-marquee-track { width: 100%; flex-wrap: wrap; animation: none; } .infra-partner:nth-child(n+6) { display: none; } }
+@media (max-width: 760px) { .infra-rail { margin: 12px; padding: 20px; grid-template-columns: 1fr; gap: 18px; } .infra-partner { width: 166px; padding-inline: 16px; } }
 .market-nav { padding: 14px 20px; border-bottom: 1px solid #ffffff0a; }
 .market-nav nav { max-width: 1280px; height: 64px; }
 .market-nav a { min-height: 44px; display: inline-flex; align-items: center; }
