@@ -62,6 +62,13 @@ type TradeHistoryData = {
   quotes: Record<string, { priceUsd: number | null; symbol: string | null; name: string | null; decimals: number | null }>;
 };
 
+type ReferralSnapshot = {
+  referralCode: string;
+  activeReferredUsers: number;
+  referralAvailableLamports: number | string;
+  referralLifetimeLamports: number | string;
+};
+
 export default function PortfolioDashboard() {
   const { authenticated, user, login, logout, getAccessToken } = usePrivy();
   const { identityToken } = useIdentityToken();
@@ -72,6 +79,7 @@ export default function PortfolioDashboard() {
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryData | null>(null);
   const [walletPortfolio, setWalletPortfolio] = useState<Portfolio | null>(null);
+  const [referrals, setReferrals] = useState<ReferralSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
@@ -107,9 +115,10 @@ export default function PortfolioDashboard() {
     // portfolio, and a failed summary must not leave the page rendering nothing (§16).
     Promise.allSettled([
       productFetch<PortfolioSummary>(`/api/product/portfolio?period=${period}`, { getAccessToken }, { signal }),
-      walletAddress ? fetchPortfolio(walletAddress, getNet()) : Promise.resolve(null)
+      walletAddress ? fetchPortfolio(walletAddress, getNet()) : Promise.resolve(null),
+      productFetch<ReferralSnapshot>("/api/product/affiliate?scope=all", { getAccessToken }, { signal })
     ])
-      .then(([product, chain]) => {
+      .then(([product, chain, referral]) => {
         if (product.status === "fulfilled") {
           setSummary(product.value);
           setUpdatedAt(Date.now());
@@ -118,6 +127,7 @@ export default function PortfolioDashboard() {
           setError(product.reason instanceof Error && product.reason.message === "unauthorized" ? "Your session expired. Reconnect your account, then try again." : product.reason instanceof Error ? product.reason.message : "Portfolio data is temporarily unavailable.");
         }
         if (chain.status === "fulfilled") setWalletPortfolio(chain.value);
+        if (referral.status === "fulfilled") setReferrals(referral.value);
       })
       .finally(() => setLoading(false));
   }, [authenticated, getAccessToken, period, walletAddress]);
@@ -240,6 +250,19 @@ export default function PortfolioDashboard() {
           indistinguishable from a bot that has traded and lost, or one that has not run at all.
           The user is entitled to know which. */}
       <div className="mt-5"><TradingNotice /></div>
+
+      {referrals && (
+        <section className="mt-5 grid gap-px overflow-hidden rounded-md border border-edge bg-edge md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(150px,.6fr))_auto]">
+          <div className="bg-panel p-5">
+            <p className="ui-label text-gold-400">Your referral link</p>
+            <p className="mt-2 truncate font-mono t-body font-semibold text-ink">/r/{referrals.referralCode}</p>
+            <p className="mt-1 t-label text-dim">Earn 10% of the platform trading fees collected from referred accounts.</p>
+          </div>
+          <div className="bg-panel p-5"><p className="ui-label">Active referrals</p><p className="mt-2 font-mono t-title font-semibold text-ink">{referrals.activeReferredUsers || 0}</p></div>
+          <div className="bg-panel p-5"><p className="ui-label">Available rewards</p><p className="mt-2 font-mono t-title font-semibold text-ink">{formatSol(referrals.referralAvailableLamports)}</p></div>
+          <div className="flex items-center bg-panel p-5"><Link href="/affiliate?section=referrals" className="inline-flex min-h-11 items-center gap-2 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c]">Manage referrals <ExternalLink size={14} aria-hidden="true" /></Link></div>
+        </section>
+      )}
 
       {/**
         * The balance block, given the reference dashboard's treatment.

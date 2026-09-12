@@ -375,9 +375,7 @@ function ReferralDashboard({
   const validatedSlug = validation.ok && typeof validation.slug === "string" ? validation.slug : null;
   const currentSlug = summary.referralCode.toLowerCase();
   const changed = validatedSlug != null && validatedSlug !== currentSlug;
-  const cooldownActive = summary.slugCooldownUntil
-    ? new Date(summary.slugCooldownUntil).getTime() > Date.now()
-    : false;
+  const renameUsed = Boolean(summary.slugChangedAt);
 
   useEffect(() => {
     setSlug(summary.referralCode.toLowerCase());
@@ -521,15 +519,17 @@ function ReferralDashboard({
               </div>
               <p className="mt-2 t-label leading-5 text-dim">
                 {summary.customSlugEligible
-                  ? "Change only the final path segment. Previous links remain reserved and redirect safely for one year."
-                  : "Custom paths unlock after a Discord source or affiliate account is approved."}
+                  ? "Choose the final path segment carefully. Every account can rename its generated code once; the previous link remains reserved."
+                  : renameUsed
+                    ? "Your one referral URL change has been used. This path is now permanent."
+                    : "Your referral URL is being prepared."}
               </p>
               <label className="mt-4 block">
                 <span className="field-label">degenaration.vercel.app/r/</span>
                 <input
                   value={slug}
                   onChange={(event) => setSlug(event.target.value.toLowerCase())}
-                  disabled={!summary.customSlugEligible || cooldownActive}
+                  disabled={!summary.customSlugEligible}
                   maxLength={32}
                   className="mt-2 min-h-11 w-full rounded-md border border-edge bg-void px-3 font-mono t-body text-ink outline-none focus:border-gold-400 disabled:cursor-not-allowed disabled:opacity-50"
                 />
@@ -539,8 +539,8 @@ function ReferralDashboard({
               }`}>
                 {!summary.customSlugEligible
                   ? "Approval required."
-                  : cooldownActive
-                    ? `Next change available ${formatWhen(summary.slugCooldownUntil)}.`
+                  : renameUsed
+                    ? "Your one change has already been used."
                     : !validation.ok
                       ? validation.error
                       : checking
@@ -552,7 +552,7 @@ function ReferralDashboard({
               <button
                 type="button"
                 onClick={() => setConfirmOpen(true)}
-                disabled={!changed || !check?.available || checking || saving || cooldownActive}
+                disabled={!changed || !check?.available || checking || saving}
                 className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-gold-400 px-4 t-body font-semibold text-[#17110c] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <PencilLine size={15} />
@@ -576,9 +576,9 @@ function ReferralDashboard({
             <dl className="mt-5 divide-y divide-edge border-y border-edge t-label">
               <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Current</dt><dd className="break-all font-mono text-ink">/r/{currentSlug}</dd></div>
               <div className="flex justify-between gap-4 py-3"><dt className="text-dim">New</dt><dd className="break-all font-mono text-gold-400">/r/{validatedSlug}</dd></div>
-              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Cooldown</dt><dd className="font-mono text-ink">30 days</dd></div>
+              <div className="flex justify-between gap-4 py-3"><dt className="text-dim">Future changes</dt><dd className="font-mono text-ink">Not available</dd></div>
             </dl>
-            <p className="mt-4 t-label leading-5 text-dim">The old URL will keep redirecting during its retention period and cannot be claimed by another account.</p>
+            <p className="mt-4 t-label leading-5 text-dim">This change is permanent. The old URL remains reserved and cannot be claimed by another account.</p>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setConfirmOpen(false)} className="min-h-11 sm:min-h-10 rounded-md border border-edge px-4 t-label font-semibold text-ink">Cancel</button>
               <button type="button" onClick={saveSlug} disabled={saving} className="min-h-11 sm:min-h-10 rounded-md bg-gold-400 px-4 t-label font-semibold text-[#17110c] disabled:opacity-50">{saving ? "Saving..." : "Confirm change"}</button>
