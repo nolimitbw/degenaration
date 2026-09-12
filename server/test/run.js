@@ -4133,14 +4133,14 @@ console.log("price selection");
     const reasons = new Set();
     for (const [field, value] of [
       ["walletOwned", false], ["configurationValid", false], ["killSwitch", true],
-      ["workerLive", false], ["feeAccountReady", false], ["mainnetReleased", false]
+      ["workerLive", false], ["mainnetReleased", false]
     ]) {
       const verdict = evaluateReadiness({ ...READY, [field]: value });
       assert.strictEqual(verdict.ready, false, `${field} must block`);
       assert.ok(verdict.reason && verdict.reason.length > 10, `${field} must name itself`);
       reasons.add(verdict.reason);
     }
-    assert.strictEqual(reasons.size, 6, "six distinct faults must give six distinct messages");
+    assert.strictEqual(reasons.size, 5, "five distinct faults must give five distinct messages");
   });
 
   test("the user's own problem is shown before a platform blocker", () => {
@@ -4164,7 +4164,7 @@ console.log("price selection");
   test("an unknown fact fails closed", () => {
     // undefined is not true. Activating on a fact we could not establish is the shape of every
     // defect this project has spent its time removing.
-    for (const field of ["sourceApproved", "channelRegistered", "duplicateActiveBot", "dailyBudgetAvailable", "workerLive", "signerConfigured", "feeAccountReady", "mainnetReleased"]) {
+    for (const field of ["sourceApproved", "channelRegistered", "duplicateActiveBot", "dailyBudgetAvailable", "workerLive", "signerConfigured", "mainnetReleased"]) {
       const facts = { ...READY };
       delete facts[field];
       assert.strictEqual(evaluateReadiness(facts).ready, false, `${field} unknown must not pass`);
@@ -4174,6 +4174,12 @@ console.log("price selection");
   test("an unreadable balance does not prevent a configured bot from waiting", () => {
     const verdict = evaluateReadiness({ ...READY, requiredLamports: "not-a-number" });
     assert.strictEqual(verdict.ready, true);
+  });
+
+  test("fee collection readiness never prevents a bot from starting", () => {
+    const verdict = evaluateReadiness({ ...READY, feeAccountReady: false });
+    assert.strictEqual(verdict.ready, true);
+    assert.strictEqual(verdict.failedCheck, null);
   });
 
   test("a capital shortfall allows activation and is enforced when execution is claimed", () => {
