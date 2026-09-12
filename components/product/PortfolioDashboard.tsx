@@ -285,6 +285,15 @@ export default function PortfolioDashboard() {
           <div className="flex shrink-0 flex-wrap gap-2">
             <button
               type="button"
+              onClick={() => setShare({ type: "portfolio" })}
+              disabled={!summary?.performance}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-edge px-5 t-body font-medium text-ink transition-colors duration-150 hover:border-gold-400 disabled:cursor-not-allowed disabled:opacity-35"
+              title={summary?.performance ? "Create a verified performance image" : "A PnL card becomes available after a reconciled trade"}
+            >
+              <Share2 aria-hidden="true" size={15} /> PnL card
+            </button>
+            <button
+              type="button"
               onClick={() => setDepositOpen(true)}
               className="inline-flex min-h-11 items-center gap-2 rounded-full border border-edge px-5 t-body font-medium text-ink transition-colors duration-150 hover:border-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
             >

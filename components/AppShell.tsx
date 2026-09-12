@@ -248,7 +248,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             const active = isActivePath(path, href);
             return (
               <div key={href}>
-                <Link href={href} aria-current={active ? "page" : undefined} className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
+                <Link href={href} aria-current={active ? "page" : undefined} className={`app-nav-parent relative flex min-h-11 items-center gap-3 rounded-md px-3 t-body transition ${active ? "font-medium text-ink" : "text-dim hover:text-ink"}`}>
                   {active && <motion.span layoutId="app-nav-active" className="absolute inset-y-1 left-0 w-[2px] rounded-full bg-gold-400" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
                   <Icon aria-hidden="true" size={17} strokeWidth={1.7} className={active ? "text-ink" : "text-[color:var(--text-muted)]"} />
                   {label}
@@ -265,7 +265,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                           <Link
                             href={child.href}
                             aria-current={childActive ? "page" : undefined}
-                            className={`flex min-h-10 items-center rounded-md px-2.5 t-meta transition-colors duration-150 ${childActive ? "font-medium text-ink" : "text-dim hover:text-ink"}`}
+                            className={`app-nav-child flex min-h-9 items-center px-2.5 t-meta transition-colors duration-150 ${childActive ? "font-medium text-gold-400" : "text-dim hover:text-ink"}`}
                           >
                             {child.label}
                           </Link>

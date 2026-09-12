@@ -66,6 +66,9 @@
 .app-shell .app-sidebar { background: var(--panel); border-right: 1px solid var(--rule-strong); width: 232px; }
 .app-shell .app-sidebar nav a:hover { background: var(--rule); }
 .app-shell .app-sidebar nav a[aria-current="page"] { background: var(--rule-strong); color: var(--ink); }
+.app-shell .app-sidebar nav .app-nav-parent[aria-current="page"],
+.app-shell .app-sidebar nav .app-nav-child[aria-current="page"] { background: transparent; }
+.app-shell .app-sidebar nav .app-nav-child[aria-current="page"] { color: var(--gold); }
 .terminal-network { color: var(--dim); border: 1px solid var(--rule-strong); border-radius: 5px; padding: 5px 9px; font-size: 11px; }
 .terminal-page-header { margin-bottom: 12px; padding-bottom: 24px; border-bottom: 1px solid var(--rule); }
 .terminal-page-header h1 { font-size: clamp(27px, 3vw, 36px); letter-spacing: -.035em; }

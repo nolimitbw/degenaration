@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { PrivyClient } from "@privy-io/server-auth";
 import { callAppBridge } from "@/lib/server/app-bridge";
 import { privyWalletFromPayload, solanaWalletFromPayload } from "@/lib/server/privy-wallet";
 import { linkedAccounts } from "@/lib/server/privy-wallet";
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let privyAdmin: PrivyClient | null = null;
 
 function appId() {
   // Browser access tokens are issued for the public Privy app configured in PrivyProvider.
@@ -16,6 +18,27 @@ function keySet() {
   if (!id) return null;
   if (!jwks) jwks = createRemoteJWKSet(new URL(`https://auth.privy.io/api/v1/apps/${id}/jwks.json`));
   return jwks;
+}
+
+function adminClient() {
+  const id = appId();
+  const secret = process.env.PRIVY_APP_SECRET || "";
+  if (!id || !secret) return null;
+  if (!privyAdmin) privyAdmin = new PrivyClient(id, secret);
+  return privyAdmin;
+}
+
+async function hasCurrentDelegation(privyUserId: string, walletAddress: string, walletId: string) {
+  const client = adminClient();
+  if (!client) return false;
+  const current = await client.getUserById(privyUserId);
+  return current.linkedAccounts.some((account) => {
+    if (account.type !== "wallet" || account.chainType !== "solana") return false;
+    const accountId = "id" in account ? String(account.id || "") : "";
+    return account.address === walletAddress
+      && (!accountId || accountId === walletId)
+      && account.delegated === true;
+  });
 }
 
 export async function requirePrivyUser(req: NextRequest) {
@@ -51,7 +74,11 @@ export async function requirePrivyWallet(
     const { payload } = await jwtVerify(token, keys, { issuer: "privy.io", audience: id });
     const wallet = privyWalletFromPayload(payload, privyUserId, walletAddress, walletId);
     if (!wallet) throw new Error("wallet mismatch");
-    return { ok: true as const, delegated: wallet.delegated === true };
+    // Identity tokens can remain cached briefly after addSigners succeeds. Ownership still
+    // comes from the signed token; only refresh the delegation flag from Privy's server API.
+    const delegated = wallet.delegated === true
+      || await hasCurrentDelegation(privyUserId, walletAddress, walletId).catch(() => false);
+    return { ok: true as const, delegated };
   } catch {
     return { ok: false as const, response: NextResponse.json({ error: "wallet does not belong to this user" }, { status: 403 }) };
   }
