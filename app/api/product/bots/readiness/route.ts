@@ -157,7 +157,11 @@ export async function POST(req: NextRequest) {
     workerReason: liveness.ok ? liveness.data?.reason ?? null : "the execution service stopped reporting",
     signerConfigured: release.checks.find((check) => check.id === "signer")?.ok === true,
     feeAccountReady: fee.ready === true,
-    mainnetReleased: release.active
+    // Match the activation route exactly. `active` also includes operator advisories such as
+    // fee collection and scanner detail, while `tradable` contains every user-safety gate.
+    // Using different verdicts made the builder claim mainnet was disabled immediately before
+    // the activation route accepted the same bot.
+    mainnetReleased: release.tradable
   });
 
   return NextResponse.json(verdict, { headers: { "Cache-Control": "no-store, max-age=0" } });

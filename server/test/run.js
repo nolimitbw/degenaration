@@ -3905,11 +3905,15 @@ console.log("price selection");
   });
 
   test("activation gates on tradable, and both activation routes agree", () => {
-    for (const route of ["app/api/product/bots/route.ts", "app/api/product/kol-subscriptions/route.ts"]) {
+    for (const route of [
+      "app/api/product/bots/route.ts",
+      "app/api/product/kol-subscriptions/route.ts",
+      "app/api/product/bots/readiness/route.ts"
+    ]) {
       const body = fs.readFileSync(path.join(__dirname, "../../", route), "utf8");
-      assert.ok(/if \(!readiness\.tradable\)/.test(body), `${route} must gate on readiness.tradable`);
-      assert.ok(!/if \(!readiness\.active\)/.test(body),
-        `${route} still gates on readiness.active — the two activation paths would disagree about whether the product is open`);
+      assert.ok(/readiness\.tradable|release\.tradable/.test(body), `${route} must use the tradable verdict`);
+      assert.ok(!/if \(!readiness\.active\)|mainnetReleased:\s*release\.active/.test(body),
+        `${route} still uses active — the builder and activation path would disagree about whether the product is open`);
     }
   });
 
