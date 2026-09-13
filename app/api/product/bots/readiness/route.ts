@@ -157,7 +157,9 @@ export async function POST(req: NextRequest) {
     workerReason: liveness.ok ? liveness.data?.reason ?? null : "the execution service stopped reporting",
     signerConfigured: release.checks.find((check) => check.id === "signer")?.ok === true,
     feeAccountReady: fee.ready === true,
-    mainnetReleased: release.active
+    // Match the activation route. Operator advisories must not make the builder reject a bot
+    // that the activation endpoint is allowed to start.
+    mainnetReleased: release.tradable
   });
 
   return NextResponse.json(verdict, { headers: { "Cache-Control": "no-store, max-age=0" } });
